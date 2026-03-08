@@ -1,14 +1,18 @@
 // @vitest-environment node
 
 import type {
+  AwarenessEngine,
+  AwarenessState,
   CursorData,
   CursorEngine,
   CursorPosition,
+  EventEngine,
   Peer,
   PresenceData,
   PresenceEngine,
   Room,
   RoomOptions,
+  RoomStatus,
   StateChangeMeta,
   StateEngine,
 } from '@flockjs/core';
@@ -18,7 +22,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   FlockProvider,
+  useAwareness,
+  type UseAwarenessResult,
+  useConnectionStatus,
   useCursors,
+  useEvent,
+  usePeers,
   usePresence,
   type UsePresenceResult,
   useRoom,
@@ -50,6 +59,14 @@ type TestCursorEngine = CursorEngine<CursorData> & {
   getPositions: ReturnType<typeof vi.fn<() => CursorPosition<CursorData>[]>>;
 };
 
+type TestAwarenessEngine = AwarenessEngine & {
+  subscribe: ReturnType<typeof vi.fn<(cb: (peers: AwarenessState[]) => void) => () => void>>;
+};
+
+type TestEventEngine = EventEngine<PresenceData> & {
+  on: ReturnType<typeof vi.fn<(name: string, cb: (payload: unknown, from: Peer<PresenceData>) => void) => () => void>>;
+};
+
 type TestStateEngine<T> = StateEngine<T> & {
   subscribe: ReturnType<
     typeof vi.fn<(cb: (value: T, meta: StateChangeMeta) => void) => () => void>
@@ -60,7 +77,9 @@ type TestStateEngine<T> = StateEngine<T> & {
 type TestRoom = Room<PresenceData> & {
   connect: ReturnType<typeof vi.fn<() => Promise<void>>>;
   disconnect: ReturnType<typeof vi.fn<() => Promise<void>>>;
+  awarenessEngine: TestAwarenessEngine;
   cursorEngine: TestCursorEngine;
+  eventEngine: TestEventEngine;
   presenceEngine: TestPresenceEngine;
   stateEngine: TestStateEngine<unknown>;
 };
@@ -126,6 +145,16 @@ function createCursor(
   };
 }
 
+function createAwareness(
+  peerId: string,
+  overrides: Partial<AwarenessState> = {},
+): AwarenessState {
+  return {
+    peerId,
+    ...overrides,
+  };
+}
+
 function createMockCursorEngine(positions: CursorPosition<CursorData>[] = []): TestCursorEngine {
   const currentPositions = positions;
 
@@ -143,6 +172,38 @@ function createMockCursorEngine(positions: CursorPosition<CursorData>[] = []): T
       return currentPositions;
     }),
   } as TestCursorEngine;
+}
+
+function createMockAwarenessEngine(peers: AwarenessState[] = []): TestAwarenessEngine {
+  const currentPeers = peers;
+
+  return {
+    set: vi.fn(),
+    setTyping: vi.fn(),
+    setFocus: vi.fn(),
+    setSelection: vi.fn(),
+    subscribe: vi.fn(() => {
+      return () => {
+        return undefined;
+      };
+    }),
+    getAll() {
+      return currentPeers;
+    },
+  } as TestAwarenessEngine;
+}
+
+function createMockEventEngine(): TestEventEngine {
+  return {
+    emit: vi.fn(),
+    emitTo: vi.fn(),
+    on: vi.fn(() => {
+      return () => {
+        return undefined;
+      };
+    }),
+    off: vi.fn(),
+  } as TestEventEngine;
 }
 
 function cloneTestValue<T>(value: T): T {
@@ -176,24 +237,33 @@ function createMockRoom(
   roomId = 'server-room',
   options: RoomOptions<PresenceData> = {},
   config: {
+    awarenessEngine?: TestAwarenessEngine;
     cursorEngine?: TestCursorEngine;
+    eventEngine?: TestEventEngine;
     peerId?: string;
     presenceEngine?: TestPresenceEngine;
+    status?: RoomStatus;
     stateEngine?: TestStateEngine<unknown>;
   } = {},
 ): TestRoom {
   const peerId = config.peerId ?? `${roomId}-peer`;
+  const awarenessEngine = config.awarenessEngine ?? createMockAwarenessEngine();
   const cursorEngine = config.cursorEngine ?? createMockCursorEngine();
+  const eventEngine = config.eventEngine ?? createMockEventEngine();
   const stateEngine = config.stateEngine ?? createMockStateEngine({});
   const presenceEngine =
     config.presenceEngine ?? createMockPresenceEngine(peerId, [createPeer(peerId)]);
+  const currentStatus = config.status ?? 'idle';
+  const currentPeers = presenceEngine.getAll().filter((peer) => {
+    return peer.id !== peerId;
+  });
 
   const room = {
     id: roomId,
     peerId,
-    status: 'idle',
-    peers: [],
-    peerCount: 0,
+    status: currentStatus,
+    peers: currentPeers,
+    peerCount: currentPeers.length,
     connect: vi.fn(async () => {
       return undefined;
     }),
@@ -209,8 +279,12 @@ function createMockRoom(
     useState: vi.fn(() => {
       return stateEngine;
     }),
-    useAwareness: vi.fn(),
-    useEvents: vi.fn(),
+    useAwareness: vi.fn(() => {
+      return awarenessEngine;
+    }),
+    useEvents: vi.fn(() => {
+      return eventEngine;
+    }),
     getYDoc: vi.fn(),
     getYProvider: vi.fn(),
     on: vi.fn(() => {
@@ -219,7 +293,9 @@ function createMockRoom(
       };
     }),
     off: vi.fn(),
+    awarenessEngine,
     cursorEngine,
+    eventEngine,
     presenceEngine,
     stateEngine,
   } as TestRoom;
@@ -412,5 +488,150 @@ describe('FlockProvider SSR', () => {
     expect(room.connect).toHaveBeenCalledTimes(0);
     expect(room.disconnect).toHaveBeenCalledTimes(0);
     expect(stateEngine.subscribe).toHaveBeenCalledTimes(0);
+  });
+
+  it('lets useAwareness() read the initial remote snapshot during server render without subscribing', () => {
+    const awarenessEngine = createMockAwarenessEngine([
+      createAwareness('server-awareness-self', {
+        focus: 'self',
+      }),
+      createAwareness('server-awareness-other', {
+        typing: true,
+      }),
+    ]);
+    const room = createMockRoom(
+      'server-awareness-room',
+      {},
+      {
+        awarenessEngine,
+        peerId: 'server-awareness-self',
+      },
+    );
+    let observedAwareness: UseAwarenessResult | null = null;
+
+    function AwarenessConsumer(): null {
+      observedAwareness = useAwareness();
+      return null;
+    }
+
+    const html = renderToString(
+      createElement(
+        FlockProvider,
+        {
+          roomId: 'server-awareness-room',
+        },
+        createElement(AwarenessConsumer),
+      ),
+    );
+
+    expect(html).toBe('');
+    expect(createRoomMock).toHaveBeenCalledTimes(1);
+    expect(observedAwareness?.others).toEqual([
+      createAwareness('server-awareness-other', {
+        typing: true,
+      }),
+    ]);
+    expect(room.connect).toHaveBeenCalledTimes(0);
+    expect(room.disconnect).toHaveBeenCalledTimes(0);
+    expect(awarenessEngine.subscribe).toHaveBeenCalledTimes(0);
+  });
+
+  it('lets usePeers() read the initial peer snapshot during server render without subscribing', () => {
+    const self = createPeer('server-peers-self', {
+      name: 'Self',
+    });
+    const other = createPeer('server-peers-other', {
+      name: 'Other',
+    });
+    const presenceEngine = createMockPresenceEngine('server-peers-self', [self, other]);
+    const room = createMockRoom(
+      'server-peers-room',
+      {},
+      {
+        peerId: 'server-peers-self',
+        presenceEngine,
+      },
+    );
+    let observedPeers: Peer<PresenceData>[] | null = null;
+
+    function PeersConsumer(): null {
+      observedPeers = usePeers();
+      return null;
+    }
+
+    const html = renderToString(
+      createElement(
+        FlockProvider,
+        {
+          roomId: 'server-peers-room',
+        },
+        createElement(PeersConsumer),
+      ),
+    );
+
+    expect(html).toBe('');
+    expect(createRoomMock).toHaveBeenCalledTimes(1);
+    expect(observedPeers).toEqual([other]);
+    expect(room.connect).toHaveBeenCalledTimes(0);
+    expect(room.disconnect).toHaveBeenCalledTimes(0);
+    expect(presenceEngine.subscribe).toHaveBeenCalledTimes(0);
+  });
+
+  it('lets useConnectionStatus() read the initial status during server render without subscribing', () => {
+    createMockRoom('server-status-room', {}, { status: 'connected' });
+    let observedStatus: RoomStatus | null = null;
+
+    function StatusConsumer(): null {
+      observedStatus = useConnectionStatus();
+      return null;
+    }
+
+    const html = renderToString(
+      createElement(
+        FlockProvider,
+        {
+          roomId: 'server-status-room',
+        },
+        createElement(StatusConsumer),
+      ),
+    );
+
+    expect(html).toBe('');
+    expect(observedStatus).toBe('connected');
+  });
+
+  it('lets useEvent() render on the server without registering listeners', () => {
+    const eventEngine = createMockEventEngine();
+    const room = createMockRoom(
+      'server-event-room',
+      {},
+      {
+        eventEngine,
+      },
+    );
+    let observedEmit: ((payload: { text: string }) => void) | null = null;
+
+    function EventConsumer(): null {
+      observedEmit = useEvent<{ text: string }>('message', () => {
+        return undefined;
+      });
+      return null;
+    }
+
+    const html = renderToString(
+      createElement(
+        FlockProvider,
+        {
+          roomId: 'server-event-room',
+        },
+        createElement(EventConsumer),
+      ),
+    );
+
+    expect(html).toBe('');
+    expect(typeof observedEmit).toBe('function');
+    expect(room.connect).toHaveBeenCalledTimes(0);
+    expect(room.disconnect).toHaveBeenCalledTimes(0);
+    expect(eventEngine.on).toHaveBeenCalledTimes(0);
   });
 });

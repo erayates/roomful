@@ -1,9 +1,12 @@
 // @vitest-environment jsdom
 
 import type {
+  AwarenessEngine,
+  AwarenessState,
   CursorData,
   CursorEngine,
   CursorPosition,
+  EventEngine,
   Peer,
   PresenceData,
   PresenceEngine,
@@ -11,6 +14,7 @@ import type {
   RoomEventMap,
   RoomEventName,
   RoomOptions,
+  RoomStatus,
   StateChangeMeta,
   StateEngine,
 } from '@flockjs/core';
@@ -36,11 +40,15 @@ vi.mock('@flockjs/core', async () => {
   };
 });
 
-import type { UseCursorsResult, UsePresenceResult } from './index';
+import type { UseAwarenessResult, UseCursorsResult, UsePresenceResult } from './index';
 import {
   createReactHealth,
   FlockProvider,
+  useAwareness,
+  useConnectionStatus,
   useCursors,
+  useEvent,
+  usePeers,
   usePresence,
   useRoom,
   useSharedState,
@@ -50,7 +58,9 @@ Reflect.set(globalThis, 'IS_REACT_ACT_ENVIRONMENT', true);
 
 type RoomEventPayload = RoomEventMap<PresenceData>[RoomEventName];
 type RoomEventHandler = (payload: RoomEventPayload) => void;
+type AwarenessSubscriber = (peers: AwarenessState[]) => void;
 type CursorSubscriber = (positions: CursorPosition<CursorData>[]) => void;
+type EventSubscriber = (payload: unknown, from: Peer<PresenceData>) => void;
 type PresenceSubscriber = (peers: Peer<PresenceData>[]) => void;
 type StateSubscriber<T> = (value: T, meta: StateChangeMeta) => void;
 
@@ -79,6 +89,27 @@ type TestCursorEngine = CursorEngine<CursorData> & {
   >;
 };
 
+type TestAwarenessEngine = AwarenessEngine & {
+  emit(peers: AwarenessState[]): void;
+  subscriberCount(): number;
+  subscribe: ReturnType<typeof vi.fn<(cb: AwarenessSubscriber) => () => void>>;
+  set: ReturnType<typeof vi.fn<(value: Record<string, unknown>) => void>>;
+  setFocus: ReturnType<typeof vi.fn<(elementId: string | null) => void>>;
+  setSelection: ReturnType<
+    typeof vi.fn<(selection: AwarenessState['selection'] | null) => void>
+  >;
+  setTyping: ReturnType<typeof vi.fn<(isTyping: boolean) => void>>;
+};
+
+type TestEventEngine = EventEngine<PresenceData> & {
+  deliver(name: string, payload: unknown, from?: Peer<PresenceData>): void;
+  subscriberCount(name: string): number;
+  emit: ReturnType<typeof vi.fn<(name: string, payload: unknown) => void>>;
+  emitTo: ReturnType<typeof vi.fn<(peerId: string, name: string, payload: unknown) => void>>;
+  on: ReturnType<typeof vi.fn<(name: string, cb: EventSubscriber) => () => void>>;
+  off: ReturnType<typeof vi.fn<(name: string, cb: EventSubscriber) => void>>;
+};
+
 type TestStateEngine<T> = StateEngine<T> & {
   emit(value: T, meta?: StateChangeMeta): void;
   subscriberCount(): number;
@@ -94,7 +125,12 @@ type TestRoom = Room<PresenceData> & {
     event: TEvent,
     payload: RoomEventMap<PresenceData>[TEvent],
   ) => void;
+  listenerCount(event: RoomEventName): number;
+  setPeers(peers: Peer<PresenceData>[]): void;
+  setStatus(status: RoomStatus): void;
+  awarenessEngine: TestAwarenessEngine;
   cursorEngine: TestCursorEngine;
+  eventEngine: TestEventEngine;
   presenceEngine: TestPresenceEngine;
   stateEngine: TestStateEngine<unknown>;
 };
@@ -122,6 +158,16 @@ function createCursor(
     xAbsolute: 25,
     yAbsolute: 75,
     idle: false,
+    ...overrides,
+  };
+}
+
+function createAwareness(
+  peerId: string,
+  overrides: Partial<AwarenessState> = {},
+): AwarenessState {
+  return {
+    peerId,
     ...overrides,
   };
 }
@@ -175,6 +221,42 @@ function createMockPresenceEngine(
   return engine;
 }
 
+function createMockAwarenessEngine(
+  peers: AwarenessState[] = [],
+): TestAwarenessEngine {
+  const subscribers = new Set<AwarenessSubscriber>();
+  let currentPeers = peers;
+
+  const engine = {
+    set: vi.fn(),
+    setTyping: vi.fn(),
+    setFocus: vi.fn(),
+    setSelection: vi.fn(),
+    subscribe: vi.fn((callback: AwarenessSubscriber) => {
+      subscribers.add(callback);
+      callback(currentPeers);
+
+      return () => {
+        subscribers.delete(callback);
+      };
+    }),
+    getAll() {
+      return currentPeers;
+    },
+    emit(nextPeers: AwarenessState[]) {
+      currentPeers = nextPeers;
+      for (const subscriber of subscribers) {
+        subscriber(currentPeers);
+      }
+    },
+    subscriberCount() {
+      return subscribers.size;
+    },
+  } as TestAwarenessEngine;
+
+  return engine;
+}
+
 function createMockCursorEngine(
   positions: CursorPosition<CursorData>[] = [],
 ): TestCursorEngine {
@@ -207,6 +289,48 @@ function createMockCursorEngine(
       return subscribers.size;
     },
   } as TestCursorEngine;
+
+  return engine;
+}
+
+function createMockEventEngine(): TestEventEngine {
+  const subscribers = new Map<string, Set<EventSubscriber>>();
+
+  const engine = {
+    emit: vi.fn(),
+    emitTo: vi.fn(),
+    on: vi.fn((name: string, callback: EventSubscriber) => {
+      const handlers = subscribers.get(name) ?? new Set<EventSubscriber>();
+      handlers.add(callback);
+      subscribers.set(name, handlers);
+
+      return () => {
+        handlers.delete(callback);
+        if (handlers.size === 0) {
+          subscribers.delete(name);
+        }
+      };
+    }),
+    off: vi.fn((name: string, callback: EventSubscriber) => {
+      const handlers = subscribers.get(name);
+      if (!handlers) {
+        return;
+      }
+
+      handlers.delete(callback);
+      if (handlers.size === 0) {
+        subscribers.delete(name);
+      }
+    }),
+    deliver(name: string, payload: unknown, from = createPeer('event-source')) {
+      for (const subscriber of subscribers.get(name) ?? []) {
+        subscriber(payload, from);
+      }
+    },
+    subscriberCount(name: string) {
+      return subscribers.get(name)?.size ?? 0;
+    },
+  } as TestEventEngine;
 
   return engine;
 }
@@ -272,29 +396,54 @@ function createMockRoom(
   roomId = 'room-1',
   options: RoomOptions<PresenceData> = {},
   config: {
+    awarenessEngine?: TestAwarenessEngine;
     cursorEngine?: TestCursorEngine;
+    eventEngine?: TestEventEngine;
     peerId?: string;
     presenceEngine?: TestPresenceEngine;
+    status?: RoomStatus;
     stateEngine?: TestStateEngine<unknown>;
   } = {},
 ): TestRoom {
   const handlers = new Map<RoomEventName, Set<RoomEventHandler>>();
   const peerId = config.peerId ?? `${roomId}-peer`;
+  const awarenessEngine = config.awarenessEngine ?? createMockAwarenessEngine();
   const cursorEngine = config.cursorEngine ?? createMockCursorEngine();
+  const eventEngine = config.eventEngine ?? createMockEventEngine();
   const stateEngine = config.stateEngine ?? createMockStateEngine({});
   const presenceEngine =
     config.presenceEngine ?? createMockPresenceEngine(peerId, [createPeer(peerId)]);
+  let currentStatus = config.status ?? 'idle';
+  let currentPeers = presenceEngine.getAll().filter((peer) => {
+    return peer.id !== peerId;
+  });
+
+  const originalPresenceEmit = presenceEngine.emit.bind(presenceEngine);
+  presenceEngine.emit = (nextPeers: Peer<PresenceData>[]) => {
+    currentPeers = nextPeers.filter((peer) => {
+      return peer.id !== peerId;
+    });
+    originalPresenceEmit(nextPeers);
+  };
 
   const room = {
     id: roomId,
     peerId,
-    status: 'idle',
-    peers: [],
-    peerCount: 0,
+    get status() {
+      return currentStatus;
+    },
+    get peers() {
+      return currentPeers;
+    },
+    get peerCount() {
+      return currentPeers.length;
+    },
     connect: vi.fn(async () => {
+      currentStatus = 'connecting';
       return undefined;
     }),
     disconnect: vi.fn(async () => {
+      currentStatus = 'disconnected';
       return undefined;
     }),
     usePresence: vi.fn(() => {
@@ -306,8 +455,12 @@ function createMockRoom(
     useState: vi.fn(() => {
       return stateEngine;
     }),
-    useAwareness: vi.fn(),
-    useEvents: vi.fn(),
+    useAwareness: vi.fn(() => {
+      return awarenessEngine;
+    }),
+    useEvents: vi.fn(() => {
+      return eventEngine;
+    }),
     getYDoc: vi.fn(),
     getYProvider: vi.fn(),
     on: vi.fn((event: RoomEventName, handler: RoomEventHandler) => {
@@ -323,11 +476,39 @@ function createMockRoom(
       handlers.get(event)?.delete(handler);
     }),
     emit: (event: RoomEventName, payload: RoomEventPayload) => {
+      switch (event) {
+        case 'connected':
+          currentStatus = 'connected';
+          break;
+        case 'reconnecting':
+          currentStatus = 'reconnecting';
+          break;
+        case 'disconnected':
+          currentStatus = 'disconnected';
+          break;
+        case 'error':
+          currentStatus = 'error';
+          break;
+        default:
+          break;
+      }
+
       for (const handler of handlers.get(event) ?? []) {
         handler(payload);
       }
     },
+    listenerCount(event: RoomEventName) {
+      return handlers.get(event)?.size ?? 0;
+    },
+    setPeers(peers: Peer<PresenceData>[]) {
+      currentPeers = peers;
+    },
+    setStatus(status: RoomStatus) {
+      currentStatus = status;
+    },
+    awarenessEngine,
     cursorEngine,
+    eventEngine,
     presenceEngine,
     stateEngine,
   } as TestRoom;
@@ -881,6 +1062,729 @@ describe('usePresence', () => {
     expect(() => {
       renderToString(createElement(MissingProviderConsumer));
     }).toThrow('FlockProvider');
+  });
+});
+
+describe('useAwareness', () => {
+  it('returns remote awareness and forwards awareness mutators', async () => {
+    const self = createAwareness('awareness-self', {
+      typing: true,
+    });
+    const other = createAwareness('awareness-other', {
+      focus: 'editor-1',
+      selection: {
+        from: 1,
+        to: 3,
+        elementId: 'editor-1',
+      },
+      theme: 'dark',
+    });
+    const awarenessEngine = createMockAwarenessEngine([self, other]);
+    createMockRoom(
+      'awareness-room',
+      {},
+      {
+        awarenessEngine,
+        peerId: 'awareness-self',
+      },
+    );
+    let observedAwareness: UseAwarenessResult | null = null;
+
+    function AwarenessConsumer(): null {
+      observedAwareness = useAwareness();
+      return null;
+    }
+
+    const harness = await renderElement(
+      createElement(
+        FlockProvider,
+        {
+          roomId: 'awareness-room',
+        },
+        createElement(AwarenessConsumer),
+      ),
+    );
+
+    expect(observedAwareness?.others).toEqual([other]);
+
+    observedAwareness?.set({
+      mode: 'draft',
+    });
+    observedAwareness?.setFocus('comment-1');
+    observedAwareness?.setSelection({
+      from: 5,
+      to: 8,
+      elementId: 'comment-1',
+    });
+    observedAwareness?.setTyping(false);
+
+    expect(awarenessEngine.set).toHaveBeenCalledWith({
+      mode: 'draft',
+    });
+    expect(awarenessEngine.setFocus).toHaveBeenCalledWith('comment-1');
+    expect(awarenessEngine.setSelection).toHaveBeenCalledWith({
+      from: 5,
+      to: 8,
+      elementId: 'comment-1',
+    });
+    expect(awarenessEngine.setTyping).toHaveBeenCalledWith(false);
+
+    await harness.unmount();
+  });
+
+  it('rerenders for remote awareness changes and skips self-only or deep-equal updates', async () => {
+    const self = createAwareness('awareness-reactive-self', {
+      typing: false,
+    });
+    const other = createAwareness('awareness-reactive-other', {
+      focus: 'editor-1',
+      metadata: {
+        mode: 'draft',
+      },
+    });
+    const awarenessEngine = createMockAwarenessEngine([self, other]);
+    createMockRoom(
+      'awareness-reactivity',
+      {},
+      {
+        awarenessEngine,
+        peerId: 'awareness-reactive-self',
+      },
+    );
+    const snapshots: UseAwarenessResult[] = [];
+    let renderCount = 0;
+
+    function AwarenessConsumer(): null {
+      const awareness = useAwareness();
+      renderCount += 1;
+      snapshots.push(awareness);
+      return null;
+    }
+
+    const harness = await renderElement(
+      createElement(
+        FlockProvider,
+        {
+          roomId: 'awareness-reactivity',
+        },
+        createElement(AwarenessConsumer),
+      ),
+    );
+
+    await act(async () => {
+      awarenessEngine.emit([
+        createAwareness('awareness-reactive-self', {
+          typing: true,
+        }),
+        createAwareness('awareness-reactive-other', {
+          focus: 'editor-1',
+          metadata: {
+            mode: 'draft',
+          },
+        }),
+      ]);
+    });
+    await act(async () => {
+      awarenessEngine.emit([
+        createAwareness('awareness-reactive-self', {
+          typing: true,
+        }),
+        createAwareness('awareness-reactive-other', {
+          focus: 'editor-2',
+          metadata: {
+            mode: 'review',
+          },
+        }),
+      ]);
+    });
+    await act(async () => {
+      awarenessEngine.emit([
+        createAwareness('awareness-reactive-self', {
+          typing: true,
+        }),
+        createAwareness('awareness-reactive-other', {
+          focus: 'editor-2',
+          metadata: {
+            mode: 'review',
+          },
+        }),
+      ]);
+    });
+
+    expect(renderCount).toBe(2);
+    expect(snapshots).toHaveLength(2);
+    expect(snapshots[1]?.others).toEqual([
+      createAwareness('awareness-reactive-other', {
+        focus: 'editor-2',
+        metadata: {
+          mode: 'review',
+        },
+      }),
+    ]);
+
+    await harness.unmount();
+  });
+
+  it('keeps mutators stable across room replacement and cleans up old subscriptions', async () => {
+    const roomAAwareness = createMockAwarenessEngine([
+      createAwareness('awareness-room-a-peer', {
+        focus: 'board-a',
+      }),
+    ]);
+    const roomBAwareness = createMockAwarenessEngine([
+      createAwareness('awareness-room-b-peer', {
+        focus: 'board-b',
+      }),
+    ]);
+    createMockRoom(
+      'awareness-room-a',
+      {},
+      {
+        awarenessEngine: roomAAwareness,
+        peerId: 'awareness-room-a-peer',
+      },
+    );
+    createMockRoom(
+      'awareness-room-b',
+      {},
+      {
+        awarenessEngine: roomBAwareness,
+        peerId: 'awareness-room-b-peer',
+      },
+    );
+    const snapshots: UseAwarenessResult[] = [];
+
+    function AwarenessConsumer(): null {
+      snapshots.push(useAwareness());
+      return null;
+    }
+
+    const harness = await renderElement(
+      createElement(
+        FlockProvider,
+        {
+          roomId: 'awareness-room-a',
+        },
+        createElement(AwarenessConsumer),
+      ),
+    );
+
+    await harness.rerender(
+      createElement(
+        FlockProvider,
+        {
+          roomId: 'awareness-room-b',
+        },
+        createElement(AwarenessConsumer),
+      ),
+    );
+
+    const snapshotCountAfterReplacement = snapshots.length;
+
+    await act(async () => {
+      roomAAwareness.emit([
+        createAwareness('awareness-room-a-peer', {
+          focus: 'board-a',
+        }),
+        createAwareness('awareness-room-a-other', {
+          typing: true,
+        }),
+      ]);
+    });
+    await act(async () => {
+      snapshots[1]?.setTyping(true);
+      roomBAwareness.emit([
+        createAwareness('awareness-room-b-peer', {
+          focus: 'board-b',
+        }),
+        createAwareness('awareness-room-b-other', {
+          typing: true,
+        }),
+      ]);
+    });
+
+    expect(snapshotCountAfterReplacement).toBe(2);
+    expect(snapshots).toHaveLength(3);
+    expect(snapshots[1]?.set).toBe(snapshots[0]?.set);
+    expect(snapshots[1]?.setFocus).toBe(snapshots[0]?.setFocus);
+    expect(snapshots[1]?.setSelection).toBe(snapshots[0]?.setSelection);
+    expect(snapshots[1]?.setTyping).toBe(snapshots[0]?.setTyping);
+    expect(snapshots[2]?.others).toEqual([
+      createAwareness('awareness-room-b-other', {
+        typing: true,
+      }),
+    ]);
+    expect(roomAAwareness.subscriberCount()).toBe(0);
+    expect(roomBAwareness.subscriberCount()).toBe(1);
+    expect(roomAAwareness.setTyping).toHaveBeenCalledTimes(0);
+    expect(roomBAwareness.setTyping).toHaveBeenCalledWith(true);
+
+    await harness.unmount();
+
+    expect(roomBAwareness.subscriberCount()).toBe(0);
+  });
+});
+
+describe('usePeers', () => {
+  it('returns reactive remote peers and excludes the local peer', async () => {
+    const self = createPeer('peers-self', {
+      name: 'Self',
+    });
+    const peerA = createPeer('peers-a', {
+      name: 'Peer A',
+    });
+    const peerB = createPeer('peers-b', {
+      name: 'Peer B',
+    });
+    const presenceEngine = createMockPresenceEngine('peers-self', [self, peerA]);
+    createMockRoom(
+      'peers-room',
+      {},
+      {
+        peerId: 'peers-self',
+        presenceEngine,
+      },
+    );
+    const snapshots: Peer<PresenceData>[][] = [];
+
+    function PeersConsumer(): null {
+      snapshots.push(usePeers());
+      return null;
+    }
+
+    const harness = await renderElement(
+      createElement(
+        FlockProvider,
+        {
+          roomId: 'peers-room',
+        },
+        createElement(PeersConsumer),
+      ),
+    );
+
+    await act(async () => {
+      presenceEngine.emit([self, peerA, peerB]);
+    });
+
+    expect(snapshots).toEqual([[peerA], [peerA, peerB]]);
+
+    await harness.unmount();
+  });
+
+  it('skips deep-equal peer updates and lastSeen-only churn', async () => {
+    const self = createPeer('peers-equal-self', {
+      name: 'Self',
+    });
+    const other = createPeer('peers-equal-other', {
+      name: 'Other',
+      metadata: {
+        role: 'editor',
+      },
+    });
+    const presenceEngine = createMockPresenceEngine('peers-equal-self', [self, other]);
+    createMockRoom(
+      'peers-equality',
+      {},
+      {
+        peerId: 'peers-equal-self',
+        presenceEngine,
+      },
+    );
+    let renderCount = 0;
+
+    function PeersConsumer(): null {
+      usePeers();
+      renderCount += 1;
+      return null;
+    }
+
+    const harness = await renderElement(
+      createElement(
+        FlockProvider,
+        {
+          roomId: 'peers-equality',
+        },
+        createElement(PeersConsumer),
+      ),
+    );
+
+    await act(async () => {
+      presenceEngine.emit([
+        createPeer('peers-equal-self', {
+          name: 'Self',
+        }),
+        createPeer('peers-equal-other', {
+          name: 'Other',
+          metadata: {
+            role: 'editor',
+          },
+        }),
+      ]);
+    });
+    await act(async () => {
+      presenceEngine.emit([
+        createPeer('peers-equal-self', {
+          name: 'Self',
+          lastSeen: 2,
+        }),
+        createPeer('peers-equal-other', {
+          name: 'Other',
+          lastSeen: 99,
+          metadata: {
+            role: 'editor',
+          },
+        }),
+      ]);
+    });
+
+    expect(renderCount).toBe(1);
+
+    await harness.unmount();
+  });
+
+  it('follows room replacement and resubscribes to the new peer source', async () => {
+    const roomAPresence = createMockPresenceEngine('peers-room-a-peer', [
+      createPeer('peers-room-a-peer', {
+        name: 'Room A Self',
+      }),
+    ]);
+    const roomBPresence = createMockPresenceEngine('peers-room-b-peer', [
+      createPeer('peers-room-b-peer', {
+        name: 'Room B Self',
+      }),
+    ]);
+    createMockRoom(
+      'peers-room-a',
+      {},
+      {
+        peerId: 'peers-room-a-peer',
+        presenceEngine: roomAPresence,
+      },
+    );
+    createMockRoom(
+      'peers-room-b',
+      {},
+      {
+        peerId: 'peers-room-b-peer',
+        presenceEngine: roomBPresence,
+      },
+    );
+    const snapshots: Peer<PresenceData>[][] = [];
+
+    function PeersConsumer(): null {
+      snapshots.push(usePeers());
+      return null;
+    }
+
+    const harness = await renderElement(
+      createElement(
+        FlockProvider,
+        {
+          roomId: 'peers-room-a',
+        },
+        createElement(PeersConsumer),
+      ),
+    );
+
+    await harness.rerender(
+      createElement(
+        FlockProvider,
+        {
+          roomId: 'peers-room-b',
+        },
+        createElement(PeersConsumer),
+      ),
+    );
+
+    const snapshotCountAfterReplacement = snapshots.length;
+
+    await act(async () => {
+      roomAPresence.emit([
+        createPeer('peers-room-a-peer', {
+          name: 'Room A Self',
+        }),
+        createPeer('peers-room-a-other', {
+          name: 'A Other',
+        }),
+      ]);
+    });
+    await act(async () => {
+      roomBPresence.emit([
+        createPeer('peers-room-b-peer', {
+          name: 'Room B Self',
+        }),
+        createPeer('peers-room-b-other', {
+          name: 'B Other',
+        }),
+      ]);
+    });
+
+    expect(snapshotCountAfterReplacement).toBe(2);
+    expect(snapshots[1]).toEqual([]);
+    expect(snapshots).toHaveLength(3);
+    expect(snapshots[2]).toEqual([
+      createPeer('peers-room-b-other', {
+        name: 'B Other',
+      }),
+    ]);
+    expect(roomAPresence.subscriberCount()).toBe(0);
+    expect(roomBPresence.subscriberCount()).toBe(1);
+
+    await harness.unmount();
+  });
+});
+
+describe('useConnectionStatus', () => {
+  it('tracks room status transitions, including the initial connecting state', async () => {
+    const room = createMockRoom('connection-status-room');
+    const statuses: RoomStatus[] = [];
+
+    function StatusConsumer(): null {
+      statuses.push(useConnectionStatus());
+      return null;
+    }
+
+    const harness = await renderElement(
+      createElement(
+        FlockProvider,
+        {
+          roomId: 'connection-status-room',
+        },
+        createElement(StatusConsumer),
+      ),
+    );
+
+    await act(async () => {
+      room.emit('connected', undefined);
+    });
+    await act(async () => {
+      room.emit('reconnecting', {
+        attempt: 1,
+      });
+    });
+    await act(async () => {
+      room.emit('disconnected', {
+        reason: 'manual',
+      });
+    });
+    await act(async () => {
+      room.emit('error', new FlockError('NETWORK_ERROR', 'boom', true));
+    });
+
+    expect(statuses).toContain('idle');
+    expect(statuses).toContain('connecting');
+    expect(statuses).toContain('connected');
+    expect(statuses).toContain('reconnecting');
+    expect(statuses).toContain('disconnected');
+    expect(statuses).toContain('error');
+
+    await harness.unmount();
+
+    expect(room.listenerCount('connected')).toBe(0);
+    expect(room.listenerCount('reconnecting')).toBe(0);
+    expect(room.listenerCount('disconnected')).toBe(0);
+    expect(room.listenerCount('error')).toBe(0);
+  });
+});
+
+describe('useEvent', () => {
+  it('subscribes once, emits outbound events, and delivers to the latest handler', async () => {
+    const eventEngine = createMockEventEngine();
+    createMockRoom(
+      'event-room',
+      {},
+      {
+        eventEngine,
+      },
+    );
+    const firstHandler = vi.fn();
+    const secondHandler = vi.fn();
+    const emitters: Array<(payload: { text: string }) => void> = [];
+    let useUpdatedHandler = false;
+
+    function EventConsumer(): null {
+      const emitMessage = useEvent<{ text: string }>('message', useUpdatedHandler ? secondHandler : firstHandler);
+      emitters.push(emitMessage);
+      return null;
+    }
+
+    const harness = await renderElement(
+      createElement(
+        FlockProvider,
+        {
+          roomId: 'event-room',
+        },
+        createElement(EventConsumer),
+      ),
+    );
+
+    await act(async () => {
+      emitters[0]?.({
+        text: 'outbound',
+      });
+    });
+    await act(async () => {
+      eventEngine.deliver(
+        'message',
+        {
+          text: 'first',
+        },
+        createPeer('sender-a', {
+          name: 'Sender A',
+        }),
+      );
+    });
+
+    useUpdatedHandler = true;
+    await harness.rerender(
+      createElement(
+        FlockProvider,
+        {
+          roomId: 'event-room',
+        },
+        createElement(EventConsumer),
+      ),
+    );
+
+    await act(async () => {
+      eventEngine.deliver(
+        'message',
+        {
+          text: 'second',
+        },
+        createPeer('sender-b', {
+          name: 'Sender B',
+        }),
+      );
+    });
+
+    expect(eventEngine.emit).toHaveBeenCalledWith('message', {
+      text: 'outbound',
+    });
+    expect(firstHandler).toHaveBeenCalledTimes(1);
+    expect(firstHandler).toHaveBeenCalledWith(
+      {
+        text: 'first',
+      },
+      expect.objectContaining({
+        id: 'sender-a',
+        name: 'Sender A',
+      }),
+    );
+    expect(secondHandler).toHaveBeenCalledTimes(1);
+    expect(secondHandler).toHaveBeenCalledWith(
+      {
+        text: 'second',
+      },
+      expect.objectContaining({
+        id: 'sender-b',
+        name: 'Sender B',
+      }),
+    );
+    expect(eventEngine.on).toHaveBeenCalledTimes(1);
+    expect(eventEngine.subscriberCount('message')).toBe(1);
+    expect(emitters[1]).toBe(emitters[0]);
+
+    await harness.unmount();
+
+    expect(eventEngine.subscriberCount('message')).toBe(0);
+  });
+
+  it('resubscribes on room replacement and keeps emit stable', async () => {
+    const roomAEvents = createMockEventEngine();
+    const roomBEvents = createMockEventEngine();
+    createMockRoom(
+      'event-room-a',
+      {},
+      {
+        eventEngine: roomAEvents,
+      },
+    );
+    createMockRoom(
+      'event-room-b',
+      {},
+      {
+        eventEngine: roomBEvents,
+      },
+    );
+    const received = vi.fn();
+    const emitters: Array<(payload: { value: number }) => void> = [];
+
+    function EventConsumer(): null {
+      const emitValue = useEvent<{ value: number }>('value', received);
+      emitters.push(emitValue);
+      return null;
+    }
+
+    const harness = await renderElement(
+      createElement(
+        FlockProvider,
+        {
+          roomId: 'event-room-a',
+        },
+        createElement(EventConsumer),
+      ),
+    );
+
+    await harness.rerender(
+      createElement(
+        FlockProvider,
+        {
+          roomId: 'event-room-b',
+        },
+        createElement(EventConsumer),
+      ),
+    );
+
+    await act(async () => {
+      roomAEvents.deliver('value', {
+        value: 1,
+      });
+    });
+    await act(async () => {
+      roomBEvents.deliver('value', {
+        value: 2,
+      });
+      emitters[1]?.({
+        value: 3,
+      });
+    });
+
+    expect(received).toHaveBeenCalledTimes(1);
+    expect(received).toHaveBeenCalledWith(
+      {
+        value: 2,
+      },
+      expect.objectContaining({
+        id: 'event-source',
+      }),
+    );
+    expect(roomAEvents.subscriberCount('value')).toBe(0);
+    expect(roomBEvents.subscriberCount('value')).toBe(1);
+    expect(emitters[1]).toBe(emitters[0]);
+    expect(roomAEvents.emit).toHaveBeenCalledTimes(0);
+    expect(roomBEvents.emit).toHaveBeenCalledWith('value', {
+      value: 3,
+    });
+
+    await harness.unmount();
+
+    expect(roomBEvents.subscriberCount('value')).toBe(0);
+  });
+
+  it('preserves event emit and handler types', () => {
+    function TypeConsumer(): null {
+      const emitMessage = useEvent<{ text: string }>('message', (payload, from) => {
+        expectTypeOf(payload).toEqualTypeOf<{ text: string }>();
+        expectTypeOf(from).toEqualTypeOf<Peer<PresenceData>>();
+      });
+
+      expectTypeOf(emitMessage).toEqualTypeOf<(payload: { text: string }) => void>();
+
+      return null;
+    }
+
+    expect(TypeConsumer).toBeTypeOf('function');
   });
 });
 

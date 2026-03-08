@@ -1,4 +1,6 @@
 import type {
+  AwarenessEngine,
+  AwarenessState,
   CursorData,
   CursorEngine,
   CursorOptions,
@@ -8,6 +10,7 @@ import type {
   PresenceEngine,
   Room,
   RoomOptions,
+  RoomStatus,
   StateEngine,
   StateOptions,
 } from '@flockjs/core';
@@ -56,6 +59,14 @@ export interface UseCursorsResult<TCursor extends CursorData = CursorData> {
   unmount(): void;
 }
 
+export interface UseAwarenessResult {
+  others: AwarenessState[];
+  set: AwarenessEngine['set'];
+  setFocus: AwarenessEngine['setFocus'];
+  setSelection: AwarenessEngine['setSelection'];
+  setTyping: AwarenessEngine['setTyping'];
+}
+
 interface RoomDefinition<TPresence extends PresenceData> {
   roomId: string;
   options: RoomOptions<TPresence>;
@@ -83,6 +94,27 @@ interface CursorSnapshotCache<TPresence extends PresenceData, TCursor extends Cu
   engine: CursorEngine<TCursor>;
   snapshot: CursorPosition<TCursor>[];
 }
+
+interface AwarenessSnapshotCache<TPresence extends PresenceData> {
+  room: Room<TPresence>;
+  engine: AwarenessEngine;
+  snapshot: UseAwarenessResult;
+}
+
+interface PeerSnapshotCache<TPresence extends PresenceData> {
+  room: Room<TPresence>;
+  engine: PresenceEngine<TPresence>;
+  snapshot: Peer<TPresence>[];
+}
+
+interface ConnectionStatusSnapshotCache<TPresence extends PresenceData> {
+  room: Room<TPresence>;
+  snapshot: RoomStatus;
+}
+
+type EventHandlerRef<TPayload, TPresence extends PresenceData> = {
+  bivarianceHack(payload: TPayload, from: Peer<TPresence>): void;
+}['bivarianceHack'];
 
 interface SharedStateSnapshotCache<TPresence extends PresenceData, T> {
   room: Room<TPresence>;
@@ -290,6 +322,149 @@ export function useCursors<
   };
 }
 
+export function useAwareness<TPresence extends PresenceData = PresenceData>(): UseAwarenessResult {
+  const room = useRoom<TPresence>();
+  const awareness = room.useAwareness();
+  const awarenessRef = useRef(awareness);
+  awarenessRef.current = awareness;
+
+  const set = useCallback<AwarenessEngine['set']>((value) => {
+    awarenessRef.current.set(value);
+  }, []);
+  const setFocus = useCallback<AwarenessEngine['setFocus']>((elementId) => {
+    awarenessRef.current.setFocus(elementId);
+  }, []);
+  const setSelection = useCallback<AwarenessEngine['setSelection']>((selection) => {
+    awarenessRef.current.setSelection(selection);
+  }, []);
+  const setTyping = useCallback<AwarenessEngine['setTyping']>((isTyping) => {
+    awarenessRef.current.setTyping(isTyping);
+  }, []);
+
+  const snapshotCacheRef = useRef<AwarenessSnapshotCache<TPresence> | null>(null);
+  const subscribe = useCallback(
+    (onStoreChange: () => void) => {
+      return awareness.subscribe(() => {
+        const previousSnapshot = snapshotCacheRef.current?.snapshot ?? null;
+        const nextSnapshot = readAwarenessSnapshot(room, awareness, snapshotCacheRef, {
+          set,
+          setFocus,
+          setSelection,
+          setTyping,
+        });
+        if (nextSnapshot !== previousSnapshot) {
+          onStoreChange();
+        }
+      });
+    },
+    [awareness, room, set, setFocus, setSelection, setTyping],
+  );
+  const getSnapshot = useCallback(() => {
+    return readAwarenessSnapshot(room, awareness, snapshotCacheRef, {
+      set,
+      setFocus,
+      setSelection,
+      setTyping,
+    });
+  }, [awareness, room, set, setFocus, setSelection, setTyping]);
+
+  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+}
+
+export function useEvent<TPayload = unknown, TPresence extends PresenceData = PresenceData>(
+  name: string,
+  handler: EventHandlerRef<TPayload, TPresence>,
+): (payload: TPayload) => void {
+  const room = useRoom<TPresence>();
+  const roomRef = useRef(room);
+  const nameRef = useRef(name);
+  const handlerRef = useRef<EventHandlerRef<unknown, TPresence>>(handler);
+
+  roomRef.current = room;
+  nameRef.current = name;
+  handlerRef.current = handler;
+
+  const stableHandler = useCallback((payload: unknown, from: Peer<TPresence>) => {
+    handlerRef.current(payload, from);
+  }, []);
+
+  useEffect(() => {
+    return room.useEvents().on(name, stableHandler);
+  }, [name, room, stableHandler]);
+
+  return useCallback((payload: TPayload) => {
+    roomRef.current.useEvents().emit(nameRef.current, payload);
+  }, []);
+}
+
+export function usePeers<TPresence extends PresenceData = PresenceData>(): Peer<TPresence>[] {
+  const room = useRoom<TPresence>();
+  const presence = room.usePresence();
+  const snapshotCacheRef = useRef<PeerSnapshotCache<TPresence> | null>(null);
+  const subscribe = useCallback(
+    (onStoreChange: () => void) => {
+      return presence.subscribe(() => {
+        const previousSnapshot = snapshotCacheRef.current?.snapshot ?? null;
+        const nextSnapshot = readPeersSnapshot(room, presence, snapshotCacheRef);
+        if (nextSnapshot !== previousSnapshot) {
+          onStoreChange();
+        }
+      });
+    },
+    [presence, room],
+  );
+  const getSnapshot = useCallback(() => {
+    return readPeersSnapshot(room, presence, snapshotCacheRef);
+  }, [presence, room]);
+
+  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+}
+
+export function useConnectionStatus<TPresence extends PresenceData = PresenceData>(): RoomStatus {
+  const room = useRoom<TPresence>();
+  const snapshotCacheRef = useRef<ConnectionStatusSnapshotCache<TPresence> | null>(null);
+  const subscribe = useCallback(
+    (onStoreChange: () => void) => {
+      let cancelled = false;
+      const notifyIfChanged = (): void => {
+        if (cancelled) {
+          return;
+        }
+
+        const previousSnapshot = snapshotCacheRef.current?.snapshot ?? null;
+        const nextSnapshot = readConnectionStatusSnapshot(room, snapshotCacheRef);
+        if (nextSnapshot !== previousSnapshot) {
+          onStoreChange();
+        }
+      };
+
+      const unsubscribeConnected = room.on('connected', notifyIfChanged);
+      const unsubscribeReconnecting = room.on('reconnecting', notifyIfChanged);
+      const unsubscribeDisconnected = room.on('disconnected', notifyIfChanged);
+      const unsubscribeError = room.on('error', notifyIfChanged);
+
+      notifyIfChanged();
+      void Promise.resolve().then(() => {
+        notifyIfChanged();
+      });
+
+      return () => {
+        cancelled = true;
+        unsubscribeError();
+        unsubscribeDisconnected();
+        unsubscribeReconnecting();
+        unsubscribeConnected();
+      };
+    },
+    [room],
+  );
+  const getSnapshot = useCallback(() => {
+    return readConnectionStatusSnapshot(room, snapshotCacheRef);
+  }, [room]);
+
+  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+}
+
 export function useSharedState<T, TPresence extends PresenceData = PresenceData>(
   key: string,
   options: StateOptions<T>,
@@ -484,6 +659,56 @@ function isObjectLike(value: unknown): value is object {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+function readAwarenessSnapshot<TPresence extends PresenceData>(
+  room: Room<TPresence>,
+  awareness: AwarenessEngine,
+  cacheRef: { current: AwarenessSnapshotCache<TPresence> | null },
+  handlers: Omit<UseAwarenessResult, 'others'>,
+): UseAwarenessResult {
+  const nextOthers = awareness.getAll().filter((entry) => {
+    return entry.peerId !== room.peerId;
+  });
+  const previous = cacheRef.current;
+
+  if (previous && previous.room === room && previous.engine === awareness) {
+    const previousSnapshot = previous.snapshot;
+    if (areAwarenessArraysEqual(previousSnapshot.others, nextOthers)) {
+      return previousSnapshot;
+    }
+
+    previous.snapshot = {
+      others: nextOthers.map((entry, index) => {
+        const previousEntry = previousSnapshot.others[index];
+        if (previousEntry && areStructuredValuesEqual(previousEntry, entry)) {
+          return previousEntry;
+        }
+
+        return entry;
+      }),
+      set: previousSnapshot.set,
+      setFocus: previousSnapshot.setFocus,
+      setSelection: previousSnapshot.setSelection,
+      setTyping: previousSnapshot.setTyping,
+    };
+    return previous.snapshot;
+  }
+
+  const snapshot: UseAwarenessResult = {
+    others: nextOthers,
+    set: handlers.set,
+    setFocus: handlers.setFocus,
+    setSelection: handlers.setSelection,
+    setTyping: handlers.setTyping,
+  };
+
+  cacheRef.current = {
+    room,
+    engine: awareness,
+    snapshot,
+  };
+  return snapshot;
+}
+
 function readPresenceSnapshot<TPresence extends PresenceData>(
   room: Room<TPresence>,
   presence: PresenceEngine<TPresence>,
@@ -573,6 +798,39 @@ function arePeerArraysEqual<TPresence extends PresenceData>(
   return true;
 }
 
+function readPeersSnapshot<TPresence extends PresenceData>(
+  room: Room<TPresence>,
+  presence: PresenceEngine<TPresence>,
+  cacheRef: { current: PeerSnapshotCache<TPresence> | null },
+): Peer<TPresence>[] {
+  const nextSnapshot = room.peers;
+  const previous = cacheRef.current;
+
+  if (previous && previous.room === room && previous.engine === presence) {
+    const previousSnapshot = previous.snapshot;
+    if (arePeerArraysEqual(previousSnapshot, nextSnapshot)) {
+      return previousSnapshot;
+    }
+
+    previous.snapshot = nextSnapshot.map((peer, index) => {
+      const previousPeer = previousSnapshot[index];
+      if (previousPeer && arePeersEqual(previousPeer, peer)) {
+        return previousPeer;
+      }
+
+      return peer;
+    });
+    return previous.snapshot;
+  }
+
+  cacheRef.current = {
+    room,
+    engine: presence,
+    snapshot: nextSnapshot,
+  };
+  return nextSnapshot;
+}
+
 function readCursorSnapshot<TPresence extends PresenceData, TCursor extends CursorData>(
   room: Room<TPresence>,
   cursors: CursorEngine<TCursor>,
@@ -601,6 +859,24 @@ function readCursorSnapshot<TPresence extends PresenceData, TCursor extends Curs
   cacheRef.current = {
     room,
     engine: cursors,
+    snapshot: nextSnapshot,
+  };
+  return nextSnapshot;
+}
+
+function readConnectionStatusSnapshot<TPresence extends PresenceData>(
+  room: Room<TPresence>,
+  cacheRef: { current: ConnectionStatusSnapshotCache<TPresence> | null },
+): RoomStatus {
+  const nextSnapshot = room.status;
+  const previous = cacheRef.current;
+
+  if (previous && previous.room === room && previous.snapshot === nextSnapshot) {
+    return previous.snapshot;
+  }
+
+  cacheRef.current = {
+    room,
     snapshot: nextSnapshot,
   };
   return nextSnapshot;
@@ -735,6 +1011,30 @@ function cloneSharedStateValue<T>(value: T): T {
   }
 
   return value;
+}
+
+function areAwarenessArraysEqual(
+  previous: readonly AwarenessState[],
+  next: readonly AwarenessState[],
+): boolean {
+  if (previous === next) {
+    return true;
+  }
+
+  if (previous.length !== next.length) {
+    return false;
+  }
+
+  for (let index = 0; index < previous.length; index += 1) {
+    const previousEntry = previous[index];
+    const nextEntry = next[index];
+
+    if (!previousEntry || !nextEntry || !areStructuredValuesEqual(previousEntry, nextEntry)) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 function areCursorArraysEqual<TCursor extends CursorData>(
