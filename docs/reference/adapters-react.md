@@ -28,7 +28,7 @@ function App() {
 | --------------------------- | ------------------------- | ------------------------------ |
 | `useRoom()`                 | `Room`                    | access low-level room instance |
 | `usePresence()`             | `{ self, others, all }`   | reactive participant data      |
-| `useCursors()`              | `{ ref, cursors, mount }` | cursor tracking/rendering      |
+| `useCursors()`              | `{ ref, cursors, mount, unmount }` | cursor tracking/rendering |
 | `useSharedState(key, opts)` | `[value, setValue]`       | synchronized state             |
 | `useAwareness()`            | `{ set, others }`         | ephemeral peer context         |
 | `useEvent(name, handler)`   | `emit` function           | subscribe and emit             |
@@ -38,19 +38,21 @@ function App() {
 ## Example
 
 ```tsx
-import { useSharedState } from '@flockjs/react';
+import { useCursors, useSharedState } from '@flockjs/react';
 
 function PollWidget() {
+  const { ref, cursors } = useCursors<{ tool: 'pen' | 'eraser' }>();
   const [votes, setVotes] = useSharedState('poll-votes', {
     initialValue: { yes: 0, no: 0 },
     strategy: 'crdt',
   });
 
   return (
-    <div>
+    <div ref={ref}>
       <p>
         Yes: {votes.yes} | No: {votes.no}
       </p>
+      <p>Remote cursors: {cursors.length}</p>
       <button onClick={() => setVotes((v) => ({ ...v, yes: v.yes + 1 }))}>Vote Yes</button>
     </div>
   );

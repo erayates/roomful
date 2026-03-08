@@ -75,7 +75,9 @@ interface Room<TPresence extends Record<string, unknown> = Record<string, unknow
   disconnect(): Promise<void>;
 
   usePresence(): PresenceEngine<TPresence>;
-  useCursors(options?: CursorOptions): CursorEngine;
+  useCursors<TCursor extends Record<string, unknown> = Record<string, unknown>>(
+    options?: CursorOptions,
+  ): CursorEngine<TCursor>;
   useState<T>(options: StateOptions<T>): StateEngine<T>;
   useAwareness(): AwarenessEngine;
   useEvents(options?: EventOptions): EventEngine<TPresence>;

@@ -7,26 +7,28 @@ Cursors synchronize pointer position across peers.
 ## Access
 
 ```ts
-const cursors = room.useCursors();
+const cursors = room.useCursors<{ tool: 'pen' | 'eraser' }>();
 ```
 
 ## Interface
 
 ```ts
-interface CursorEngine {
+interface CursorEngine<TCursor extends CursorData = CursorData> {
   mount(el: HTMLElement): void;
   unmount(): void;
   render(options?: CursorRenderOptions): void;
-  subscribe(cb: (positions: CursorPosition[]) => void): Unsubscribe;
-  getPositions(): CursorPosition[];
-  setPosition(position: Partial<CursorPosition>): void;
+  subscribe(cb: (positions: CursorPosition<TCursor>[]) => void): Unsubscribe;
+  getPositions(): CursorPosition<TCursor>[];
+  setPosition(position: Partial<CursorPosition<TCursor>>): void;
 }
 ```
 
 ## Position Shape
 
 ```ts
-interface CursorPosition {
+type CursorData = Record<string, unknown>;
+
+type CursorPosition<TCursor extends CursorData = CursorData> = {
   userId: string;
   name: string;
   color: string;
@@ -36,8 +38,10 @@ interface CursorPosition {
   yAbsolute: number;
   element?: string;
   idle: boolean;
-}
+} & Partial<TCursor>;
 ```
+
+Extra cursor fields are preserved across peer sync as long as they are serializable. Reserved runtime fields such as `userId`, `name`, `color`, `x`, `y`, `xAbsolute`, `yAbsolute`, `element`, and `idle` remain owned by the cursor engine and room transport layer.
 
 ## Render Options
 
