@@ -1,6 +1,16 @@
-import type { Peer, PresenceData, PresenceEngine, Room, RoomOptions } from '@flockjs/core';
+import type {
+  CursorData,
+  CursorEngine,
+  CursorOptions,
+  CursorPosition,
+  Peer,
+  PresenceData,
+  PresenceEngine,
+  Room,
+  RoomOptions,
+} from '@flockjs/core';
 import { createCoreHealth, createRoom, FlockError } from '@flockjs/core';
-import type { ReactNode } from 'react';
+import type { ReactNode, RefCallback } from 'react';
 import {
   createContext,
   createElement,
@@ -37,6 +47,13 @@ export interface UsePresenceResult<TPresence extends PresenceData = PresenceData
   replace: PresenceEngine<TPresence>['replace'];
 }
 
+export interface UseCursorsResult<TCursor extends CursorData = CursorData> {
+  ref: RefCallback<HTMLElement>;
+  cursors: CursorPosition<TCursor>[];
+  mount(element: HTMLElement): void;
+  unmount(): void;
+}
+
 interface RoomDefinition<TPresence extends PresenceData> {
   roomId: string;
   options: RoomOptions<TPresence>;
@@ -57,6 +74,15 @@ interface PresenceSnapshotCache<TPresence extends PresenceData> {
   room: Room<TPresence>;
   engine: PresenceEngine<TPresence>;
   snapshot: UsePresenceResult<TPresence>;
+}
+
+interface CursorSnapshotCache<
+  TPresence extends PresenceData,
+  TCursor extends CursorData,
+> {
+  room: Room<TPresence>;
+  engine: CursorEngine<TCursor>;
+  snapshot: CursorPosition<TCursor>[];
 }
 
 const FlockRoomContext = createContext<unknown>(null);
@@ -162,6 +188,92 @@ export function usePresence<
   }, [presence, room]);
 
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+}
+
+export function useCursors<
+  TCursor extends CursorData = CursorData,
+  TPresence extends PresenceData = PresenceData,
+>(options?: CursorOptions): UseCursorsResult<TCursor> {
+  const room = useRoom<TPresence>();
+  const optionsRef = useRef(options);
+  const cursorEngine = room.useCursors<TCursor>(optionsRef.current);
+  const snapshotCacheRef = useRef<CursorSnapshotCache<TPresence, TCursor> | null>(null);
+  const trackedElementRef = useRef<HTMLElement | null>(null);
+  const mountedEngineRef = useRef<CursorEngine<TCursor> | null>(null);
+
+  const mount = useCallback(
+    (element: HTMLElement) => {
+      const previousElement = trackedElementRef.current;
+      trackedElementRef.current = element;
+
+      if (mountedEngineRef.current === cursorEngine && previousElement === element) {
+        return;
+      }
+
+      mountedEngineRef.current?.unmount();
+      cursorEngine.mount(element);
+      mountedEngineRef.current = cursorEngine;
+    },
+    [cursorEngine],
+  );
+
+  const unmount = useCallback(() => {
+    trackedElementRef.current = null;
+    mountedEngineRef.current?.unmount();
+    mountedEngineRef.current = null;
+  }, []);
+
+  const ref = useCallback<RefCallback<HTMLElement>>(
+    (element) => {
+      if (element === null) {
+        unmount();
+        return;
+      }
+
+      mount(element);
+    },
+    [mount, unmount],
+  );
+
+  useEffect(() => {
+    const trackedElement = trackedElementRef.current;
+    if (trackedElement && mountedEngineRef.current !== cursorEngine) {
+      mountedEngineRef.current?.unmount();
+      cursorEngine.mount(trackedElement);
+      mountedEngineRef.current = cursorEngine;
+    }
+  }, [cursorEngine]);
+
+  useEffect(() => {
+    return () => {
+      trackedElementRef.current = null;
+      mountedEngineRef.current?.unmount();
+      mountedEngineRef.current = null;
+    };
+  }, []);
+
+  const subscribe = useCallback(
+    (onStoreChange: () => void) => {
+      return cursorEngine.subscribe(() => {
+        const previousSnapshot = snapshotCacheRef.current?.snapshot ?? null;
+        const nextSnapshot = readCursorSnapshot(room, cursorEngine, snapshotCacheRef);
+        if (nextSnapshot !== previousSnapshot) {
+          onStoreChange();
+        }
+      });
+    },
+    [cursorEngine, room],
+  );
+  const getSnapshot = useCallback(() => {
+    return readCursorSnapshot(room, cursorEngine, snapshotCacheRef);
+  }, [cursorEngine, room]);
+
+  return {
+    ref,
+    cursors: useSyncExternalStore(subscribe, getSnapshot, getSnapshot),
+    mount,
+    unmount,
+  };
 }
 
 function createRoomDefinition<TPresence extends PresenceData = PresenceData>(
@@ -386,6 +498,90 @@ function arePeerArraysEqual<TPresence extends PresenceData>(
     const nextPeer = next[index];
 
     if (!previousPeer || !nextPeer || !arePeersEqual(previousPeer, nextPeer)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function readCursorSnapshot<TPresence extends PresenceData, TCursor extends CursorData>(
+  room: Room<TPresence>,
+  cursors: CursorEngine<TCursor>,
+  cacheRef: { current: CursorSnapshotCache<TPresence, TCursor> | null },
+): CursorPosition<TCursor>[] {
+  const nextSnapshot = cursors.getPositions();
+  const previous = cacheRef.current;
+
+  if (previous && previous.room === room && previous.engine === cursors) {
+    const previousSnapshot = previous.snapshot;
+    if (areCursorArraysEqual(previousSnapshot, nextSnapshot)) {
+      return previousSnapshot;
+    }
+
+    previous.snapshot = nextSnapshot.map((position, index) => {
+      const previousPosition = previousSnapshot[index];
+      if (previousPosition && areCursorPositionsEqual(previousPosition, position)) {
+        return previousPosition;
+      }
+
+      return position;
+    });
+    return previous.snapshot;
+  }
+
+  cacheRef.current = {
+    room,
+    engine: cursors,
+    snapshot: nextSnapshot,
+  };
+  return nextSnapshot;
+}
+
+function areCursorArraysEqual<TCursor extends CursorData>(
+  previous: readonly CursorPosition<TCursor>[],
+  next: readonly CursorPosition<TCursor>[],
+): boolean {
+  if (previous === next) {
+    return true;
+  }
+
+  if (previous.length !== next.length) {
+    return false;
+  }
+
+  for (let index = 0; index < previous.length; index += 1) {
+    const previousCursor = previous[index];
+    const nextCursor = next[index];
+
+    if (!previousCursor || !nextCursor || !areCursorPositionsEqual(previousCursor, nextCursor)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function areCursorPositionsEqual<TCursor extends CursorData>(
+  previous: CursorPosition<TCursor>,
+  next: CursorPosition<TCursor>,
+): boolean {
+  if (previous === next) {
+    return true;
+  }
+
+  const previousKeys = Object.keys(previous);
+  const nextKeys = Object.keys(next);
+  if (previousKeys.length !== nextKeys.length) {
+    return false;
+  }
+
+  for (const key of previousKeys) {
+    if (!Object.prototype.hasOwnProperty.call(next, key)) {
+      return false;
+    }
+
+    if (!arePresenceValuesEqual(Reflect.get(previous, key), Reflect.get(next, key))) {
       return false;
     }
   }

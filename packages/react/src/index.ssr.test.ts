@@ -1,11 +1,20 @@
 // @vitest-environment node
 
-import type { Peer, PresenceData, PresenceEngine, Room, RoomOptions } from '@flockjs/core';
+import type {
+  CursorData,
+  CursorEngine,
+  CursorPosition,
+  Peer,
+  PresenceData,
+  PresenceEngine,
+  Room,
+  RoomOptions,
+} from '@flockjs/core';
 import { createElement } from 'react';
 import { renderToString } from 'react-dom/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { FlockProvider, usePresence, type UsePresenceResult, useRoom } from './index';
+import { FlockProvider, useCursors, usePresence, type UsePresenceResult, useRoom } from './index';
 
 const { createRoomMock } = vi.hoisted(() => {
   return {
@@ -25,9 +34,17 @@ type TestPresenceEngine = PresenceEngine<PresenceData> & {
   subscribe: ReturnType<typeof vi.fn<(cb: (peers: Peer<PresenceData>[]) => void) => () => void>>;
 };
 
+type TestCursorEngine = CursorEngine<CursorData> & {
+  subscribe: ReturnType<
+    typeof vi.fn<(cb: (positions: CursorPosition<CursorData>[]) => void) => () => void>
+  >;
+  getPositions: ReturnType<typeof vi.fn<() => CursorPosition<CursorData>[]>>;
+};
+
 type TestRoom = Room<PresenceData> & {
   connect: ReturnType<typeof vi.fn<() => Promise<void>>>;
   disconnect: ReturnType<typeof vi.fn<() => Promise<void>>>;
+  cursorEngine: TestCursorEngine;
   presenceEngine: TestPresenceEngine;
 };
 
@@ -76,15 +93,55 @@ function createMockPresenceEngine(
   } as TestPresenceEngine;
 }
 
+function createCursor(
+  userId: string,
+  overrides: Partial<CursorPosition<CursorData>> = {},
+): CursorPosition<CursorData> {
+  return {
+    userId,
+    name: userId,
+    color: '#111111',
+    x: 0.25,
+    y: 0.75,
+    xAbsolute: 25,
+    yAbsolute: 75,
+    idle: false,
+    ...overrides,
+  };
+}
+
+function createMockCursorEngine(
+  positions: CursorPosition<CursorData>[] = [],
+): TestCursorEngine {
+  const currentPositions = positions;
+
+  return {
+    mount: vi.fn(),
+    unmount: vi.fn(),
+    render: vi.fn(),
+    setPosition: vi.fn(),
+    subscribe: vi.fn(() => {
+      return () => {
+        return undefined;
+      };
+    }),
+    getPositions: vi.fn(() => {
+      return currentPositions;
+    }),
+  } as TestCursorEngine;
+}
+
 function createMockRoom(
   roomId = 'server-room',
   options: RoomOptions<PresenceData> = {},
   config: {
+    cursorEngine?: TestCursorEngine;
     peerId?: string;
     presenceEngine?: TestPresenceEngine;
   } = {},
 ): TestRoom {
   const peerId = config.peerId ?? `${roomId}-peer`;
+  const cursorEngine = config.cursorEngine ?? createMockCursorEngine();
   const presenceEngine =
     config.presenceEngine ?? createMockPresenceEngine(peerId, [createPeer(peerId)]);
 
@@ -103,7 +160,9 @@ function createMockRoom(
     usePresence: vi.fn(() => {
       return presenceEngine;
     }),
-    useCursors: vi.fn(),
+    useCursors: vi.fn(() => {
+      return cursorEngine;
+    }),
     useState: vi.fn(),
     useAwareness: vi.fn(),
     useEvents: vi.fn(),
@@ -115,6 +174,7 @@ function createMockRoom(
       };
     }),
     off: vi.fn(),
+    cursorEngine,
     presenceEngine,
   } as TestRoom;
 
@@ -196,5 +256,55 @@ describe('FlockProvider SSR', () => {
     expect(room.connect).toHaveBeenCalledTimes(0);
     expect(room.disconnect).toHaveBeenCalledTimes(0);
     expect(presenceEngine.subscribe).toHaveBeenCalledTimes(0);
+  });
+
+  it('lets useCursors() read the initial snapshot during server render without subscribing', () => {
+    const cursorEngine = createMockCursorEngine([
+      createCursor('server-cursor-peer', {
+        tool: 'pen',
+        metadata: {
+          pressure: 0.7,
+        },
+      }),
+    ]);
+    const room = createMockRoom(
+      'server-cursor-room',
+      {},
+      {
+        cursorEngine,
+      },
+    );
+    let observedCursors: ReturnType<typeof useCursors> | null = null;
+
+    function CursorConsumer(): null {
+      observedCursors = useCursors();
+      return null;
+    }
+
+    const html = renderToString(
+      createElement(
+        FlockProvider,
+        {
+          roomId: 'server-cursor-room',
+        },
+        createElement(CursorConsumer),
+      ),
+    );
+
+    expect(html).toBe('');
+    expect(createRoomMock).toHaveBeenCalledTimes(1);
+    expect(observedCursors?.cursors).toEqual([
+      createCursor('server-cursor-peer', {
+        tool: 'pen',
+        metadata: {
+          pressure: 0.7,
+        },
+      }),
+    ]);
+    expect(room.connect).toHaveBeenCalledTimes(0);
+    expect(room.disconnect).toHaveBeenCalledTimes(0);
+    expect(cursorEngine.subscribe).toHaveBeenCalledTimes(0);
+    expect(cursorEngine.mount.mock.calls).toHaveLength(0);
+    expect(cursorEngine.unmount.mock.calls).toHaveLength(0);
   });
 });

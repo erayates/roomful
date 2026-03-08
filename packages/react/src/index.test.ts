@@ -1,6 +1,9 @@
 // @vitest-environment jsdom
 
 import type {
+  CursorData,
+  CursorEngine,
+  CursorPosition,
   Peer,
   PresenceData,
   PresenceEngine,
@@ -31,13 +34,14 @@ vi.mock('@flockjs/core', async () => {
   };
 });
 
-import type { UsePresenceResult } from './index';
-import { createReactHealth, FlockProvider, usePresence, useRoom } from './index';
+import type { UseCursorsResult, UsePresenceResult } from './index';
+import { createReactHealth, FlockProvider, useCursors, usePresence, useRoom } from './index';
 
 Reflect.set(globalThis, 'IS_REACT_ACT_ENVIRONMENT', true);
 
 type RoomEventPayload = RoomEventMap<PresenceData>[RoomEventName];
 type RoomEventHandler = (payload: RoomEventPayload) => void;
+type CursorSubscriber = (positions: CursorPosition<CursorData>[]) => void;
 type PresenceSubscriber = (peers: Peer<PresenceData>[]) => void;
 
 interface RenderHarness {
@@ -53,6 +57,18 @@ type TestPresenceEngine = PresenceEngine<PresenceData> & {
   replace: ReturnType<typeof vi.fn<(data: Partial<PresenceData>) => void>>;
 };
 
+type TestCursorEngine = CursorEngine<CursorData> & {
+  emit(positions: CursorPosition<CursorData>[]): void;
+  subscriberCount(): number;
+  subscribe: ReturnType<typeof vi.fn<(cb: CursorSubscriber) => () => void>>;
+  mount: ReturnType<typeof vi.fn<(element: HTMLElement) => void>>;
+  unmount: ReturnType<typeof vi.fn<() => void>>;
+  getPositions: ReturnType<typeof vi.fn<() => CursorPosition<CursorData>[]>>;
+  setPosition: ReturnType<
+    typeof vi.fn<(position: Partial<CursorPosition<CursorData>>) => void>
+  >;
+};
+
 type TestRoom = Room<PresenceData> & {
   connect: ReturnType<typeof vi.fn<() => Promise<void>>>;
   disconnect: ReturnType<typeof vi.fn<() => Promise<void>>>;
@@ -60,6 +76,7 @@ type TestRoom = Room<PresenceData> & {
     event: TEvent,
     payload: RoomEventMap<PresenceData>[TEvent],
   ) => void;
+  cursorEngine: TestCursorEngine;
   presenceEngine: TestPresenceEngine;
 };
 
@@ -69,6 +86,23 @@ function createPeer(id: string, overrides: Partial<Peer<PresenceData>> = {}): Pe
     joinedAt: 1,
     lastSeen: 1,
     name: id,
+    ...overrides,
+  };
+}
+
+function createCursor(
+  userId: string,
+  overrides: Partial<CursorPosition<CursorData>> = {},
+): CursorPosition<CursorData> {
+  return {
+    userId,
+    name: userId,
+    color: '#111111',
+    x: 0.25,
+    y: 0.75,
+    xAbsolute: 25,
+    yAbsolute: 75,
+    idle: false,
     ...overrides,
   };
 }
@@ -122,16 +156,54 @@ function createMockPresenceEngine(
   return engine;
 }
 
+function createMockCursorEngine(
+  positions: CursorPosition<CursorData>[] = [],
+): TestCursorEngine {
+  const subscribers = new Set<CursorSubscriber>();
+  let currentPositions = positions;
+
+  const engine = {
+    mount: vi.fn(),
+    unmount: vi.fn(),
+    render: vi.fn(),
+    setPosition: vi.fn(),
+    getPositions: vi.fn(() => {
+      return currentPositions;
+    }),
+    subscribe: vi.fn((callback: CursorSubscriber) => {
+      subscribers.add(callback);
+      callback(currentPositions);
+
+      return () => {
+        subscribers.delete(callback);
+      };
+    }),
+    emit(nextPositions: CursorPosition<CursorData>[]) {
+      currentPositions = nextPositions;
+      for (const subscriber of subscribers) {
+        subscriber(currentPositions);
+      }
+    },
+    subscriberCount() {
+      return subscribers.size;
+    },
+  } as TestCursorEngine;
+
+  return engine;
+}
+
 function createMockRoom(
   roomId = 'room-1',
   options: RoomOptions<PresenceData> = {},
   config: {
+    cursorEngine?: TestCursorEngine;
     peerId?: string;
     presenceEngine?: TestPresenceEngine;
   } = {},
 ): TestRoom {
   const handlers = new Map<RoomEventName, Set<RoomEventHandler>>();
   const peerId = config.peerId ?? `${roomId}-peer`;
+  const cursorEngine = config.cursorEngine ?? createMockCursorEngine();
   const presenceEngine =
     config.presenceEngine ?? createMockPresenceEngine(peerId, [createPeer(peerId)]);
 
@@ -150,7 +222,9 @@ function createMockRoom(
     usePresence: vi.fn(() => {
       return presenceEngine;
     }),
-    useCursors: vi.fn(),
+    useCursors: vi.fn(() => {
+      return cursorEngine;
+    }),
     useState: vi.fn(),
     useAwareness: vi.fn(),
     useEvents: vi.fn(),
@@ -173,6 +247,7 @@ function createMockRoom(
         handler(payload);
       }
     },
+    cursorEngine,
     presenceEngine,
   } as TestRoom;
 
@@ -716,6 +791,297 @@ describe('usePresence', () => {
   it('throws a typed error when usePresence() is called outside the provider', () => {
     function MissingProviderConsumer(): null {
       usePresence();
+      return null;
+    }
+
+    expect(() => {
+      renderToString(createElement(MissingProviderConsumer));
+    }).toThrowError(FlockError);
+    expect(() => {
+      renderToString(createElement(MissingProviderConsumer));
+    }).toThrow('FlockProvider');
+  });
+});
+
+describe('useCursors', () => {
+  it('returns ref, cursors, mount, and unmount while auto-mounting the tracked element', async () => {
+    const remoteCursor = createCursor('cursor-peer', {
+      tool: 'pen',
+    });
+    const cursorEngine = createMockCursorEngine([remoteCursor]);
+    createMockRoom(
+      'cursor-room',
+      {},
+      {
+        cursorEngine,
+      },
+    );
+    let observedCursors: UseCursorsResult<CursorData> | null = null;
+
+    function CursorConsumer(): ReactNode {
+      observedCursors = useCursors();
+      return createElement('div', {
+        id: 'cursor-board',
+        ref: observedCursors.ref,
+      });
+    }
+
+    const harness = await renderElement(
+      createElement(
+        FlockProvider,
+        {
+          roomId: 'cursor-room',
+        },
+        createElement(CursorConsumer),
+      ),
+    );
+    const board = document.getElementById('cursor-board') as HTMLElement;
+
+    expect(observedCursors?.cursors).toEqual([remoteCursor]);
+    expect(typeof observedCursors?.ref).toBe('function');
+    expect(typeof observedCursors?.mount).toBe('function');
+    expect(typeof observedCursors?.unmount).toBe('function');
+    expect(cursorEngine.mount).toHaveBeenCalledTimes(1);
+    expect(cursorEngine.mount).toHaveBeenLastCalledWith(board);
+
+    await act(async () => {
+      observedCursors?.unmount();
+      observedCursors?.mount(board);
+    });
+
+    expect(cursorEngine.unmount).toHaveBeenCalledTimes(1);
+    expect(cursorEngine.mount).toHaveBeenCalledTimes(2);
+    expect(cursorEngine.mount).toHaveBeenLastCalledWith(board);
+
+    await harness.unmount();
+
+    expect(cursorEngine.unmount).toHaveBeenCalledTimes(2);
+  });
+
+  it('rerenders when cursor snapshots change and skips deep-equal updates', async () => {
+    const initialCursor = createCursor('cursor-peer', {
+      tool: 'pen',
+      metadata: {
+        pressure: 0.5,
+      },
+    });
+    const cursorEngine = createMockCursorEngine([initialCursor]);
+    createMockRoom(
+      'cursor-reactivity',
+      {},
+      {
+        cursorEngine,
+      },
+    );
+    const snapshots: Array<CursorPosition<CursorData>[]> = [];
+    let renderCount = 0;
+
+    function CursorConsumer(): ReactNode {
+      const cursorState = useCursors();
+      renderCount += 1;
+      snapshots.push(cursorState.cursors);
+      return createElement('div', {
+        id: 'cursor-reactivity-board',
+        ref: cursorState.ref,
+      });
+    }
+
+    const harness = await renderElement(
+      createElement(
+        FlockProvider,
+        {
+          roomId: 'cursor-reactivity',
+        },
+        createElement(CursorConsumer),
+      ),
+    );
+
+    await act(async () => {
+      cursorEngine.emit([
+        createCursor('cursor-peer', {
+          tool: 'pen',
+          metadata: {
+            pressure: 0.5,
+          },
+        }),
+      ]);
+    });
+    await act(async () => {
+      cursorEngine.emit([
+        createCursor('cursor-peer', {
+          x: 0.6,
+          xAbsolute: 60,
+          tool: 'pen',
+          metadata: {
+            pressure: 0.9,
+          },
+        }),
+      ]);
+    });
+
+    expect(renderCount).toBe(2);
+    expect(snapshots).toHaveLength(2);
+    expect(snapshots[1]?.[0]).toMatchObject({
+      x: 0.6,
+      xAbsolute: 60,
+      metadata: {
+        pressure: 0.9,
+      },
+    });
+    expect(cursorEngine.subscriberCount()).toBe(1);
+
+    await harness.unmount();
+  });
+
+  it('preserves the cursor array reference across parent rerenders when unchanged', async () => {
+    const cursorEngine = createMockCursorEngine([
+      createCursor('cursor-peer', {
+        tool: 'pen',
+      }),
+    ]);
+    createMockRoom(
+      'cursor-stability',
+      {},
+      {
+        cursorEngine,
+      },
+    );
+    const cursorArrays: Array<CursorPosition<CursorData>[]> = [];
+
+    function CursorConsumer(): ReactNode {
+      const cursorState = useCursors();
+      cursorArrays.push(cursorState.cursors);
+      return createElement('div', {
+        id: 'cursor-stability-board',
+        ref: cursorState.ref,
+      });
+    }
+
+    const harness = await renderElement(
+      createElement(
+        FlockProvider,
+        {
+          roomId: 'cursor-stability',
+        },
+        createElement(CursorConsumer),
+      ),
+    );
+
+    await harness.rerender(
+      createElement(
+        FlockProvider,
+        {
+          roomId: 'cursor-stability',
+        },
+        createElement(CursorConsumer),
+      ),
+    );
+
+    expect(cursorArrays).toHaveLength(2);
+    expect(cursorArrays[1]).toBe(cursorArrays[0]);
+    expect(cursorEngine.subscriberCount()).toBe(1);
+
+    await harness.unmount();
+  });
+
+  it('follows room replacement, resubscribes, and remounts the tracked element', async () => {
+    const roomACursorEngine = createMockCursorEngine([
+      createCursor('room-a-peer', {
+        tool: 'pen',
+      }),
+    ]);
+    const roomBCursorEngine = createMockCursorEngine([
+      createCursor('room-b-peer', {
+        tool: 'eraser',
+      }),
+    ]);
+    createMockRoom(
+      'cursor-room-a',
+      {},
+      {
+        cursorEngine: roomACursorEngine,
+      },
+    );
+    createMockRoom(
+      'cursor-room-b',
+      {},
+      {
+        cursorEngine: roomBCursorEngine,
+      },
+    );
+    const snapshots: Array<CursorPosition<CursorData>[]> = [];
+
+    function CursorConsumer(): ReactNode {
+      const cursorState = useCursors();
+      snapshots.push(cursorState.cursors);
+      return createElement('div', {
+        id: 'cursor-room-swap-board',
+        ref: cursorState.ref,
+      });
+    }
+
+    const harness = await renderElement(
+      createElement(
+        FlockProvider,
+        {
+          roomId: 'cursor-room-a',
+        },
+        createElement(CursorConsumer),
+      ),
+    );
+    const board = document.getElementById('cursor-room-swap-board') as HTMLElement;
+
+    await harness.rerender(
+      createElement(
+        FlockProvider,
+        {
+          roomId: 'cursor-room-b',
+        },
+        createElement(CursorConsumer),
+      ),
+    );
+
+    const snapshotCountAfterReplacement = snapshots.length;
+
+    await act(async () => {
+      roomACursorEngine.emit([createCursor('room-a-other', { tool: 'pen' })]);
+    });
+    await act(async () => {
+      roomBCursorEngine.emit([
+        createCursor('room-b-other', {
+          tool: 'eraser',
+          metadata: {
+            pressure: 0.4,
+          },
+        }),
+      ]);
+    });
+
+    expect(snapshotCountAfterReplacement).toBe(2);
+    expect(snapshots[1]).toEqual([
+      createCursor('room-b-peer', {
+        tool: 'eraser',
+      }),
+    ]);
+    expect(snapshots).toHaveLength(3);
+    expect(snapshots[2]?.[0]).toMatchObject({
+      userId: 'room-b-other',
+      tool: 'eraser',
+      metadata: {
+        pressure: 0.4,
+      },
+    });
+    expect(roomACursorEngine.subscriberCount()).toBe(0);
+    expect(roomBCursorEngine.subscriberCount()).toBe(1);
+    expect(roomACursorEngine.unmount).toHaveBeenCalled();
+    expect(roomBCursorEngine.mount).toHaveBeenCalledWith(board);
+
+    await harness.unmount();
+  });
+
+  it('throws a typed error when useCursors() is called outside the provider', () => {
+    function MissingProviderConsumer(): null {
+      useCursors();
       return null;
     }
 
