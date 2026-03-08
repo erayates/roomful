@@ -82,7 +82,8 @@ function extractPointerPoint(event: unknown): PointerPoint | null {
 
   const touches = getTouchList(event, 'touches');
   if (touches.length > 0) {
-    return touches[0] ?? null;
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    return touches[0]!;
   }
 
   const changedTouches = getTouchList(event, 'changedTouches');
@@ -235,7 +236,7 @@ const BUILT_IN_RENDERERS: Record<BuiltInCursorStyle, BuiltInCursorRenderer> = {
     transform: 'translate(-18%, -14%)',
     createMarker: createArrowMarker,
     updateMarker(marker, position) {
-      updateSvgMarkerColor(marker, position.color || DEFAULT_CURSOR_COLOR);
+      updateSvgMarkerColor(marker, position.color);
     },
   },
   dot: {
@@ -243,7 +244,7 @@ const BUILT_IN_RENDERERS: Record<BuiltInCursorStyle, BuiltInCursorRenderer> = {
     transform: 'translate(-50%, -50%)',
     createMarker: createDotMarker,
     updateMarker(marker, position) {
-      updateBlockMarkerColor(marker, position.color || DEFAULT_CURSOR_COLOR);
+      updateBlockMarkerColor(marker, position.color);
     },
   },
   pointer: {
@@ -251,7 +252,7 @@ const BUILT_IN_RENDERERS: Record<BuiltInCursorStyle, BuiltInCursorRenderer> = {
     transform: 'translate(-28%, -24%)',
     createMarker: createPointerMarker,
     updateMarker(marker, position) {
-      updateBlockMarkerColor(marker, position.color || DEFAULT_CURSOR_COLOR);
+      updateBlockMarkerColor(marker, position.color);
     },
   },
 };
@@ -339,14 +340,12 @@ export function createCursorEngine(
       return;
     }
 
-    const waitMs = Math.max(0, throttleMs - (Date.now() - (lastDispatchAt ?? 0)));
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const waitMs = Math.max(0, throttleMs - (Date.now() - lastDispatchAt!));
     throttleTimer = globalThis.setTimeout(() => {
       throttleTimer = null;
-      if (!pendingPosition) {
-        return;
-      }
-
-      context.setSelfPosition(pendingPosition);
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      context.setSelfPosition(pendingPosition!);
       lastDispatchAt = Date.now();
       pendingPosition = null;
     }, waitMs);
@@ -369,10 +368,6 @@ export function createCursorEngine(
 
     idleTimer = globalThis.setTimeout(() => {
       idleTimer = null;
-      if (!lastLocalPosition || lastLocalPosition.idle === true) {
-        return;
-      }
-
       dispatchPosition(
         {
           ...lastLocalPosition,

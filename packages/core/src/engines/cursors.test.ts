@@ -215,6 +215,7 @@ function getLabel(node: MockElement): MockElement {
 }
 
 afterEach(() => {
+  vi.unstubAllGlobals();
   vi.restoreAllMocks();
   vi.useRealTimers();
 });
@@ -250,6 +251,7 @@ describe('createCursorEngine', () => {
     expect(board.listenerCount('touchmove')).toBe(1);
     expect(board.listenerCount('touchstart')).toBe(1);
 
+    board.dispatch('mousemove', null);
     board.dispatch('mousemove', {
       clientX: 110,
       clientY: 70,
@@ -541,6 +543,193 @@ describe('createCursorEngine', () => {
     expect(unsubscribe).toHaveBeenCalledTimes(1);
   });
 
+  it('falls back to the default color when a rendered cursor has no color value', () => {
+    const positions = [
+      createRemoteCursor({
+        color: undefined as unknown as string,
+      }),
+    ];
+    const context = {
+      setSelfPosition: vi.fn(),
+      getPositions: vi.fn(() => positions),
+      subscribe: vi.fn(() => {
+        return () => {
+          return undefined;
+        };
+      }),
+    };
+
+    const doc = new MockDocument();
+    const board = doc.createElement('div');
+    doc.body.appendChild(board);
+
+    const engine = createCursorEngine(context);
+    engine.mount(board as unknown as HTMLElement);
+
+    engine.render({
+      container: board as unknown as HTMLElement,
+      style: 'default',
+      showName: true,
+    });
+
+    let cursorNode = getCursorNode(board);
+    let marker = getMarker(cursorNode);
+    let label = getLabel(cursorNode);
+    expect(marker.getAttribute('data-flockjs-cursor-marker-color')).toBe('#111827');
+    expect(label.style.backgroundColor).toBe('#111827');
+
+    engine.render({
+      style: 'dot',
+      showName: true,
+    });
+
+    cursorNode = getCursorNode(board);
+    marker = getMarker(cursorNode);
+    label = getLabel(cursorNode);
+    expect(marker.getAttribute('data-flockjs-cursor-marker-color')).toBe('#111827');
+    expect(label.style.backgroundColor).toBe('#111827');
+
+    engine.render({
+      style: 'pointer',
+      showName: true,
+    });
+
+    cursorNode = getCursorNode(board);
+    marker = getMarker(cursorNode);
+    label = getLabel(cursorNode);
+    expect(marker.getAttribute('data-flockjs-cursor-marker-color')).toBe('#111827');
+    expect(label.style.backgroundColor).toBe('#111827');
+  });
+
+  it('renders into the mounted element when no container option is provided', () => {
+    const context = {
+      setSelfPosition: vi.fn(),
+      getPositions: vi.fn(() => [createRemoteCursor()]),
+      subscribe: vi.fn(() => {
+        return () => {
+          return undefined;
+        };
+      }),
+    };
+
+    const doc = new MockDocument();
+    const board = doc.createElement('div');
+    doc.body.appendChild(board);
+
+    const engine = createCursorEngine(context);
+    engine.mount(board as unknown as HTMLElement);
+    engine.render();
+
+    expect(getOverlayRoot(board)).toBeDefined();
+    expect(board.children).toHaveLength(1);
+  });
+
+  it('rebuilds cursor node contents when a marker or label child is missing', () => {
+    const positions = [createRemoteCursor()];
+    let subscriptionCallback: ((positions: CursorPosition[]) => void) | null = null;
+    const context = {
+      setSelfPosition: vi.fn(),
+      getPositions: vi.fn(() => positions),
+      subscribe: vi.fn((callback: (positions: CursorPosition[]) => void) => {
+        subscriptionCallback = callback;
+        return () => {
+          return undefined;
+        };
+      }),
+    };
+
+    const doc = new MockDocument();
+    const board = doc.createElement('div');
+    doc.body.appendChild(board);
+
+    const engine = createCursorEngine(context);
+    engine.mount(board as unknown as HTMLElement);
+    engine.render({
+      container: board as unknown as HTMLElement,
+      style: 'default',
+    });
+
+    const cursorNode = getCursorNode(board);
+    const label = getLabel(cursorNode);
+    cursorNode.removeChild(label);
+
+    subscriptionCallback?.([createRemoteCursor()]);
+
+    expect(cursorNode.children).toHaveLength(2);
+    expect(getLabel(cursorNode).textContent).toBe('Alice');
+  });
+
+  it('tears down a detached render root without requiring the container to still contain it', () => {
+    const context = {
+      setSelfPosition: vi.fn(),
+      getPositions: vi.fn(() => [createRemoteCursor()]),
+      subscribe: vi.fn(() => {
+        return () => {
+          return undefined;
+        };
+      }),
+    };
+
+    const doc = new MockDocument();
+    const board = doc.createElement('div');
+    doc.body.appendChild(board);
+
+    const engine = createCursorEngine(context);
+    engine.mount(board as unknown as HTMLElement);
+    engine.render({
+      container: board as unknown as HTMLElement,
+    });
+
+    const overlayRoot = getOverlayRoot(board);
+    board.removeChild(overlayRoot);
+    engine.unmount();
+
+    expect(board.children).toHaveLength(0);
+  });
+
+  it('tolerates malformed marker and label nodes during updates', () => {
+    const positions = [createRemoteCursor()];
+    let subscriptionCallback: ((positions: CursorPosition[]) => void) | null = null;
+    const context = {
+      setSelfPosition: vi.fn(),
+      getPositions: vi.fn(() => positions),
+      subscribe: vi.fn((callback: (positions: CursorPosition[]) => void) => {
+        subscriptionCallback = callback;
+        return () => {
+          return undefined;
+        };
+      }),
+    };
+
+    const doc = new MockDocument();
+    const board = doc.createElement('div');
+    doc.body.appendChild(board);
+
+    const engine = createCursorEngine(context);
+    engine.mount(board as unknown as HTMLElement);
+    engine.render({
+      container: board as unknown as HTMLElement,
+      style: 'default',
+    });
+
+    const cursorNode = getCursorNode(board);
+    (cursorNode.children as unknown[])[0] = {
+      setAttribute: vi.fn(),
+      style: null,
+    };
+    (cursorNode.children as unknown[])[1] = 5;
+
+    subscriptionCallback?.([
+      createRemoteCursor({
+        x: 0.6,
+        y: 0.2,
+      }),
+    ]);
+
+    expect(cursorNode.style.left).toBe('60%');
+    expect(cursorNode.style.top).toBe('20%');
+  });
+
   it('hides idle peers when showIdle is false and restores them on movement', () => {
     const unsubscribe = vi.fn();
     let subscriptionCallback: ((positions: CursorPosition[]) => void) | null = null;
@@ -626,5 +815,332 @@ describe('createCursorEngine', () => {
 
     engine.unmount();
     expect(unsubscribe).toHaveBeenCalledTimes(1);
+  });
+
+  it('ignores invalid pointer payloads, supports changedTouches, and normalizes zero-sized bounds', () => {
+    const context = {
+      setSelfPosition: vi.fn(),
+      getPositions: vi.fn(() => []),
+      subscribe: vi.fn(() => {
+        return () => {
+          return undefined;
+        };
+      }),
+    };
+
+    const doc = new MockDocument();
+    const board = doc.createElement('div');
+    board.setBoundingRect({
+      left: 5,
+      top: 10,
+      width: 0,
+      height: 0,
+    });
+
+    const engine = createCursorEngine(context, {
+      throttleMs: 0,
+    });
+
+    engine.mount(board as unknown as HTMLElement);
+
+    board.dispatch('mousemove', {
+      clientX: 'bad',
+      clientY: 10,
+    });
+    board.dispatch('touchmove', {
+      touches: 'bad',
+    });
+    expect(context.setSelfPosition).not.toHaveBeenCalled();
+
+    board.dispatch('touchstart', {
+      changedTouches: [
+        {
+          clientX: 15,
+          clientY: 20,
+        },
+      ],
+    });
+
+    expect(context.setSelfPosition).toHaveBeenCalledWith(
+      expect.objectContaining({
+        x: 1,
+        y: 1,
+        xAbsolute: 1,
+        yAbsolute: 1,
+        idle: false,
+      }),
+    );
+  });
+
+  it('supports selector containers before mount, removes detached nodes, and preserves positioned containers', () => {
+    const positions = [createRemoteCursor()];
+    let subscriptionCallback: ((positions: CursorPosition[]) => void) | null = null;
+    const context = {
+      setSelfPosition: vi.fn(),
+      getPositions: vi.fn(() => positions),
+      subscribe: vi.fn((callback: (positions: CursorPosition[]) => void) => {
+        subscriptionCallback = callback;
+        return () => {
+          return undefined;
+        };
+      }),
+    };
+
+    const doc = new MockDocument();
+    const board = doc.createElement('div');
+    board.setAttribute('id', 'board');
+    board.style.position = 'absolute';
+    board.setBoundingRect({
+      left: 0,
+      top: 0,
+      width: 200,
+      height: 100,
+    });
+    doc.body.appendChild(board);
+    vi.stubGlobal('document', doc as unknown as Document);
+
+    const engine = createCursorEngine(context, {
+      throttleMs: 0,
+    });
+
+    engine.render({
+      container: '#board',
+      zIndex: 17,
+    });
+
+    const overlayRoot = getOverlayRoot(board);
+    const detachedCursorNode = getCursorNode(board);
+    overlayRoot.removeChild(detachedCursorNode);
+    subscriptionCallback?.([]);
+    expect(overlayRoot.children).toHaveLength(0);
+    expect(board.style.position).toBe('absolute');
+
+    engine.mount(board as unknown as HTMLElement);
+    engine.setPosition({
+      x: -0.25,
+      y: 1.5,
+    });
+
+    expect(context.setSelfPosition).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        x: 0,
+        y: 1,
+        xAbsolute: 0,
+        yAbsolute: 100,
+        idle: false,
+      }),
+    );
+
+    engine.unmount();
+    subscriptionCallback?.([createRemoteCursor()]);
+    expect(board.style.position).toBe('absolute');
+  });
+
+  it('handles invalid render targets, negative options, public proxies, and unmounted positions', async () => {
+    vi.useFakeTimers();
+
+    const remotePositions = [createRemoteCursor()];
+    const unsubscribe = vi.fn();
+    const context = {
+      setSelfPosition: vi.fn(),
+      getPositions: vi.fn(() => remotePositions),
+      subscribe: vi.fn(() => {
+        return unsubscribe;
+      }),
+    };
+
+    const engine = createCursorEngine(context, {
+      throttleMs: -10,
+      idleAfterMs: -5,
+    });
+
+    const subscription = vi.fn();
+    const stop = engine.subscribe(subscription);
+    expect(engine.getPositions()).toEqual(remotePositions);
+
+    engine.setPosition({
+      x: 0.5,
+      y: 0.25,
+    });
+    const lastPosition = context.setSelfPosition.mock.calls[0]?.[0];
+    expect(lastPosition).toEqual(
+      expect.objectContaining({
+        x: 0.5,
+        y: 0.25,
+        idle: false,
+      }),
+    );
+    expect(lastPosition).not.toHaveProperty('xAbsolute');
+    expect(lastPosition).not.toHaveProperty('yAbsolute');
+
+    engine.render({
+      container: '#missing',
+      style: 'default',
+    });
+    engine.mount({} as HTMLElement);
+
+    await vi.advanceTimersByTimeAsync(500);
+    expect(context.setSelfPosition).toHaveBeenCalledTimes(1);
+
+    stop();
+    engine.unmount();
+    expect(unsubscribe).toHaveBeenCalledTimes(1);
+  });
+
+  it('clears the idle timer when an explicit idle position is set', async () => {
+    vi.useFakeTimers();
+
+    const context = {
+      setSelfPosition: vi.fn(),
+      getPositions: vi.fn(() => []),
+      subscribe: vi.fn(() => {
+        return () => {
+          return undefined;
+        };
+      }),
+    };
+
+    const doc = new MockDocument();
+    const board = doc.createElement('div');
+    board.setBoundingRect({
+      left: 0,
+      top: 0,
+      width: 100,
+      height: 100,
+    });
+
+    const engine = createCursorEngine(context, {
+      throttleMs: 0,
+      idleAfterMs: 25,
+    });
+
+    engine.mount(board as unknown as HTMLElement);
+    board.dispatch('mousemove', {
+      clientX: 10,
+      clientY: 10,
+    });
+
+    engine.setPosition({
+      x: 0.2,
+      y: 0.2,
+      idle: true,
+    });
+
+    expect(context.setSelfPosition).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        x: 0.2,
+        y: 0.2,
+        idle: true,
+      }),
+    );
+
+    await vi.advanceTimersByTimeAsync(100);
+    expect(context.setSelfPosition).toHaveBeenCalledTimes(2);
+
+    engine.unmount();
+  });
+
+  it('clears a pending throttle timer on unmount', async () => {
+    vi.useFakeTimers();
+
+    const context = {
+      setSelfPosition: vi.fn(),
+      getPositions: vi.fn(() => []),
+      subscribe: vi.fn(() => {
+        return () => {
+          return undefined;
+        };
+      }),
+    };
+
+    const doc = new MockDocument();
+    const board = doc.createElement('div');
+    board.setBoundingRect({
+      left: 0,
+      top: 0,
+      width: 100,
+      height: 100,
+    });
+
+    const engine = createCursorEngine(context, {
+      throttleMs: 50,
+      idleAfterMs: 100,
+    });
+
+    engine.mount(board as unknown as HTMLElement);
+    board.dispatch('mousemove', {
+      clientX: 10,
+      clientY: 10,
+    });
+
+    await vi.advanceTimersByTimeAsync(5);
+    board.dispatch('mousemove', {
+      clientX: 20,
+      clientY: 20,
+    });
+
+    expect(context.setSelfPosition).toHaveBeenCalledTimes(1);
+
+    engine.unmount();
+    await vi.advanceTimersByTimeAsync(100);
+
+    expect(context.setSelfPosition).toHaveBeenCalledTimes(1);
+  });
+
+  it('dispatches immediately when leaving idle while a throttled update is queued', async () => {
+    vi.useFakeTimers();
+
+    const context = {
+      setSelfPosition: vi.fn(),
+      getPositions: vi.fn(() => []),
+      subscribe: vi.fn(() => {
+        return () => {
+          return undefined;
+        };
+      }),
+    };
+
+    const doc = new MockDocument();
+    const board = doc.createElement('div');
+    board.setBoundingRect({
+      left: 0,
+      top: 0,
+      width: 100,
+      height: 100,
+    });
+
+    const engine = createCursorEngine(context, {
+      throttleMs: 50,
+      idleAfterMs: 1_000,
+    });
+
+    engine.mount(board as unknown as HTMLElement);
+    engine.setPosition({
+      x: 0.1,
+      y: 0.1,
+    });
+
+    await vi.advanceTimersByTimeAsync(5);
+    engine.setPosition({
+      idle: true,
+    });
+    expect(context.setSelfPosition).toHaveBeenCalledTimes(1);
+
+    engine.setPosition({
+      x: 0.2,
+      y: 0.2,
+      idle: false,
+    });
+    expect(context.setSelfPosition).toHaveBeenCalledTimes(2);
+    expect(context.setSelfPosition).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        x: 0.2,
+        y: 0.2,
+        idle: false,
+      }),
+    );
+
+    await vi.advanceTimersByTimeAsync(100);
+    expect(context.setSelfPosition).toHaveBeenCalledTimes(2);
   });
 });
