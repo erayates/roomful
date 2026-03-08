@@ -153,7 +153,9 @@ export interface CursorRenderOptions {
   zIndex?: number;
 }
 
-export interface CursorPosition {
+export type CursorData = Record<string, unknown>;
+
+export interface CursorBasePosition {
   userId: string;
   name: string;
   color: string;
@@ -164,6 +166,11 @@ export interface CursorPosition {
   element?: string;
   idle: boolean;
 }
+
+type CursorExtension<TCursor extends CursorData> = Omit<Partial<TCursor>, keyof CursorBasePosition>;
+
+export type CursorPosition<TCursor extends CursorData = CursorData> = CursorBasePosition &
+  CursorExtension<TCursor>;
 
 export interface StateOptions<T> {
   initialValue: T;
@@ -206,13 +213,13 @@ export interface PresenceEngine<TPresence extends PresenceData = PresenceData> {
   getSelf(): Peer<TPresence>;
 }
 
-export interface CursorEngine {
+export interface CursorEngine<TCursor extends CursorData = CursorData> {
   mount(el: HTMLElement): void;
   unmount(): void;
   render(options?: CursorRenderOptions): void;
-  subscribe(cb: (positions: CursorPosition[]) => void): Unsubscribe;
-  getPositions(): CursorPosition[];
-  setPosition(position: Partial<CursorPosition>): void;
+  subscribe(cb: (positions: CursorPosition<TCursor>[]) => void): Unsubscribe;
+  getPositions(): CursorPosition<TCursor>[];
+  setPosition(position: Partial<CursorPosition<TCursor>>): void;
 }
 
 export interface StateEngine<T> {
@@ -251,7 +258,7 @@ export interface Room<TPresence extends PresenceData = PresenceData> {
   disconnect(): Promise<void>;
 
   usePresence(): PresenceEngine<TPresence>;
-  useCursors(options?: CursorOptions): CursorEngine;
+  useCursors<TCursor extends CursorData = CursorData>(options?: CursorOptions): CursorEngine<TCursor>;
   useState<T>(options: StateOptions<T>): StateEngine<T>;
   useAwareness(): AwarenessEngine;
   useEvents(options?: EventOptions): EventEngine<TPresence>;

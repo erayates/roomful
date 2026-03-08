@@ -95,6 +95,18 @@ export interface CrdtAwarenessWirePayload {
   data: BinaryWireData;
 }
 
+const RESERVED_CURSOR_KEYS = new Set([
+  'userId',
+  'name',
+  'color',
+  'x',
+  'y',
+  'xAbsolute',
+  'yAbsolute',
+  'element',
+  'idle',
+]);
+
 export type PeerWirePayloadByType = {
   hello: HelloWirePayload;
   welcome: WelcomeWirePayload;
@@ -330,6 +342,7 @@ function parseCursor(value: unknown, fromPeerId: string): CursorPosition | null 
   }
 
   const cursor: CursorPosition = {
+    ...readCursorData(value),
     userId: fromPeerId,
     name,
     color,
@@ -345,6 +358,20 @@ function parseCursor(value: unknown, fromPeerId: string): CursorPosition | null 
   }
 
   return cursor;
+}
+
+function readCursorData(value: Record<string, unknown>): Record<string, unknown> {
+  const cursorData: Record<string, unknown> = {};
+
+  for (const [key, entry] of Object.entries(value)) {
+    if (RESERVED_CURSOR_KEYS.has(key)) {
+      continue;
+    }
+
+    cursorData[key] = entry;
+  }
+
+  return cursorData;
 }
 
 function parseAwareness(value: unknown, fromPeerId: string): AwarenessState | null {

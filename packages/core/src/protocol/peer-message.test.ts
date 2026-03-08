@@ -163,6 +163,10 @@ describe('peer-message', () => {
             xAbsolute: 3,
             yAbsolute: 4,
             idle: false,
+            tool: 'pen',
+            metadata: {
+              pressure: 0.8,
+            },
           },
         },
       },
@@ -283,6 +287,59 @@ describe('peer-message', () => {
           role: 'editor',
           profile: {
             team: 'core',
+          },
+        },
+      },
+    } satisfies PeerWireMessage);
+  });
+
+  it('preserves extra cursor fields while keeping the sender peer id authoritative', () => {
+    expect(
+      parsePeerWireEnvelope(
+        JSON.stringify({
+          source: 'flockjs',
+          protocolVersion: 2,
+          codec: 'json',
+          roomId: 'room-a',
+          fromPeerId: 'peer-b',
+          timestamp: 21,
+          type: 'cursor:update',
+          payload: {
+            cursor: {
+              userId: 'spoofed-peer',
+              name: 'Bob',
+              color: '#111111',
+              x: 1,
+              y: 2,
+              xAbsolute: 3,
+              yAbsolute: 4,
+              idle: false,
+              tool: 'pen',
+              metadata: {
+                pressure: 0.6,
+              },
+            },
+          },
+        }),
+      ),
+    ).toEqual({
+      type: 'cursor:update',
+      roomId: 'room-a',
+      fromPeerId: 'peer-b',
+      timestamp: 21,
+      payload: {
+        cursor: {
+          userId: 'peer-b',
+          name: 'Bob',
+          color: '#111111',
+          x: 1,
+          y: 2,
+          xAbsolute: 3,
+          yAbsolute: 4,
+          idle: false,
+          tool: 'pen',
+          metadata: {
+            pressure: 0.6,
           },
         },
       },

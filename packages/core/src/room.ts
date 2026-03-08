@@ -39,6 +39,7 @@ import {
 import type {
   AwarenessEngine,
   AwarenessState,
+  CursorData,
   CursorEngine,
   CursorOptions,
   CursorPosition,
@@ -152,6 +153,13 @@ function readTypedStateEngine<T>(stateEngine: unknown): StateEngine<T> {
   // the runtime shape for subsequent callers in that room.
   // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
   return stateEngine as StateEngine<T>;
+}
+
+function readTypedCursorEngine<TCursor extends CursorData>(cursorEngine: unknown): CursorEngine<TCursor> {
+  // The room exposes a singleton cursor engine, so callers choose the typed view they expect
+  // over the shared runtime cursor payload shape for that room.
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+  return cursorEngine as CursorEngine<TCursor>;
 }
 
 export class RoomImpl<TPresence extends PresenceData = PresenceData> implements Room<TPresence> {
@@ -404,7 +412,9 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     return this.presenceEngineInstance;
   }
 
-  public useCursors(options?: CursorOptions): CursorEngine {
+  public useCursors<TCursor extends CursorData = CursorData>(
+    options?: CursorOptions,
+  ): CursorEngine<TCursor> {
     if (!this.cursorEngineInstance) {
       const getRemoteCursorPositions = (): CursorPosition[] => {
         return Array.from(this.cursorPositions.values()).filter((position) => {
@@ -437,7 +447,7 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
       );
     }
 
-    return this.cursorEngineInstance;
+    return readTypedCursorEngine<TCursor>(this.cursorEngineInstance);
   }
 
   public useState<T>(options: StateOptions<T>): StateEngine<T> {

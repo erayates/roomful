@@ -7,6 +7,8 @@ export type {
   AwarenessEngine,
   AwarenessSelection,
   AwarenessState,
+  CursorBasePosition,
+  CursorData,
   CursorEngine,
   CursorOptions,
   CursorPosition,

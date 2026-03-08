@@ -32,6 +32,13 @@ const waitFor = async (condition: () => boolean, timeoutMs = 1_500): Promise<voi
   }
 };
 
+interface ExtendedCursorShape {
+  tool: 'pen' | 'eraser';
+  metadata: {
+    pressure: number;
+  };
+}
+
 class MockReconnectTransportAdapter implements TransportAdapter {
   public readonly kind = 'websocket' as const;
 
@@ -355,17 +362,35 @@ describe('Room engine integration branches', () => {
       },
     ]);
 
-    const cursorsA = roomA.useCursors();
+    const cursorsA = roomA.useCursors<ExtendedCursorShape>();
     const cursorSeen = vi.fn();
     cursorsA.subscribe(cursorSeen);
-    const cursorsB = roomB.useCursors();
+    const cursorsB = roomB.useCursors<ExtendedCursorShape>();
     const localCursorSeen = vi.fn();
     cursorsB.subscribe(localCursorSeen);
 
-    cursorsB.setPosition({ x: 0.25, y: 0.75 });
+    cursorsB.setPosition({
+      x: 0.25,
+      y: 0.75,
+      tool: 'pen',
+      metadata: {
+        pressure: 0.7,
+      },
+    });
     await waitFor(() =>
       cursorsA.getPositions().some((position) => position.userId === roomB.peerId),
     );
+    expect(cursorsA.getPositions()).toEqual([
+      expect.objectContaining({
+        userId: roomB.peerId,
+        x: 0.25,
+        y: 0.75,
+        tool: 'pen',
+        metadata: {
+          pressure: 0.7,
+        },
+      }),
+    ]);
     expect(cursorsB.getPositions()).toEqual([]);
     expect(localCursorSeen).toHaveBeenLastCalledWith([]);
 
