@@ -1,7 +1,15 @@
-import type { PresenceData, Room, RoomOptions } from '@flockjs/core';
+import type { Peer, PresenceData, PresenceEngine, Room, RoomOptions } from '@flockjs/core';
 import { createCoreHealth, createRoom, FlockError } from '@flockjs/core';
 import type { ReactNode } from 'react';
-import { createContext, createElement, useContext, useEffect, useRef } from 'react';
+import {
+  createContext,
+  createElement,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useSyncExternalStore,
+} from 'react';
 
 export interface ReactHealth {
   packageName: '@flockjs/react';
@@ -21,6 +29,14 @@ export interface FlockProviderProps<
   onError?: (error: FlockError) => void;
 }
 
+export interface UsePresenceResult<TPresence extends PresenceData = PresenceData> {
+  self: Peer<TPresence>;
+  others: Peer<TPresence>[];
+  all: Peer<TPresence>[];
+  update: PresenceEngine<TPresence>['update'];
+  replace: PresenceEngine<TPresence>['replace'];
+}
+
 interface RoomDefinition<TPresence extends PresenceData> {
   roomId: string;
   options: RoomOptions<TPresence>;
@@ -35,6 +51,12 @@ interface ProviderCallbacks {
   onConnect: (() => void) | undefined;
   onDisconnect: ((payload: { reason?: string }) => void) | undefined;
   onError: ((error: FlockError) => void) | undefined;
+}
+
+interface PresenceSnapshotCache<TPresence extends PresenceData> {
+  room: Room<TPresence>;
+  engine: PresenceEngine<TPresence>;
+  snapshot: UsePresenceResult<TPresence>;
 }
 
 const FlockRoomContext = createContext<unknown>(null);
@@ -115,6 +137,31 @@ export function useRoom<TPresence extends PresenceData = PresenceData>(): Room<T
   }
 
   return room;
+}
+
+export function usePresence<
+  TPresence extends PresenceData = PresenceData,
+>(): UsePresenceResult<TPresence> {
+  const room = useRoom<TPresence>();
+  const presence = room.usePresence();
+  const snapshotCacheRef = useRef<PresenceSnapshotCache<TPresence> | null>(null);
+  const subscribe = useCallback(
+    (onStoreChange: () => void) => {
+      return presence.subscribe(() => {
+        const previousSnapshot = snapshotCacheRef.current?.snapshot ?? null;
+        const nextSnapshot = readPresenceSnapshot(room, presence, snapshotCacheRef);
+        if (nextSnapshot !== previousSnapshot) {
+          onStoreChange();
+        }
+      });
+    },
+    [presence, room],
+  );
+  const getSnapshot = useCallback(() => {
+    return readPresenceSnapshot(room, presence, snapshotCacheRef);
+  }, [presence, room]);
+
+  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 }
 
 function createRoomDefinition<TPresence extends PresenceData = PresenceData>(
@@ -255,6 +302,177 @@ function areShallowObjectsEqual(a: object | undefined, b: object | undefined): b
 
 function isObjectLike(value: unknown): value is object {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function readPresenceSnapshot<TPresence extends PresenceData>(
+  room: Room<TPresence>,
+  presence: PresenceEngine<TPresence>,
+  cacheRef: { current: PresenceSnapshotCache<TPresence> | null },
+): UsePresenceResult<TPresence> {
+  const all = presence.getAll();
+  const self = readSelfPeer(room, presence, all);
+  const others = all.filter((peer) => {
+    return peer.id !== room.peerId;
+  });
+  const previous = cacheRef.current;
+
+  if (previous && previous.room === room && previous.engine === presence) {
+    const previousSnapshot = previous.snapshot;
+    const isAllEqual = arePeerArraysEqual(previousSnapshot.all, all);
+    const isSelfEqual = arePeersEqual(previousSnapshot.self, self);
+    const isOthersEqual = arePeerArraysEqual(previousSnapshot.others, others);
+
+    if (isAllEqual && isSelfEqual && isOthersEqual) {
+      return previousSnapshot;
+    }
+
+    const nextSnapshot: UsePresenceResult<TPresence> = {
+      self: isSelfEqual ? previousSnapshot.self : self,
+      others: isOthersEqual ? previousSnapshot.others : others,
+      all: isAllEqual ? previousSnapshot.all : all,
+      update: previousSnapshot.update,
+      replace: previousSnapshot.replace,
+    };
+
+    previous.snapshot = nextSnapshot;
+    return nextSnapshot;
+  }
+
+  const snapshot: UsePresenceResult<TPresence> = {
+    self,
+    others,
+    all,
+    update: presence.update,
+    replace: presence.replace,
+  };
+
+  cacheRef.current = {
+    room,
+    engine: presence,
+    snapshot,
+  };
+
+  return snapshot;
+}
+
+function readSelfPeer<TPresence extends PresenceData>(
+  room: Room<TPresence>,
+  presence: PresenceEngine<TPresence>,
+  peers: Peer<TPresence>[],
+): Peer<TPresence> {
+  for (const peer of peers) {
+    if (peer.id === room.peerId) {
+      return peer;
+    }
+  }
+
+  return presence.getSelf();
+}
+
+function arePeerArraysEqual<TPresence extends PresenceData>(
+  previous: readonly Peer<TPresence>[],
+  next: readonly Peer<TPresence>[],
+): boolean {
+  if (previous === next) {
+    return true;
+  }
+
+  if (previous.length !== next.length) {
+    return false;
+  }
+
+  for (let index = 0; index < previous.length; index += 1) {
+    const previousPeer = previous[index];
+    const nextPeer = next[index];
+
+    if (!previousPeer || !nextPeer || !arePeersEqual(previousPeer, nextPeer)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function arePeersEqual<TPresence extends PresenceData>(
+  previous: Peer<TPresence>,
+  next: Peer<TPresence>,
+): boolean {
+  if (previous === next) {
+    return true;
+  }
+
+  const previousKeys = Object.keys(previous).filter((key) => {
+    return key !== 'lastSeen';
+  });
+  const nextKeys = Object.keys(next).filter((key) => {
+    return key !== 'lastSeen';
+  });
+
+  if (previousKeys.length !== nextKeys.length) {
+    return false;
+  }
+
+  for (const key of previousKeys) {
+    if (!Object.prototype.hasOwnProperty.call(next, key)) {
+      return false;
+    }
+
+    if (!arePresenceValuesEqual(Reflect.get(previous, key), Reflect.get(next, key))) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function arePresenceValuesEqual(previous: unknown, next: unknown): boolean {
+  if (previous === next) {
+    return true;
+  }
+
+  if (Array.isArray(previous) || Array.isArray(next)) {
+    if (!Array.isArray(previous) || !Array.isArray(next) || previous.length !== next.length) {
+      return false;
+    }
+
+    for (let index = 0; index < previous.length; index += 1) {
+      if (!arePresenceValuesEqual(previous[index], next[index])) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  if (!isPlainObject(previous) || !isPlainObject(next)) {
+    return false;
+  }
+
+  const previousKeys = Object.keys(previous);
+  const nextKeys = Object.keys(next);
+  if (previousKeys.length !== nextKeys.length) {
+    return false;
+  }
+
+  for (const key of previousKeys) {
+    if (!Object.prototype.hasOwnProperty.call(next, key)) {
+      return false;
+    }
+
+    if (!arePresenceValuesEqual(Reflect.get(previous, key), Reflect.get(next, key))) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  if (!isObjectLike(value)) {
+    return false;
+  }
+
+  return Object.getPrototypeOf(value) === Object.prototype;
 }
 
 function isRoom<TPresence extends PresenceData = PresenceData>(

@@ -1,6 +1,14 @@
 // @vitest-environment jsdom
 
-import type { PresenceData, Room, RoomEventMap, RoomEventName, RoomOptions } from '@flockjs/core';
+import type {
+  Peer,
+  PresenceData,
+  PresenceEngine,
+  Room,
+  RoomEventMap,
+  RoomEventName,
+  RoomOptions,
+} from '@flockjs/core';
 import { FlockError } from '@flockjs/core';
 import type { ReactNode } from 'react';
 import { act, createElement } from 'react';
@@ -23,17 +31,27 @@ vi.mock('@flockjs/core', async () => {
   };
 });
 
-import { createReactHealth, FlockProvider, useRoom } from './index';
+import type { UsePresenceResult } from './index';
+import { createReactHealth, FlockProvider, usePresence, useRoom } from './index';
 
 Reflect.set(globalThis, 'IS_REACT_ACT_ENVIRONMENT', true);
 
 type RoomEventPayload = RoomEventMap<PresenceData>[RoomEventName];
 type RoomEventHandler = (payload: RoomEventPayload) => void;
+type PresenceSubscriber = (peers: Peer<PresenceData>[]) => void;
 
 interface RenderHarness {
   rerender(element: ReactNode): Promise<void>;
   unmount(): Promise<void>;
 }
+
+type TestPresenceEngine = PresenceEngine<PresenceData> & {
+  emit(peers: Peer<PresenceData>[]): void;
+  subscriberCount(): number;
+  subscribe: ReturnType<typeof vi.fn<(cb: PresenceSubscriber) => () => void>>;
+  update: ReturnType<typeof vi.fn<(data: Partial<PresenceData>) => void>>;
+  replace: ReturnType<typeof vi.fn<(data: Partial<PresenceData>) => void>>;
+};
 
 type TestRoom = Room<PresenceData> & {
   connect: ReturnType<typeof vi.fn<() => Promise<void>>>;
@@ -42,14 +60,84 @@ type TestRoom = Room<PresenceData> & {
     event: TEvent,
     payload: RoomEventMap<PresenceData>[TEvent],
   ) => void;
+  presenceEngine: TestPresenceEngine;
 };
 
-function createMockRoom(roomId = 'room-1', options: RoomOptions<PresenceData> = {}): TestRoom {
+function createPeer(id: string, overrides: Partial<Peer<PresenceData>> = {}): Peer<PresenceData> {
+  return {
+    id,
+    joinedAt: 1,
+    lastSeen: 1,
+    name: id,
+    ...overrides,
+  };
+}
+
+function createMockPresenceEngine(
+  selfPeerId: string,
+  peers: Peer<PresenceData>[],
+): TestPresenceEngine {
+  const subscribers = new Set<PresenceSubscriber>();
+  let currentPeers = peers;
+
+  const engine = {
+    update: vi.fn(),
+    replace: vi.fn(),
+    subscribe: vi.fn((callback: PresenceSubscriber) => {
+      subscribers.add(callback);
+      callback(currentPeers);
+
+      return () => {
+        subscribers.delete(callback);
+      };
+    }),
+    get(peerId: string) {
+      return (
+        currentPeers.find((peer) => {
+          return peer.id === peerId;
+        }) ?? null
+      );
+    },
+    getAll() {
+      return currentPeers;
+    },
+    getSelf() {
+      return (
+        currentPeers.find((peer) => {
+          return peer.id === selfPeerId;
+        }) ?? currentPeers[0]
+      );
+    },
+    emit(nextPeers: Peer<PresenceData>[]) {
+      currentPeers = nextPeers;
+      for (const subscriber of subscribers) {
+        subscriber(currentPeers);
+      }
+    },
+    subscriberCount() {
+      return subscribers.size;
+    },
+  } as TestPresenceEngine;
+
+  return engine;
+}
+
+function createMockRoom(
+  roomId = 'room-1',
+  options: RoomOptions<PresenceData> = {},
+  config: {
+    peerId?: string;
+    presenceEngine?: TestPresenceEngine;
+  } = {},
+): TestRoom {
   const handlers = new Map<RoomEventName, Set<RoomEventHandler>>();
+  const peerId = config.peerId ?? `${roomId}-peer`;
+  const presenceEngine =
+    config.presenceEngine ?? createMockPresenceEngine(peerId, [createPeer(peerId)]);
 
   const room = {
     id: roomId,
-    peerId: `${roomId}-peer`,
+    peerId,
     status: 'idle',
     peers: [],
     peerCount: 0,
@@ -59,7 +147,9 @@ function createMockRoom(roomId = 'room-1', options: RoomOptions<PresenceData> = 
     disconnect: vi.fn(async () => {
       return undefined;
     }),
-    usePresence: vi.fn(),
+    usePresence: vi.fn(() => {
+      return presenceEngine;
+    }),
     useCursors: vi.fn(),
     useState: vi.fn(),
     useAwareness: vi.fn(),
@@ -83,6 +173,7 @@ function createMockRoom(roomId = 'room-1', options: RoomOptions<PresenceData> = 
         handler(payload);
       }
     },
+    presenceEngine,
   } as TestRoom;
 
   createRoomMock.mockImplementationOnce(
@@ -315,6 +406,316 @@ describe('FlockProvider', () => {
   it('throws a typed error when useRoom() is called outside the provider', () => {
     function MissingProviderConsumer(): null {
       useRoom();
+      return null;
+    }
+
+    expect(() => {
+      renderToString(createElement(MissingProviderConsumer));
+    }).toThrowError(FlockError);
+    expect(() => {
+      renderToString(createElement(MissingProviderConsumer));
+    }).toThrow('FlockProvider');
+  });
+});
+
+describe('usePresence', () => {
+  it('returns self, others, all, and presence mutators', async () => {
+    const self = createPeer('presence-self', { name: 'Ada' });
+    const other = createPeer('presence-other', { name: 'Grace', role: 'editor' });
+    const presenceEngine = createMockPresenceEngine('presence-self', [self, other]);
+    createMockRoom(
+      'presence-room',
+      {},
+      {
+        peerId: 'presence-self',
+        presenceEngine,
+      },
+    );
+    let observedPresence: UsePresenceResult<PresenceData> | null = null;
+
+    function PresenceConsumer(): null {
+      observedPresence = usePresence();
+      return null;
+    }
+
+    const harness = await renderElement(
+      createElement(
+        FlockProvider,
+        {
+          roomId: 'presence-room',
+        },
+        createElement(PresenceConsumer),
+      ),
+    );
+
+    expect(observedPresence?.self).toEqual(self);
+    expect(observedPresence?.others).toEqual([other]);
+    expect(observedPresence?.all).toEqual([self, other]);
+
+    observedPresence?.update({ status: 'online' });
+    observedPresence?.replace({ name: 'Ada Lovelace' });
+
+    expect(presenceEngine.update).toHaveBeenCalledWith({ status: 'online' });
+    expect(presenceEngine.replace).toHaveBeenCalledWith({ name: 'Ada Lovelace' });
+
+    await harness.unmount();
+  });
+
+  it('rerenders when peers join, leave, or meaningfully update', async () => {
+    const self = createPeer('react-self', { name: 'Self' });
+    const peerA = createPeer('react-peer-a', { name: 'Peer A' });
+    const peerB = createPeer('react-peer-b', { name: 'Peer B' });
+    const presenceEngine = createMockPresenceEngine('react-self', [self]);
+    createMockRoom(
+      'presence-reactivity',
+      {},
+      {
+        peerId: 'react-self',
+        presenceEngine,
+      },
+    );
+    const snapshots: UsePresenceResult<PresenceData>[] = [];
+
+    function PresenceConsumer(): null {
+      snapshots.push(usePresence());
+      return null;
+    }
+
+    const harness = await renderElement(
+      createElement(
+        FlockProvider,
+        {
+          roomId: 'presence-reactivity',
+        },
+        createElement(PresenceConsumer),
+      ),
+    );
+
+    await act(async () => {
+      presenceEngine.emit([self, peerA]);
+    });
+    await act(async () => {
+      presenceEngine.emit([self, peerA, peerB]);
+    });
+    await act(async () => {
+      presenceEngine.emit([
+        self,
+        createPeer('react-peer-a', { name: 'Peer A+', role: 'editor' }),
+        peerB,
+      ]);
+    });
+    await act(async () => {
+      presenceEngine.emit([self, peerB]);
+    });
+
+    expect(snapshots).toHaveLength(5);
+    expect(snapshots[1]?.others.map((peer) => peer.id)).toEqual(['react-peer-a']);
+    expect(snapshots[2]?.others.map((peer) => peer.id)).toEqual(['react-peer-a', 'react-peer-b']);
+    expect(snapshots[3]?.others[0]).toMatchObject({
+      id: 'react-peer-a',
+      name: 'Peer A+',
+      role: 'editor',
+    });
+    expect(snapshots[4]?.others.map((peer) => peer.id)).toEqual(['react-peer-b']);
+
+    await harness.unmount();
+  });
+
+  it('does not rerender when peer data is deep-equal or only lastSeen changes', async () => {
+    const self = createPeer('equal-self', { name: 'Self' });
+    const other = createPeer('equal-other', {
+      name: 'Other',
+      metadata: {
+        role: 'editor',
+        permissions: ['read', 'write'],
+      },
+    });
+    const presenceEngine = createMockPresenceEngine('equal-self', [self, other]);
+    createMockRoom(
+      'presence-equality',
+      {},
+      {
+        peerId: 'equal-self',
+        presenceEngine,
+      },
+    );
+    let renderCount = 0;
+
+    function PresenceConsumer(): null {
+      usePresence();
+      renderCount += 1;
+      return null;
+    }
+
+    const harness = await renderElement(
+      createElement(
+        FlockProvider,
+        {
+          roomId: 'presence-equality',
+        },
+        createElement(PresenceConsumer),
+      ),
+    );
+
+    await act(async () => {
+      presenceEngine.emit([
+        createPeer('equal-self', { name: 'Self' }),
+        createPeer('equal-other', {
+          name: 'Other',
+          metadata: {
+            role: 'editor',
+            permissions: ['read', 'write'],
+          },
+        }),
+      ]);
+    });
+    await act(async () => {
+      presenceEngine.emit([
+        createPeer('equal-self', { name: 'Self', lastSeen: 2 }),
+        createPeer('equal-other', {
+          name: 'Other',
+          lastSeen: 99,
+          metadata: {
+            role: 'editor',
+            permissions: ['read', 'write'],
+          },
+        }),
+      ]);
+    });
+
+    expect(renderCount).toBe(1);
+
+    await harness.unmount();
+  });
+
+  it('preserves stable slice references when unchanged', async () => {
+    const self = createPeer('stable-self', { name: 'Self', role: 'owner' });
+    const other = createPeer('stable-other', { name: 'Other', role: 'editor' });
+    const presenceEngine = createMockPresenceEngine('stable-self', [self, other]);
+    createMockRoom(
+      'presence-stable-slices',
+      {},
+      {
+        peerId: 'stable-self',
+        presenceEngine,
+      },
+    );
+    const snapshots: UsePresenceResult<PresenceData>[] = [];
+
+    function PresenceConsumer(): null {
+      snapshots.push(usePresence());
+      return null;
+    }
+
+    const harness = await renderElement(
+      createElement(
+        FlockProvider,
+        {
+          roomId: 'presence-stable-slices',
+        },
+        createElement(PresenceConsumer),
+      ),
+    );
+
+    await act(async () => {
+      presenceEngine.emit([
+        createPeer('stable-self', { name: 'Self Renamed', role: 'owner' }),
+        createPeer('stable-other', { name: 'Other', role: 'editor' }),
+      ]);
+    });
+    await act(async () => {
+      presenceEngine.emit([
+        createPeer('stable-self', { name: 'Self Renamed', role: 'owner' }),
+        createPeer('stable-other', { name: 'Other+', role: 'editor' }),
+      ]);
+    });
+
+    expect(snapshots).toHaveLength(3);
+    expect(snapshots[1]?.others).toBe(snapshots[0]?.others);
+    expect(snapshots[2]?.self).toBe(snapshots[1]?.self);
+
+    await harness.unmount();
+  });
+
+  it('follows room replacement and resubscribes to the new room presence engine', async () => {
+    const roomAPresence = createMockPresenceEngine('room-a-peer', [
+      createPeer('room-a-peer', { name: 'Room A Self' }),
+    ]);
+    const roomBPresence = createMockPresenceEngine('room-b-peer', [
+      createPeer('room-b-peer', { name: 'Room B Self' }),
+    ]);
+    createMockRoom(
+      'presence-room-a',
+      {},
+      {
+        peerId: 'room-a-peer',
+        presenceEngine: roomAPresence,
+      },
+    );
+    createMockRoom(
+      'presence-room-b',
+      {},
+      {
+        peerId: 'room-b-peer',
+        presenceEngine: roomBPresence,
+      },
+    );
+    const snapshots: UsePresenceResult<PresenceData>[] = [];
+
+    function PresenceConsumer(): null {
+      snapshots.push(usePresence());
+      return null;
+    }
+
+    const harness = await renderElement(
+      createElement(
+        FlockProvider,
+        {
+          roomId: 'presence-room-a',
+        },
+        createElement(PresenceConsumer),
+      ),
+    );
+
+    await harness.rerender(
+      createElement(
+        FlockProvider,
+        {
+          roomId: 'presence-room-b',
+        },
+        createElement(PresenceConsumer),
+      ),
+    );
+
+    const snapshotCountAfterReplacement = snapshots.length;
+
+    await act(async () => {
+      roomAPresence.emit([
+        createPeer('room-a-peer', { name: 'Room A Self' }),
+        createPeer('room-a-other', { name: 'A Other' }),
+      ]);
+    });
+    await act(async () => {
+      roomBPresence.emit([
+        createPeer('room-b-peer', { name: 'Room B Self' }),
+        createPeer('room-b-other', { name: 'B Other' }),
+      ]);
+    });
+
+    expect(snapshotCountAfterReplacement).toBe(2);
+    expect(snapshots[1]?.self.id).toBe('room-b-peer');
+    expect(snapshots[1]?.all).toEqual([createPeer('room-b-peer', { name: 'Room B Self' })]);
+    expect(snapshots).toHaveLength(3);
+    expect(snapshots[2]?.others.map((peer) => peer.id)).toEqual(['room-b-other']);
+    expect(roomAPresence.subscriberCount()).toBe(0);
+    expect(roomBPresence.subscriberCount()).toBe(1);
+
+    await harness.unmount();
+  });
+
+  it('throws a typed error when usePresence() is called outside the provider', () => {
+    function MissingProviderConsumer(): null {
+      usePresence();
       return null;
     }
 

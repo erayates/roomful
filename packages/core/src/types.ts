@@ -198,8 +198,8 @@ export interface AwarenessState {
 }
 
 export interface PresenceEngine<TPresence extends PresenceData = PresenceData> {
-  update(data: Partial<TPresence>): void;
-  replace(data: Partial<TPresence>): void;
+  update(this: void, data: Partial<TPresence>): void;
+  replace(this: void, data: Partial<TPresence>): void;
   subscribe(cb: (peers: Peer<TPresence>[]) => void): Unsubscribe;
   get(peerId: string): Peer<TPresence> | null;
   getAll(): Peer<TPresence>[];
