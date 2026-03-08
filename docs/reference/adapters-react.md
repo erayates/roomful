@@ -35,6 +35,8 @@ function App() {
 | `usePeers()`                | `Peer[]`                  | connected peers                |
 | `useConnectionStatus()`     | `RoomStatus`              | current room status            |
 
+`useSharedState(key, opts)` intentionally mirrors React `useState`: it returns a `[value, setValue]` tuple, and `setValue` accepts either the next value or an updater function.
+
 ## Example
 
 ```tsx
@@ -58,6 +60,12 @@ function PollWidget() {
   );
 }
 ```
+
+## Shared State Notes
+
+- `useSharedState()` currently binds one shared-state engine per room. Every component in that room must use the same `key`.
+- `opts` forwards directly to `room.useState(...)`, including `initialValue`, `strategy`, and `persist`.
+- The setter reference is stable across rerenders and room replacement.
 
 ## Related Docs
 

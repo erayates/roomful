@@ -8,9 +8,11 @@ import type {
   PresenceEngine,
   Room,
   RoomOptions,
+  StateEngine,
+  StateOptions,
 } from '@flockjs/core';
 import { createCoreHealth, createRoom, FlockError } from '@flockjs/core';
-import type { ReactNode, RefCallback } from 'react';
+import type { Dispatch, ReactNode, RefCallback, SetStateAction } from 'react';
 import {
   createContext,
   createElement,
@@ -76,14 +78,26 @@ interface PresenceSnapshotCache<TPresence extends PresenceData> {
   snapshot: UsePresenceResult<TPresence>;
 }
 
-interface CursorSnapshotCache<
-  TPresence extends PresenceData,
-  TCursor extends CursorData,
-> {
+interface CursorSnapshotCache<TPresence extends PresenceData, TCursor extends CursorData> {
   room: Room<TPresence>;
   engine: CursorEngine<TCursor>;
   snapshot: CursorPosition<TCursor>[];
 }
+
+interface SharedStateSnapshotCache<TPresence extends PresenceData, T> {
+  room: Room<TPresence>;
+  engine: StateEngine<T>;
+  snapshot: T;
+}
+
+interface SharedStateBinding {
+  key: string;
+  strategy: 'lww' | 'crdt';
+  initialValue: unknown;
+  persist: boolean;
+}
+
+const sharedStateBindings = new WeakMap<Room<PresenceData>, SharedStateBinding>();
 
 const FlockRoomContext = createContext<unknown>(null);
 FlockRoomContext.displayName = 'FlockRoomContext';
@@ -274,6 +288,60 @@ export function useCursors<
     mount,
     unmount,
   };
+}
+
+export function useSharedState<T, TPresence extends PresenceData = PresenceData>(
+  key: string,
+  options: StateOptions<T>,
+): readonly [T, Dispatch<SetStateAction<T>>] {
+  const room = useRoom<TPresence>();
+  const existingBinding = sharedStateBindings.get(room) ?? null;
+
+  if (existingBinding) {
+    assertCompatibleSharedStateBinding(existingBinding, key, options);
+  }
+
+  const state = room.useState(options);
+  const binding = existingBinding ?? createSharedStateBinding(key, options);
+  sharedStateBindings.set(room, binding);
+
+  if (binding.persist !== true && options.persist === true && binding.strategy === 'lww') {
+    binding.persist = true;
+  }
+
+  const stateRef = useRef(state);
+  stateRef.current = state;
+
+  const snapshotCacheRef = useRef<SharedStateSnapshotCache<TPresence, T> | null>(null);
+  const subscribe = useCallback(
+    (onStoreChange: () => void) => {
+      return state.subscribe(() => {
+        const previousSnapshot = snapshotCacheRef.current?.snapshot ?? null;
+        const nextSnapshot = readSharedStateSnapshot(room, state, snapshotCacheRef);
+        if (nextSnapshot !== previousSnapshot) {
+          onStoreChange();
+        }
+      });
+    },
+    [room, state],
+  );
+  const getSnapshot = useCallback(() => {
+    return readSharedStateSnapshot(room, state, snapshotCacheRef);
+  }, [room, state]);
+
+  const setValue = useCallback<Dispatch<SetStateAction<T>>>((nextValue) => {
+    const engine = stateRef.current;
+    const previousValue = engine.get();
+    const resolvedValue = isStateUpdater(nextValue) ? nextValue(previousValue) : nextValue;
+
+    if (areStructuredValuesEqual(previousValue, resolvedValue)) {
+      return;
+    }
+
+    engine.set(resolvedValue);
+  }, []);
+
+  return [useSyncExternalStore(subscribe, getSnapshot, getSnapshot), setValue] as const;
 }
 
 function createRoomDefinition<TPresence extends PresenceData = PresenceData>(
@@ -538,6 +606,137 @@ function readCursorSnapshot<TPresence extends PresenceData, TCursor extends Curs
   return nextSnapshot;
 }
 
+function readSharedStateSnapshot<TPresence extends PresenceData, T>(
+  room: Room<TPresence>,
+  state: StateEngine<T>,
+  cacheRef: { current: SharedStateSnapshotCache<TPresence, T> | null },
+): T {
+  const nextSnapshot = state.get();
+  const previous = cacheRef.current;
+
+  if (previous && previous.room === room && previous.engine === state) {
+    if (areStructuredValuesEqual(previous.snapshot, nextSnapshot)) {
+      return previous.snapshot;
+    }
+
+    previous.snapshot = nextSnapshot;
+    return nextSnapshot;
+  }
+
+  cacheRef.current = {
+    room,
+    engine: state,
+    snapshot: nextSnapshot,
+  };
+  return nextSnapshot;
+}
+
+function createSharedStateBinding<T>(key: string, options: StateOptions<T>): SharedStateBinding {
+  return {
+    key,
+    strategy: normalizeSharedStateStrategy(options.strategy),
+    initialValue: cloneSharedStateValue(options.initialValue),
+    persist: options.persist === true,
+  };
+}
+
+function assertCompatibleSharedStateBinding<T>(
+  binding: SharedStateBinding,
+  key: string,
+  options: StateOptions<T>,
+): void {
+  if (binding.key !== key) {
+    throw new FlockError(
+      'INVALID_STATE',
+      `useSharedState() is already bound to key "${binding.key}" for this room.`,
+      false,
+      {
+        currentKey: binding.key,
+        requestedKey: key,
+      },
+    );
+  }
+
+  const normalizedStrategy = normalizeSharedStateStrategy(options.strategy, binding.strategy);
+  if (binding.strategy !== normalizedStrategy) {
+    throw new FlockError(
+      'INVALID_STATE',
+      `useSharedState("${key}") is already configured with strategy "${binding.strategy}".`,
+      false,
+      {
+        currentStrategy: binding.strategy,
+        requestedStrategy: normalizedStrategy,
+      },
+    );
+  }
+
+  if (!areStructuredValuesEqual(binding.initialValue, options.initialValue)) {
+    throw new FlockError(
+      'INVALID_STATE',
+      `useSharedState("${key}") received a different initialValue for the same room.`,
+      false,
+    );
+  }
+
+  const requestedPersist = options.persist === true;
+  if (binding.persist === requestedPersist) {
+    return;
+  }
+
+  if (!binding.persist && requestedPersist && binding.strategy === 'lww') {
+    return;
+  }
+
+  if (requestedPersist && binding.strategy !== 'lww') {
+    throw new FlockError(
+      'INVALID_STATE',
+      'State persistence is only supported for the "lww" strategy.',
+      false,
+      {
+        strategy: binding.strategy,
+        persist: requestedPersist,
+      },
+    );
+  }
+
+  throw new FlockError(
+    'INVALID_STATE',
+    `useSharedState("${key}") persistence is already enabled for this room.`,
+    false,
+    {
+      persist: binding.persist,
+      requestedPersist,
+    },
+  );
+}
+
+function normalizeSharedStateStrategy(
+  strategy: StateOptions<unknown>['strategy'],
+  currentStrategy?: 'lww' | 'crdt',
+): 'lww' | 'crdt' {
+  const normalized = strategy ?? currentStrategy ?? 'lww';
+  if (normalized === 'lww' || normalized === 'crdt') {
+    return normalized;
+  }
+
+  throw new FlockError(
+    'INVALID_STATE',
+    `State strategy "${normalized}" is not implemented in this runtime. Use "lww" or "crdt".`,
+    false,
+    {
+      strategy: normalized,
+    },
+  );
+}
+
+function cloneSharedStateValue<T>(value: T): T {
+  if (typeof structuredClone === 'function') {
+    return structuredClone(value);
+  }
+
+  return value;
+}
+
 function areCursorArraysEqual<TCursor extends CursorData>(
   previous: readonly CursorPosition<TCursor>[],
   next: readonly CursorPosition<TCursor>[],
@@ -581,7 +780,7 @@ function areCursorPositionsEqual<TCursor extends CursorData>(
       return false;
     }
 
-    if (!arePresenceValuesEqual(Reflect.get(previous, key), Reflect.get(next, key))) {
+    if (!areStructuredValuesEqual(Reflect.get(previous, key), Reflect.get(next, key))) {
       return false;
     }
   }
@@ -613,7 +812,7 @@ function arePeersEqual<TPresence extends PresenceData>(
       return false;
     }
 
-    if (!arePresenceValuesEqual(Reflect.get(previous, key), Reflect.get(next, key))) {
+    if (!areStructuredValuesEqual(Reflect.get(previous, key), Reflect.get(next, key))) {
       return false;
     }
   }
@@ -621,7 +820,7 @@ function arePeersEqual<TPresence extends PresenceData>(
   return true;
 }
 
-function arePresenceValuesEqual(previous: unknown, next: unknown): boolean {
+function areStructuredValuesEqual(previous: unknown, next: unknown): boolean {
   if (previous === next) {
     return true;
   }
@@ -632,7 +831,7 @@ function arePresenceValuesEqual(previous: unknown, next: unknown): boolean {
     }
 
     for (let index = 0; index < previous.length; index += 1) {
-      if (!arePresenceValuesEqual(previous[index], next[index])) {
+      if (!areStructuredValuesEqual(previous[index], next[index])) {
         return false;
       }
     }
@@ -655,7 +854,7 @@ function arePresenceValuesEqual(previous: unknown, next: unknown): boolean {
       return false;
     }
 
-    if (!arePresenceValuesEqual(Reflect.get(previous, key), Reflect.get(next, key))) {
+    if (!areStructuredValuesEqual(Reflect.get(previous, key), Reflect.get(next, key))) {
       return false;
     }
   }
@@ -669,6 +868,10 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   }
 
   return Object.getPrototypeOf(value) === Object.prototype;
+}
+
+function isStateUpdater<T>(value: SetStateAction<T>): value is (previous: T) => T {
+  return typeof value === 'function';
 }
 
 function isRoom<TPresence extends PresenceData = PresenceData>(

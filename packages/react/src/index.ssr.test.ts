@@ -9,12 +9,21 @@ import type {
   PresenceEngine,
   Room,
   RoomOptions,
+  StateChangeMeta,
+  StateEngine,
 } from '@flockjs/core';
 import { createElement } from 'react';
 import { renderToString } from 'react-dom/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { FlockProvider, useCursors, usePresence, type UsePresenceResult, useRoom } from './index';
+import {
+  FlockProvider,
+  useCursors,
+  usePresence,
+  type UsePresenceResult,
+  useRoom,
+  useSharedState,
+} from './index';
 
 const { createRoomMock } = vi.hoisted(() => {
   return {
@@ -41,17 +50,22 @@ type TestCursorEngine = CursorEngine<CursorData> & {
   getPositions: ReturnType<typeof vi.fn<() => CursorPosition<CursorData>[]>>;
 };
 
+type TestStateEngine<T> = StateEngine<T> & {
+  subscribe: ReturnType<
+    typeof vi.fn<(cb: (value: T, meta: StateChangeMeta) => void) => () => void>
+  >;
+  get: ReturnType<typeof vi.fn<() => T>>;
+};
+
 type TestRoom = Room<PresenceData> & {
   connect: ReturnType<typeof vi.fn<() => Promise<void>>>;
   disconnect: ReturnType<typeof vi.fn<() => Promise<void>>>;
   cursorEngine: TestCursorEngine;
   presenceEngine: TestPresenceEngine;
+  stateEngine: TestStateEngine<unknown>;
 };
 
-function createPeer(
-  id: string,
-  overrides: Partial<Peer<PresenceData>> = {},
-): Peer<PresenceData> {
+function createPeer(id: string, overrides: Partial<Peer<PresenceData>> = {}): Peer<PresenceData> {
   return {
     id,
     joinedAt: 1,
@@ -76,9 +90,11 @@ function createMockPresenceEngine(
       };
     }),
     get(peerId: string) {
-      return currentPeers.find((peer) => {
-        return peer.id === peerId;
-      }) ?? null;
+      return (
+        currentPeers.find((peer) => {
+          return peer.id === peerId;
+        }) ?? null
+      );
     },
     getAll() {
       return currentPeers;
@@ -110,9 +126,7 @@ function createCursor(
   };
 }
 
-function createMockCursorEngine(
-  positions: CursorPosition<CursorData>[] = [],
-): TestCursorEngine {
+function createMockCursorEngine(positions: CursorPosition<CursorData>[] = []): TestCursorEngine {
   const currentPositions = positions;
 
   return {
@@ -131,6 +145,33 @@ function createMockCursorEngine(
   } as TestCursorEngine;
 }
 
+function cloneTestValue<T>(value: T): T {
+  if (typeof structuredClone === 'function') {
+    return structuredClone(value);
+  }
+
+  return value;
+}
+
+function createMockStateEngine<T>(initialValue: T): TestStateEngine<T> {
+  const currentValue = cloneTestValue(initialValue);
+
+  return {
+    get: vi.fn(() => {
+      return cloneTestValue(currentValue);
+    }),
+    set: vi.fn(),
+    patch: vi.fn(),
+    undo: vi.fn(),
+    reset: vi.fn(),
+    subscribe: vi.fn(() => {
+      return () => {
+        return undefined;
+      };
+    }),
+  } as TestStateEngine<T>;
+}
+
 function createMockRoom(
   roomId = 'server-room',
   options: RoomOptions<PresenceData> = {},
@@ -138,10 +179,12 @@ function createMockRoom(
     cursorEngine?: TestCursorEngine;
     peerId?: string;
     presenceEngine?: TestPresenceEngine;
+    stateEngine?: TestStateEngine<unknown>;
   } = {},
 ): TestRoom {
   const peerId = config.peerId ?? `${roomId}-peer`;
   const cursorEngine = config.cursorEngine ?? createMockCursorEngine();
+  const stateEngine = config.stateEngine ?? createMockStateEngine({});
   const presenceEngine =
     config.presenceEngine ?? createMockPresenceEngine(peerId, [createPeer(peerId)]);
 
@@ -163,7 +206,9 @@ function createMockRoom(
     useCursors: vi.fn(() => {
       return cursorEngine;
     }),
-    useState: vi.fn(),
+    useState: vi.fn(() => {
+      return stateEngine;
+    }),
     useAwareness: vi.fn(),
     useEvents: vi.fn(),
     getYDoc: vi.fn(),
@@ -176,6 +221,7 @@ function createMockRoom(
     off: vi.fn(),
     cursorEngine,
     presenceEngine,
+    stateEngine,
   } as TestRoom;
 
   createRoomMock.mockImplementationOnce(
@@ -227,10 +273,14 @@ describe('FlockProvider SSR', () => {
     const self = createPeer('server-presence-self', { name: 'Ada' });
     const other = createPeer('server-presence-other', { name: 'Grace' });
     const presenceEngine = createMockPresenceEngine('server-presence-self', [self, other]);
-    const room = createMockRoom('server-presence-room', {}, {
-      peerId: 'server-presence-self',
-      presenceEngine,
-    });
+    const room = createMockRoom(
+      'server-presence-room',
+      {},
+      {
+        peerId: 'server-presence-self',
+        presenceEngine,
+      },
+    );
     let observedPresence: UsePresenceResult<PresenceData> | null = null;
 
     function PresenceConsumer(): null {
@@ -306,5 +356,61 @@ describe('FlockProvider SSR', () => {
     expect(cursorEngine.subscribe).toHaveBeenCalledTimes(0);
     expect(cursorEngine.mount.mock.calls).toHaveLength(0);
     expect(cursorEngine.unmount.mock.calls).toHaveLength(0);
+  });
+
+  it('lets useSharedState() read the initial snapshot during server render without subscribing', () => {
+    const stateEngine = createMockStateEngine({
+      votes: {
+        yes: 2,
+        no: 1,
+      },
+    });
+    const room = createMockRoom(
+      'server-shared-state-room',
+      {},
+      {
+        stateEngine,
+      },
+    );
+    let observedValue: {
+      votes: {
+        yes: number;
+        no: number;
+      };
+    } | null = null;
+
+    function SharedStateConsumer(): null {
+      [observedValue] = useSharedState('server-poll-state', {
+        initialValue: {
+          votes: {
+            yes: 2,
+            no: 1,
+          },
+        },
+      });
+      return null;
+    }
+
+    const html = renderToString(
+      createElement(
+        FlockProvider,
+        {
+          roomId: 'server-shared-state-room',
+        },
+        createElement(SharedStateConsumer),
+      ),
+    );
+
+    expect(html).toBe('');
+    expect(createRoomMock).toHaveBeenCalledTimes(1);
+    expect(observedValue).toEqual({
+      votes: {
+        yes: 2,
+        no: 1,
+      },
+    });
+    expect(room.connect).toHaveBeenCalledTimes(0);
+    expect(room.disconnect).toHaveBeenCalledTimes(0);
+    expect(stateEngine.subscribe).toHaveBeenCalledTimes(0);
   });
 });

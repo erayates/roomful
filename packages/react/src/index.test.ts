@@ -11,13 +11,15 @@ import type {
   RoomEventMap,
   RoomEventName,
   RoomOptions,
+  StateChangeMeta,
+  StateEngine,
 } from '@flockjs/core';
 import { FlockError } from '@flockjs/core';
-import type { ReactNode } from 'react';
+import type { Dispatch, ReactNode, SetStateAction } from 'react';
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { renderToString } from 'react-dom/server';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, expectTypeOf, it, vi } from 'vitest';
 
 const { createRoomMock } = vi.hoisted(() => {
   return {
@@ -35,7 +37,14 @@ vi.mock('@flockjs/core', async () => {
 });
 
 import type { UseCursorsResult, UsePresenceResult } from './index';
-import { createReactHealth, FlockProvider, useCursors, usePresence, useRoom } from './index';
+import {
+  createReactHealth,
+  FlockProvider,
+  useCursors,
+  usePresence,
+  useRoom,
+  useSharedState,
+} from './index';
 
 Reflect.set(globalThis, 'IS_REACT_ACT_ENVIRONMENT', true);
 
@@ -43,6 +52,7 @@ type RoomEventPayload = RoomEventMap<PresenceData>[RoomEventName];
 type RoomEventHandler = (payload: RoomEventPayload) => void;
 type CursorSubscriber = (positions: CursorPosition<CursorData>[]) => void;
 type PresenceSubscriber = (peers: Peer<PresenceData>[]) => void;
+type StateSubscriber<T> = (value: T, meta: StateChangeMeta) => void;
 
 interface RenderHarness {
   rerender(element: ReactNode): Promise<void>;
@@ -69,6 +79,14 @@ type TestCursorEngine = CursorEngine<CursorData> & {
   >;
 };
 
+type TestStateEngine<T> = StateEngine<T> & {
+  emit(value: T, meta?: StateChangeMeta): void;
+  subscriberCount(): number;
+  subscribe: ReturnType<typeof vi.fn<(cb: StateSubscriber<T>) => () => void>>;
+  get: ReturnType<typeof vi.fn<() => T>>;
+  set: ReturnType<typeof vi.fn<(value: T) => void>>;
+};
+
 type TestRoom = Room<PresenceData> & {
   connect: ReturnType<typeof vi.fn<() => Promise<void>>>;
   disconnect: ReturnType<typeof vi.fn<() => Promise<void>>>;
@@ -78,6 +96,7 @@ type TestRoom = Room<PresenceData> & {
   ) => void;
   cursorEngine: TestCursorEngine;
   presenceEngine: TestPresenceEngine;
+  stateEngine: TestStateEngine<unknown>;
 };
 
 function createPeer(id: string, overrides: Partial<Peer<PresenceData>> = {}): Peer<PresenceData> {
@@ -192,6 +211,63 @@ function createMockCursorEngine(
   return engine;
 }
 
+function cloneTestValue<T>(value: T): T {
+  if (typeof structuredClone === 'function') {
+    return structuredClone(value);
+  }
+
+  return value;
+}
+
+function createStateMeta(overrides: Partial<StateChangeMeta> = {}): StateChangeMeta {
+  return {
+    reason: 'set',
+    changedBy: 'peer-state',
+    timestamp: 1,
+    ...overrides,
+  };
+}
+
+function createMockStateEngine<T>(initialValue: T): TestStateEngine<T> {
+  const subscribers = new Set<StateSubscriber<T>>();
+  let currentValue = cloneTestValue(initialValue);
+
+  const engine = {
+    get: vi.fn(() => {
+      return cloneTestValue(currentValue);
+    }),
+    set: vi.fn((nextValue: T) => {
+      currentValue = cloneTestValue(nextValue);
+      const meta = createStateMeta({
+        changedBy: 'local',
+      });
+      for (const subscriber of subscribers) {
+        subscriber(engine.get(), meta);
+      }
+    }),
+    patch: vi.fn(),
+    undo: vi.fn(),
+    reset: vi.fn(),
+    subscribe: vi.fn((callback: StateSubscriber<T>) => {
+      subscribers.add(callback);
+      return () => {
+        subscribers.delete(callback);
+      };
+    }),
+    emit(nextValue: T, meta: StateChangeMeta = createStateMeta()) {
+      currentValue = cloneTestValue(nextValue);
+      for (const subscriber of subscribers) {
+        subscriber(engine.get(), meta);
+      }
+    },
+    subscriberCount() {
+      return subscribers.size;
+    },
+  } as TestStateEngine<T>;
+
+  return engine;
+}
+
 function createMockRoom(
   roomId = 'room-1',
   options: RoomOptions<PresenceData> = {},
@@ -199,11 +275,13 @@ function createMockRoom(
     cursorEngine?: TestCursorEngine;
     peerId?: string;
     presenceEngine?: TestPresenceEngine;
+    stateEngine?: TestStateEngine<unknown>;
   } = {},
 ): TestRoom {
   const handlers = new Map<RoomEventName, Set<RoomEventHandler>>();
   const peerId = config.peerId ?? `${roomId}-peer`;
   const cursorEngine = config.cursorEngine ?? createMockCursorEngine();
+  const stateEngine = config.stateEngine ?? createMockStateEngine({});
   const presenceEngine =
     config.presenceEngine ?? createMockPresenceEngine(peerId, [createPeer(peerId)]);
 
@@ -225,7 +303,9 @@ function createMockRoom(
     useCursors: vi.fn(() => {
       return cursorEngine;
     }),
-    useState: vi.fn(),
+    useState: vi.fn(() => {
+      return stateEngine;
+    }),
     useAwareness: vi.fn(),
     useEvents: vi.fn(),
     getYDoc: vi.fn(),
@@ -249,6 +329,7 @@ function createMockRoom(
     },
     cursorEngine,
     presenceEngine,
+    stateEngine,
   } as TestRoom;
 
   createRoomMock.mockImplementationOnce(
@@ -1082,6 +1163,675 @@ describe('useCursors', () => {
   it('throws a typed error when useCursors() is called outside the provider', () => {
     function MissingProviderConsumer(): null {
       useCursors();
+      return null;
+    }
+
+    expect(() => {
+      renderToString(createElement(MissingProviderConsumer));
+    }).toThrowError(FlockError);
+    expect(() => {
+      renderToString(createElement(MissingProviderConsumer));
+    }).toThrow('FlockProvider');
+  });
+});
+
+describe('useSharedState', () => {
+  it('returns [value, setValue], forwards options, and supports direct and updater writes', async () => {
+    const stateEngine = createMockStateEngine({
+      count: 0,
+      nested: {
+        enabled: true,
+      },
+    });
+    const room = createMockRoom(
+      'shared-state-room',
+      {},
+      {
+        stateEngine,
+      },
+    );
+    let observedValue:
+      | {
+          count: number;
+          nested: {
+            enabled: boolean;
+          };
+        }
+      | null = null;
+    let observedSetValue: Dispatch<
+      SetStateAction<{
+        count: number;
+        nested: {
+          enabled: boolean;
+        };
+      }>
+    > | null = null;
+    const setterReferences: Array<Dispatch<SetStateAction<{ count: number; nested: { enabled: boolean } }>>> =
+      [];
+
+    function SharedStateConsumer(): null {
+      const [value, setValue] = useSharedState('shared-count', {
+        initialValue: {
+          count: 0,
+          nested: {
+            enabled: true,
+          },
+        },
+        strategy: 'crdt',
+        persist: false,
+      });
+
+      observedValue = value;
+      observedSetValue = setValue;
+      setterReferences.push(setValue);
+      return null;
+    }
+
+    const harness = await renderElement(
+      createElement(
+        FlockProvider,
+        {
+          roomId: 'shared-state-room',
+        },
+        createElement(SharedStateConsumer),
+      ),
+    );
+
+    expect(observedValue).toEqual({
+      count: 0,
+      nested: {
+        enabled: true,
+      },
+    });
+    expect(typeof observedSetValue).toBe('function');
+    expect(room.useState.mock.calls[0]?.[0]).toEqual({
+      initialValue: {
+        count: 0,
+        nested: {
+          enabled: true,
+        },
+      },
+      strategy: 'crdt',
+      persist: false,
+    });
+
+    await act(async () => {
+      observedSetValue?.({
+        count: 3,
+        nested: {
+          enabled: false,
+        },
+      });
+    });
+
+    expect(stateEngine.set).toHaveBeenCalledWith({
+      count: 3,
+      nested: {
+        enabled: false,
+      },
+    });
+
+    await act(async () => {
+      observedSetValue?.((previous) => {
+        return {
+          count: previous.count + 2,
+          nested: previous.nested,
+        };
+      });
+    });
+
+    expect(stateEngine.set).toHaveBeenLastCalledWith({
+      count: 5,
+      nested: {
+        enabled: false,
+      },
+    });
+
+    const setCallCountBeforeNoop = stateEngine.set.mock.calls.length;
+    await act(async () => {
+      observedSetValue?.((previous) => {
+        return {
+          count: previous.count,
+          nested: {
+            enabled: previous.nested.enabled,
+          },
+        };
+      });
+    });
+
+    expect(stateEngine.set).toHaveBeenCalledTimes(setCallCountBeforeNoop);
+
+    await harness.rerender(
+      createElement(
+        FlockProvider,
+        {
+          roomId: 'shared-state-room',
+        },
+        createElement(SharedStateConsumer),
+      ),
+    );
+
+    expect(setterReferences.length).toBeGreaterThanOrEqual(2);
+    expect(
+      setterReferences.every((setValueReference) => {
+        return setValueReference === setterReferences[0];
+      }),
+    ).toBe(true);
+
+    await harness.unmount();
+  });
+
+  it('rerenders on local or remote state changes and skips deep-equal snapshots', async () => {
+    const stateEngine = createMockStateEngine({
+      votes: {
+        yes: 1,
+        no: 0,
+      },
+    });
+    createMockRoom(
+      'shared-state-reactivity',
+      {},
+      {
+        stateEngine,
+      },
+    );
+    const snapshots: Array<{ votes: { yes: number; no: number } }> = [];
+    let renderCount = 0;
+    let observedSetValue: Dispatch<
+      SetStateAction<{
+        votes: {
+          yes: number;
+          no: number;
+        };
+      }>
+    > | null = null;
+
+    function SharedStateConsumer(): null {
+      const [value, setValue] = useSharedState('poll-state', {
+        initialValue: {
+          votes: {
+            yes: 1,
+            no: 0,
+          },
+        },
+      });
+
+      renderCount += 1;
+      snapshots.push(value);
+      observedSetValue = setValue;
+      return null;
+    }
+
+    const harness = await renderElement(
+      createElement(
+        FlockProvider,
+        {
+          roomId: 'shared-state-reactivity',
+        },
+        createElement(SharedStateConsumer),
+      ),
+    );
+
+    await act(async () => {
+      observedSetValue?.((previous) => {
+        return {
+          votes: {
+            yes: previous.votes.yes + 1,
+            no: previous.votes.no,
+          },
+        };
+      });
+    });
+
+    await act(async () => {
+      stateEngine.emit({
+        votes: {
+          yes: 2,
+          no: 0,
+        },
+      });
+    });
+
+    await act(async () => {
+      stateEngine.emit({
+        votes: {
+          yes: 2,
+          no: 1,
+        },
+      });
+    });
+
+    expect(renderCount).toBe(3);
+    expect(snapshots).toHaveLength(3);
+    expect(snapshots[1]).toEqual({
+      votes: {
+        yes: 2,
+        no: 0,
+      },
+    });
+    expect(snapshots[2]).toEqual({
+      votes: {
+        yes: 2,
+        no: 1,
+      },
+    });
+
+    await harness.unmount();
+  });
+
+  it('preserves the shared value reference across parent rerenders when unchanged', async () => {
+    const stateEngine = createMockStateEngine({
+      count: 1,
+      meta: {
+        owner: 'Ada',
+      },
+    });
+    createMockRoom(
+      'shared-state-stability',
+      {},
+      {
+        stateEngine,
+      },
+    );
+    const valueReferences: Array<{ count: number; meta: { owner: string } }> = [];
+
+    function SharedStateConsumer(): null {
+      const [value] = useSharedState('stable-state', {
+        initialValue: {
+          count: 1,
+          meta: {
+            owner: 'Ada',
+          },
+        },
+      });
+
+      valueReferences.push(value);
+      return null;
+    }
+
+    const harness = await renderElement(
+      createElement(
+        FlockProvider,
+        {
+          roomId: 'shared-state-stability',
+        },
+        createElement(SharedStateConsumer),
+      ),
+    );
+
+    await harness.rerender(
+      createElement(
+        FlockProvider,
+        {
+          roomId: 'shared-state-stability',
+        },
+        createElement(SharedStateConsumer),
+      ),
+    );
+
+    expect(valueReferences).toHaveLength(2);
+    expect(valueReferences[1]).toBe(valueReferences[0]);
+    expect(stateEngine.subscriberCount()).toBe(1);
+
+    await harness.unmount();
+  });
+
+  it('allows multiple consumers in the same room when key and options are compatible', async () => {
+    const stateEngine = createMockStateEngine({
+      score: 1,
+    });
+    createMockRoom(
+      'shared-state-multi',
+      {},
+      {
+        stateEngine,
+      },
+    );
+    const firstSnapshots: Array<{ score: number }> = [];
+    const secondSnapshots: Array<{ score: number }> = [];
+    let firstSetValue: Dispatch<SetStateAction<{ score: number }>> | null = null;
+
+    function FirstConsumer(): null {
+      const [value, setValue] = useSharedState('game-state', {
+        initialValue: {
+          score: 1,
+        },
+        strategy: 'lww',
+      });
+
+      firstSnapshots.push(value);
+      firstSetValue = setValue;
+      return null;
+    }
+
+    function SecondConsumer(): null {
+      const [value] = useSharedState('game-state', {
+        initialValue: {
+          score: 1,
+        },
+      });
+
+      secondSnapshots.push(value);
+      return null;
+    }
+
+    const harness = await renderElement(
+      createElement(
+        FlockProvider,
+        {
+          roomId: 'shared-state-multi',
+        },
+        createElement(FirstConsumer),
+        createElement(SecondConsumer),
+      ),
+    );
+
+    await act(async () => {
+      firstSetValue?.({
+        score: 2,
+      });
+    });
+
+    expect(firstSnapshots).toEqual([{ score: 1 }, { score: 2 }]);
+    expect(secondSnapshots).toEqual([{ score: 1 }, { score: 2 }]);
+
+    await harness.unmount();
+  });
+
+  it('throws when the same room is bound to a different key', () => {
+    createMockRoom('shared-state-key-mismatch');
+
+    function FirstConsumer(): null {
+      useSharedState('first-key', {
+        initialValue: {
+          count: 0,
+        },
+      });
+      return null;
+    }
+
+    function SecondConsumer(): null {
+      useSharedState('second-key', {
+        initialValue: {
+          count: 0,
+        },
+      });
+      return null;
+    }
+
+    let thrownError: unknown = null;
+
+    try {
+      renderToString(
+        createElement(
+          FlockProvider,
+          {
+            roomId: 'shared-state-key-mismatch',
+          },
+          createElement(FirstConsumer),
+          createElement(SecondConsumer),
+        ),
+      );
+    } catch (error) {
+      thrownError = error;
+    }
+
+    expect(thrownError).toBeInstanceOf(FlockError);
+    expect((thrownError as Error).message).toContain('already bound to key');
+  });
+
+  it('throws when the same room receives incompatible shared state options', () => {
+    createMockRoom('shared-state-option-mismatch');
+
+    function InitialValueConsumer(): null {
+      useSharedState('state-key', {
+        initialValue: {
+          count: 0,
+        },
+        strategy: 'lww',
+      });
+      return null;
+    }
+
+    function ConflictingInitialValueConsumer(): null {
+      useSharedState('state-key', {
+        initialValue: {
+          count: 1,
+        },
+      });
+      return null;
+    }
+
+    expect(() => {
+      renderToString(
+        createElement(
+          FlockProvider,
+          {
+            roomId: 'shared-state-option-mismatch',
+          },
+          createElement(InitialValueConsumer),
+          createElement(ConflictingInitialValueConsumer),
+        ),
+      );
+    }).toThrow('different initialValue');
+
+    createMockRoom('shared-state-persist-mismatch');
+
+    function PersistentConsumer(): null {
+      useSharedState('state-key', {
+        initialValue: {
+          count: 0,
+        },
+        persist: true,
+      });
+      return null;
+    }
+
+    function NonPersistentConsumer(): null {
+      useSharedState('state-key', {
+        initialValue: {
+          count: 0,
+        },
+        persist: false,
+      });
+      return null;
+    }
+
+    expect(() => {
+      renderToString(
+        createElement(
+          FlockProvider,
+          {
+            roomId: 'shared-state-persist-mismatch',
+          },
+          createElement(PersistentConsumer),
+          createElement(NonPersistentConsumer),
+        ),
+      );
+    }).toThrow('persistence is already enabled');
+  });
+
+  it('allows later persist: true upgrades for lww state in the same room', async () => {
+    const stateEngine = createMockStateEngine({
+      count: 0,
+    });
+    const room = createMockRoom(
+      'shared-state-persist-upgrade',
+      {},
+      {
+        stateEngine,
+      },
+    );
+
+    function InitialConsumer(): null {
+      useSharedState('persisted-state', {
+        initialValue: {
+          count: 0,
+        },
+      });
+      return null;
+    }
+
+    function UpgradedConsumer(): null {
+      useSharedState('persisted-state', {
+        initialValue: {
+          count: 0,
+        },
+        persist: true,
+      });
+      return null;
+    }
+
+    const harness = await renderElement(
+      createElement(
+        FlockProvider,
+        {
+          roomId: 'shared-state-persist-upgrade',
+        },
+        createElement(InitialConsumer),
+      ),
+    );
+
+    await harness.rerender(
+      createElement(
+        FlockProvider,
+        {
+          roomId: 'shared-state-persist-upgrade',
+        },
+        createElement(InitialConsumer),
+        createElement(UpgradedConsumer),
+      ),
+    );
+
+    expect(room.useState.mock.calls).toHaveLength(3);
+
+    await harness.unmount();
+  });
+
+  it('keeps setValue stable across room replacement and resubscribes to the new state engine', async () => {
+    const roomAState = createMockStateEngine({
+      count: 1,
+    });
+    const roomBState = createMockStateEngine({
+      count: 10,
+    });
+    createMockRoom(
+      'shared-state-room-a',
+      {},
+      {
+        stateEngine: roomAState,
+      },
+    );
+    createMockRoom(
+      'shared-state-room-b',
+      {},
+      {
+        stateEngine: roomBState,
+      },
+    );
+    const snapshots: Array<{ count: number }> = [];
+    const setters: Array<Dispatch<SetStateAction<{ count: number }>>> = [];
+
+    function SharedStateConsumer(): null {
+      const [value, setValue] = useSharedState('room-state', {
+        initialValue: {
+          count: 0,
+        },
+      });
+
+      snapshots.push(value);
+      setters.push(setValue);
+      return null;
+    }
+
+    const harness = await renderElement(
+      createElement(
+        FlockProvider,
+        {
+          roomId: 'shared-state-room-a',
+        },
+        createElement(SharedStateConsumer),
+      ),
+    );
+
+    await harness.rerender(
+      createElement(
+        FlockProvider,
+        {
+          roomId: 'shared-state-room-b',
+        },
+        createElement(SharedStateConsumer),
+      ),
+    );
+
+    const snapshotCountAfterReplacement = snapshots.length;
+
+    await act(async () => {
+      roomAState.emit({
+        count: 99,
+      });
+    });
+    await act(async () => {
+      roomBState.emit({
+        count: 11,
+      });
+    });
+    await act(async () => {
+      setters[1]?.((previous) => {
+        return {
+          count: previous.count + 1,
+        };
+      });
+    });
+
+    expect(snapshotCountAfterReplacement).toBe(2);
+    expect(snapshots).toEqual([{ count: 1 }, { count: 10 }, { count: 11 }, { count: 12 }]);
+    expect(roomAState.subscriberCount()).toBe(0);
+    expect(roomBState.subscriberCount()).toBe(1);
+    expect(setters[1]).toBe(setters[0]);
+    expect(roomAState.set).toHaveBeenCalledTimes(0);
+    expect(roomBState.set).toHaveBeenCalledWith({
+      count: 12,
+    });
+
+    await harness.unmount();
+  });
+
+  it('preserves state value and setter types', () => {
+    function TypeConsumer(): null {
+      const [value, setValue] = useSharedState('typed-state', {
+        initialValue: {
+          count: 0,
+          label: 'Ada',
+        },
+      });
+
+      expectTypeOf(value).toEqualTypeOf<{
+        count: number;
+        label: string;
+      }>();
+      expectTypeOf(setValue).toEqualTypeOf<
+        Dispatch<
+          SetStateAction<{
+            count: number;
+            label: string;
+          }>
+        >
+      >();
+
+      return null;
+    }
+
+    expect(TypeConsumer).toBeTypeOf('function');
+  });
+
+  it('throws a typed error when useSharedState() is called outside the provider', () => {
+    function MissingProviderConsumer(): null {
+      useSharedState('outside-provider', {
+        initialValue: {
+          count: 0,
+        },
+      });
       return null;
     }
 
