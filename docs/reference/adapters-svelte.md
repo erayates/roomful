@@ -14,6 +14,7 @@ Audience: users.
   });
 
   const [votes, setVotes] = state.shared('votes', { yes: 0, no: 0 });
+  const reactions = events.channel<{ emoji: string }>('reaction');
 </script>
 
 <div use:cursors.mount>
@@ -25,16 +26,28 @@ Audience: users.
     <p>{cursor.name}</p>
   {/each}
 
+  {#if $reactions}
+    <p>{$reactions.from.name}: {$reactions.payload.emoji}</p>
+  {/if}
+
   <button on:click={() => setVotes((v) => ({ ...v, yes: v.yes + 1 }))}>
     Vote Yes
+  </button>
+
+  <button on:click={() => reactions.emit({ emoji: '🔥' })}>
+    React
   </button>
 </div>
 ```
 
 ## Integration Notes
 
-- Uses Svelte stores for reactive state.
-- Uses Svelte actions for mount/unmount lifecycle.
+- `presence`, `cursors`, and `awareness` are Svelte-compatible stores.
+- `state.shared(key, initialValue, options?)` returns a writable store plus a stable convenience setter.
+- `events` exposes `emit`, `emitTo`, `on`, and `channel(name)` for store-based event consumption.
+- `cursors.mount` is a Svelte action and `cursors.unmount()` is available for explicit teardown.
+- In component setup, the adapter auto-connects on mount and auto-destroys on teardown.
+- Outside component setup, use the returned `connect()`, `disconnect()`, and `destroy()` methods manually.
 
 ## Related Docs
 
