@@ -1,3 +1,1345 @@
-export function createSvelteAdapterStub(): string {
-  return '@flockjs/svelte-stub';
+import type {
+  AwarenessEngine,
+  AwarenessSelection,
+  AwarenessState,
+  CursorData,
+  CursorEngine,
+  CursorPosition,
+  CursorRenderOptions,
+  EventEngine,
+  Peer,
+  PresenceData,
+  PresenceEngine,
+  Room,
+  RoomOptions,
+  StateEngine,
+  StateOptions,
+  Unsubscribe,
+} from '@flockjs/core';
+import { createRoom, FlockError } from '@flockjs/core';
+import { onDestroy, onMount } from 'svelte';
+import type { Action } from 'svelte/action';
+import type { Invalidator, Readable, Subscriber, Unsubscriber, Updater, Writable } from 'svelte/store';
+
+const LOCKED_PRESENCE_KEYS = new Set(['id', 'joinedAt', 'lastSeen']);
+
+type SetStateAction<T> = T | ((current: T) => T);
+type EventHandler<TPayload, TPresence extends PresenceData> = {
+  bivarianceHack(payload: TPayload, from: Peer<TPresence>): void;
+}['bivarianceHack'];
+
+interface ValueStore<T> {
+  clear(): void;
+  get(): T;
+  publish(nextValue: T): void;
+  subscribe(run: Subscriber<T>, invalidate?: Invalidator<T>): Unsubscriber;
+}
+
+interface PresenceSnapshotCache<TPresence extends PresenceData> {
+  engine: PresenceEngine<TPresence>;
+  room: Room<TPresence>;
+  snapshot: PresenceStoreValue<TPresence>;
+}
+
+interface CursorSnapshotCache<TPresence extends PresenceData, TCursor extends CursorData> {
+  engine: CursorEngine<TCursor>;
+  room: Room<TPresence>;
+  snapshot: CursorPosition<TCursor>[];
+}
+
+interface AwarenessSnapshotCache<TPresence extends PresenceData> {
+  engine: AwarenessEngine;
+  room: Room<TPresence>;
+  snapshot: AwarenessStoreValue;
+}
+
+interface SharedStateSnapshotCache<TPresence extends PresenceData, T> {
+  engine: StateEngine<T>;
+  room: Room<TPresence>;
+  snapshot: T;
+}
+
+interface SharedStateBinding {
+  initialValue: unknown;
+  key: string;
+  persist: boolean;
+  strategy: 'crdt' | 'lww';
+}
+
+interface SharedStateController<TPresence extends PresenceData, T> {
+  binding: SharedStateBinding;
+  cache: SharedStateSnapshotCache<TPresence, T> | null;
+  cleanup: (() => void) | null;
+  engine: StateEngine<T>;
+  setter: (nextValue: SetStateAction<T>) => void;
+  store: Writable<T>;
+  tuple: readonly [Writable<T>, (nextValue: SetStateAction<T>) => void] | null;
+  valueStore: ValueStore<T>;
+}
+
+interface EventListenerRecord<TPresence extends PresenceData> {
+  active: boolean;
+  cleanup: (() => void) | null;
+  handler: (payload: unknown, from: Peer<TPresence>) => void;
+  name: string;
+}
+
+interface EventChannelRecord<TPresence extends PresenceData> {
+  cleanup: (() => void) | null;
+  name: string;
+  store: ValueStore<EventChannelValue<unknown, TPresence> | null>;
+}
+
+export interface PresenceStoreValue<TPresence extends PresenceData = PresenceData> {
+  all: Peer<TPresence>[];
+  others: Peer<TPresence>[];
+  self: Peer<TPresence>;
+}
+
+export interface AwarenessStoreValue {
+  others: AwarenessState[];
+}
+
+export interface EventChannelValue<
+  TPayload = unknown,
+  TPresence extends PresenceData = PresenceData,
+> {
+  from: Peer<TPresence>;
+  payload: TPayload;
+}
+
+export interface PresenceStore<TPresence extends PresenceData = PresenceData>
+  extends Readable<PresenceStoreValue<TPresence>> {
+  replace(value: Partial<TPresence>): void;
+  set(value: Partial<TPresence>): void;
+  update(updater: Updater<Partial<TPresence>>): void;
+}
+
+export interface CursorStore<TCursor extends CursorData = CursorData>
+  extends Readable<CursorPosition<TCursor>[]> {
+  mount: Action<HTMLElement, undefined>;
+  render(options?: CursorRenderOptions): void;
+  set(value: Partial<CursorPosition<TCursor>>): void;
+  unmount(): void;
+  update(updater: Updater<Partial<CursorPosition<TCursor>>>): void;
+}
+
+export interface AwarenessStore extends Readable<AwarenessStoreValue> {
+  set(value: Record<string, unknown>): void;
+  setFocus(elementId: string | null): void;
+  setSelection(selection: AwarenessSelection | null): void;
+  setTyping(isTyping: boolean): void;
+  update(updater: Updater<Record<string, unknown>>): void;
+}
+
+export interface EventChannelStore<
+  TPayload = unknown,
+  TPresence extends PresenceData = PresenceData,
+> extends Readable<EventChannelValue<TPayload, TPresence> | null> {
+  emit(payload: TPayload): void;
+  emitTo(peerId: string, payload: TPayload): void;
+}
+
+export interface EventsNamespace<TPresence extends PresenceData = PresenceData> {
+  channel<TPayload = unknown>(name: string): EventChannelStore<TPayload, TPresence>;
+  emit<TPayload = unknown>(name: string, payload: TPayload): void;
+  emitTo<TPayload = unknown>(peerId: string, name: string, payload: TPayload): void;
+  on<TPayload = unknown>(name: string, handler: EventHandler<TPayload, TPresence>): Unsubscribe;
+}
+
+export interface StateNamespace {
+  shared<T>(
+    key: string,
+    initialValue: T,
+    options?: Omit<StateOptions<T>, 'initialValue'>,
+  ): readonly [Writable<T>, (nextValue: SetStateAction<T>) => void];
+}
+
+export interface FlockAdapter<
+  TPresence extends PresenceData = PresenceData,
+  TCursor extends CursorData = CursorData,
+> {
+  awareness: AwarenessStore;
+  connect(): Promise<void>;
+  cursors: CursorStore<TCursor>;
+  destroy(): Promise<void>;
+  disconnect(): Promise<void>;
+  events: EventsNamespace<TPresence>;
+  presence: PresenceStore<TPresence>;
+  state: StateNamespace;
+}
+
+export function flock<
+  TPresence extends PresenceData = PresenceData,
+  TCursor extends CursorData = CursorData,
+>(roomId: string, options: RoomOptions<TPresence> = {}): FlockAdapter<TPresence, TCursor> {
+  const room = createRoom(roomId, options);
+  const presenceEngine = room.usePresence();
+  const cursorEngine = room.useCursors<TCursor>();
+  const awarenessEngine = room.useAwareness();
+  const eventEngine = room.useEvents();
+
+  let destroyed = false;
+  let mounted = false;
+  let runtimeStarted = false;
+  let trackedCursorElement: HTMLElement | null = null;
+  let localCursorValue: Partial<CursorPosition<TCursor>> = {};
+  let presenceCache: PresenceSnapshotCache<TPresence> | null = null;
+  let cursorCache: CursorSnapshotCache<TPresence, TCursor> | null = null;
+  let awarenessCache: AwarenessSnapshotCache<TPresence> | null = null;
+  let sharedStateController: SharedStateController<TPresence, unknown> | null = null;
+
+  const cleanupRegistry = new Set<() => void>();
+  const eventListeners = new Set<EventListenerRecord<TPresence>>();
+  const eventChannels = new Map<string, EventChannelRecord<TPresence>>();
+
+  const assertAvailable = (methodName: string): void => {
+    if (!destroyed) {
+      return;
+    }
+
+    throw new FlockError(
+      'INVALID_STATE',
+      `Cannot call ${methodName}() after destroy().`,
+      false,
+    );
+  };
+
+  const presenceStore = createValueStore(
+    readPresenceSnapshot(room, presenceEngine, {
+      current: presenceCache,
+      set(nextCache) {
+        presenceCache = nextCache;
+      },
+    }),
+  );
+  const cursorStore = createValueStore(
+    readCursorSnapshot(room, cursorEngine, {
+      current: cursorCache,
+      set(nextCache) {
+        cursorCache = nextCache;
+      },
+    }),
+  );
+  const awarenessStore = createValueStore(
+    readAwarenessSnapshot(room, awarenessEngine, {
+      current: awarenessCache,
+      set(nextCache) {
+        awarenessCache = nextCache;
+      },
+    }),
+  );
+
+  const refreshPresence = (): void => {
+    presenceStore.publish(
+      readPresenceSnapshot(room, presenceEngine, {
+        current: presenceCache,
+        set(nextCache) {
+          presenceCache = nextCache;
+        },
+      }),
+    );
+  };
+
+  const refreshCursors = (): void => {
+    cursorStore.publish(
+      readCursorSnapshot(room, cursorEngine, {
+        current: cursorCache,
+        set(nextCache) {
+          cursorCache = nextCache;
+        },
+      }),
+    );
+  };
+
+  const refreshAwareness = (): void => {
+    awarenessStore.publish(
+      readAwarenessSnapshot(room, awarenessEngine, {
+        current: awarenessCache,
+        set(nextCache) {
+          awarenessCache = nextCache;
+        },
+      }),
+    );
+  };
+
+  const registerCleanup = (callback: () => void): (() => void) => {
+    let active = true;
+    const cleanup = (): void => {
+      if (!active) {
+        return;
+      }
+
+      active = false;
+      cleanupRegistry.delete(cleanup);
+      callback();
+    };
+
+    cleanupRegistry.add(cleanup);
+    return cleanup;
+  };
+
+  const attachPresenceSubscription = (): void => {
+    if (!runtimeStarted) {
+      return;
+    }
+
+    const unsubscribe = presenceEngine.subscribe(() => {
+      refreshPresence();
+    });
+
+    registerCleanup(() => {
+      unsubscribe();
+    });
+  };
+
+  const attachCursorSubscription = (): void => {
+    if (!runtimeStarted) {
+      return;
+    }
+
+    const unsubscribe = cursorEngine.subscribe(() => {
+      refreshCursors();
+    });
+
+    registerCleanup(() => {
+      unsubscribe();
+    });
+  };
+
+  const attachAwarenessSubscription = (): void => {
+    if (!runtimeStarted) {
+      return;
+    }
+
+    const unsubscribe = awarenessEngine.subscribe(() => {
+      refreshAwareness();
+    });
+
+    registerCleanup(() => {
+      unsubscribe();
+    });
+  };
+
+  const attachSharedStateSubscription = (): void => {
+    if (!runtimeStarted || !sharedStateController || sharedStateController.cleanup) {
+      return;
+    }
+
+    const controller = sharedStateController;
+    const unsubscribe = controller.engine.subscribe(() => {
+      refreshSharedState(room, controller);
+    });
+
+    controller.cleanup = registerCleanup(() => {
+      unsubscribe();
+      if (controller.cleanup) {
+        controller.cleanup = null;
+      }
+    });
+  };
+
+  const attachEventListener = (record: EventListenerRecord<TPresence>): void => {
+    if (!runtimeStarted || !record.active || record.cleanup) {
+      return;
+    }
+
+    const unsubscribe = eventEngine.on(record.name, record.handler);
+    record.cleanup = registerCleanup(() => {
+      unsubscribe();
+      if (record.cleanup) {
+        record.cleanup = null;
+      }
+    });
+  };
+
+  const attachEventChannel = (record: EventChannelRecord<TPresence>): void => {
+    if (!runtimeStarted || record.cleanup) {
+      return;
+    }
+
+    const unsubscribe = eventEngine.on(record.name, (payload, from) => {
+      record.store.publish({
+        from,
+        payload,
+      });
+    });
+
+    record.cleanup = registerCleanup(() => {
+      unsubscribe();
+      if (record.cleanup) {
+        record.cleanup = null;
+      }
+    });
+  };
+
+  const ensureRuntimeStarted = (): void => {
+    if (runtimeStarted) {
+      return;
+    }
+
+    assertAvailable('connect');
+    runtimeStarted = true;
+
+    attachPresenceSubscription();
+    attachCursorSubscription();
+    attachAwarenessSubscription();
+    attachSharedStateSubscription();
+
+    for (const record of eventListeners) {
+      attachEventListener(record);
+    }
+
+    for (const record of eventChannels.values()) {
+      attachEventChannel(record);
+    }
+  };
+
+  const unmountTrackedCursor = (): void => {
+    if (!trackedCursorElement) {
+      return;
+    }
+
+    cursorEngine.unmount();
+    trackedCursorElement = null;
+  };
+
+  const mountCursor = (element: HTMLElement): void => {
+    assertAvailable('cursors.mount');
+
+    if (trackedCursorElement === element) {
+      return;
+    }
+
+    if (trackedCursorElement) {
+      cursorEngine.unmount();
+    }
+
+    trackedCursorElement = element;
+    cursorEngine.mount(element);
+  };
+
+  const presence: PresenceStore<TPresence> = {
+    subscribe(run, invalidate) {
+      return presenceStore.subscribe(run, invalidate);
+    },
+    replace(value) {
+      assertAvailable('presence.replace');
+
+      const nextValue = sanitizePresenceInput(value);
+      if (areStructuredValuesEqual(readPresenceWritableValue(presenceStore.get().self), nextValue)) {
+        return;
+      }
+
+      presenceEngine.replace(nextValue);
+      refreshPresence();
+    },
+    set(value) {
+      presence.replace(value);
+    },
+    update(updater) {
+      assertAvailable('presence.update');
+
+      const currentValue = readPresenceWritableValue(presenceStore.get().self);
+      const nextValue = sanitizePresenceInput(updater(currentValue));
+      if (areStructuredValuesEqual(currentValue, nextValue)) {
+        return;
+      }
+
+      presenceEngine.replace(nextValue);
+      refreshPresence();
+    },
+  };
+
+  const cursors: CursorStore<TCursor> = {
+    subscribe(run, invalidate) {
+      return cursorStore.subscribe(run, invalidate);
+    },
+    mount(node) {
+      mountCursor(node);
+
+      return {
+        destroy() {
+          if (trackedCursorElement === node) {
+            unmountTrackedCursor();
+          }
+        },
+      };
+    },
+    render(renderOptions) {
+      assertAvailable('cursors.render');
+      cursorEngine.render(renderOptions);
+    },
+    set(value) {
+      assertAvailable('cursors.set');
+
+      if (areStructuredValuesEqual(localCursorValue, value)) {
+        return;
+      }
+
+      localCursorValue = cloneStructuredValue(value);
+      cursorEngine.setPosition(value);
+    },
+    unmount() {
+      unmountTrackedCursor();
+    },
+    update(updater) {
+      assertAvailable('cursors.update');
+
+      const nextValue = updater(cloneStructuredValue(localCursorValue));
+      if (areStructuredValuesEqual(localCursorValue, nextValue)) {
+        return;
+      }
+
+      localCursorValue = cloneStructuredValue(nextValue);
+      cursorEngine.setPosition(nextValue);
+    },
+  };
+
+  const awareness: AwarenessStore = {
+    subscribe(run, invalidate) {
+      return awarenessStore.subscribe(run, invalidate);
+    },
+    set(value) {
+      assertAvailable('awareness.set');
+
+      const currentValue = readAwarenessWritableValue(room, awarenessEngine);
+      if (areStructuredValuesEqual(currentValue, value)) {
+        return;
+      }
+
+      awarenessEngine.set(value);
+    },
+    setFocus(elementId) {
+      assertAvailable('awareness.setFocus');
+      awarenessEngine.setFocus(elementId);
+    },
+    setSelection(selection) {
+      assertAvailable('awareness.setSelection');
+      awarenessEngine.setSelection(selection);
+    },
+    setTyping(isTyping) {
+      assertAvailable('awareness.setTyping');
+      awarenessEngine.setTyping(isTyping);
+    },
+    update(updater) {
+      assertAvailable('awareness.update');
+
+      const currentValue = readAwarenessWritableValue(room, awarenessEngine);
+      const nextValue = updater(currentValue);
+      if (areStructuredValuesEqual(currentValue, nextValue)) {
+        return;
+      }
+
+      awarenessEngine.set(nextValue);
+    },
+  };
+
+  const state: StateNamespace = {
+    shared<T>(
+      key: string,
+      initialValue: T,
+      sharedOptions: Omit<StateOptions<T>, 'initialValue'> = {},
+    ): readonly [Writable<T>, (nextValue: SetStateAction<T>) => void] {
+      assertAvailable('state.shared');
+
+      const stateOptions: StateOptions<T> = {
+        ...sharedOptions,
+        initialValue,
+      };
+
+      if (sharedStateController) {
+        assertCompatibleSharedStateBinding(sharedStateController.binding, key, stateOptions);
+
+        if (
+          sharedStateController.binding.persist !== true &&
+          sharedOptions.persist === true &&
+          sharedStateController.binding.strategy === 'lww'
+        ) {
+          room.useState(stateOptions);
+          sharedStateController.binding.persist = true;
+        }
+
+        const currentTuple = sharedStateController.tuple;
+        if (!currentTuple) {
+          throw new FlockError('INVALID_STATE', 'Shared state tuple was not initialized.', false);
+        }
+
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+        return currentTuple as readonly [Writable<T>, (nextValue: SetStateAction<T>) => void];
+      }
+
+      const binding = createSharedStateBinding(key, stateOptions);
+      const engine = room.useState(stateOptions);
+      const valueStore = createValueStore(
+        readSharedStateSnapshot(room, engine, {
+          current: null,
+          set() {
+            return undefined;
+          },
+        }),
+      );
+      const controller: SharedStateController<TPresence, T> = {
+        binding,
+        cache: null,
+        cleanup: null,
+        engine,
+        setter(nextValue) {
+          assertAvailable('state.shared.set');
+
+          const currentValue = valueStore.get();
+          const resolvedValue = isStateUpdater(nextValue) ? nextValue(currentValue) : nextValue;
+          if (areStructuredValuesEqual(currentValue, resolvedValue)) {
+            return;
+          }
+
+          engine.set(resolvedValue);
+          refreshSharedState(room, controller);
+        },
+        store: {
+          subscribe(run, invalidate) {
+            return valueStore.subscribe(run, invalidate);
+          },
+          set(nextValue: T) {
+            controller.setter(nextValue);
+          },
+          update(updater: Updater<T>) {
+            controller.setter(updater(valueStore.get()));
+          },
+        },
+        tuple: null,
+        valueStore,
+      };
+
+      const tuple: readonly [Writable<T>, (nextValue: SetStateAction<T>) => void] = [
+        controller.store,
+        controller.setter,
+      ];
+      controller.tuple = tuple;
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+      sharedStateController = controller as SharedStateController<TPresence, unknown>;
+      if (runtimeStarted) {
+        attachSharedStateSubscription();
+      }
+
+      return tuple;
+    },
+  };
+
+  const events: EventsNamespace<TPresence> = {
+    channel<TPayload = unknown>(name: string): EventChannelStore<TPayload, TPresence> {
+      assertAvailable('events.channel');
+
+      const existingRecord = eventChannels.get(name);
+      if (existingRecord) {
+        return createEventChannelStore<TPayload, TPresence>(name, existingRecord.store, eventEngine);
+      }
+
+      const record: EventChannelRecord<TPresence> = {
+        cleanup: null,
+        name,
+        store: createValueStore<EventChannelValue<unknown, TPresence> | null>(null),
+      };
+
+      eventChannels.set(name, record);
+      if (runtimeStarted) {
+        attachEventChannel(record);
+      }
+
+      return createEventChannelStore<TPayload, TPresence>(name, record.store, eventEngine);
+    },
+    emit(name, payload) {
+      assertAvailable('events.emit');
+      eventEngine.emit(name, payload);
+    },
+    emitTo(peerId, name, payload) {
+      assertAvailable('events.emitTo');
+      eventEngine.emitTo(peerId, name, payload);
+    },
+    on<TPayload = unknown>(name: string, handler: EventHandler<TPayload, TPresence>): Unsubscribe {
+      assertAvailable('events.on');
+
+      const record: EventListenerRecord<TPresence> = {
+        active: true,
+        cleanup: null,
+        handler(payload, from) {
+          // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+          handler(payload as TPayload, from);
+        },
+        name,
+      };
+
+      eventListeners.add(record);
+      if (runtimeStarted) {
+        attachEventListener(record);
+      }
+
+      return () => {
+        if (!record.active) {
+          return;
+        }
+
+        record.active = false;
+        eventListeners.delete(record);
+        record.cleanup?.();
+        record.cleanup = null;
+      };
+    },
+  };
+
+  try {
+    onMount(() => {
+      mounted = true;
+      void connect().catch(() => {
+        return undefined;
+      });
+    });
+    onDestroy(() => {
+      if (!mounted) {
+        return;
+      }
+
+      void destroy().catch(() => {
+        return undefined;
+      });
+    });
+  } catch {
+    // The adapter supports non-component usage by falling back to manual lifecycle control.
+  }
+
+  async function connect(): Promise<void> {
+    assertAvailable('connect');
+    ensureRuntimeStarted();
+    await room.connect();
+  }
+
+  async function disconnect(): Promise<void> {
+    assertAvailable('disconnect');
+    await room.disconnect();
+  }
+
+  async function destroy(): Promise<void> {
+    if (destroyed) {
+      return;
+    }
+
+    destroyed = true;
+
+    const cleanups = Array.from(cleanupRegistry);
+    cleanupRegistry.clear();
+
+    for (const cleanup of cleanups) {
+      cleanup();
+    }
+
+    unmountTrackedCursor();
+    eventListeners.clear();
+    for (const record of eventChannels.values()) {
+      record.store.clear();
+    }
+    eventChannels.clear();
+    presenceStore.clear();
+    cursorStore.clear();
+    awarenessStore.clear();
+    sharedStateController?.valueStore.clear();
+
+    await room.disconnect().catch(() => {
+      return undefined;
+    });
+  }
+
+  return {
+    awareness,
+    connect,
+    cursors,
+    destroy,
+    disconnect,
+    events,
+    presence,
+    state,
+  };
+}
+
+function createValueStore<T>(initialValue: T): ValueStore<T> {
+  let currentValue = initialValue;
+  const subscribers = new Set<Subscriber<T>>();
+
+  return {
+    clear() {
+      subscribers.clear();
+    },
+    get() {
+      return currentValue;
+    },
+    publish(nextValue) {
+      if (Object.is(currentValue, nextValue)) {
+        return;
+      }
+
+      currentValue = nextValue;
+
+      for (const subscriber of subscribers) {
+        subscriber(currentValue);
+      }
+    },
+    subscribe(run) {
+      run(currentValue);
+      subscribers.add(run);
+
+      return () => {
+        subscribers.delete(run);
+      };
+    },
+  };
+}
+
+function createEventChannelStore<TPayload, TPresence extends PresenceData>(
+  name: string,
+  store: ValueStore<EventChannelValue<unknown, TPresence> | null>,
+  eventEngine: EventEngine<TPresence>,
+): EventChannelStore<TPayload, TPresence> {
+  return {
+    emit(payload) {
+      eventEngine.emit(name, payload);
+    },
+    emitTo(peerId, payload) {
+      eventEngine.emitTo(peerId, name, payload);
+    },
+    subscribe(run) {
+      return store.subscribe((value) => {
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+        run(value as EventChannelValue<TPayload, TPresence> | null);
+      });
+    },
+  };
+}
+
+function refreshSharedState<TPresence extends PresenceData, T>(
+  room: Room<TPresence>,
+  controller: SharedStateController<TPresence, T>,
+): void {
+  const nextSnapshot = readSharedStateSnapshot(room, controller.engine, {
+    current: controller.cache,
+    set(nextCache) {
+      controller.cache = nextCache;
+    },
+  });
+
+  controller.valueStore.publish(nextSnapshot);
+}
+
+function createSharedStateBinding<T>(key: string, options: StateOptions<T>): SharedStateBinding {
+  return {
+    initialValue: cloneStructuredValue(options.initialValue),
+    key,
+    persist: options.persist === true,
+    strategy: normalizeSharedStateStrategy(options.strategy),
+  };
+}
+
+function assertCompatibleSharedStateBinding<T>(
+  binding: SharedStateBinding,
+  key: string,
+  options: StateOptions<T>,
+): void {
+  if (binding.key !== key) {
+    throw new FlockError(
+      'INVALID_STATE',
+      `state.shared() is already bound to key "${binding.key}" for this adapter.`,
+      false,
+      {
+        currentKey: binding.key,
+        requestedKey: key,
+      },
+    );
+  }
+
+  const normalizedStrategy = normalizeSharedStateStrategy(options.strategy, binding.strategy);
+  if (binding.strategy !== normalizedStrategy) {
+    throw new FlockError(
+      'INVALID_STATE',
+      `state.shared("${key}") is already configured with strategy "${binding.strategy}".`,
+      false,
+      {
+        currentStrategy: binding.strategy,
+        requestedStrategy: normalizedStrategy,
+      },
+    );
+  }
+
+  if (!areStructuredValuesEqual(binding.initialValue, options.initialValue)) {
+    throw new FlockError(
+      'INVALID_STATE',
+      `state.shared("${key}") received a different initialValue for the same adapter.`,
+      false,
+    );
+  }
+
+  const requestedPersist = options.persist === true;
+  if (binding.persist === requestedPersist) {
+    return;
+  }
+
+  if (!binding.persist && requestedPersist && binding.strategy === 'lww') {
+    return;
+  }
+
+  if (requestedPersist && binding.strategy !== 'lww') {
+    throw new FlockError(
+      'INVALID_STATE',
+      'State persistence is only supported for the "lww" strategy.',
+      false,
+      {
+        persist: requestedPersist,
+        strategy: binding.strategy,
+      },
+    );
+  }
+
+  throw new FlockError(
+    'INVALID_STATE',
+    `state.shared("${key}") persistence is already enabled for this adapter.`,
+    false,
+    {
+      persist: binding.persist,
+      requestedPersist,
+    },
+  );
+}
+
+function normalizeSharedStateStrategy(
+  strategy: StateOptions<unknown>['strategy'],
+  currentStrategy?: 'crdt' | 'lww',
+): 'crdt' | 'lww' {
+  const normalized = strategy ?? currentStrategy ?? 'lww';
+  if (normalized === 'crdt' || normalized === 'lww') {
+    return normalized;
+  }
+
+  throw new FlockError(
+    'INVALID_STATE',
+    `State strategy "${normalized}" is not implemented in this runtime. Use "lww" or "crdt".`,
+    false,
+    {
+      strategy: normalized,
+    },
+  );
+}
+
+function readPresenceSnapshot<TPresence extends PresenceData>(
+  room: Room<TPresence>,
+  presence: PresenceEngine<TPresence>,
+  cacheRef: {
+    current: PresenceSnapshotCache<TPresence> | null;
+    set(nextCache: PresenceSnapshotCache<TPresence>): void;
+  },
+): PresenceStoreValue<TPresence> {
+  const all = presence.getAll();
+  const self = readSelfPeer(room, presence, all);
+  const others = all.filter((peer) => {
+    return peer.id !== room.peerId;
+  });
+  const previous = cacheRef.current;
+
+  if (previous && previous.room === room && previous.engine === presence) {
+    const previousSnapshot = previous.snapshot;
+    const isAllEqual = arePeerArraysEqual(previousSnapshot.all, all);
+    const isSelfEqual = arePeersEqual(previousSnapshot.self, self);
+    const isOthersEqual = arePeerArraysEqual(previousSnapshot.others, others);
+
+    if (isAllEqual && isSelfEqual && isOthersEqual) {
+      return previousSnapshot;
+    }
+
+    const nextSnapshot: PresenceStoreValue<TPresence> = {
+      all: isAllEqual ? previousSnapshot.all : all,
+      others: isOthersEqual ? previousSnapshot.others : others,
+      self: isSelfEqual ? previousSnapshot.self : self,
+    };
+
+    previous.snapshot = nextSnapshot;
+    return nextSnapshot;
+  }
+
+  const snapshot: PresenceStoreValue<TPresence> = {
+    all,
+    others,
+    self,
+  };
+
+  cacheRef.set({
+    engine: presence,
+    room,
+    snapshot,
+  });
+
+  return snapshot;
+}
+
+function readCursorSnapshot<TPresence extends PresenceData, TCursor extends CursorData>(
+  room: Room<TPresence>,
+  cursors: CursorEngine<TCursor>,
+  cacheRef: {
+    current: CursorSnapshotCache<TPresence, TCursor> | null;
+    set(nextCache: CursorSnapshotCache<TPresence, TCursor>): void;
+  },
+): CursorPosition<TCursor>[] {
+  const nextSnapshot = cursors.getPositions();
+  const previous = cacheRef.current;
+
+  if (previous && previous.room === room && previous.engine === cursors) {
+    const previousSnapshot = previous.snapshot;
+    if (areCursorArraysEqual(previousSnapshot, nextSnapshot)) {
+      return previousSnapshot;
+    }
+
+    const stableSnapshot = nextSnapshot.map((position, index) => {
+      const previousPosition = previousSnapshot[index];
+      if (previousPosition && areCursorPositionsEqual(previousPosition, position)) {
+        return previousPosition;
+      }
+
+      return position;
+    });
+    previous.snapshot = stableSnapshot;
+    return stableSnapshot;
+  }
+
+  cacheRef.set({
+    engine: cursors,
+    room,
+    snapshot: nextSnapshot,
+  });
+  return nextSnapshot;
+}
+
+function readAwarenessSnapshot<TPresence extends PresenceData>(
+  room: Room<TPresence>,
+  awareness: AwarenessEngine,
+  cacheRef: {
+    current: AwarenessSnapshotCache<TPresence> | null;
+    set(nextCache: AwarenessSnapshotCache<TPresence>): void;
+  },
+): AwarenessStoreValue {
+  const nextOthers = awareness.getAll().filter((entry) => {
+    return entry.peerId !== room.peerId;
+  });
+  const previous = cacheRef.current;
+
+  if (previous && previous.room === room && previous.engine === awareness) {
+    const previousSnapshot = previous.snapshot;
+    if (areAwarenessArraysEqual(previousSnapshot.others, nextOthers)) {
+      return previousSnapshot;
+    }
+
+    const stableOthers = nextOthers.map((entry, index) => {
+      const previousEntry = previousSnapshot.others[index];
+      if (previousEntry && areStructuredValuesEqual(previousEntry, entry)) {
+        return previousEntry;
+      }
+
+      return entry;
+    });
+    previous.snapshot = {
+      others: stableOthers,
+    };
+    return previous.snapshot;
+  }
+
+  const snapshot: AwarenessStoreValue = {
+    others: nextOthers,
+  };
+
+  cacheRef.set({
+    engine: awareness,
+    room,
+    snapshot,
+  });
+
+  return snapshot;
+}
+
+function readSharedStateSnapshot<TPresence extends PresenceData, T>(
+  room: Room<TPresence>,
+  state: StateEngine<T>,
+  cacheRef: {
+    current: SharedStateSnapshotCache<TPresence, T> | null;
+    set(nextCache: SharedStateSnapshotCache<TPresence, T>): void;
+  },
+): T {
+  const nextSnapshot = state.get();
+  const previous = cacheRef.current;
+
+  if (previous && previous.room === room && previous.engine === state) {
+    if (areStructuredValuesEqual(previous.snapshot, nextSnapshot)) {
+      return previous.snapshot;
+    }
+
+    previous.snapshot = nextSnapshot;
+    return nextSnapshot;
+  }
+
+  cacheRef.set({
+    engine: state,
+    room,
+    snapshot: nextSnapshot,
+  });
+
+  return nextSnapshot;
+}
+
+function readSelfPeer<TPresence extends PresenceData>(
+  room: Room<TPresence>,
+  presence: PresenceEngine<TPresence>,
+  peers: Peer<TPresence>[],
+): Peer<TPresence> {
+  for (const peer of peers) {
+    if (peer.id === room.peerId) {
+      return peer;
+    }
+  }
+
+  return presence.getSelf();
+}
+
+function readPresenceWritableValue<TPresence extends PresenceData>(
+  peer: Peer<TPresence>,
+): Partial<TPresence> {
+  const result: Partial<TPresence> = {};
+
+  for (const [key, value] of Object.entries(peer)) {
+    if (LOCKED_PRESENCE_KEYS.has(key)) {
+      continue;
+    }
+
+    Reflect.set(result, key, value);
+  }
+
+  return result;
+}
+
+function readAwarenessWritableValue<TPresence extends PresenceData>(
+  room: Room<TPresence>,
+  awareness: AwarenessEngine,
+): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  const selfAwareness =
+    awareness.getAll().find((entry) => {
+      return entry.peerId === room.peerId;
+    }) ?? { peerId: room.peerId };
+
+  for (const [key, value] of Object.entries(selfAwareness)) {
+    if (key === 'peerId') {
+      continue;
+    }
+
+    Reflect.set(result, key, value);
+  }
+
+  return result;
+}
+
+function sanitizePresenceInput<TPresence extends PresenceData>(
+  value: Partial<TPresence>,
+): Partial<TPresence> {
+  const result: Partial<TPresence> = {};
+
+  for (const [key, entry] of Object.entries(value)) {
+    if (LOCKED_PRESENCE_KEYS.has(key)) {
+      continue;
+    }
+
+    Reflect.set(result, key, entry);
+  }
+
+  return result;
+}
+
+function arePeerArraysEqual<TPresence extends PresenceData>(
+  previous: readonly Peer<TPresence>[],
+  next: readonly Peer<TPresence>[],
+): boolean {
+  if (previous === next) {
+    return true;
+  }
+
+  if (previous.length !== next.length) {
+    return false;
+  }
+
+  for (let index = 0; index < previous.length; index += 1) {
+    const previousPeer = previous[index];
+    const nextPeer = next[index];
+
+    if (!previousPeer || !nextPeer || !arePeersEqual(previousPeer, nextPeer)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function arePeersEqual<TPresence extends PresenceData>(
+  previous: Peer<TPresence>,
+  next: Peer<TPresence>,
+): boolean {
+  if (previous === next) {
+    return true;
+  }
+
+  const previousKeys = Object.keys(previous).filter((key) => {
+    return key !== 'lastSeen';
+  });
+  const nextKeys = Object.keys(next).filter((key) => {
+    return key !== 'lastSeen';
+  });
+
+  if (previousKeys.length !== nextKeys.length) {
+    return false;
+  }
+
+  for (const key of previousKeys) {
+    if (!Object.prototype.hasOwnProperty.call(next, key)) {
+      return false;
+    }
+
+    if (!areStructuredValuesEqual(Reflect.get(previous, key), Reflect.get(next, key))) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function areAwarenessArraysEqual(
+  previous: readonly AwarenessState[],
+  next: readonly AwarenessState[],
+): boolean {
+  if (previous === next) {
+    return true;
+  }
+
+  if (previous.length !== next.length) {
+    return false;
+  }
+
+  for (let index = 0; index < previous.length; index += 1) {
+    const previousEntry = previous[index];
+    const nextEntry = next[index];
+
+    if (!previousEntry || !nextEntry || !areStructuredValuesEqual(previousEntry, nextEntry)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function areCursorArraysEqual<TCursor extends CursorData>(
+  previous: readonly CursorPosition<TCursor>[],
+  next: readonly CursorPosition<TCursor>[],
+): boolean {
+  if (previous === next) {
+    return true;
+  }
+
+  if (previous.length !== next.length) {
+    return false;
+  }
+
+  for (let index = 0; index < previous.length; index += 1) {
+    const previousCursor = previous[index];
+    const nextCursor = next[index];
+
+    if (!previousCursor || !nextCursor || !areCursorPositionsEqual(previousCursor, nextCursor)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function areCursorPositionsEqual<TCursor extends CursorData>(
+  previous: CursorPosition<TCursor>,
+  next: CursorPosition<TCursor>,
+): boolean {
+  if (previous === next) {
+    return true;
+  }
+
+  const previousKeys = Object.keys(previous);
+  const nextKeys = Object.keys(next);
+  if (previousKeys.length !== nextKeys.length) {
+    return false;
+  }
+
+  for (const key of previousKeys) {
+    if (!Object.prototype.hasOwnProperty.call(next, key)) {
+      return false;
+    }
+
+    if (!areStructuredValuesEqual(Reflect.get(previous, key), Reflect.get(next, key))) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function areStructuredValuesEqual(previous: unknown, next: unknown): boolean {
+  if (previous === next) {
+    return true;
+  }
+
+  if (Array.isArray(previous) || Array.isArray(next)) {
+    if (!Array.isArray(previous) || !Array.isArray(next) || previous.length !== next.length) {
+      return false;
+    }
+
+    for (let index = 0; index < previous.length; index += 1) {
+      if (!areStructuredValuesEqual(previous[index], next[index])) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  if (!isPlainObject(previous) || !isPlainObject(next)) {
+    return false;
+  }
+
+  const previousKeys = Object.keys(previous);
+  const nextKeys = Object.keys(next);
+  if (previousKeys.length !== nextKeys.length) {
+    return false;
+  }
+
+  for (const key of previousKeys) {
+    if (!Object.prototype.hasOwnProperty.call(next, key)) {
+      return false;
+    }
+
+    if (!areStructuredValuesEqual(Reflect.get(previous, key), Reflect.get(next, key))) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function cloneStructuredValue<T>(value: T): T {
+  if (typeof structuredClone === 'function') {
+    return structuredClone(value);
+  }
+
+  return value;
+}
+
+function isStateUpdater<T>(value: SetStateAction<T>): value is (current: T) => T {
+  return typeof value === 'function';
 }
