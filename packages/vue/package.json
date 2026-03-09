@@ -24,8 +24,13 @@
   "dependencies": {
     "@flockjs/core": "workspace:*"
   },
+  "devDependencies": {
+    "@vue/test-utils": "^2.4.6",
+    "jsdom": "^26.0.0",
+    "vue": "3.5.29"
+  },
   "peerDependencies": {
-    "vue": ">=3.0.0"
+    "vue": ">=3.2.0"
   },
   "publishConfig": {
     "access": "public"
