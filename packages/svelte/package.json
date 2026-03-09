@@ -24,6 +24,10 @@
   "dependencies": {
     "@flockjs/core": "workspace:*"
   },
+  "devDependencies": {
+    "jsdom": "^26.1.0",
+    "svelte": "^4.2.20"
+  },
   "peerDependencies": {
     "svelte": ">=4.0.0"
   },
