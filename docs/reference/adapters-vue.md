@@ -38,12 +38,30 @@ const emitReaction = useEvent('reaction', (data, from) => {
   console.log('reaction from', from.name, data);
 });
 </script>
+
+<template>
+  <section>
+    <p>{{ self.name }} sees {{ others.length }} collaborators</p>
+    <div ref="boardRef">Remote cursors: {{ cursors.length }}</div>
+  </section>
+</template>
 ```
 
 ## Integration Notes
 
-- Designed for Vue 3 composable patterns.
-- Plugin boundary manages room lifecycle and cleanup.
+- Designed for Vue 3 composable patterns and `setup()` usage in both Composition API and Options API components.
+- All reactive state is exposed as Vue refs, so template auto-unwrapping works without `.value`.
+- `useSharedState()` returns a tuple of `[stateRef, setState]`.
+- `useEvent()` returns a stable `emit(payload)` function.
+- `v-flock-cursors` is registered globally by `FlockPlugin` as shorthand for cursor mounting:
+
+```vue
+<template>
+  <div v-flock-cursors="{ throttleMs: 16 }" />
+</template>
+```
+
+- Plugin install owns the room lifecycle and disconnects the room on `app.unmount()`.
 
 ## Related Docs
 
