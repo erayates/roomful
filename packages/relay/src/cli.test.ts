@@ -50,15 +50,27 @@ describe('relay cli', () => {
     });
   });
 
-  it('resolves valid port and host values', () => {
+  it('returns an error result for invalid max connections', () => {
+    expect(
+      resolveRelayCliOptions({
+        MAX_CONNECTIONS: 'invalid',
+      }),
+    ).toEqual({
+      error: 'Invalid MAX_CONNECTIONS value "invalid".',
+    });
+  });
+
+  it('resolves valid port, host, and max connection values', () => {
     expect(
       resolveRelayCliOptions({
         PORT: '8788',
         HOST: '0.0.0.0',
+        MAX_CONNECTIONS: '250',
       }),
     ).toEqual({
       port: 8788,
       host: '0.0.0.0',
+      maxConnections: 250,
     });
 
     expect(resolveRelayCliOptions({})).toEqual({
@@ -100,6 +112,7 @@ describe('relay cli', () => {
     const { processLike, signalHandlers } = createFakeProcess({
       PORT: '8788',
       HOST: '127.0.0.1',
+      MAX_CONNECTIONS: '42',
     });
 
     await expect(
@@ -112,6 +125,7 @@ describe('relay cli', () => {
     expect(createServer).toHaveBeenCalledWith({
       port: 8788,
       host: '127.0.0.1',
+      maxConnections: 42,
     });
     expect(start).toHaveBeenCalledTimes(1);
     expect(processLike.stdout.write).toHaveBeenCalledWith(

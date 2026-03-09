@@ -57,6 +57,13 @@ pnpm --filter @flockjs/relay build
 pnpm --filter @flockjs/relay start
 ```
 
+Optional relay env overrides:
+
+```bash
+HOST=0.0.0.0 PORT=8787 MAX_CONNECTIONS=1000 pnpm --filter @flockjs/relay start
+curl http://127.0.0.1:8787/health
+```
+
 ## Working Norms
 
 - Prefer small, focused PRs.

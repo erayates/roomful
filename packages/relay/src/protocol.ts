@@ -256,6 +256,7 @@ export interface RelayTransportMessage {
   type: 'transport';
   signal: RelayTransportSignal;
   encoding: 'json' | 'msgpack';
+  rawPayload?: string | Uint8Array;
 }
 
 export type RelayClientMessage =
@@ -428,6 +429,7 @@ function parseTransportWrapper(
   value: unknown,
   carrier: 'json' | 'msgpack',
   now: () => number,
+  rawPayload: string | Uint8Array,
 ): RelayTransportMessage | null {
   if (!isRecord(value) || value.type !== 'transport') {
     return null;
@@ -442,6 +444,7 @@ function parseTransportWrapper(
     type: 'transport',
     signal,
     encoding: carrier,
+    rawPayload,
   };
 }
 
@@ -543,6 +546,33 @@ export function serializeRelayServerMessage(
   return JSON.stringify(wrapped);
 }
 
+export function serializeRelayTransportMessage(
+  message: RelayTransportMessage,
+  options: {
+    transportSession: RelayTransportSession;
+  },
+): string | Uint8Array {
+  const session = options.transportSession;
+  if (
+    message.encoding === 'msgpack' &&
+    message.rawPayload instanceof Uint8Array &&
+    session.version >= 2 &&
+    session.codec === 'msgpack' &&
+    !session.legacy
+  ) {
+    return message.rawPayload;
+  }
+
+  return serializeRelayServerMessage(
+    {
+      type: 'transport',
+      signal: message.signal,
+      encoding: message.encoding,
+    },
+    options,
+  );
+}
+
 export function parseRelayClientMessage(
   payload: unknown,
   now: () => number = Date.now,
@@ -553,7 +583,7 @@ export function parseRelayClientMessage(
       return null;
     }
 
-    const transport = parseTransportWrapper(parsed, 'json', now);
+    const transport = parseTransportWrapper(parsed, 'json', now, payload);
     if (transport) {
       return transport;
     }
@@ -563,9 +593,12 @@ export function parseRelayClientMessage(
   }
 
   if (payload instanceof Uint8Array || payload instanceof ArrayBuffer || Buffer.isBuffer(payload)) {
+    const binaryPayload =
+      payload instanceof ArrayBuffer ? new Uint8Array(payload) : new Uint8Array(payload);
+
     try {
-      const decoded = decode(payload instanceof ArrayBuffer ? new Uint8Array(payload) : payload);
-      return parseTransportWrapper(decoded, 'msgpack', now);
+      const decoded = decode(binaryPayload);
+      return parseTransportWrapper(decoded, 'msgpack', now, binaryPayload);
     } catch {
       return null;
     }

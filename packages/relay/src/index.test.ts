@@ -1,3 +1,4 @@
+import { encode } from '@msgpack/msgpack';
 import { afterEach, describe, expect, it } from 'vitest';
 import { WebSocket } from 'ws';
 
@@ -9,6 +10,12 @@ interface JsonMessage {
 }
 
 const SOCKET_CLOSE_TIMEOUT_MS = 1_000;
+const MSGPACK_PROTOCOL = {
+  minVersion: 1 as const,
+  maxVersion: 2 as const,
+  codecs: ['json', 'msgpack'] as const,
+  preferredCodec: 'msgpack' as const,
+};
 
 function toUtf8(data: unknown): string {
   if (typeof data === 'string') {
@@ -61,6 +68,97 @@ function waitForMessage(
   });
 }
 
+function waitForRawMessage(
+  socket: WebSocket,
+  predicate: (data: unknown, isBinary: boolean) => boolean,
+  timeoutMs = 2_000,
+): Promise<{ data: unknown; isBinary: boolean }> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      socket.off('message', onMessage);
+      reject(new Error(`Timed out waiting for raw message after ${timeoutMs}ms.`));
+    }, timeoutMs);
+
+    const onMessage = (data: unknown, isBinary: boolean): void => {
+      if (!predicate(data, isBinary)) {
+        return;
+      }
+
+      clearTimeout(timer);
+      socket.off('message', onMessage);
+      resolve({
+        data,
+        isBinary,
+      });
+    };
+
+    socket.on('message', onMessage);
+  });
+}
+
+function waitForClose(socket: WebSocket, timeoutMs = 2_000): Promise<{ code: number; reason: string }> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      socket.off('close', onClose);
+      reject(new Error(`Timed out waiting for socket close after ${timeoutMs}ms.`));
+    }, timeoutMs);
+
+    const onClose = (code: number, reason: Buffer): void => {
+      clearTimeout(timer);
+      socket.off('close', onClose);
+      resolve({
+        code,
+        reason: reason.toString('utf8'),
+      });
+    };
+
+    socket.once('close', onClose);
+  });
+}
+
+function waitForUpgradeRejection(socket: WebSocket, timeoutMs = 2_000): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      cleanup();
+      reject(new Error(`Timed out waiting for upgrade rejection after ${timeoutMs}ms.`));
+    }, timeoutMs);
+
+    const cleanup = (): void => {
+      clearTimeout(timer);
+      socket.off('open', onOpen);
+      socket.off('error', onError);
+      socket.off('unexpected-response', onUnexpectedResponse);
+    };
+
+    const onOpen = (): void => {
+      cleanup();
+      reject(new Error('Expected websocket upgrade rejection.'));
+    };
+
+    const onError = (error: Error): void => {
+      cleanup();
+      reject(error);
+    };
+
+    const onUnexpectedResponse = (_request: unknown, response: { statusCode?: number }): void => {
+      cleanup();
+      resolve(response.statusCode ?? 0);
+    };
+
+    socket.once('open', onOpen);
+    socket.once('error', onError);
+    socket.once('unexpected-response', onUnexpectedResponse);
+  });
+}
+
+function toHttpUrl(address: string, path: string): string {
+  const url = new URL(address);
+  url.protocol = url.protocol === 'wss:' ? 'https:' : 'http:';
+  url.pathname = path;
+  url.search = '';
+  return url.toString();
+}
+
 function send(socket: WebSocket, payload: JsonMessage): void {
   socket.send(JSON.stringify(payload));
 }
@@ -102,6 +200,27 @@ function sendAndWaitForMessage(
 
 async function closeSocket(socket: WebSocket): Promise<void> {
   if (socket.readyState === WebSocket.CLOSED) {
+    return;
+  }
+
+  if (socket.readyState === WebSocket.CONNECTING) {
+    await new Promise<void>((resolve) => {
+      const timer = setTimeout(() => {
+        socket.off('close', onDone);
+        socket.off('error', onDone);
+        resolve();
+      }, SOCKET_CLOSE_TIMEOUT_MS);
+
+      const onDone = (): void => {
+        clearTimeout(timer);
+        socket.off('close', onDone);
+        socket.off('error', onDone);
+        resolve();
+      };
+
+      socket.once('close', onDone);
+      socket.once('error', onDone);
+    });
     return;
   }
 
@@ -849,6 +968,219 @@ describe(
       expect(leaveMismatchError).toMatchObject({
         code: 'PEER_MISMATCH',
       });
+    });
+
+    it('serves health checks and 404s on the shared http listener', async () => {
+      relayServer = createRelayServer({
+        port: 0,
+      });
+      await relayServer.start();
+
+      const healthResponse = await fetch(toHttpUrl(relayServer.getAddress(), '/health'));
+      expect(healthResponse.status).toBe(200);
+      expect(healthResponse.headers.get('content-type')).toContain('application/json');
+      await expect(healthResponse.json()).resolves.toEqual({
+        status: 'ok',
+      });
+
+      const notFoundResponse = await fetch(toHttpUrl(relayServer.getAddress(), '/missing'));
+      expect(notFoundResponse.status).toBe(404);
+    });
+
+    it('rejects websocket upgrades when maxConnections is reached', async () => {
+      relayServer = createRelayServer({
+        port: 0,
+        maxConnections: 1,
+      });
+      await relayServer.start();
+
+      const clientA = new WebSocket(relayServer.getAddress());
+      sockets.push(clientA);
+      await waitForOpen(clientA);
+
+      const clientB = new WebSocket(relayServer.getAddress());
+      sockets.push(clientB);
+      await expect(waitForUpgradeRejection(clientB)).resolves.toBe(503);
+    });
+
+    it('forwards msgpack transport frames unchanged to msgpack peers and re-encodes legacy peers', async () => {
+      relayServer = createRelayServer({
+        port: 0,
+      });
+      await relayServer.start();
+
+      const clientA = new WebSocket(relayServer.getAddress());
+      const clientB = new WebSocket(relayServer.getAddress());
+      const clientC = new WebSocket(relayServer.getAddress());
+      sockets.push(clientA, clientB, clientC);
+
+      await Promise.all([waitForOpen(clientA), waitForOpen(clientB), waitForOpen(clientC)]);
+
+      await sendAndWaitForMessage(
+        clientA,
+        {
+          type: 'join',
+          roomId: 'room-msgpack-forward',
+          peerId: 'a',
+          protocol: MSGPACK_PROTOCOL,
+        },
+        (message) => message.type === 'joined',
+      );
+
+      const peerJoinedAtAForB = waitForMessage(
+        clientA,
+        (message) => message.type === 'peer-joined' && message.peerId === 'b',
+      );
+      await sendAndWaitForMessage(
+        clientB,
+        {
+          type: 'join',
+          roomId: 'room-msgpack-forward',
+          peerId: 'b',
+          protocol: MSGPACK_PROTOCOL,
+        },
+        (message) => message.type === 'joined',
+      );
+      await peerJoinedAtAForB;
+
+      const peerJoinedAtAForC = waitForMessage(
+        clientA,
+        (message) => message.type === 'peer-joined' && message.peerId === 'c',
+      );
+      const peerJoinedAtBForC = waitForMessage(
+        clientB,
+        (message) => message.type === 'peer-joined' && message.peerId === 'c',
+      );
+      await sendAndWaitForMessage(
+        clientC,
+        {
+          type: 'join',
+          roomId: 'room-msgpack-forward',
+          peerId: 'c',
+        },
+        (message) => message.type === 'joined',
+      );
+      await Promise.all([peerJoinedAtAForC, peerJoinedAtBForC]);
+
+      const rawBinaryPayload = new Uint8Array(
+        encode({
+          type: 'transport',
+          message: {
+            source: 'flockjs',
+            protocolVersion: 2,
+            codec: 'msgpack',
+            roomId: 'room-msgpack-forward',
+            fromPeerId: 'a',
+            timestamp: 9,
+            type: 'event',
+            payload: {
+              name: 'sync',
+              payload: {
+                scope: 'mixed-room',
+              },
+            },
+          },
+        }),
+      );
+
+      const binaryAtB = waitForRawMessage(clientB, (_data, isBinary) => isBinary);
+      const jsonAtC = waitForRawMessage(clientC, (data, isBinary) => {
+        if (isBinary) {
+          return false;
+        }
+
+        const parsed = JSON.parse(toUtf8(data)) as JsonMessage;
+        return parsed.type === 'transport';
+      });
+
+      clientA.send(rawBinaryPayload);
+
+      const receivedAtB = await binaryAtB;
+      expect(receivedAtB.isBinary).toBe(true);
+      expect(Buffer.from(receivedAtB.data as ArrayBuffer)).toEqual(Buffer.from(rawBinaryPayload));
+
+      const receivedAtC = await jsonAtC;
+      expect(receivedAtC.isBinary).toBe(false);
+      expect(JSON.parse(toUtf8(receivedAtC.data))).toMatchObject({
+        type: 'transport',
+        message: {
+          source: 'flockjs',
+          version: 1,
+          signal: {
+            type: 'event',
+            roomId: 'room-msgpack-forward',
+            fromPeerId: 'a',
+            payload: {
+              event: {
+                name: 'sync',
+                payload: {
+                  scope: 'mixed-room',
+                },
+              },
+            },
+          },
+        },
+      });
+    });
+
+    it('gracefully shuts down active websocket clients and frees the listening port', async () => {
+      relayServer = createRelayServer({
+        port: 0,
+      });
+      await relayServer.start();
+
+      const clientA = new WebSocket(relayServer.getAddress());
+      const clientB = new WebSocket(relayServer.getAddress());
+      sockets.push(clientA, clientB);
+
+      await Promise.all([waitForOpen(clientA), waitForOpen(clientB)]);
+
+      await sendAndWaitForMessage(
+        clientA,
+        {
+          type: 'join',
+          roomId: 'room-stop',
+          peerId: 'a',
+        },
+        (message) => message.type === 'joined',
+      );
+
+      const peerJoinedAtA = waitForMessage(
+        clientA,
+        (message) => message.type === 'peer-joined' && message.peerId === 'b',
+      );
+      await sendAndWaitForMessage(
+        clientB,
+        {
+          type: 'join',
+          roomId: 'room-stop',
+          peerId: 'b',
+        },
+        (message) => message.type === 'joined',
+      );
+      await peerJoinedAtA;
+
+      const closeA = waitForClose(clientA);
+      const closeB = waitForClose(clientB);
+      const port = Number(new URL(relayServer.getAddress()).port);
+
+      await relayServer.stop();
+      relayServer = null;
+
+      await expect(closeA).resolves.toMatchObject({
+        code: 1000,
+        reason: 'server-stop',
+      });
+      await expect(closeB).resolves.toMatchObject({
+        code: 1000,
+        reason: 'server-stop',
+      });
+
+      const replacementServer = createRelayServer({
+        port,
+      });
+      await replacementServer.start();
+      await replacementServer.stop();
     });
   },
 );

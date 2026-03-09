@@ -47,15 +47,30 @@ import { createRelayServer } from '@flockjs/relay';
 
 const relay = createRelayServer({
   port: 8787,
+  maxConnections: 1000,
 });
 
 await relay.start();
+```
+
+CLI startup:
+
+```bash
+HOST=0.0.0.0 PORT=8787 MAX_CONNECTIONS=1000 pnpm --filter @flockjs/relay start
+curl http://127.0.0.1:8787/health
 ```
 
 The relay package is the self-hostable baseline for both:
 
 - WebRTC SDP/ICE signaling
 - WebSocket room message relay
+- shared-port health checks at `GET /health`
+
+Relay runtime defaults and knobs:
+
+- `HOST`: default `127.0.0.1`
+- `PORT`: default `8787`
+- `MAX_CONNECTIONS`: optional global concurrent WebSocket cap per relay instance
 
 WebSocket relay example:
 

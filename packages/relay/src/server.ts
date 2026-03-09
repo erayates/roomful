@@ -1,4 +1,10 @@
-import type { IncomingMessage } from 'node:http';
+import {
+  createServer,
+  type IncomingMessage,
+  type Server as HttpServer,
+  type ServerResponse,
+} from 'node:http';
+import type { Duplex } from 'node:stream';
 
 import { type RawData, type WebSocket, WebSocketServer } from 'ws';
 
@@ -9,7 +15,11 @@ import {
   type RelayPeerLeftMessage,
   resolveRelayTransportSession,
   serializeRelayServerMessage,
+  serializeRelayTransportMessage,
 } from './protocol';
+
+const HEALTH_RESPONSE_BODY = '{"status":"ok"}';
+const SHUTDOWN_TIMEOUT_MS = 1_000;
 
 interface RelayPeerContext {
   roomId: string;
@@ -39,6 +49,7 @@ export interface RelayAuthorizeContext {
 export interface RelayServerOptions {
   port: number;
   host?: string;
+  maxConnections?: number;
   authorize?: (context: RelayAuthorizeContext) => boolean | Promise<boolean>;
 }
 
@@ -70,8 +81,80 @@ function normalizeRawData(data: RawData, isBinary: boolean): string | Uint8Array
   return new Uint8Array(data);
 }
 
+function resolveRequestPath(request: IncomingMessage): string {
+  try {
+    return new URL(request.url ?? '/', 'http://relay.local').pathname;
+  } catch {
+    return '/';
+  }
+}
+
+function normalizeMaxConnections(value: number | undefined): number | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (!Number.isInteger(value) || value < 1) {
+    throw createRelayServerConfigurationError(`Invalid maxConnections value "${value}".`);
+  }
+
+  return value;
+}
+
+function createRelayServerConfigurationError(message: string): TypeError {
+  const error = new TypeError(message);
+  error.name = 'RelayServerConfigurationError';
+  return error;
+}
+
+function rejectUpgrade(socket: Duplex, statusCode: number, statusText: string): void {
+  if (socket.destroyed) {
+    return;
+  }
+
+  socket.write(
+    `HTTP/1.1 ${statusCode} ${statusText}\r\nConnection: close\r\nContent-Length: 0\r\n\r\n`,
+  );
+  socket.destroy();
+}
+
+function waitForSocketClose(socket: WebSocket, timeoutMs = SHUTDOWN_TIMEOUT_MS): Promise<void> {
+  if (socket.readyState === 3) {
+    return Promise.resolve();
+  }
+
+  return new Promise((resolve) => {
+    const finish = (): void => {
+      clearTimeout(timer);
+      socket.off('close', onClose);
+      socket.off('error', onError);
+      resolve();
+    };
+
+    const onClose = (): void => {
+      finish();
+    };
+
+    const onError = (): void => {
+      finish();
+    };
+
+    const timer = setTimeout(() => {
+      socket.off('close', onClose);
+      socket.off('error', onError);
+      socket.terminate();
+      resolve();
+    }, timeoutMs);
+
+    socket.once('close', onClose);
+    socket.once('error', onError);
+  });
+}
+
 export class RelayServerImpl implements RelayServer {
-  private server: WebSocketServer | null = null;
+  private httpServer: HttpServer | null = null;
+
+  private wsServer: WebSocketServer | null = null;
 
   private readonly contexts = new WeakMap<WebSocket, RelayPeerContext>();
 
@@ -81,9 +164,16 @@ export class RelayServerImpl implements RelayServer {
 
   private readonly host: string;
 
+  private readonly maxConnections: number | undefined;
+
+  private stopPromise: Promise<void> | null = null;
+
+  private stopping = false;
+
   public constructor(private readonly options: RelayServerOptions) {
     this.currentPort = options.port;
     this.host = options.host ?? '127.0.0.1';
+    this.maxConnections = normalizeMaxConnections(options.maxConnections);
   }
 
   public get port(): number {
@@ -95,23 +185,33 @@ export class RelayServerImpl implements RelayServer {
   }
 
   public async start(): Promise<void> {
-    if (this.server) {
+    if (this.httpServer || this.wsServer) {
       return;
     }
 
-    const server = new WebSocketServer({
-      host: this.host,
-      port: this.options.port,
+    if (this.stopPromise) {
+      await this.stopPromise;
+    }
+
+    const httpServer = createServer((request, response) => {
+      this.handleHttpRequest(request, response);
+    });
+    const wsServer = new WebSocketServer({
+      noServer: true,
     });
 
-    server.on('connection', (socket, request) => {
+    wsServer.on('connection', (socket, request) => {
       this.handleConnection(socket, request);
+    });
+
+    httpServer.on('upgrade', (request, socket, head) => {
+      this.handleUpgrade(wsServer, request, socket, head);
     });
 
     await new Promise<void>((resolve, reject) => {
       const onListening = (): void => {
-        server.off('error', onError);
-        const address = server.address();
+        httpServer.off('error', onError);
+        const address = httpServer.address();
         if (address && typeof address !== 'string') {
           this.currentPort = address.port;
         }
@@ -119,36 +219,114 @@ export class RelayServerImpl implements RelayServer {
       };
 
       const onError = (error: Error): void => {
-        server.off('listening', onListening);
+        httpServer.off('listening', onListening);
         reject(error);
       };
 
-      server.once('listening', onListening);
-      server.once('error', onError);
+      httpServer.once('listening', onListening);
+      httpServer.once('error', onError);
+      httpServer.listen(this.options.port, this.host);
     });
 
-    this.server = server;
+    this.stopping = false;
+    this.httpServer = httpServer;
+    this.wsServer = wsServer;
   }
 
   public async stop(): Promise<void> {
-    const server = this.server;
-    if (!server) {
+    if (this.stopPromise) {
+      return this.stopPromise;
+    }
+
+    const httpServer = this.httpServer;
+    const wsServer = this.wsServer;
+    if (!httpServer || !wsServer) {
       return;
     }
 
-    this.server = null;
+    this.stopping = true;
+    this.httpServer = null;
+    this.wsServer = null;
 
-    for (const client of server.clients) {
-      client.close(1000, 'server-stop');
+    this.stopPromise = (async () => {
+      try {
+        const closeHttpServer = new Promise<void>((resolve, reject) => {
+          httpServer.close((error) => {
+            if (error) {
+              reject(error);
+              return;
+            }
+
+            resolve();
+          });
+        });
+
+        const clients = Array.from(wsServer.clients);
+        const closeClients = clients.map((client) => {
+          return waitForSocketClose(client);
+        });
+
+        for (const client of clients) {
+          client.close(1000, 'server-stop');
+        }
+
+        await Promise.all(closeClients);
+
+        await Promise.all([
+          new Promise<void>((resolve) => {
+            wsServer.close(() => {
+              resolve();
+            });
+          }),
+          closeHttpServer,
+        ]);
+      } finally {
+        this.rooms.clear();
+        this.stopPromise = null;
+        this.stopping = false;
+      }
+    })();
+
+    return this.stopPromise;
+  }
+
+  private handleHttpRequest(request: IncomingMessage, response: ServerResponse): void {
+    if (request.method === 'GET' && resolveRequestPath(request) === '/health') {
+      response.statusCode = 200;
+      response.setHeader('content-type', 'application/json');
+      response.end(HEALTH_RESPONSE_BODY);
+      return;
     }
 
-    await new Promise<void>((resolve) => {
-      server.close(() => {
-        resolve();
-      });
-    });
+    response.statusCode = 404;
+    response.setHeader('content-type', 'text/plain; charset=utf-8');
+    response.end('Not Found');
+  }
 
-    this.rooms.clear();
+  private handleUpgrade(
+    wsServer: WebSocketServer,
+    request: IncomingMessage,
+    socket: Duplex,
+    head: Buffer,
+  ): void {
+    if (this.stopping) {
+      rejectUpgrade(socket, 503, 'Service Unavailable');
+      return;
+    }
+
+    if (this.maxConnections !== undefined && wsServer.clients.size >= this.maxConnections) {
+      rejectUpgrade(socket, 503, 'Service Unavailable');
+      return;
+    }
+
+    wsServer.handleUpgrade(request, socket, head, (websocket) => {
+      if (this.stopping) {
+        websocket.close(1012, 'server-stop');
+        return;
+      }
+
+      wsServer.emit('connection', websocket, request);
+    });
   }
 
   private handleConnection(socket: WebSocket, request: IncomingMessage): void {
@@ -356,16 +534,9 @@ export class RelayServerImpl implements RelayServer {
 
       const targetContext = this.contexts.get(target);
       target.send(
-        serializeRelayServerMessage(
-          {
-            type: 'transport',
-            signal: message.signal,
-            encoding: message.encoding,
-          },
-          {
-            transportSession: resolveRelayTransportSession(targetContext?.protocol),
-          },
-        ),
+        serializeRelayTransportMessage(message, {
+          transportSession: resolveRelayTransportSession(targetContext?.protocol),
+        }),
       );
       return;
     }
@@ -377,16 +548,9 @@ export class RelayServerImpl implements RelayServer {
 
       const targetContext = this.contexts.get(socket);
       socket.send(
-        serializeRelayServerMessage(
-          {
-            type: 'transport',
-            signal: message.signal,
-            encoding: message.encoding,
-          },
-          {
-            transportSession: resolveRelayTransportSession(targetContext?.protocol),
-          },
-        ),
+        serializeRelayTransportMessage(message, {
+          transportSession: resolveRelayTransportSession(targetContext?.protocol),
+        }),
       );
     }
   }

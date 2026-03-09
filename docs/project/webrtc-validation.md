@@ -23,6 +23,13 @@ pnpm --filter @flockjs/relay start
 
 Default address: `ws://127.0.0.1:8787`.
 
+Optional relay env overrides:
+
+```bash
+HOST=0.0.0.0 PORT=8787 MAX_CONNECTIONS=1000 pnpm --filter @flockjs/relay start
+curl http://127.0.0.1:8787/health
+```
+
 For cross-machine validation, use a reachable host/IP:
 
 - Local machine relay example: `ws://<host-lan-ip>:8787`

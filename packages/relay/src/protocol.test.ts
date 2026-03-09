@@ -4,7 +4,9 @@ import { describe, expect, it } from 'vitest';
 import {
   parseRelayClientMessage,
   type RelayTransportMessage,
+  resolveRelayTransportSession,
   serializeRelayServerMessage,
+  serializeRelayTransportMessage,
 } from './protocol';
 
 const protocol = {
@@ -13,6 +15,16 @@ const protocol = {
   codecs: ['json', 'msgpack'] as const,
   preferredCodec: 'msgpack' as const,
 };
+
+function expectTransportMessage(
+  message: ReturnType<typeof parseRelayClientMessage>,
+  expected: Omit<RelayTransportMessage, 'rawPayload'>,
+): asserts message is RelayTransportMessage {
+  expect(message).toMatchObject(expected);
+  if (!message || message.type !== 'transport') {
+    throw new Error('Expected transport message.');
+  }
+}
 
 describe('relay protocol', () => {
   it('serializes relay server messages', () => {
@@ -131,30 +143,30 @@ describe('relay protocol', () => {
     });
   });
 
-  it('parses transport client messages', () => {
-    expect(
-      parseRelayClientMessage(
-        JSON.stringify({
-          type: 'transport',
-          message: {
-            source: 'flockjs',
-            protocolVersion: 2,
-            codec: 'json',
-            roomId: 'room-a',
-            fromPeerId: 'peer-a',
-            toPeerId: 'peer-b',
-            timestamp: 1,
-            type: 'event',
+  it('parses json transport client messages and preserves the raw frame', () => {
+    const parsed = parseRelayClientMessage(
+      JSON.stringify({
+        type: 'transport',
+        message: {
+          source: 'flockjs',
+          protocolVersion: 2,
+          codec: 'json',
+          roomId: 'room-a',
+          fromPeerId: 'peer-a',
+          toPeerId: 'peer-b',
+          timestamp: 1,
+          type: 'event',
+          payload: {
+            name: 'ping',
             payload: {
-              name: 'ping',
-              payload: {
-                ok: true,
-              },
+              ok: true,
             },
           },
-        }),
-      ),
-    ).toEqual({
+        },
+      }),
+    );
+
+    expectTransportMessage(parsed, {
       type: 'transport',
       encoding: 'json',
       signal: {
@@ -169,40 +181,41 @@ describe('relay protocol', () => {
             ok: true,
           },
         },
-        },
-      } satisfies RelayTransportMessage);
+      },
+    });
+    expect(parsed.rawPayload).toBeTypeOf('string');
   });
 
   it('parses state and CRDT transport client messages', () => {
-    expect(
-      parseRelayClientMessage(
-        JSON.stringify({
-          type: 'transport',
-          message: {
-            source: 'flockjs',
-            protocolVersion: 2,
-            codec: 'json',
-            roomId: 'room-state',
-            fromPeerId: 'peer-a',
-            toPeerId: 'peer-b',
-            timestamp: 1,
-            type: 'state:update',
-            payload: {
-              value: {
-                count: 1,
-              },
-              history: [],
-              vectorClock: {
-                'peer-a': 1,
-              },
-              changedBy: 'peer-a',
-              timestamp: 1,
-              reason: 'set',
+    const stateParsed = parseRelayClientMessage(
+      JSON.stringify({
+        type: 'transport',
+        message: {
+          source: 'flockjs',
+          protocolVersion: 2,
+          codec: 'json',
+          roomId: 'room-state',
+          fromPeerId: 'peer-a',
+          toPeerId: 'peer-b',
+          timestamp: 1,
+          type: 'state:update',
+          payload: {
+            value: {
+              count: 1,
             },
+            history: [],
+            vectorClock: {
+              'peer-a': 1,
+            },
+            changedBy: 'peer-a',
+            timestamp: 1,
+            reason: 'set',
           },
-        }),
-      ),
-    ).toEqual({
+        },
+      }),
+    );
+
+    expectTransportMessage(stateParsed, {
       type: 'transport',
       encoding: 'json',
       signal: {
@@ -224,36 +237,36 @@ describe('relay protocol', () => {
           reason: 'set',
         },
       },
-    } satisfies RelayTransportMessage);
+    });
+    expect(stateParsed.rawPayload).toBeTypeOf('string');
 
-    expect(
-      parseRelayClientMessage(
-        new Uint8Array(
-          encode({
-            type: 'transport',
-            message: {
-              source: 'flockjs',
-              protocolVersion: 2,
-              codec: 'msgpack',
-              roomId: 'room-crdt',
-              fromPeerId: 'peer-a',
-              toPeerId: 'peer-b',
+    const encodedPayload = new Uint8Array(
+      encode({
+        type: 'transport',
+        message: {
+          source: 'flockjs',
+          protocolVersion: 2,
+          codec: 'msgpack',
+          roomId: 'room-crdt',
+          fromPeerId: 'peer-a',
+          toPeerId: 'peer-b',
+          timestamp: 2,
+          type: 'crdt:sync',
+          payload: {
+            kind: 'update',
+            data: new Uint8Array([1, 2, 3]),
+            meta: {
+              reason: 'set',
+              changedBy: 'peer-a',
               timestamp: 2,
-              type: 'crdt:sync',
-              payload: {
-                kind: 'update',
-                data: new Uint8Array([1, 2, 3]),
-                meta: {
-                  reason: 'set',
-                  changedBy: 'peer-a',
-                  timestamp: 2,
-                },
-              },
             },
-          }),
-        ),
-      ),
-    ).toEqual({
+          },
+        },
+      }),
+    );
+
+    const crdtParsed = parseRelayClientMessage(encodedPayload);
+    expectTransportMessage(crdtParsed, {
       type: 'transport',
       encoding: 'msgpack',
       signal: {
@@ -272,7 +285,63 @@ describe('relay protocol', () => {
           },
         },
       },
-    } satisfies RelayTransportMessage);
+    });
+    expect(crdtParsed.rawPayload).toEqual(encodedPayload);
+  });
+
+  it('preserves raw msgpack payloads for msgpack-capable recipients', () => {
+    const encodedPayload = new Uint8Array(
+      encode({
+        type: 'transport',
+        message: {
+          source: 'flockjs',
+          protocolVersion: 2,
+          codec: 'msgpack',
+          roomId: 'room-msgpack',
+          fromPeerId: 'peer-a',
+          toPeerId: 'peer-b',
+          timestamp: 5,
+          type: 'event',
+          payload: {
+            name: 'ping',
+            payload: {
+              ok: true,
+            },
+          },
+        },
+      }),
+    );
+
+    const parsed = parseRelayClientMessage(encodedPayload);
+    expectTransportMessage(parsed, {
+      type: 'transport',
+      encoding: 'msgpack',
+      signal: {
+        type: 'event',
+        roomId: 'room-msgpack',
+        fromPeerId: 'peer-a',
+        toPeerId: 'peer-b',
+        timestamp: 5,
+        payload: {
+          name: 'ping',
+          payload: {
+            ok: true,
+          },
+        },
+      },
+    });
+
+    expect(
+      serializeRelayTransportMessage(parsed, {
+        transportSession: resolveRelayTransportSession(protocol),
+      }),
+    ).toEqual(encodedPayload);
+
+    expect(
+      serializeRelayTransportMessage(parsed, {
+        transportSession: resolveRelayTransportSession(undefined),
+      }),
+    ).toBeTypeOf('string');
   });
 
   it('rejects invalid relay client payloads', () => {
