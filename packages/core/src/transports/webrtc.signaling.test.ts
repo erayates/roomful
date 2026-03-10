@@ -156,7 +156,7 @@ describe('WebRTCSignalingClient', () => {
     const client = new WebRTCSignalingClient({
       roomId: 'room-signaling',
       peerId: 'peer-a',
-      relayUrl: 'ws://relay.local',
+      relayUrl: 'ws://relay.local?lang=en',
       relayAuth: async () => 'token-123',
       maxPeers: 3,
       createWebSocket,
@@ -173,13 +173,14 @@ describe('WebRTCSignalingClient', () => {
     const socket = sockets[0] as MockWebSocket;
 
     socket.emitOpen();
+    expect(socket.url).toBe('ws://relay.local/?lang=en&token=token-123');
     expect(parseLastPayload(socket)).toMatchObject({
       type: 'join',
       roomId: 'room-signaling',
       peerId: 'peer-a',
-      token: 'token-123',
       maxPeers: 3,
     });
+    expect(parseLastPayload(socket)).not.toHaveProperty('token');
 
     socket.emitMessage(
       JSON.stringify({

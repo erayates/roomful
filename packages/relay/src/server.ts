@@ -20,6 +20,8 @@ import {
 
 const HEALTH_RESPONSE_BODY = '{"status":"ok"}';
 const SHUTDOWN_TIMEOUT_MS = 1_000;
+const AUTH_CLOSE_CODE = 4_401;
+const AUTH_CLOSE_REASON = 'auth-failed';
 
 interface RelayPeerContext {
   roomId: string;
@@ -34,10 +36,17 @@ interface RelayRoom {
 
 export interface RelayServer {
   readonly port: number;
+  auth(handler: RelayAuthHandler): RelayServer;
   start(): Promise<void>;
   stop(): Promise<void>;
   getAddress(): string;
 }
+
+export type RelayAuthHandler = (
+  peerId: string,
+  roomId: string,
+  token: string,
+) => void | boolean | Promise<void | boolean>;
 
 export interface RelayAuthorizeContext {
   roomId: string;
@@ -50,7 +59,7 @@ export interface RelayServerOptions {
   port: number;
   host?: string;
   maxConnections?: number;
-  authorize?: (context: RelayAuthorizeContext) => boolean | Promise<boolean>;
+  authorize?: (context: RelayAuthorizeContext) => void | boolean | Promise<void | boolean>;
 }
 
 function normalizeRawData(data: RawData, isBinary: boolean): string | Uint8Array {
@@ -87,6 +96,69 @@ function resolveRequestPath(request: IncomingMessage): string {
   } catch {
     return '/';
   }
+}
+
+function resolveAuthTokenQuery(
+  request: IncomingMessage,
+): { ok: true; token: string } | { ok: false; reason: string } {
+  let url: URL;
+  try {
+    url = new URL(request.url ?? '/', 'http://relay.local');
+  } catch {
+    return {
+      ok: false,
+      reason: 'invalid-request-url',
+    };
+  }
+
+  const tokens = url.searchParams.getAll('token');
+  if (tokens.length === 0) {
+    return {
+      ok: false,
+      reason: 'missing-token',
+    };
+  }
+
+  if (tokens.length > 1) {
+    return {
+      ok: false,
+      reason: 'duplicate-token',
+    };
+  }
+
+  const [token] = tokens;
+  if (!token) {
+    return {
+      ok: false,
+      reason: 'empty-token',
+    };
+  }
+
+  return {
+    ok: true,
+    token,
+  };
+}
+
+function resolvePeerIp(request: IncomingMessage): string {
+  const forwardedFor = request.headers['x-forwarded-for'];
+  const forwardedValue = Array.isArray(forwardedFor) ? forwardedFor[0] : forwardedFor;
+  if (typeof forwardedValue === 'string') {
+    const [firstHop] = forwardedValue.split(',');
+    if (firstHop && firstHop.trim().length > 0) {
+      return firstHop.trim();
+    }
+  }
+
+  return request.socket.remoteAddress ?? 'unknown';
+}
+
+function normalizeLogValue(value: string): string {
+  return value.replace(/\s+/g, ' ').trim();
+}
+
+function readErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
 function normalizeMaxConnections(value: number | undefined): number | undefined {
@@ -158,6 +230,8 @@ export class RelayServerImpl implements RelayServer {
 
   private readonly contexts = new WeakMap<WebSocket, RelayPeerContext>();
 
+  private readonly pendingAuthTokens = new WeakMap<WebSocket, string>();
+
   private readonly rooms = new Map<string, RelayRoom>();
 
   private currentPort: number;
@@ -165,6 +239,8 @@ export class RelayServerImpl implements RelayServer {
   private readonly host: string;
 
   private readonly maxConnections: number | undefined;
+
+  private authHandler: RelayAuthHandler | null = null;
 
   private stopPromise: Promise<void> | null = null;
 
@@ -178,6 +254,21 @@ export class RelayServerImpl implements RelayServer {
 
   public get port(): number {
     return this.currentPort;
+  }
+
+  public auth(handler: RelayAuthHandler): RelayServer {
+    if (this.options.authorize) {
+      throw createRelayServerConfigurationError(
+        'Relay auth cannot be configured with both `authorize` and `auth()`.',
+      );
+    }
+
+    if (this.httpServer || this.wsServer) {
+      throw createRelayServerConfigurationError('Relay auth must be configured before start().');
+    }
+
+    this.authHandler = handler;
+    return this;
   }
 
   public getAddress(): string {
@@ -319,10 +410,19 @@ export class RelayServerImpl implements RelayServer {
       return;
     }
 
+    const authToken = this.prepareUpgradeAuth(request, socket);
+    if (authToken === null) {
+      return;
+    }
+
     wsServer.handleUpgrade(request, socket, head, (websocket) => {
       if (this.stopping) {
         websocket.close(1012, 'server-stop');
         return;
+      }
+
+      if (authToken !== undefined) {
+        this.pendingAuthTokens.set(websocket, authToken);
       }
 
       wsServer.emit('connection', websocket, request);
@@ -342,10 +442,12 @@ export class RelayServerImpl implements RelayServer {
     });
 
     socket.on('close', () => {
+      this.pendingAuthTokens.delete(socket);
       this.removePeerFromRoom(socket);
     });
 
     socket.on('error', () => {
+      this.pendingAuthTokens.delete(socket);
       this.removePeerFromRoom(socket);
     });
   }
@@ -420,20 +522,9 @@ export class RelayServerImpl implements RelayServer {
       return;
     }
 
-    if (this.options.authorize) {
-      const authorizeContext: RelayAuthorizeContext = {
-        roomId: message.roomId,
-        peerId: message.peerId,
-        request,
-        ...(message.token !== undefined ? { token: message.token } : {}),
-      };
-
-      const allowed = await this.options.authorize(authorizeContext);
-
-      if (!allowed) {
-        this.sendError(socket, 'AUTH_FAILED', 'Authorization failed.');
-        return;
-      }
+    const authorized = await this.authorizeJoin(socket, request, message);
+    if (!authorized) {
+      return;
     }
 
     const room = this.rooms.get(message.roomId) ?? {
@@ -465,6 +556,7 @@ export class RelayServerImpl implements RelayServer {
       peerId: message.peerId,
       ...(message.protocol ? { protocol: message.protocol } : {}),
     });
+    this.pendingAuthTokens.delete(socket);
 
     socket.send(
       serializeRelayServerMessage({
@@ -481,6 +573,111 @@ export class RelayServerImpl implements RelayServer {
       peerId: message.peerId,
       ...(message.protocol ? { protocol: message.protocol } : {}),
     });
+  }
+
+  private isAuthEnabled(): boolean {
+    return this.authHandler !== null || this.options.authorize !== undefined;
+  }
+
+  private prepareUpgradeAuth(request: IncomingMessage, socket: Duplex): string | undefined | null {
+    if (!this.isAuthEnabled()) {
+      return undefined;
+    }
+
+    const tokenResult = resolveAuthTokenQuery(request);
+    if (!tokenResult.ok) {
+      this.logAuthFailure(request, {
+        reason: tokenResult.reason,
+      });
+      rejectUpgrade(socket, 401, 'Unauthorized');
+      return null;
+    }
+
+    return tokenResult.token;
+  }
+
+  private async authorizeJoin(
+    socket: WebSocket,
+    request: IncomingMessage,
+    message: Extract<RelayClientMessage, { type: 'join' }>,
+  ): Promise<boolean> {
+    if (!this.isAuthEnabled()) {
+      return true;
+    }
+
+    const token = this.pendingAuthTokens.get(socket);
+    if (!token) {
+      this.rejectUnauthorizedJoin(socket, request, message, 'missing-token');
+      return false;
+    }
+
+    try {
+      const allowed =
+        this.authHandler !== null
+          ? await this.authHandler(message.peerId, message.roomId, token)
+          : await this.options.authorize?.({
+              roomId: message.roomId,
+              peerId: message.peerId,
+              token,
+              request,
+            });
+
+      if (allowed === false) {
+        this.rejectUnauthorizedJoin(socket, request, message, 'rejected');
+        return false;
+      }
+    } catch (error) {
+      this.rejectUnauthorizedJoin(socket, request, message, 'error', error);
+      return false;
+    }
+
+    return true;
+  }
+
+  private rejectUnauthorizedJoin(
+    socket: WebSocket,
+    request: IncomingMessage,
+    message: Extract<RelayClientMessage, { type: 'join' }>,
+    reason: string,
+    error?: unknown,
+  ): void {
+    this.pendingAuthTokens.delete(socket);
+    this.logAuthFailure(request, {
+      reason,
+      roomId: message.roomId,
+      peerId: message.peerId,
+      error,
+    });
+    this.sendError(socket, 'AUTH_FAILED', 'Authorization failed.');
+    socket.close(AUTH_CLOSE_CODE, AUTH_CLOSE_REASON);
+  }
+
+  private logAuthFailure(
+    request: IncomingMessage,
+    details: {
+      reason: string;
+      roomId?: string;
+      peerId?: string;
+      error?: unknown;
+    },
+  ): void {
+    const parts = ['[relay] auth rejected', `ip=${resolvePeerIp(request)}`];
+
+    if (details.roomId) {
+      parts.push(`roomId=${details.roomId}`);
+    }
+
+    if (details.peerId) {
+      parts.push(`peerId=${details.peerId}`);
+    }
+
+    parts.push(`reason=${normalizeLogValue(details.reason)}`);
+
+    if (details.error !== undefined) {
+      parts.push(`error=${normalizeLogValue(readErrorMessage(details.error))}`);
+    }
+
+    process.stderr.write(`${parts.join(' ')}\n`);
   }
 
   private forwardSignal(
@@ -556,6 +753,7 @@ export class RelayServerImpl implements RelayServer {
   }
 
   private removePeerFromRoom(socket: WebSocket): void {
+    this.pendingAuthTokens.delete(socket);
     const context = this.contexts.get(socket);
     if (!context) {
       return;

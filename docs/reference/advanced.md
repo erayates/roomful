@@ -23,6 +23,8 @@ const room = createRoom('doc-room', {
 });
 ```
 
+When `relayAuth` is configured, FlockJS appends the resolved token to the relay WebSocket URL as `?token=...` and keeps the join payload token-free.
+
 ## End-to-End Encryption
 
 ```ts
@@ -43,11 +45,16 @@ Security notes:
 ## Relay Signaling Server (`@flockjs/relay`)
 
 ```ts
-import { createRelayServer } from '@flockjs/relay';
+import { createRelayServer, verifyJWT } from '@flockjs/relay';
 
 const relay = createRelayServer({
   port: 8787,
   maxConnections: 1000,
+}).auth(async (peerId, roomId, token) => {
+  const claims = verifyJWT(token, process.env.RELAY_JWT_SECRET ?? '');
+  if (claims.roomId !== roomId) {
+    throw new Error(`Token cannot join room ${roomId}.`);
+  }
 });
 
 await relay.start();
@@ -71,6 +78,10 @@ Relay runtime defaults and knobs:
 - `HOST`: default `127.0.0.1`
 - `PORT`: default `8787`
 - `MAX_CONNECTIONS`: optional global concurrent WebSocket cap per relay instance
+- relay auth is disabled by default; unconfigured relays remain open
+- when auth is enabled, clients must connect with a single non-empty `token` query param
+- invalid upgrade-stage tokens are rejected with HTTP `401`
+- join-time auth failures emit `AUTH_FAILED` and close the socket with code `4401`
 
 WebSocket relay example:
 
@@ -118,9 +129,11 @@ CRDT/Yjs runtime integration is not shipped in this baseline. Treat CRDT strateg
 
 For private rooms in relay mode:
 
-- validate token server-side
+- validate `token` server-side with `relay.auth(...)`
+- use `verifyJWT(token, secret)` for HS256 JWTs when you want a built-in helper
 - map identity to peer metadata
 - reject unauthorized joins before admission
+- leave auth disabled for open rooms
 
 ## Related Docs
 

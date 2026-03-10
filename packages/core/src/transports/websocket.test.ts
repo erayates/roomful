@@ -442,6 +442,37 @@ describe('WebSocketTransportAdapter', () => {
     await adapter.disconnect();
   });
 
+  it('appends relay auth tokens to the socket URL without sending them in join payloads', async () => {
+    const relay = new MockRelay();
+    const adapter = createWebSocketTransportAdapter(
+      'room-auth',
+      'peer-a',
+      {
+        transport: 'websocket',
+        relayUrl: 'ws://relay.local?lang=en',
+        relayAuth: async () => 'token-123',
+      },
+      relay.connect,
+    );
+
+    await adapter.connect();
+
+    const socket = relay.getSocket('peer-a');
+    if (!socket) {
+      throw new Error('Expected connected socket.');
+    }
+
+    expect(socket.url).toBe('ws://relay.local/?lang=en&token=token-123');
+    expect(parseWebSocketRelayClientMessage(socket.sentPayloads[0])).toEqual({
+      type: 'join',
+      roomId: 'room-auth',
+      peerId: 'peer-a',
+      protocol,
+    });
+
+    await adapter.disconnect();
+  });
+
   it('delivers broadcast messages to room peers', async () => {
     const relay = new MockRelay();
     const adapterA = createWebSocketTransportAdapter(

@@ -2,6 +2,7 @@ import { createFlockError } from '../flock-error';
 import { env } from '../internal/env';
 import { normalizeMaxPeers } from '../internal/max-peers';
 import type { FlockError, RelayAuthToken } from '../types';
+import { appendRelayAuthTokenToUrl } from './relay-url';
 import {
   parseSignalingServerMessage,
   serializeSignalingMessage,
@@ -307,7 +308,9 @@ export class WebRTCSignalingClient {
 
   private async connectInternal(): Promise<string[]> {
     const relayAuthToken = await resolveRelayAuthToken(this.options.relayAuth);
-    const socket = this.createWebSocket(this.options.relayUrl);
+    const socket = this.createWebSocket(
+      appendRelayAuthTokenToUrl(this.options.relayUrl, relayAuthToken),
+    );
     this.socket = socket;
 
     socket.addEventListener('open', this.onOpen);
@@ -357,14 +360,7 @@ export class WebRTCSignalingClient {
           ...(maxPeers !== undefined ? { maxPeers } : {}),
         };
 
-        const payload = serializeSignalingMessage(
-          relayAuthToken === undefined
-            ? joinMessage
-            : {
-                ...joinMessage,
-                token: relayAuthToken,
-              },
-        );
+        const payload = serializeSignalingMessage(joinMessage);
 
         socket.send(payload);
       };

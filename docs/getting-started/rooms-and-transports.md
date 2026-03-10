@@ -71,6 +71,8 @@ const room = createRoom('doc-123', {
 });
 ```
 
+If you provide `relayAuth`, the client resolves the token before opening the socket and sends it as the relay URL query param `token`.
+
 ## Scaling Guidance
 
 - Up to about 8-12 peers: WebRTC mesh is usually acceptable

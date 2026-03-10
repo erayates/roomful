@@ -1,5 +1,5 @@
 import { encode } from '@msgpack/msgpack';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { WebSocket } from 'ws';
 
 import { createRelayServer, type RelayServer } from './index';
@@ -159,6 +159,15 @@ function toHttpUrl(address: string, path: string): string {
   return url.toString();
 }
 
+function withQueryTokens(address: string, ...tokens: string[]): string {
+  const url = new URL(address);
+  for (const token of tokens) {
+    url.searchParams.append('token', token);
+  }
+
+  return url.toString();
+}
+
 function send(socket: WebSocket, payload: JsonMessage): void {
   socket.send(JSON.stringify(payload));
 }
@@ -261,6 +270,7 @@ describe(
 
       await relayServer?.stop();
       relayServer = null;
+      vi.restoreAllMocks();
     });
 
     it('joins peers into rooms and emits peer-joined', async () => {
@@ -767,29 +777,208 @@ describe(
       });
     });
 
-    it('rejects unauthorized joins', async () => {
+    it('keeps rooms open by default and ignores unused query tokens', async () => {
       relayServer = createRelayServer({
         port: 0,
-        authorize: async ({ token }) => token === 'allow',
       });
       await relayServer.start();
 
-      const client = new WebSocket(relayServer.getAddress());
+      const client = new WebSocket(withQueryTokens(relayServer.getAddress(), 'unused-token'));
       sockets.push(client);
       await waitForOpen(client);
 
-      send(client, {
+      const joined = await sendAndWaitForMessage(
+        client,
+        {
+          type: 'join',
+          roomId: 'room-open',
+          peerId: 'peer-a',
+        },
+        (message) => message.type === 'joined',
+      );
+
+      expect(joined).toMatchObject({
+        type: 'joined',
+        roomId: 'room-open',
+        peerId: 'peer-a',
+        peers: [],
+      });
+    });
+
+    it('configures auth handlers with auth() and authenticates joins using query tokens', async () => {
+      const auth = vi.fn(async () => {
+        return undefined;
+      });
+      const relay = createRelayServer({
+        port: 0,
+      });
+      relayServer = relay.auth(auth);
+      expect(relayServer).toBe(relay);
+
+      await relayServer.start();
+
+      const client = new WebSocket(withQueryTokens(relayServer.getAddress(), 'allow'));
+      sockets.push(client);
+      await waitForOpen(client);
+
+      const joined = await sendAndWaitForMessage(
+        client,
+        {
+          type: 'join',
+          roomId: 'room-auth',
+          peerId: 'peer-a',
+        },
+        (message) => message.type === 'joined',
+      );
+
+      expect(joined).toMatchObject({
+        type: 'joined',
+        roomId: 'room-auth',
+        peerId: 'peer-a',
+      });
+      expect(auth).toHaveBeenCalledWith('peer-a', 'room-auth', 'allow');
+    });
+
+    it('rejects missing, empty, and duplicate auth query tokens during upgrade', async () => {
+      relayServer = createRelayServer({
+        port: 0,
+      }).auth(async () => {
+        return undefined;
+      });
+      await relayServer.start();
+
+      const missingTokenClient = new WebSocket(relayServer.getAddress());
+      const emptyTokenClient = new WebSocket(withQueryTokens(relayServer.getAddress(), ''));
+      const duplicateTokenClient = new WebSocket(
+        withQueryTokens(relayServer.getAddress(), 'first', 'second'),
+      );
+      sockets.push(missingTokenClient, emptyTokenClient, duplicateTokenClient);
+
+      const missingTokenRejection = waitForUpgradeRejection(missingTokenClient);
+      const emptyTokenRejection = waitForUpgradeRejection(emptyTokenClient);
+      const duplicateTokenRejection = waitForUpgradeRejection(duplicateTokenClient);
+
+      await expect(missingTokenRejection).resolves.toBe(401);
+      await expect(emptyTokenRejection).resolves.toBe(401);
+      await expect(duplicateTokenRejection).resolves.toBe(401);
+    });
+
+    it('rejects unauthorized joins, logs the peer IP, and closes with 4401', async () => {
+      const stderrWrite = vi.spyOn(process.stderr, 'write').mockImplementation(() => {
+        return true;
+      });
+
+      relayServer = createRelayServer({
+        port: 0,
+      }).auth(async (_peerId, _roomId, token) => {
+        if (token !== 'allow') {
+          throw new Error('token denied');
+        }
+
+        return undefined;
+      });
+      await relayServer.start();
+
+      const deniedClient = new WebSocket(withQueryTokens(relayServer.getAddress(), 'deny'), {
+        headers: {
+          'x-forwarded-for': '203.0.113.10',
+        },
+      });
+      sockets.push(deniedClient);
+      await waitForOpen(deniedClient);
+
+      send(deniedClient, {
         type: 'join',
         roomId: 'room-auth',
         peerId: 'peer-a',
-        token: 'deny',
       });
 
-      const error = await waitForMessage(client, (message) => message.type === 'error');
+      const error = await waitForMessage(deniedClient, (message) => message.type === 'error');
+      const close = await waitForClose(deniedClient);
       expect(error).toMatchObject({
         type: 'error',
         code: 'AUTH_FAILED',
       });
+      expect(close).toEqual({
+        code: 4401,
+        reason: 'auth-failed',
+      });
+      expect(stderrWrite).toHaveBeenCalledWith(
+        expect.stringContaining('ip=203.0.113.10 roomId=room-auth peerId=peer-a'),
+      );
+
+      const allowedClient = new WebSocket(withQueryTokens(relayServer.getAddress(), 'allow'));
+      sockets.push(allowedClient);
+      await waitForOpen(allowedClient);
+
+      const joined = await sendAndWaitForMessage(
+        allowedClient,
+        {
+          type: 'join',
+          roomId: 'room-auth',
+          peerId: 'peer-b',
+        },
+        (message) => message.type === 'joined',
+      );
+
+      expect(joined).toMatchObject({
+        type: 'joined',
+        roomId: 'room-auth',
+        peerId: 'peer-b',
+        peers: [],
+      });
+    });
+
+    it('supports the deprecated authorize alias with query tokens and request context', async () => {
+      const authorize = vi.fn(async ({ token }) => token === 'allow');
+
+      relayServer = createRelayServer({
+        port: 0,
+        authorize,
+      });
+      await relayServer.start();
+
+      const client = new WebSocket(withQueryTokens(relayServer.getAddress(), 'allow'));
+      sockets.push(client);
+      await waitForOpen(client);
+
+      const joined = await sendAndWaitForMessage(
+        client,
+        {
+          type: 'join',
+          roomId: 'room-authorize',
+          peerId: 'peer-a',
+        },
+        (message) => message.type === 'joined',
+      );
+
+      expect(joined).toMatchObject({
+        type: 'joined',
+        roomId: 'room-authorize',
+        peerId: 'peer-a',
+        peers: [],
+      });
+      expect(authorize).toHaveBeenCalledWith(
+        expect.objectContaining({
+          roomId: 'room-authorize',
+          peerId: 'peer-a',
+          token: 'allow',
+          request: expect.objectContaining({
+            url: expect.stringContaining('token=allow'),
+          }),
+        }),
+      );
+    });
+
+    it('throws when auth() is combined with authorize', () => {
+      const relay = createRelayServer({
+        port: 0,
+        authorize: async () => true,
+      });
+
+      expect(() => relay.auth(async () => undefined)).toThrowError(
+        /both `authorize` and `auth\(\)`/i,
+      );
     });
 
     it('validates join and signal invariants', async () => {

@@ -4,6 +4,7 @@ import { logProtocolNegotiation, logProtocolWarning } from '../internal/logger';
 import { normalizeMaxPeers } from '../internal/max-peers';
 import type { PeerProtocolCapabilities, PeerProtocolSession } from '../protocol/peer-message';
 import type { FlockError, PresenceData, RelayAuthToken, RoomOptions } from '../types';
+import { appendRelayAuthTokenToUrl } from './relay-url';
 import {
   type RoomTransportSignal,
   toBroadcastSignal,
@@ -267,7 +268,9 @@ export class WebSocketTransportAdapter<
 
   private async connectInternal(): Promise<void> {
     const relayAuthToken = await resolveRelayAuthToken(this.options.relayAuth);
-    const socket = this.createWebSocket(this.relayUrl);
+    const socket = this.createWebSocket(
+      appendRelayAuthTokenToUrl(this.relayUrl, relayAuthToken),
+    );
     setBinaryTypeIfSupported(socket);
     this.socket = socket;
 
@@ -329,16 +332,7 @@ export class WebSocketTransportAdapter<
           ...(maxPeers !== undefined ? { maxPeers } : {}),
         };
 
-        socket.send(
-          serializeWebSocketRelayMessage(
-            relayAuthToken === undefined
-              ? joinMessage
-              : {
-                  ...joinMessage,
-                  token: relayAuthToken,
-                },
-          ),
-        );
+        socket.send(serializeWebSocketRelayMessage(joinMessage));
       };
 
       const onMessage = (event: MessageEventLike): void => {
