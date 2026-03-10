@@ -289,6 +289,46 @@ describe('relay protocol', () => {
     expect(crdtParsed.rawPayload).toEqual(encodedPayload);
   });
 
+  it('parses encrypted transport client messages', () => {
+    const parsed = parseRelayClientMessage(
+      JSON.stringify({
+        type: 'transport',
+        message: {
+          source: 'flockjs',
+          protocolVersion: 2,
+          codec: 'json',
+          roomId: 'room-encrypted',
+          fromPeerId: 'peer-a',
+          toPeerId: 'peer-b',
+          timestamp: 9,
+          type: 'encrypted',
+          payload: {
+            version: 1,
+            iv: [1, 2, 3],
+            ciphertext: [4, 5, 6],
+          },
+        },
+      }),
+    );
+
+    expectTransportMessage(parsed, {
+      type: 'transport',
+      encoding: 'json',
+      signal: {
+        type: 'encrypted',
+        roomId: 'room-encrypted',
+        fromPeerId: 'peer-a',
+        toPeerId: 'peer-b',
+        timestamp: 9,
+        payload: {
+          version: 1,
+          iv: new Uint8Array([1, 2, 3]),
+          ciphertext: new Uint8Array([4, 5, 6]),
+        },
+      },
+    });
+  });
+
   it('preserves raw msgpack payloads for msgpack-capable recipients', () => {
     const encodedPayload = new Uint8Array(
       encode({

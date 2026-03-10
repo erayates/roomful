@@ -11,21 +11,48 @@ import {
 } from '../internal/state';
 import type { StateChangeMeta, StateEngine, StateOptions, Unsubscribe } from '../types';
 
+type StateEngineMutation<T> =
+  | {
+      reason: 'set';
+      payload: T;
+    }
+  | {
+      reason: 'patch';
+      payload: Partial<T>;
+    }
+  | {
+      reason: 'undo';
+    }
+  | {
+      reason: 'reset';
+    };
+
+interface StateEngineCommit<T> {
+  mutation: StateEngineMutation<T>;
+  snapshot: StateSnapshot;
+}
+
 interface StateEngineContext<T> {
   actorId: string;
   getInitialValue(): T;
   getValue(): T;
   getSnapshot(): StateSnapshot;
   subscribeSnapshots(callback: (snapshot: StateSnapshot) => void): Unsubscribe;
-  commitSnapshot(snapshot: StateSnapshot): void;
+  commitChange(change: StateEngineCommit<T>): void;
+  getSyncMeta?(): Pick<StateChangeMeta, 'pending' | 'queuedMutationCount'>;
   now?: () => number;
 }
 
-function createMeta(snapshot: StateSnapshot): StateChangeMeta {
+function createMeta(
+  snapshot: StateSnapshot,
+  syncMeta?: Pick<StateChangeMeta, 'pending' | 'queuedMutationCount'>,
+): StateChangeMeta {
   return {
     reason: snapshot.reason,
     changedBy: snapshot.changedBy,
     timestamp: snapshot.timestamp,
+    pending: syncMeta?.pending ?? false,
+    queuedMutationCount: syncMeta?.queuedMutationCount ?? 0,
   };
 }
 
@@ -67,7 +94,7 @@ export function createStateEngine<T>(
   };
 
   const notify = (snapshot: StateSnapshot): void => {
-    const meta = createMeta(snapshot);
+    const meta = createMeta(snapshot, context?.getSyncMeta?.());
     const nextValue = getValue();
 
     for (const subscriber of subscribers) {
@@ -75,9 +102,12 @@ export function createStateEngine<T>(
     }
   };
 
-  const applySnapshot = (snapshot: StateSnapshot): void => {
+  const applySnapshot = (snapshot: StateSnapshot, mutation: StateEngineMutation<T>): void => {
     if (context) {
-      context.commitSnapshot(snapshot);
+      context.commitChange({
+        mutation,
+        snapshot,
+      });
       return;
     }
 
@@ -100,7 +130,13 @@ export function createStateEngine<T>(
         localValue = cloneStateValue(nextValue);
       }
 
-      applySnapshot(setStateSnapshot(getSnapshot(), nextValue, context?.actorId ?? 'local', now()));
+      applySnapshot(
+        setStateSnapshot(getSnapshot(), nextValue, context?.actorId ?? 'local', now()),
+        {
+          reason: 'set',
+          payload: cloneStateValue(nextValue),
+        },
+      );
     },
     patch(partial) {
       const nextSnapshot = patchStateSnapshot(
@@ -118,7 +154,10 @@ export function createStateEngine<T>(
         localValue = cloneStateValue(readSnapshotValue<T>(nextSnapshot));
       }
 
-      applySnapshot(nextSnapshot);
+      applySnapshot(nextSnapshot, {
+        reason: 'patch',
+        payload: cloneStateValue(partial),
+      });
     },
     subscribe(cb) {
       subscribers.add(cb);
@@ -137,7 +176,9 @@ export function createStateEngine<T>(
         localValue = cloneStateValue(readSnapshotValue<T>(nextSnapshot));
       }
 
-      applySnapshot(nextSnapshot);
+      applySnapshot(nextSnapshot, {
+        reason: 'undo',
+      });
     },
     reset() {
       if (!context) {
@@ -152,6 +193,9 @@ export function createStateEngine<T>(
           context?.actorId ?? 'local',
           now(),
         ),
+        {
+          reason: 'reset',
+        },
       );
     },
   };

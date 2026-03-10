@@ -39,10 +39,15 @@ export interface ReconnectOptions {
   maxBackoffMs?: number;
 }
 
-export interface EncryptionOptions {
-  algorithm?: string;
-  passphrase?: string;
+export interface EncryptionKeyOptions {
+  key: CryptoKey;
 }
+
+export interface EncryptionPassphraseOptions {
+  passphrase: string;
+}
+
+export type EncryptionOptions = EncryptionKeyOptions | EncryptionPassphraseOptions;
 
 export interface DebugOptions {
   transport?: boolean;
@@ -62,7 +67,7 @@ export interface RoomOptions<TPresence extends PresenceData = PresenceData> {
   reconnect?: boolean | ReconnectOptions;
   webrtc?: WebRTCOptions;
   websocket?: WebSocketOptions;
-  encryption?: boolean | EncryptionOptions;
+  encryption?: EncryptionOptions;
   debug?: boolean | DebugOptions;
 }
 
@@ -118,6 +123,8 @@ export interface FlockYjsProvider {
 
 export type RoomEventName =
   | 'connected'
+  | 'offline'
+  | 'online'
   | 'disconnected'
   | 'reconnecting'
   | 'error'
@@ -129,6 +136,8 @@ export type RoomEventName =
 
 export interface RoomEventMap<TPresence extends PresenceData = PresenceData> {
   connected: void;
+  offline: { reason?: string };
+  online: void;
   disconnected: { reason?: string };
   reconnecting: { attempt: number };
   error: FlockError;
@@ -188,6 +197,8 @@ export interface StateChangeMeta {
   reason: 'set' | 'patch' | 'undo' | 'reset';
   changedBy: string;
   timestamp: number;
+  pending: boolean;
+  queuedMutationCount: number;
 }
 
 export interface EventOptions {

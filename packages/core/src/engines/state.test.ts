@@ -80,6 +80,8 @@ describe('createStateEngine', () => {
         reason: 'set',
         changedBy: 'local',
         timestamp: 11,
+        pending: false,
+        queuedMutationCount: 0,
       },
     );
     expect(subscriber).toHaveBeenNthCalledWith(
@@ -96,6 +98,8 @@ describe('createStateEngine', () => {
         reason: 'patch',
         changedBy: 'local',
         timestamp: 12,
+        pending: false,
+        queuedMutationCount: 0,
       },
     );
     expect(subscriber).toHaveBeenNthCalledWith(
@@ -112,6 +116,8 @@ describe('createStateEngine', () => {
         reason: 'undo',
         changedBy: 'local',
         timestamp: 13,
+        pending: false,
+        queuedMutationCount: 0,
       },
     );
     expect(subscriber).toHaveBeenNthCalledWith(
@@ -128,6 +134,8 @@ describe('createStateEngine', () => {
         reason: 'reset',
         changedBy: 'local',
         timestamp: 14,
+        pending: false,
+        queuedMutationCount: 0,
       },
     );
   });
@@ -315,9 +323,13 @@ describe('createStateEngine', () => {
       1,
     );
 
-    const commitSnapshot = vi.fn((snapshot: ReturnType<typeof createInitialStateSnapshot>) => {
-      currentSnapshot = snapshot;
-    });
+    const commitChange = vi.fn(
+      (change: {
+        snapshot: ReturnType<typeof createInitialStateSnapshot>;
+      }) => {
+        currentSnapshot = change.snapshot;
+      },
+    );
     const runtimeUnsubscribe = vi.fn();
 
     const state = createStateEngine(
@@ -357,7 +369,7 @@ describe('createStateEngine', () => {
           runtimeSubscriber = callback;
           return runtimeUnsubscribe;
         },
-        commitSnapshot,
+        commitChange,
         now: () => {
           now += 1;
           return now;
@@ -375,8 +387,18 @@ describe('createStateEngine', () => {
         visible: true,
       },
     });
-    expect(commitSnapshot).toHaveBeenLastCalledWith(
-      expect.objectContaining({
+    expect(commitChange).toHaveBeenLastCalledWith({
+      mutation: {
+        reason: 'set',
+        payload: {
+          count: 2,
+          nested: {
+            label: 'set',
+            visible: true,
+          },
+        },
+      },
+      snapshot: expect.objectContaining({
         value: {
           count: 2,
           nested: {
@@ -387,7 +409,7 @@ describe('createStateEngine', () => {
         changedBy: 'peer-a',
         reason: 'set',
       }),
-    );
+    });
     runtimeSubscriber?.(currentSnapshot);
     expect(subscriber).toHaveBeenLastCalledWith(
       {
@@ -401,6 +423,8 @@ describe('createStateEngine', () => {
         reason: 'set',
         changedBy: 'peer-a',
         timestamp: 11,
+        pending: false,
+        queuedMutationCount: 0,
       },
     );
 
@@ -429,6 +453,8 @@ describe('createStateEngine', () => {
         reason: 'set',
         changedBy: 'peer-b',
         timestamp: 50,
+        pending: false,
+        queuedMutationCount: 0,
       },
     );
 
@@ -438,8 +464,16 @@ describe('createStateEngine', () => {
       },
     });
     runtimeSubscriber?.(currentSnapshot);
-    expect(commitSnapshot).toHaveBeenLastCalledWith(
-      expect.objectContaining({
+    expect(commitChange).toHaveBeenLastCalledWith({
+      mutation: {
+        reason: 'patch',
+        payload: {
+          nested: {
+            label: 'patched',
+          },
+        },
+      },
+      snapshot: expect.objectContaining({
         value: {
           count: 3,
           nested: {
@@ -450,12 +484,15 @@ describe('createStateEngine', () => {
         changedBy: 'peer-a',
         reason: 'patch',
       }),
-    );
+    });
 
     state.undo();
     runtimeSubscriber?.(currentSnapshot);
-    expect(commitSnapshot).toHaveBeenLastCalledWith(
-      expect.objectContaining({
+    expect(commitChange).toHaveBeenLastCalledWith({
+      mutation: {
+        reason: 'undo',
+      },
+      snapshot: expect.objectContaining({
         value: {
           count: 3,
           nested: {
@@ -466,12 +503,15 @@ describe('createStateEngine', () => {
         changedBy: 'peer-a',
         reason: 'undo',
       }),
-    );
+    });
 
     state.reset();
     runtimeSubscriber?.(currentSnapshot);
-    expect(commitSnapshot).toHaveBeenLastCalledWith(
-      expect.objectContaining({
+    expect(commitChange).toHaveBeenLastCalledWith({
+      mutation: {
+        reason: 'reset',
+      },
+      snapshot: expect.objectContaining({
         value: {
           count: 99,
           nested: {
@@ -482,7 +522,7 @@ describe('createStateEngine', () => {
         changedBy: 'peer-a',
         reason: 'reset',
       }),
-    );
+    });
     expect(state.get()).toEqual({
       count: 99,
       nested: {

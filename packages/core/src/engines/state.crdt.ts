@@ -187,6 +187,8 @@ function createMeta(
     reason,
     changedBy: actorId,
     timestamp,
+    pending: false,
+    queuedMutationCount: 0,
   };
 }
 

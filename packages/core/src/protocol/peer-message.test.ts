@@ -74,6 +74,41 @@ describe('peer-message', () => {
     expect(parsePeerWireEnvelope(encoded)).toEqual(signal);
   });
 
+  it('serializes and parses encrypted envelopes across codecs', () => {
+    const signal: PeerWireMessage = {
+      type: 'encrypted',
+      roomId: 'room-a',
+      fromPeerId: 'peer-a',
+      toPeerId: 'peer-b',
+      timestamp: 12,
+      payload: {
+        version: 1,
+        iv: new Uint8Array([1, 2, 3]),
+        ciphertext: new Uint8Array([4, 5, 6, 7]),
+      },
+    };
+
+    const jsonEncoded = serializePeerWireEnvelope(signal, {
+      version: 2,
+      codec: 'json',
+      legacy: false,
+    });
+    const msgpackEncoded = serializePeerWireEnvelope(signal, {
+      version: 2,
+      codec: 'msgpack',
+      legacy: false,
+    });
+
+    expect(typeof jsonEncoded).toBe('string');
+    expect(JSON.parse(jsonEncoded as string).payload).toEqual({
+      version: 1,
+      iv: [1, 2, 3],
+      ciphertext: [4, 5, 6, 7],
+    });
+    expect(parsePeerWireEnvelope(jsonEncoded)).toEqual(signal);
+    expect(parsePeerWireEnvelope(msgpackEncoded)).toEqual(signal);
+  });
+
   it('parses legacy v1 JSON envelopes into normalized modern messages', () => {
     const parsed = parsePeerWireEnvelope(
       JSON.stringify({
@@ -126,6 +161,21 @@ describe('peer-message', () => {
             lastSeen: 11,
           },
           protocol: modernCapabilities,
+          encryption: {
+            version: 1,
+          },
+        },
+      },
+      {
+        type: 'encrypted',
+        roomId: 'room-a',
+        fromPeerId: 'peer-b',
+        toPeerId: 'peer-a',
+        timestamp: 11,
+        payload: {
+          version: 1,
+          iv: new Uint8Array([1, 2, 3]),
+          ciphertext: new Uint8Array([4, 5, 6]),
         },
       },
       {
@@ -231,6 +281,8 @@ describe('peer-message', () => {
             reason: 'patch',
             changedBy: 'peer-b',
             timestamp: 18,
+            pending: false,
+            queuedMutationCount: 0,
           },
         },
       },
@@ -411,10 +463,30 @@ describe('peer-message', () => {
               joinedAt: 1,
               lastSeen: 1,
             },
+            protocol: modernCapabilities,
+            encryption: {
+              version: 1,
+            },
           },
         }),
       ),
-    ).toBeNull();
+    ).toEqual({
+      type: 'hello',
+      roomId: 'room-a',
+      fromPeerId: 'peer-a',
+      timestamp: 1,
+      payload: {
+        peer: {
+          id: 'peer-a',
+          joinedAt: 1,
+          lastSeen: 1,
+        },
+        protocol: modernCapabilities,
+        encryption: {
+          version: 1,
+        },
+      },
+    });
 
     expect(
       parsePeerWireEnvelope(
@@ -437,6 +509,25 @@ describe('peer-message', () => {
             changedBy: 'peer-a',
             timestamp: 1,
             reason: 'set',
+          },
+        }),
+      ),
+    ).toBeNull();
+
+    expect(
+      parsePeerWireEnvelope(
+        JSON.stringify({
+          source: 'flockjs',
+          protocolVersion: 2,
+          codec: 'json',
+          roomId: 'room-a',
+          fromPeerId: 'peer-a',
+          timestamp: 1,
+          type: 'encrypted',
+          payload: {
+            version: 2,
+            iv: [1, 2, 3],
+            ciphertext: [4, 5, 6],
           },
         }),
       ),

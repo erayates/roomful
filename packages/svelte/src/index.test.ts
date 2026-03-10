@@ -193,6 +193,8 @@ function createStateMeta(overrides: Partial<StateChangeMeta> = {}): StateChangeM
     changedBy: 'peer-state',
     reason: 'set',
     timestamp: 1,
+    pending: false,
+    queuedMutationCount: 0,
     ...overrides,
   };
 }

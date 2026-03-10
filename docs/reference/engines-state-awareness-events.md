@@ -23,6 +23,14 @@ interface StateEngine<T> {
   undo(): void;
   reset(): void;
 }
+
+interface StateChangeMeta {
+  reason: 'set' | 'patch' | 'undo' | 'reset';
+  changedBy: string;
+  timestamp: number;
+  pending: boolean;
+  queuedMutationCount: number;
+}
 ```
 
 Conflict strategies:
@@ -30,6 +38,14 @@ Conflict strategies:
 - `lww`: latest write wins
 - `crdt`: CRDT merge via Yjs
 - `custom`: app-defined merge function
+
+State behavior notes:
+
+- LWW mutations apply locally immediately.
+- After a room has been connected once, LWW mutations made while disconnected are queued in memory and replayed in order on reconnect.
+- Replayed LWW mutations still pass through conflict resolution before they are sent again, so stale queued writes can be dropped.
+- `pending: true` means the current local value includes unsaved queued mutations.
+- `queuedMutationCount` exposes how many LWW mutations are still waiting to replay so UI can style unsaved state differently.
 
 ## Awareness
 
@@ -74,7 +90,9 @@ interface EventEngine {
 Behavior notes:
 
 - `loopback` is `false` by default, so senders do not receive their own events unless `useEvents({ loopback: true })` is used.
-- Events are transient and are not persisted or replayed for peers that subscribe or join later.
+- Events are transient and are not persisted for later subscribers or page reloads.
+- Events emitted while disconnected are queued in memory for replay on reconnect.
+- The offline event queue keeps only the newest `100` queued events.
 - Event names are plain strings and payloads are untyped application data.
 
 ## Selection Matrix

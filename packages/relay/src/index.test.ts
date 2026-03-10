@@ -645,6 +645,76 @@ describe(
       });
     });
 
+    it('forwards opaque encrypted websocket transport frames without inner payload fields', async () => {
+      relayServer = createRelayServer({
+        port: 0,
+      });
+      await relayServer.start();
+
+      const clientA = new WebSocket(relayServer.getAddress());
+      const clientB = new WebSocket(relayServer.getAddress());
+      sockets.push(clientA, clientB);
+
+      await Promise.all([waitForOpen(clientA), waitForOpen(clientB)]);
+
+      for (const peerId of ['a', 'b']) {
+        const client = peerId === 'a' ? clientA : clientB;
+        send(client, {
+          type: 'join',
+          roomId: 'room-transport-encrypted',
+          peerId,
+        });
+        await waitForMessage(client, (message) => message.type === 'joined');
+      }
+
+      const encryptedPayload = {
+        version: 1,
+        iv: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+        ciphertext: [21, 34, 55, 89],
+      };
+
+      send(
+        clientA,
+        createTransportFrame({
+          type: 'encrypted',
+          roomId: 'room-transport-encrypted',
+          fromPeerId: 'a',
+          toPeerId: 'b',
+          payload: encryptedPayload,
+        }),
+      );
+
+      const targetedAtB = await waitForMessage(
+        clientB,
+        (message) =>
+          message.type === 'transport' &&
+          (message.message as { signal?: { type?: string } } | undefined)?.signal?.type ===
+            'encrypted',
+      );
+
+      expect(targetedAtB).toMatchObject({
+        type: 'transport',
+        message: {
+          source: 'flockjs',
+          version: 1,
+          signal: {
+            type: 'encrypted',
+            roomId: 'room-transport-encrypted',
+            fromPeerId: 'a',
+            toPeerId: 'b',
+            payload: encryptedPayload,
+          },
+        },
+      });
+
+      const signal = (targetedAtB.message as { signal?: Record<string, unknown> }).signal;
+      expect(signal).toBeDefined();
+      expect(signal).not.toHaveProperty('payload.peer');
+      expect(signal).not.toHaveProperty('payload.awareness');
+      expect(signal).not.toHaveProperty('payload.event');
+      expect(signal).not.toHaveProperty('payload.value');
+    });
+
     it('routes offer, answer, and candidate payloads for WebRTC signaling', async () => {
       relayServer = createRelayServer({
         port: 0,
@@ -1348,6 +1418,135 @@ describe(
         type: 'peer-left',
         roomId: 'room-polling-mixed',
         peerId: 'poll-b',
+      });
+    });
+
+    it('forwards opaque encrypted transport frames between polling and websocket peers', async () => {
+      relayServer = createRelayServer({
+        port: 0,
+      });
+      await relayServer.start();
+
+      const websocketPeer = new WebSocket(relayServer.getAddress());
+      sockets.push(websocketPeer);
+      await waitForOpen(websocketPeer);
+
+      send(websocketPeer, {
+        type: 'join',
+        roomId: 'room-polling-encrypted',
+        peerId: 'ws-a',
+      });
+      await waitForMessage(websocketPeer, (message) => message.type === 'joined');
+
+      const pollingJoinResponse = await createPollingSession(relayServer.getAddress(), {
+        type: 'join',
+        roomId: 'room-polling-encrypted',
+        peerId: 'poll-b',
+      });
+      expect(pollingJoinResponse.status).toBe(200);
+      const pollingJoin = (await pollingJoinResponse.json()) as { sessionId: string };
+
+      const pollingToWebsocketPayload = {
+        version: 1,
+        iv: [12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1],
+        ciphertext: [144, 55, 233, 8],
+      };
+      const transportToWs = waitForMessage(
+        websocketPeer,
+        (message) =>
+          message.type === 'transport' &&
+          (message.message as { signal?: { type?: string; fromPeerId?: string } } | undefined)
+            ?.signal?.type === 'encrypted' &&
+          (message.message as { signal?: { fromPeerId?: string } } | undefined)?.signal
+            ?.fromPeerId === 'poll-b',
+      );
+
+      const pollingSendResponse = await sendPollingTransport(
+        relayServer.getAddress(),
+        pollingJoin.sessionId,
+        createTransportFrame({
+          type: 'encrypted',
+          roomId: 'room-polling-encrypted',
+          fromPeerId: 'poll-b',
+          toPeerId: 'ws-a',
+          payload: pollingToWebsocketPayload,
+        }),
+      );
+      expect(pollingSendResponse.status).toBe(202);
+
+      const websocketMessage = await transportToWs;
+      expect(websocketMessage).toMatchObject({
+        type: 'transport',
+        message: {
+          signal: {
+            type: 'encrypted',
+            roomId: 'room-polling-encrypted',
+            fromPeerId: 'poll-b',
+            toPeerId: 'ws-a',
+            payload: pollingToWebsocketPayload,
+          },
+        },
+      });
+
+      const websocketSignal = (websocketMessage.message as { signal?: Record<string, unknown> })
+        .signal;
+      expect(websocketSignal).toBeDefined();
+      expect(websocketSignal).not.toHaveProperty('payload.peer');
+      expect(websocketSignal).not.toHaveProperty('payload.awareness');
+      expect(websocketSignal).not.toHaveProperty('payload.event');
+      expect(websocketSignal).not.toHaveProperty('payload.value');
+
+      const websocketToPollingPayload = {
+        version: 1,
+        iv: [3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 5, 8],
+        ciphertext: [13, 21, 34, 55],
+      };
+
+      send(
+        websocketPeer,
+        createTransportFrame({
+          type: 'encrypted',
+          roomId: 'room-polling-encrypted',
+          fromPeerId: 'ws-a',
+          toPeerId: 'poll-b',
+          payload: websocketToPollingPayload,
+        }),
+      );
+
+      const pollingEventResponse = await waitForPollingEvent(
+        relayServer.getAddress(),
+        pollingJoin.sessionId,
+      );
+      expect(pollingEventResponse.status).toBe(200);
+
+      const pollingMessage = (await pollingEventResponse.json()) as {
+        type: string;
+        message: {
+          signal?: Record<string, unknown>;
+        };
+      };
+
+      expect(pollingMessage).toMatchObject({
+        type: 'transport',
+        message: {
+          signal: {
+            type: 'encrypted',
+            roomId: 'room-polling-encrypted',
+            fromPeerId: 'ws-a',
+            toPeerId: 'poll-b',
+            payload: websocketToPollingPayload,
+          },
+        },
+      });
+      expect(pollingMessage.message.signal).not.toHaveProperty('payload.peer');
+      expect(pollingMessage.message.signal).not.toHaveProperty('payload.awareness');
+      expect(pollingMessage.message.signal).not.toHaveProperty('payload.event');
+      expect(pollingMessage.message.signal).not.toHaveProperty('payload.value');
+
+      await expect(
+        deletePollingSession(relayServer.getAddress(), pollingJoin.sessionId),
+      ).resolves.toMatchObject({
+        status: 204,
       });
     });
 

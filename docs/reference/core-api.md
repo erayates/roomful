@@ -35,7 +35,7 @@ interface RoomOptions {
     fallbackTransport?: 'polling';
   };
   reconnect?: boolean | ReconnectOptions;
-  encryption?: boolean | EncryptionOptions;
+  encryption?: { key: CryptoKey } | { passphrase: string };
   debug?: boolean | DebugOptions;
 }
 ```
@@ -53,6 +53,13 @@ Transport support in the current baseline:
 - Polling fallback does not add a public `transport: 'polling'` mode and does not change `auto` selection order.
 - `relayAuth` is resolved before connect and attached to the relay socket URL as the `token` query param.
 - When polling fallback is active, the same `relayAuth` token is sent on HTTP requests as `Authorization: Bearer <token>`.
+- `encryption` enables optional room-scoped end-to-end encryption with Web Crypto AES-GCM.
+- `encryption: { key }` accepts a pre-created AES-GCM `CryptoKey` with `encrypt` and `decrypt` usages.
+- `encryption: { passphrase }` derives a non-extractable AES-GCM key with PBKDF2-SHA-256 using the room id as salt context.
+- In encrypted rooms, `hello` and `welcome` remain plaintext control frames for capability bootstrap; presence, state, events, awareness, and CRDT traffic are sent as opaque encrypted envelopes.
+- Relay transports route encrypted frames by room and peer metadata only; application payloads remain ciphertext to the relay.
+- Wrong-key or tampered frames emit `DECRYPTION_ERROR` and are dropped without mutating room state.
+- Peers that disagree on encryption mode emit `ENCRYPTION_ERROR` and do not exchange room payloads.
 - Broadcast fallback is connect-time only; later signaling disconnects still emit `disconnected`.
 - Default STUN server: `stun:stun.l.google.com:19302` (override with `stunUrls`).
 - Default ICE gather timeout: `5000ms` (override with `webrtc.iceGatherTimeoutMs`).
@@ -89,6 +96,8 @@ interface Room<TPresence extends Record<string, unknown> = Record<string, unknow
   useState<T>(options: StateOptions<T>): StateEngine<T>;
   useAwareness(): AwarenessEngine;
   useEvents(options?: EventOptions): EventEngine<TPresence>;
+  getYDoc(): YDoc;
+  getYProvider(): FlockYjsProvider;
 
   on<T extends RoomEventName>(event: T, cb: RoomEventHandler<TPresence, T>): Unsubscribe;
   off<T extends RoomEventName>(event: T, cb: RoomEventHandler<TPresence, T>): void;
@@ -105,6 +114,22 @@ Peer lifecycle notes:
 - Inferred disconnects keep the peer visible for up to `5000ms` so same-peer reconnect races can dedupe without emitting a spurious leave/join pair.
 - Automatic reconnect keeps the same room instance, peer identity, and local engine state across retry attempts.
 
+## Yjs Access
+
+```ts
+const doc = room.getYDoc();
+const provider = room.getYProvider();
+```
+
+Yjs notes:
+
+- `getYDoc()` returns the room-scoped shared `Y.Doc` instance.
+- `getYProvider()` returns the room-scoped `FlockYjsProvider` instance with `doc`, `awareness`, `status`, and `synced`.
+- New peers bootstrap document state via Yjs state-vector exchange and receive the current document snapshot during initial sync.
+- CRDT updates stay as `Uint8Array` in-process and use the negotiated peer protocol codec on the wire, with JSON-safe array fallback where binary transport is unavailable.
+- For `y-prosemirror`-style editors, use `room.getYDoc().getXmlFragment('prosemirror')` and `room.getYProvider().awareness`.
+- For `y-codemirror`-style editors, use `room.getYDoc().getText('content')` and `room.getYProvider().awareness`.
+
 ## Event Names
 
 ```ts
@@ -115,6 +140,8 @@ room.on('peer:update', (peer) => {});
 
 // Connection lifecycle
 room.on('connected', () => {});
+room.on('offline', ({ reason }) => {});
+room.on('online', () => {});
 room.on('disconnected', ({ reason }) => {});
 room.on('reconnecting', ({ attempt }) => {});
 room.on('error', (error) => {});
@@ -127,9 +154,19 @@ room.on('room:empty', () => {});
 Connection event semantics:
 
 - `error`: emitted when transport/runtime errors are surfaced to room lifecycle.
+- `offline`: emitted once when an established connection drops unexpectedly and the room enters its reconnect window.
+- `online`: emitted once after that reconnect window fully recovers and any queued offline work has finished replaying.
 - `disconnected`: emitted for manual disconnect and transport-level disconnects with a reason payload.
 - With `reconnect` enabled, unexpected transport disconnects emit `reconnecting` during retries and defer `disconnected` until retries are exhausted.
 - A successful automatic reconnect emits `connected` again without changing `peerId` or recreating engine instances.
+
+Offline queue semantics:
+
+- LWW state mutations (`set`, `patch`, `undo`, `reset`) made while disconnected after a live session are applied locally immediately and queued in memory for replay.
+- Queued state mutations replay in append order on reconnect and still respect LWW conflict resolution before they are re-sent.
+- Custom events emitted while disconnected are also queued and replayed in order.
+- The event portion of the offline queue keeps only the newest `100` queued events to avoid unbounded memory growth.
+- UI state subscribers can detect unsaved local state through `StateChangeMeta.pending` and `StateChangeMeta.queuedMutationCount`.
 
 ## Minimal Flow
 

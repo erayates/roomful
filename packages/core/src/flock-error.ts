@@ -3,6 +3,7 @@ export type FlockErrorCode =
   | 'AUTH_FAILED'
   | 'NETWORK_ERROR'
   | 'ENCRYPTION_ERROR'
+  | 'DECRYPTION_ERROR'
   | 'INVALID_STATE';
 
 export class FlockError extends Error {

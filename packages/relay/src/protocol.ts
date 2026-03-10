@@ -104,6 +104,18 @@ const normalizedTransportSignalSchema = z.discriminatedUnion('type', [
     }),
   }),
   z.object({
+    type: z.literal('encrypted'),
+    roomId: z.string().min(1),
+    fromPeerId: z.string().min(1),
+    toPeerId: z.string().min(1).optional(),
+    timestamp: z.number().finite(),
+    payload: z.object({
+      version: z.literal(1),
+      iv: binaryWireDataSchema,
+      ciphertext: binaryWireDataSchema,
+    }),
+  }),
+  z.object({
     type: z.literal('presence:update'),
     roomId: z.string().min(1),
     fromPeerId: z.string().min(1),
@@ -312,6 +324,7 @@ export type RelayServerMessage =
 const RELAY_TRANSPORT_SIGNAL_TYPES = new Set<string>([
   'hello',
   'welcome',
+  'encrypted',
   'presence:update',
   'leave',
   'cursor:update',

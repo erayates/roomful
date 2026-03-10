@@ -32,6 +32,8 @@ export function readCrdtStateChangeMeta(
       reason: 'set',
       changedBy: origin.fromPeerId,
       timestamp: origin.receivedAt,
+      pending: false,
+      queuedMutationCount: 0,
     };
   }
 
@@ -39,5 +41,7 @@ export function readCrdtStateChangeMeta(
     reason: 'set',
     changedBy: fallbackChangedBy,
     timestamp: fallbackTimestamp,
+    pending: false,
+    queuedMutationCount: 0,
   };
 }

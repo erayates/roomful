@@ -4,13 +4,36 @@ import { createEventEngine } from './engines/events';
 import { createPresenceEngine } from './engines/presence';
 import { createStateEngine } from './engines/state';
 import { createCrdtStateEngine as createCrdtStateEngineRuntime } from './engines/state.crdt';
+import {
+  createEncryptionHandshake,
+  decryptWirePayload,
+  encryptWirePayload,
+  isEncryptionEnabled,
+  resolveRoomEncryption,
+  type EncryptionEnvelopeHeader,
+  type ResolvedRoomEncryption,
+} from './encryption';
 import { TypedEventEmitter } from './event-emitter';
 import { createFlockError, FlockError } from './flock-error';
 import { createRuntimePeerId, getWindowEventTarget, type WindowEventTarget } from './internal/env';
 import { readString } from './internal/guards';
 import { logRoomError, logStatePersistence } from './internal/logger';
 import { normalizeMaxPeers } from './internal/max-peers';
+import {
+  appendOfflineQueueEntry,
+  applyOfflineStateMutation,
+  countQueuedStateMutations,
+  createOfflineStateMutation,
+  hasQueuedStateMutations,
+  projectOfflineStateSnapshot,
+  type OfflineQueueEntry,
+} from './internal/offline-queue';
 import { PeerRegistry } from './internal/peer-registry';
+import {
+  decodeMessagePack,
+  encodeMessagePack,
+  type ProtocolSerializationResult,
+} from './protocol/messagepack';
 import {
   computeReconnectDelay,
   delayWithAbort,
@@ -30,12 +53,14 @@ import { createPollingTransportAdapter } from './transports/polling';
 import { selectTransportAdapter, shouldSelectWebSocketTransport } from './transports/select-transport';
 import type {
   RoomTransportSignal,
+  TransportKind,
   TransportAdapter,
   TransportSignal,
 } from './transports/transport';
 import {
   getTransportProtocolCapabilities,
   normalizeTransportSignal,
+  parseTransportSignal,
 } from './transports/transport.protocol';
 import { isWebSocketPollingFallbackEligibleError } from './transports/websocket';
 import type {
@@ -57,6 +82,7 @@ import type {
   RoomEventName,
   RoomOptions,
   RoomStatus,
+  StateChangeMeta,
   StateEngine,
   StateOptions,
   Unsubscribe,
@@ -65,6 +91,7 @@ import { RoomYjsController } from './yjs/controller';
 
 const LOCKED_PRESENCE_KEYS = new Set(['id', 'joinedAt', 'lastSeen']);
 const PRESENCE_HEARTBEAT_MS = 30_000;
+const OFFLINE_QUEUE_REPLAY_SETTLE_MS = 10;
 
 interface ConnectContext {
   isReconnectAttempt: boolean;
@@ -170,6 +197,44 @@ function readTypedCursorEngine<TCursor extends CursorData>(cursorEngine: unknown
   return cursorEngine as CursorEngine<TCursor>;
 }
 
+function isBootstrapSignal(signal: RoomTransportSignal): signal is Extract<
+  RoomTransportSignal,
+  { type: 'hello' | 'welcome' }
+> {
+  return signal.type === 'hello' || signal.type === 'welcome';
+}
+
+function isPlaintextEncryptedRoomControlSignal(
+  signal: RoomTransportSignal,
+): signal is Extract<RoomTransportSignal, { type: 'hello' | 'welcome' | 'leave' }> {
+  return signal.type === 'hello' || signal.type === 'welcome' || signal.type === 'leave';
+}
+
+function normalizeTransportSerializationResult(
+  result: ProtocolSerializationResult<Uint8Array>,
+): Uint8Array {
+  if (!result.ok) {
+    throw createFlockError('ENCRYPTION_ERROR', result.error, false, {
+      source: 'room-encryption',
+      kind: 'serialization-failed',
+    });
+  }
+
+  return result.value;
+}
+
+function hasMatchingEncryptedSignalHeaders(
+  outerSignal: Extract<RoomTransportSignal, { type: 'encrypted' }>,
+  innerSignal: RoomTransportSignal,
+): boolean {
+  return (
+    outerSignal.roomId === innerSignal.roomId &&
+    outerSignal.fromPeerId === innerSignal.fromPeerId &&
+    (outerSignal.toPeerId ?? null) === (innerSignal.toPeerId ?? null) &&
+    outerSignal.timestamp === innerSignal.timestamp
+  );
+}
+
 export class RoomImpl<TPresence extends PresenceData = PresenceData> implements Room<TPresence> {
   public readonly id: string;
 
@@ -196,6 +261,10 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
   private connectionPromise: Promise<void> | null = null;
 
   private reconnectPromise: Promise<void> | null = null;
+
+  private inboundSignalQueue: Promise<void> = Promise.resolve();
+
+  private outboundSignalQueue: Promise<void> = Promise.resolve();
 
   private reconnectController: AbortController | null = null;
 
@@ -247,6 +316,8 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
 
   private stateSnapshot: StateSnapshot | null = null;
 
+  private syncedStateSnapshot: StateSnapshot | null = null;
+
   private stateConfigured = false;
 
   private stateStrategy: 'lww' | 'crdt' | null = null;
@@ -254,6 +325,24 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
   private statePersistenceEnabled = false;
 
   private stateInitialValue: unknown = undefined;
+
+  private offlineQueue: OfflineQueueEntry[] = [];
+
+  private offlineReplayTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
+
+  private offlineReplayInProgress = false;
+
+  private offlineReplayRequested = false;
+
+  private offlineWindowActive = false;
+
+  private encryptionContext: ResolvedRoomEncryption | null = null;
+
+  private encryptionContextPromise: Promise<ResolvedRoomEncryption | null> | null = null;
+
+  private readonly incompatibleEncryptionPeers = new Set<string>();
+
+  private readonly decryptionErrorPeers = new Set<string>();
 
   public constructor(roomId: string, options: RoomOptions<TPresence> = {}) {
     this.id = roomId;
@@ -292,6 +381,31 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
 
   private get selfPeer(): Peer<TPresence> {
     return this.peerRegistry.getSelf();
+  }
+
+  private get encryptionEnabled(): boolean {
+    return isEncryptionEnabled(this.options.encryption);
+  }
+
+  private getQueuedStateMutationCount(): number {
+    return countQueuedStateMutations(this.offlineQueue);
+  }
+
+  private getStateSyncMeta(): Pick<StateChangeMeta, 'pending' | 'queuedMutationCount'> {
+    const queuedMutationCount = this.getQueuedStateMutationCount();
+    return {
+      pending: queuedMutationCount > 0,
+      queuedMutationCount,
+    };
+  }
+
+  private shouldQueueOfflineWork(): boolean {
+    return (
+      (!this.transport && this.hasConnectedBefore) ||
+      this.offlineQueue.length > 0 ||
+      this.offlineReplayTimer !== null ||
+      this.offlineReplayInProgress
+    );
   }
 
   public get status(): RoomStatus {
@@ -344,6 +458,9 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
 
   public async disconnect(): Promise<void> {
     this.cancelReconnect();
+    this.cancelOfflineQueueReplay();
+    this.offlineReplayRequested = false;
+    this.offlineWindowActive = false;
     this.websocketFallbackTransportPreference = null;
 
     if (this.reconnectPromise) {
@@ -377,6 +494,7 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
         peer: this.selfPeer,
       },
     });
+    await this.flushOutboundSignalQueue();
 
     this.transportUnsubscribe?.();
     this.transportUnsubscribe = null;
@@ -541,16 +659,28 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
             loopback,
           };
 
-          const eventSignal: Omit<RoomTransportSignal, 'roomId' | 'fromPeerId' | 'timestamp'> = {
-            type: 'event',
-            payload: eventPayload,
-          };
+          const eventSignal: Omit<
+            Extract<RoomTransportSignal, { type: 'event' }>,
+            'roomId' | 'fromPeerId' | 'timestamp'
+          > = toPeerId !== undefined
+            ? {
+                type: 'event',
+                toPeerId,
+                payload: eventPayload,
+              }
+            : {
+                type: 'event',
+                payload: eventPayload,
+              };
 
-          if (toPeerId !== undefined) {
-            eventSignal.toPeerId = toPeerId;
+          const outboundSignal = this.createOutboundSignal(eventSignal);
+          if (outboundSignal) {
+            if (this.shouldQueueOfflineWork()) {
+              this.queueOfflineEventSignal(outboundSignal);
+            } else {
+              this.dispatchRoomSignal(outboundSignal);
+            }
           }
-
-          this.sendSignal(eventSignal);
 
           if (loopback && (!toPeerId || toPeerId === this.peerId)) {
             this.emitCustomEvent(name, payload, this.selfPeer);
@@ -593,8 +723,37 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
           this.stateSnapshotSubscribers.delete(callback);
         };
       },
-      commitSnapshot: (snapshot) => {
-        this.setStateSnapshot(snapshot);
+      getSyncMeta: () => {
+        return this.getStateSyncMeta();
+      },
+      commitChange: (change) => {
+        const shouldQueue = this.shouldQueueOfflineWork();
+        if (shouldQueue) {
+          this.setOfflineQueue(
+            appendOfflineQueueEntry(this.offlineQueue, {
+              type: 'state',
+              mutation: createOfflineStateMutation(
+                change.mutation.reason,
+                change.snapshot.changedBy,
+                change.snapshot.timestamp,
+                'payload' in change.mutation ? change.mutation.payload : undefined,
+              ),
+              snapshot: change.snapshot,
+            }),
+            false,
+          );
+        }
+
+        const snapshot = change.snapshot;
+        this.setStateSnapshot(snapshot, {
+          synced: !shouldQueue,
+        });
+
+        if (shouldQueue) {
+          this.scheduleOfflineQueueReplay();
+          return;
+        }
+
         this.sendStateSnapshot(snapshot);
       },
     });
@@ -738,6 +897,287 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     this.roomEventEmitter.off(event, cb);
   }
 
+  private enqueueSignal(signal: TransportSignal): void {
+    if (!this.encryptionEnabled) {
+      void this.handleSignal(signal);
+      return;
+    }
+
+    const task = this.inboundSignalQueue.then(async () => {
+      try {
+        await this.handleSignal(signal);
+      } catch (error) {
+        this.emitRoomError(
+          error instanceof FlockError
+            ? error
+            : createFlockError(
+                'NETWORK_ERROR',
+                error instanceof Error ? error.message : 'Failed to process inbound room signal.',
+                true,
+                error,
+              ),
+        );
+      }
+    });
+
+    this.inboundSignalQueue = task.catch(() => {
+      return undefined;
+    });
+  }
+
+  private queueOutboundSignal(signal: RoomTransportSignal): void {
+    if (!this.encryptionEnabled) {
+      const transport = this.transport;
+      if (!transport) {
+        return;
+      }
+
+      if (signal.toPeerId) {
+        transport.send(signal);
+        return;
+      }
+
+      transport.broadcast(signal);
+      return;
+    }
+
+    const task = this.outboundSignalQueue.then(async () => {
+      try {
+        await this.dispatchOutboundSignal(signal);
+      } catch (error) {
+        this.emitRoomError(
+          error instanceof FlockError
+            ? error
+            : createFlockError(
+                'ENCRYPTION_ERROR',
+                error instanceof Error ? error.message : 'Failed to encrypt outbound room signal.',
+                true,
+                error,
+              ),
+        );
+      }
+    });
+
+    this.outboundSignalQueue = task.catch(() => {
+      return undefined;
+    });
+  }
+
+  private async flushOutboundSignalQueue(): Promise<void> {
+    await this.outboundSignalQueue.catch(() => {
+      return undefined;
+    });
+  }
+
+  private async ensureEncryptionContext(): Promise<ResolvedRoomEncryption | null> {
+    if (!this.encryptionEnabled) {
+      this.encryptionContext = null;
+      this.encryptionContextPromise = null;
+      return null;
+    }
+
+    if (this.encryptionContext) {
+      return this.encryptionContext;
+    }
+
+    if (!this.encryptionContextPromise) {
+      this.encryptionContextPromise = resolveRoomEncryption(this.id, this.options.encryption);
+    }
+
+    const resolved = await this.encryptionContextPromise;
+    this.encryptionContext = resolved;
+    return resolved;
+  }
+
+  private getBootstrapPeer(): Peer<TPresence> {
+    if (!this.encryptionEnabled) {
+      return this.selfPeer;
+    }
+
+    return coerceTypedPeer<TPresence>({
+      id: this.selfPeer.id,
+      joinedAt: this.selfPeer.joinedAt,
+      lastSeen: this.selfPeer.lastSeen,
+    });
+  }
+
+  private createBootstrapPayload(kind: TransportKind): Extract<
+    RoomTransportSignal,
+    { type: 'hello' | 'welcome' }
+  >['payload'] {
+    return {
+      peer: this.getBootstrapPeer(),
+      protocol: getTransportProtocolCapabilities(kind),
+      ...(this.encryptionEnabled ? { encryption: createEncryptionHandshake() } : {}),
+    };
+  }
+
+  private buildEncryptionHeader(signal: RoomTransportSignal): EncryptionEnvelopeHeader {
+    return {
+      roomId: signal.roomId,
+      fromPeerId: signal.fromPeerId,
+      ...(signal.toPeerId ? { toPeerId: signal.toPeerId } : {}),
+      timestamp: signal.timestamp,
+      version: 1,
+    };
+  }
+
+  private emitPeerEncryptionModeError(peerId: string, reason: string, cause?: unknown): void {
+    if (this.incompatibleEncryptionPeers.has(peerId)) {
+      return;
+    }
+
+    this.incompatibleEncryptionPeers.add(peerId);
+    this.emitRoomError(
+      createFlockError('ENCRYPTION_ERROR', reason, true, {
+        source: 'room-encryption',
+        kind: 'peer-mode-mismatch',
+        peerId,
+        ...(cause !== undefined ? { cause } : {}),
+      }),
+    );
+  }
+
+  private validatePeerEncryptionMode(
+    signal: Extract<RoomTransportSignal, { type: 'hello' | 'welcome' }>,
+  ): boolean {
+    const remoteEncrypted = signal.payload.encryption?.version === 1;
+    if (remoteEncrypted === this.encryptionEnabled) {
+      this.incompatibleEncryptionPeers.delete(signal.fromPeerId);
+      this.decryptionErrorPeers.delete(signal.fromPeerId);
+      return true;
+    }
+
+    this.emitPeerEncryptionModeError(
+      signal.fromPeerId,
+      `Peer encryption mode mismatch for ${signal.fromPeerId}.`,
+      {
+        localEncrypted: this.encryptionEnabled,
+        remoteEncrypted,
+      },
+    );
+    return false;
+  }
+
+  private emitPeerDecryptionError(peerId: string, error: FlockError): void {
+    if (this.decryptionErrorPeers.has(peerId)) {
+      return;
+    }
+
+    this.decryptionErrorPeers.add(peerId);
+    this.emitRoomError(error);
+  }
+
+  private clearPeerRuntimeState(peerId: string): void {
+    const cursorDeleted = this.cursorPositions.delete(peerId);
+    const awarenessDeleted = this.awarenessByPeer.delete(peerId);
+    this.yjsController?.handlePeerLeft(peerId);
+
+    if (cursorDeleted) {
+      this.notifyCursorSubscribers();
+    }
+
+    if (awarenessDeleted) {
+      this.notifyAwarenessSubscribers();
+    }
+  }
+
+  private createMalformedEncryptedSignalError(
+    signal: Extract<RoomTransportSignal, { type: 'encrypted' }>,
+    reason: string,
+    cause?: unknown,
+  ): FlockError {
+    return createFlockError('DECRYPTION_ERROR', `Failed to decrypt message from ${signal.fromPeerId}.`, true, {
+      source: 'room-encryption',
+      kind: reason,
+      roomId: signal.roomId,
+      fromPeerId: signal.fromPeerId,
+      ...(cause !== undefined ? { cause } : {}),
+    });
+  }
+
+  private async dispatchOutboundSignal(signal: RoomTransportSignal): Promise<void> {
+    const transport = this.transport;
+    if (!transport) {
+      return;
+    }
+
+    const outboundSignal = await this.resolveOutboundTransportSignal(signal);
+    if (outboundSignal.toPeerId) {
+      transport.send(outboundSignal);
+      return;
+    }
+
+    transport.broadcast(outboundSignal);
+  }
+
+  private async resolveOutboundTransportSignal(
+    signal: RoomTransportSignal,
+  ): Promise<RoomTransportSignal> {
+    if (!this.encryptionContext || isBootstrapSignal(signal) || signal.type === 'encrypted') {
+      return signal;
+    }
+
+    const plaintext = normalizeTransportSerializationResult(encodeMessagePack(signal));
+    const encryptedPayload = await encryptWirePayload(
+      plaintext,
+      this.buildEncryptionHeader(signal),
+      this.encryptionContext.key,
+    );
+
+    return {
+      type: 'encrypted',
+      roomId: signal.roomId,
+      fromPeerId: signal.fromPeerId,
+      ...(signal.toPeerId ? { toPeerId: signal.toPeerId } : {}),
+      timestamp: signal.timestamp,
+      payload: encryptedPayload,
+    };
+  }
+
+  private async handleEncryptedSignal(
+    signal: Extract<RoomTransportSignal, { type: 'encrypted' }>,
+  ): Promise<void> {
+    if (!this.encryptionEnabled || !this.encryptionContext) {
+      this.emitPeerEncryptionModeError(
+        signal.fromPeerId,
+        `Received encrypted message from ${signal.fromPeerId} while encryption is disabled.`,
+      );
+      return;
+    }
+
+    try {
+      const plaintext = await decryptWirePayload(
+        signal.payload,
+        this.buildEncryptionHeader(signal),
+        this.encryptionContext.key,
+      );
+      const decoded = decodeMessagePack(plaintext);
+      if (!decoded.ok) {
+        throw this.createMalformedEncryptedSignalError(signal, 'invalid-inner-payload', decoded.error);
+      }
+
+      const innerSignal = parseTransportSignal(decoded.value);
+      if (!innerSignal || innerSignal.type === 'encrypted') {
+        throw this.createMalformedEncryptedSignalError(signal, 'invalid-inner-signal', decoded.value);
+      }
+
+      if (!hasMatchingEncryptedSignalHeaders(signal, innerSignal)) {
+        throw this.createMalformedEncryptedSignalError(signal, 'header-mismatch', innerSignal);
+      }
+
+      this.decryptionErrorPeers.delete(signal.fromPeerId);
+      this.handleRoomSignal(innerSignal);
+    } catch (error) {
+      const decryptionError =
+        error instanceof FlockError
+          ? error
+          : this.createMalformedEncryptedSignalError(signal, 'decrypt-failed', error);
+      this.clearPeerRuntimeState(signal.fromPeerId);
+      this.emitPeerDecryptionError(signal.fromPeerId, decryptionError);
+    }
+  }
+
   private async connectInternal(context: ConnectContext): Promise<void> {
     if (context.isReconnectAttempt) {
       this.reconnectAttempt += 1;
@@ -748,6 +1188,7 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     this.setStatus('connecting');
 
     try {
+      await this.ensureEncryptionContext();
       const transport = await this.openTransportAttempt();
       this.activateConnectedTransport(transport);
     } catch (error) {
@@ -811,11 +1252,38 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     return true;
   }
 
-  private handleSignal(signal: TransportSignal): void {
+  private async handleSignal(signal: TransportSignal): Promise<void> {
     if (!this.shouldHandleSignal(signal)) {
       return;
     }
 
+    if (signal.type === 'transport:error') {
+      this.handleTransportErrorSignal(signal.payload);
+      return;
+    }
+
+    if (signal.type === 'transport:disconnected') {
+      await this.handleTransportDisconnectedSignal(signal.payload);
+      return;
+    }
+
+    if (signal.type === 'encrypted') {
+      await this.handleEncryptedSignal(signal);
+      return;
+    }
+
+    if (this.encryptionEnabled && !isPlaintextEncryptedRoomControlSignal(signal)) {
+      this.emitPeerEncryptionModeError(
+        signal.fromPeerId,
+        `Received plaintext ${signal.type} from ${signal.fromPeerId} while encryption is enabled.`,
+      );
+      return;
+    }
+
+    this.handleRoomSignal(signal);
+  }
+
+  private handleRoomSignal(signal: RoomTransportSignal): void {
     switch (signal.type) {
       case 'hello':
         this.handleHelloSignal(signal);
@@ -845,29 +1313,33 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
       case 'event':
         this.handleCustomEventSignal(signal);
         return;
-      case 'transport:error':
-        this.handleTransportErrorSignal(signal.payload);
-        return;
-      case 'transport:disconnected':
-        void this.handleTransportDisconnectedSignal(signal.payload);
-        return;
       default:
         return;
     }
   }
 
   private handleHelloSignal(signal: Extract<RoomTransportSignal, { type: 'hello' }>): void {
+    if (!this.validatePeerEncryptionMode(signal)) {
+      this.sendSignal({
+        type: 'welcome',
+        toPeerId: signal.fromPeerId,
+        payload: this.createBootstrapPayload(this.transport?.kind ?? 'in-memory'),
+      });
+      return;
+    }
+
     this.peerRegistry.upsertRemote(coerceTypedPeer<TPresence>(signal.payload.peer));
     this.sendSignal({
       type: 'welcome',
       toPeerId: signal.fromPeerId,
-      payload: {
-        peer: this.selfPeer,
-        protocol: getTransportProtocolCapabilities(this.transport?.kind ?? 'in-memory'),
-      },
+      payload: this.createBootstrapPayload(this.transport?.kind ?? 'in-memory'),
     });
 
-    if (this.stateSnapshot) {
+    if (this.encryptionEnabled) {
+      void this.sendSelfPresence(signal.fromPeerId);
+    }
+
+    if (this.stateSnapshot && !hasQueuedStateMutations(this.offlineQueue)) {
       this.sendStateSnapshot(this.stateSnapshot, signal.fromPeerId);
     }
 
@@ -879,15 +1351,22 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
       | Extract<RoomTransportSignal, { type: 'welcome' }>
       | Extract<RoomTransportSignal, { type: 'presence:update' }>,
   ): void {
+    if (signal.type === 'welcome' && !this.validatePeerEncryptionMode(signal)) {
+      return;
+    }
+
     this.peerRegistry.upsertRemote(coerceTypedPeer<TPresence>(signal.payload.peer));
 
     if (signal.type === 'welcome') {
-      this.sendSelfPresence(signal.fromPeerId);
+      void this.sendSelfPresence(signal.fromPeerId);
       this.yjsController?.syncPeer(signal.fromPeerId);
+      this.scheduleOfflineQueueReplay();
     }
   }
 
   private handleLeaveSignal(signal: Extract<RoomTransportSignal, { type: 'leave' }>): void {
+    this.incompatibleEncryptionPeers.delete(signal.fromPeerId);
+    this.decryptionErrorPeers.delete(signal.fromPeerId);
     const peer = signal.payload.peer;
     this.yjsController?.handlePeerLeft(signal.fromPeerId);
 
@@ -908,9 +1387,17 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
 
   private handleStateSignal(signal: Extract<RoomTransportSignal, { type: 'state:update' }>): void {
     const incomingSnapshot = cloneStateSnapshot(signal.payload);
-    if (!this.stateSnapshot || compareStateSnapshots(incomingSnapshot, this.stateSnapshot) > 0) {
-      this.setStateSnapshot(incomingSnapshot);
+    const comparisonSnapshot = this.syncedStateSnapshot ?? this.stateSnapshot;
+    if (!comparisonSnapshot || compareStateSnapshots(incomingSnapshot, comparisonSnapshot) > 0) {
+      this.setSyncedStateSnapshot(incomingSnapshot);
+      if (hasQueuedStateMutations(this.offlineQueue)) {
+        this.reconcileQueuedStateSnapshot();
+      } else {
+        this.setStateSnapshot(incomingSnapshot);
+      }
     }
+
+    this.scheduleOfflineQueueReplay();
   }
 
   private handleAwarenessSignal(
@@ -960,11 +1447,18 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
       return;
     }
 
+    this.cancelOfflineQueueReplay();
+    this.offlineReplayRequested = false;
     this.unregisterUnloadHandlers();
     this.stopPresenceHeartbeat();
 
     const reason = payload.reason ?? 'transport-disconnected';
     this.lastDisconnectReason = reason;
+
+    if (!this.offlineWindowActive) {
+      this.offlineWindowActive = true;
+      this.roomEventEmitter.emit('offline', { reason });
+    }
 
     this.transportUnsubscribe?.();
     this.transportUnsubscribe = null;
@@ -990,29 +1484,160 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     this.startReconnectLoop(reason);
   }
 
-  private sendSignal(
-    signal: Omit<RoomTransportSignal, 'roomId' | 'fromPeerId' | 'timestamp'>,
-  ): void {
+  private setOfflineQueue(nextQueue: OfflineQueueEntry[], notifyStateSubscribers = true): void {
+    const previousQueuedMutations = this.getQueuedStateMutationCount();
+    this.offlineQueue = nextQueue;
+    const nextQueuedMutations = this.getQueuedStateMutationCount();
+
+    if (
+      notifyStateSubscribers &&
+      previousQueuedMutations !== nextQueuedMutations &&
+      this.stateSnapshot
+    ) {
+      this.notifyStateSubscribers();
+    }
+  }
+
+  private queueOfflineEventSignal(signal: Extract<RoomTransportSignal, { type: 'event' }>): void {
+    this.setOfflineQueue(
+      appendOfflineQueueEntry(this.offlineQueue, {
+        type: 'event',
+        signal,
+      }),
+    );
+    this.scheduleOfflineQueueReplay();
+  }
+
+  private cancelOfflineQueueReplay(): void {
+    if (this.offlineReplayTimer === null) {
+      return;
+    }
+
+    globalThis.clearTimeout(this.offlineReplayTimer);
+    this.offlineReplayTimer = null;
+  }
+
+  private completeOfflineWindowIfReady(): void {
+    if (
+      !this.offlineWindowActive ||
+      !this.transport ||
+      this.offlineQueue.length > 0 ||
+      this.offlineReplayTimer !== null ||
+      this.offlineReplayInProgress
+    ) {
+      return;
+    }
+
+    this.offlineWindowActive = false;
+    this.roomEventEmitter.emit('online', undefined);
+  }
+
+  private scheduleOfflineQueueReplay(): void {
     if (!this.transport) {
       return;
     }
 
-    const outboundSignal = normalizeTransportSignal({
+    if (this.offlineQueue.length === 0) {
+      this.completeOfflineWindowIfReady();
+      return;
+    }
+
+    if (this.offlineReplayInProgress) {
+      this.offlineReplayRequested = true;
+      return;
+    }
+
+    this.cancelOfflineQueueReplay();
+    this.offlineReplayTimer = globalThis.setTimeout(() => {
+      this.offlineReplayTimer = null;
+      void this.flushOfflineQueue();
+    }, OFFLINE_QUEUE_REPLAY_SETTLE_MS);
+  }
+
+  private async flushOfflineQueue(): Promise<void> {
+    if (this.offlineReplayInProgress || !this.transport) {
+      return;
+    }
+
+    this.offlineReplayInProgress = true;
+
+    try {
+      while (this.transport && this.offlineQueue.length > 0) {
+        const [entry, ...remaining] = this.offlineQueue;
+        if (!entry) {
+          break;
+        }
+
+        if (entry.type === 'event') {
+          this.setOfflineQueue(remaining);
+          this.dispatchRoomSignal(entry.signal);
+          continue;
+        }
+
+        this.setOfflineQueue(remaining, false);
+        const syncedSnapshot = this.requireSyncedStateSnapshot();
+        if (compareStateSnapshots(entry.snapshot, syncedSnapshot) <= 0) {
+          this.reconcileQueuedStateSnapshot();
+          continue;
+        }
+
+        const nextSnapshot = applyOfflineStateMutation(
+          syncedSnapshot,
+          entry.mutation,
+          this.stateInitialValue,
+        );
+
+        if (!nextSnapshot) {
+          this.reconcileQueuedStateSnapshot();
+          continue;
+        }
+
+        this.setSyncedStateSnapshot(nextSnapshot);
+        this.reconcileQueuedStateSnapshot();
+        this.sendStateSnapshot(nextSnapshot);
+      }
+    } finally {
+      this.offlineReplayInProgress = false;
+
+      if (this.offlineReplayRequested) {
+        this.offlineReplayRequested = false;
+        this.scheduleOfflineQueueReplay();
+        return;
+      }
+
+      this.completeOfflineWindowIfReady();
+    }
+  }
+
+  private createOutboundSignal<TSignal extends Omit<RoomTransportSignal, 'roomId' | 'fromPeerId' | 'timestamp'>>(
+    signal: TSignal,
+    timestamp = Date.now(),
+  ): Extract<RoomTransportSignal, { type: TSignal['type'] }> | null {
+    return normalizeTransportSignal({
       ...signal,
       roomId: this.id,
       fromPeerId: this.peerId,
-      timestamp: Date.now(),
-    });
-    if (!outboundSignal) {
+      timestamp,
+    }) as Extract<RoomTransportSignal, { type: TSignal['type'] }> | null;
+  }
+
+  private dispatchRoomSignal(signal: RoomTransportSignal): void {
+    if (!this.transport) {
       return;
     }
 
-    if (outboundSignal.toPeerId) {
-      this.transport.send(outboundSignal);
+    this.queueOutboundSignal(signal);
+  }
+
+  private sendSignal(
+    signal: Omit<RoomTransportSignal, 'roomId' | 'fromPeerId' | 'timestamp'>,
+  ): void {
+    const outboundSignal = this.createOutboundSignal(signal);
+    if (!outboundSignal || !this.transport) {
       return;
     }
 
-    this.transport.broadcast(outboundSignal);
+    this.dispatchRoomSignal(outboundSignal);
   }
 
   private sendStateSnapshot(snapshot: StateSnapshot, toPeerId?: string): void {
@@ -1031,6 +1656,8 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     this.cursorPositions.clear();
     this.awarenessByPeer.clear();
     this.awarenessByPeer.set(this.peerId, { peerId: this.peerId });
+    this.incompatibleEncryptionPeers.clear();
+    this.decryptionErrorPeers.clear();
 
     this.notifyCursorSubscribers();
     this.notifyAwarenessSubscribers();
@@ -1092,16 +1719,23 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     let shouldBroadcastPersistedSnapshot = false;
 
     if (!this.stateSnapshot) {
-      this.stateSnapshot = persistedSnapshot
+      const initialSnapshot = persistedSnapshot
         ? cloneStateSnapshot(persistedSnapshot)
         : createInitialStateSnapshot(this.stateInitialValue, this.peerId, Date.now());
+      this.stateSnapshot = cloneStateSnapshot(initialSnapshot);
+      this.syncedStateSnapshot = cloneStateSnapshot(initialSnapshot);
       shouldBroadcastPersistedSnapshot = persistedSnapshot !== null;
     } else if (
       persistedSnapshot &&
       compareStateSnapshots(persistedSnapshot, this.stateSnapshot) > 0
     ) {
       this.stateSnapshot = cloneStateSnapshot(persistedSnapshot);
+      this.syncedStateSnapshot = cloneStateSnapshot(persistedSnapshot);
       shouldBroadcastPersistedSnapshot = true;
+    }
+
+    if (!this.syncedStateSnapshot && this.stateSnapshot) {
+      this.syncedStateSnapshot = cloneStateSnapshot(this.stateSnapshot);
     }
 
     const configuredSnapshot = this.stateSnapshot;
@@ -1137,10 +1771,52 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     return this.stateSnapshot;
   }
 
-  private setStateSnapshot(snapshot: StateSnapshot): void {
+  private requireSyncedStateSnapshot(): StateSnapshot {
+    if (!this.syncedStateSnapshot) {
+      if (!this.stateSnapshot) {
+        throw createFlockError(
+          'INVALID_STATE',
+          'Shared state has not been configured for this room. Call room.useState(...) first.',
+          false,
+        );
+      }
+
+      this.syncedStateSnapshot = cloneStateSnapshot(this.stateSnapshot);
+    }
+
+    return this.syncedStateSnapshot;
+  }
+
+  private setSyncedStateSnapshot(snapshot: StateSnapshot): void {
+    this.syncedStateSnapshot = cloneStateSnapshot(snapshot);
+    this.persistStateSnapshot(this.syncedStateSnapshot);
+  }
+
+  private setStateSnapshot(
+    snapshot: StateSnapshot,
+    options: {
+      notify?: boolean;
+      synced?: boolean;
+    } = {},
+  ): void {
     this.stateSnapshot = cloneStateSnapshot(snapshot);
-    this.persistStateSnapshot(this.stateSnapshot);
-    this.notifyStateSubscribers();
+    if (options.synced) {
+      this.setSyncedStateSnapshot(snapshot);
+    }
+
+    if (options.notify !== false) {
+      this.notifyStateSubscribers();
+    }
+  }
+
+  private reconcileQueuedStateSnapshot(): void {
+    const syncedSnapshot = this.requireSyncedStateSnapshot();
+    const nextSnapshot = projectOfflineStateSnapshot(
+      syncedSnapshot,
+      this.offlineQueue,
+      this.stateInitialValue,
+    );
+    this.setStateSnapshot(nextSnapshot);
   }
 
   private restorePersistedStateSnapshot(): StateSnapshot | null {
@@ -1234,17 +1910,16 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
 
     this.sendSignal({
       type: 'hello',
-      payload: {
-        peer: this.selfPeer,
-        protocol: getTransportProtocolCapabilities(transport.kind),
-      },
+      payload: this.createBootstrapPayload(transport.kind),
     });
     this.replayLocalEphemeralState();
+    this.scheduleOfflineQueueReplay();
+    this.completeOfflineWindowIfReady();
   }
 
   private async connectTransportAttempt(transport: TransportAdapter): Promise<TransportAdapter> {
     const unsubscribe = transport.onMessage((signal) => {
-      this.handleSignal(signal);
+      this.enqueueSignal(signal);
     });
 
     try {
@@ -1414,7 +2089,7 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
   }
 
   private replayLocalEphemeralState(): void {
-    if (this.stateSnapshot) {
+    if (this.stateSnapshot && !hasQueuedStateMutations(this.offlineQueue)) {
       this.sendStateSnapshot(this.stateSnapshot);
     }
 
@@ -1482,6 +2157,8 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
   }
 
   private handlePeerRegistryLeave(peer: Peer<TPresence>): void {
+    this.incompatibleEncryptionPeers.delete(peer.id);
+    this.decryptionErrorPeers.delete(peer.id);
     this.cursorPositions.delete(peer.id);
     this.awarenessByPeer.delete(peer.id);
     this.yjsController?.handlePeerLeft(peer.id);

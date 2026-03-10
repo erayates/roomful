@@ -30,7 +30,6 @@ When `relayAuth` is configured, FlockJS appends the resolved token to the relay 
 ```ts
 const room = createRoom('secure-room', {
   encryption: {
-    algorithm: 'AES-GCM',
     passphrase: 'replace-with-secure-secret',
   },
 });
@@ -40,7 +39,12 @@ Security notes:
 
 - Distribute keys/passphrases out-of-band.
 - Never hardcode production secrets in frontend code.
-- End-to-end payload encryption semantics are planned for deeper EP-03/EP-05 implementation.
+- `encryption: { key }` also accepts a pre-derived AES-GCM `CryptoKey`.
+- Passphrase mode derives a non-extractable AES-GCM key with PBKDF2-SHA-256 and room-scoped salt context.
+- `hello` and `welcome` remain plaintext control messages so peers can negotiate encryption capability before exchanging room payloads.
+- Presence, state, events, awareness, and CRDT sync payloads are encrypted with AES-GCM before reaching the transport layer.
+- Relay servers only see routing metadata plus ciphertext and cannot inspect decrypted application payloads.
+- Wrong keys or tampered payloads fail gracefully with `DECRYPTION_ERROR`.
 
 ## Relay Signaling Server (`@flockjs/relay`)
 
@@ -155,9 +159,20 @@ Behavior:
 - `disconnected` is deferred until retry exhaustion when auto reconnect is enabled
 - room identity and local engine state are preserved across reconnect attempts
 
-## CRDT with Yjs (Planned)
+## CRDT with Yjs
 
-CRDT/Yjs runtime integration is not shipped in this baseline. Treat CRDT strategy references as forward-looking API direction.
+FlockJS ships a room-scoped Yjs document and provider:
+
+- `room.getYDoc()` returns the shared `Y.Doc`
+- `room.getYProvider()` returns the shared provider with `doc`, `awareness`, `status`, and `synced`
+- new peers bootstrap document state via Yjs state-vector exchange on the existing FlockJS transport
+- CRDT wire payloads stay binary in-process and use the negotiated transport codec, with JSON-safe array fallback when needed
+
+Use this for collaborative editors and other conflict-free shared structures:
+
+- `room.getYDoc().getText('content')` for text-centric editors
+- `room.getYDoc().getXmlFragment('prosemirror')` for ProseMirror-style document trees
+- `room.getYProvider().awareness` for cursor, selection, and collaborator metadata
 
 ## Auth Pattern
 

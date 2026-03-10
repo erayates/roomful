@@ -17,6 +17,7 @@ import type { RoomTransportSignal, TransportKind } from './transport';
 const ROOM_TRANSPORT_SIGNAL_TYPES = new Set<string>([
   'hello',
   'welcome',
+  'encrypted',
   'presence:update',
   'leave',
   'cursor:update',

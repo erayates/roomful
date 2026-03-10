@@ -28,11 +28,42 @@ export interface Peer {
 export type PeerWithPresence<TPresence extends Record<string, unknown>> = Peer & Partial<TPresence>;
 
 export interface FlockError extends Error {
-  code: 'ROOM_FULL' | 'AUTH_FAILED' | 'NETWORK_ERROR' | 'ENCRYPTION_ERROR';
+  code: 'ROOM_FULL' | 'AUTH_FAILED' | 'NETWORK_ERROR' | 'ENCRYPTION_ERROR' | 'DECRYPTION_ERROR';
   recoverable: boolean;
 }
 
 export type Unsubscribe = () => void;
+
+export type FlockYjsProviderStatus = 'connected' | 'disconnected';
+
+export interface FlockYjsProviderEventMap {
+  status: {
+    status: FlockYjsProviderStatus;
+  };
+  sync: {
+    synced: boolean;
+  };
+}
+
+export interface FlockYjsProvider {
+  readonly doc: YDoc;
+  readonly awareness: YjsAwareness;
+  readonly synced: boolean;
+  readonly status: FlockYjsProviderStatus;
+
+  connect(): Promise<void>;
+  disconnect(): Promise<void>;
+  destroy(): Promise<void>;
+
+  on<T extends keyof FlockYjsProviderEventMap>(
+    event: T,
+    cb: (payload: FlockYjsProviderEventMap[T]) => void,
+  ): Unsubscribe;
+  off<T extends keyof FlockYjsProviderEventMap>(
+    event: T,
+    cb: (payload: FlockYjsProviderEventMap[T]) => void,
+  ): void;
+}
 
 export type RelayAuthToken = string | (() => string | Promise<string>);
 
@@ -53,6 +84,51 @@ export interface ReconnectOptions {
   backoffMultiplier?: number;
   maxBackoffMs?: number;
 }
+
+export type RoomEventName =
+  | 'connected'
+  | 'offline'
+  | 'online'
+  | 'disconnected'
+  | 'reconnecting'
+  | 'error'
+  | 'peer:join'
+  | 'peer:leave'
+  | 'peer:update'
+  | 'room:full'
+  | 'room:empty';
+
+export interface RoomEventMap<TPresence extends PresenceData = PresenceData> {
+  connected: void;
+  offline: { reason?: string };
+  online: void;
+  disconnected: { reason?: string };
+  reconnecting: { attempt: number };
+  error: FlockError;
+  'peer:join': Peer<TPresence>;
+  'peer:leave': Peer<TPresence>;
+  'peer:update': Peer<TPresence>;
+  'room:full': void;
+  'room:empty': void;
+}
+
+export interface StateChangeMeta {
+  reason: 'set' | 'patch' | 'undo' | 'reset';
+  changedBy: string;
+  timestamp: number;
+  pending: boolean;
+  queuedMutationCount: number;
+}
+
+export interface EncryptionKeyOptions {
+  key: CryptoKey;
+}
+
+export interface EncryptionPassphraseOptions {
+  passphrase: string;
+}
+
+export type EncryptionOptions = EncryptionKeyOptions | EncryptionPassphraseOptions;
 ```
 
 Transport baseline note:
@@ -63,6 +139,8 @@ Transport baseline note:
 - WebRTC mesh transport is available via `transport: 'webrtc'` with relay signaling, plus connect-time BroadcastChannel fallback when signaling is unavailable on the same origin.
 - `relayUrl` remains the canonical signaling URL for real WebRTC negotiation.
 - Relay-backed room messaging is available via `transport: 'websocket'`.
+- Optional end-to-end encryption is available through `encryption: { key }` or `encryption: { passphrase }`.
+- `DECRYPTION_ERROR` is emitted when an encrypted payload cannot be authenticated or decrypted with the local room key.
 - `transport: 'auto'` selects `broadcast`, then `webrtc`, then `websocket`, and finally `in-memory` when no browser-capable transport is available.
 - The internal peer wire protocol is versioned and codec-negotiated per peer; public room/event types stay unchanged.
 - BroadcastChannel payloads remain a versioned JSON envelope.
@@ -71,7 +149,17 @@ Transport baseline note:
 - Browser room instances auto-register unload handlers (`beforeunload`, `pagehide`) to propagate `peer:leave`.
 - Inferred disconnects keep a peer in registry-backed snapshots for up to `5000ms` before removal so reconnect races can dedupe cleanly.
 - Successful automatic reconnect keeps the same room instance, `peerId`, and local engine state.
+- `offline` and `online` are room lifecycle events for unexpected disconnect windows; `connected` and `disconnected` remain the transport/session lifecycle markers.
+- `StateChangeMeta.pending` and `StateChangeMeta.queuedMutationCount` expose unsaved queued LWW mutations to subscribers.
 - `debug.transport` enables transport-selection and protocol-negotiation logging without changing public types.
+
+Yjs baseline note:
+
+- `FlockYjsProvider` is implemented in `@flockjs/core`.
+- `doc` exposes the shared `Y.Doc` used by `room.getYDoc()`.
+- `awareness` exposes the shared Yjs awareness instance used by editor bindings and room awareness sync.
+- `synced` flips to `true` when the provider finishes its pending peer sync handshake for the current connection.
+- `status` tracks room-backed Yjs connectivity as `'connected' | 'disconnected'`.
 
 ## Engine Option Types
 

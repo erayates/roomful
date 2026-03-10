@@ -1,4 +1,5 @@
 import { createFlockError, FlockError as FlockErrorRuntime } from '../flock-error';
+import { createEncryptionHandshake, isEncryptionEnabled } from '../encryption';
 import { env } from '../internal/env';
 import { logProtocolNegotiation, logProtocolWarning } from '../internal/logger';
 import { normalizeMaxPeers } from '../internal/max-peers';
@@ -550,6 +551,7 @@ export class WebRTCTransportAdapter<
   }
 
   private sendBootstrapHello(remotePeerId: string): void {
+    const encryptionEnabled = isEncryptionEnabled(this.options.encryption);
     const helloSignal: RoomTransportSignal = {
       type: 'hello',
       roomId: this.roomId,
@@ -560,9 +562,10 @@ export class WebRTCTransportAdapter<
           id: this.peerId,
           joinedAt: this.localJoinedAt,
           lastSeen: Date.now(),
-          ...this.peerPresencePayload,
+          ...(encryptionEnabled ? {} : this.peerPresencePayload),
         },
         protocol: this.localProtocolCapabilities,
+        ...(encryptionEnabled ? { encryption: createEncryptionHandshake() } : {}),
       },
     };
 

@@ -30,9 +30,14 @@ export interface PeerProtocolSession {
   legacy: boolean;
 }
 
+export interface EncryptionHandshake {
+  version: 1;
+}
+
 export type PeerWireMessageType =
   | 'hello'
   | 'welcome'
+  | 'encrypted'
   | 'presence:update'
   | 'leave'
   | 'cursor:update'
@@ -53,11 +58,13 @@ export interface EventWirePayload {
 export interface HelloWirePayload {
   peer: Peer<PresenceData>;
   protocol?: PeerProtocolCapabilities;
+  encryption?: EncryptionHandshake;
 }
 
 export interface WelcomeWirePayload {
   peer: Peer<PresenceData>;
   protocol?: PeerProtocolCapabilities;
+  encryption?: EncryptionHandshake;
 }
 
 export interface PresenceWirePayload {
@@ -95,6 +102,12 @@ export interface CrdtAwarenessWirePayload {
   data: BinaryWireData;
 }
 
+export interface EncryptedWirePayload {
+  version: 1;
+  iv: BinaryWireData;
+  ciphertext: BinaryWireData;
+}
+
 const RESERVED_CURSOR_KEYS = new Set([
   'userId',
   'name',
@@ -110,6 +123,7 @@ const RESERVED_CURSOR_KEYS = new Set([
 export type PeerWirePayloadByType = {
   hello: HelloWirePayload;
   welcome: WelcomeWirePayload;
+  encrypted: EncryptedWirePayload;
   'presence:update': PresenceWirePayload;
   leave: LeaveWirePayload;
   'cursor:update': CursorWirePayload;
@@ -131,6 +145,7 @@ type PeerWireMessageBase<TType extends PeerWireMessageType> = {
 
 export type HelloWireMessage = PeerWireMessageBase<'hello'>;
 export type WelcomeWireMessage = PeerWireMessageBase<'welcome'>;
+export type EncryptedWireMessage = PeerWireMessageBase<'encrypted'>;
 export type PresenceWireMessage = PeerWireMessageBase<'presence:update'>;
 export type LeaveWireMessage = PeerWireMessageBase<'leave'>;
 export type CursorWireMessage = PeerWireMessageBase<'cursor:update'>;
@@ -143,6 +158,7 @@ export type CrdtAwarenessWireMessage = PeerWireMessageBase<'crdt:awareness'>;
 export type PeerWireMessage =
   | HelloWireMessage
   | WelcomeWireMessage
+  | EncryptedWireMessage
   | PresenceWireMessage
   | LeaveWireMessage
   | CursorWireMessage
@@ -206,6 +222,7 @@ const MSGPACK_CODEC = 'msgpack';
 const PEER_MESSAGE_TYPES = new Set<string>([
   'hello',
   'welcome',
+  'encrypted',
   'presence:update',
   'leave',
   'cursor:update',
@@ -269,6 +286,16 @@ function parsePeerCapabilitiesCodecs(value: unknown): PeerProtocolCodec[] | null
   }
 
   return Array.from(new Set(codecs));
+}
+
+function parseEncryptionHandshake(value: unknown): EncryptionHandshake | null {
+  if (!isObject(value) || value.version !== 1) {
+    return null;
+  }
+
+  return {
+    version: 1,
+  };
 }
 
 function parsePeer(value: unknown): Peer<PresenceData> | null {
@@ -402,6 +429,8 @@ function parseStateChangeMeta(value: unknown): StateChangeMeta | null {
     reason,
     changedBy,
     timestamp,
+    pending: false,
+    queuedMutationCount: 0,
   };
 }
 
@@ -497,18 +526,24 @@ function parseHelloOrWelcomePayload(
     return null;
   }
 
+  const encryptionValue = value.encryption;
+  const encryption =
+    encryptionValue === undefined ? undefined : parseEncryptionHandshake(encryptionValue);
+  if (encryptionValue !== undefined && !encryption) {
+    return null;
+  }
+
   if (requireProtocol && !protocol) {
     return null;
   }
 
-  return protocol
-    ? {
-        peer,
-        protocol,
-      }
-    : {
-        peer,
-      };
+  const payload: HelloWirePayload | WelcomeWirePayload = {
+    peer,
+    ...(protocol ? { protocol } : {}),
+    ...(encryption ? { encryption } : {}),
+  };
+
+  return payload;
 }
 
 function parsePresencePayload(value: unknown): PresenceWirePayload | null {
@@ -665,6 +700,24 @@ function parseCrdtAwarenessPayload(value: unknown): CrdtAwarenessWirePayload | n
   };
 }
 
+function parseEncryptedPayload(value: unknown): EncryptedWirePayload | null {
+  if (!isObject(value) || value.version !== 1) {
+    return null;
+  }
+
+  const iv = parseBinaryWireData(value.iv);
+  const ciphertext = parseBinaryWireData(value.ciphertext);
+  if (!iv || !ciphertext) {
+    return null;
+  }
+
+  return {
+    version: 1,
+    iv,
+    ciphertext,
+  };
+}
+
 function parseBaseSignal(value: unknown): ParsedBaseSignal | null {
   if (!isObject(value)) {
     return null;
@@ -741,6 +794,18 @@ function parseSignalMessage(
 
       return {
         type: 'welcome',
+        ...base,
+        payload,
+      };
+    }
+    case 'encrypted': {
+      const payload = parseEncryptedPayload(signal.payload);
+      if (!payload) {
+        return null;
+      }
+
+      return {
+        type: 'encrypted',
         ...base,
         payload,
       };
@@ -919,6 +984,19 @@ function buildLegacyPayload(message: PeerWireMessage): Record<string, unknown> |
       return {
         peer: message.payload.peer,
         protocol: message.payload.protocol,
+        ...(message.payload.encryption !== undefined
+          ? { encryption: message.payload.encryption }
+          : {}),
+      };
+    case 'encrypted':
+      return {
+        version: 1,
+        iv: serializeBinaryWireData(normalizeBinaryWireData(message.payload.iv), 'json', true),
+        ciphertext: serializeBinaryWireData(
+          normalizeBinaryWireData(message.payload.ciphertext),
+          'json',
+          true,
+        ),
       };
     case 'presence:update':
       return {
@@ -967,6 +1045,20 @@ function buildModernPayload(
   session: PeerProtocolSession,
 ): PeerWirePayloadByType[PeerWireMessageType] {
   switch (message.type) {
+    case 'encrypted':
+      return {
+        version: 1,
+        iv: serializeBinaryWireData(
+          normalizeBinaryWireData(message.payload.iv),
+          session.codec,
+          session.legacy,
+        ),
+        ciphertext: serializeBinaryWireData(
+          normalizeBinaryWireData(message.payload.ciphertext),
+          session.codec,
+          session.legacy,
+        ),
+      };
     case 'crdt:sync':
       return {
         kind: message.payload.kind,
