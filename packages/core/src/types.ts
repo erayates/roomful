@@ -28,6 +28,10 @@ export interface WebRTCOptions {
   dataChannel?: WebRTCDataChannelOptions;
 }
 
+export interface WebSocketOptions {
+  fallbackTransport?: 'polling';
+}
+
 export interface ReconnectOptions {
   maxAttempts?: number;
   backoffMs?: number;
@@ -57,6 +61,7 @@ export interface RoomOptions<TPresence extends PresenceData = PresenceData> {
   relayAuth?: RelayAuthToken;
   reconnect?: boolean | ReconnectOptions;
   webrtc?: WebRTCOptions;
+  websocket?: WebSocketOptions;
   encryption?: boolean | EncryptionOptions;
   debug?: boolean | DebugOptions;
 }

@@ -12,6 +12,29 @@ function hasRelayUrl<TPresence extends PresenceData>(options: RoomOptions<TPrese
   return typeof options.relayUrl === 'string' && options.relayUrl.trim().length > 0;
 }
 
+export function shouldSelectWebSocketTransport<TPresence extends PresenceData>(
+  options: RoomOptions<TPresence>,
+): boolean {
+  const mode = options.transport ?? 'auto';
+  if (mode === 'websocket') {
+    return true;
+  }
+
+  if (mode !== 'auto') {
+    return false;
+  }
+
+  if (isBroadcastChannelAvailable()) {
+    return false;
+  }
+
+  if (env.hasRTCPeerConnection && hasRelayUrl(options)) {
+    return false;
+  }
+
+  return hasRelayUrl(options);
+}
+
 function createWebRTCTransportError(error: unknown): FlockError {
   return createFlockError(
     'NETWORK_ERROR',

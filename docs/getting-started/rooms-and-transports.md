@@ -24,6 +24,7 @@ A `room` is the primary collaboration scope in FlockJS.
 - Start with `transport: 'auto'` unless you have a specific network requirement.
 - Use `transport: 'webrtc'` with `relayUrl` for cross-machine collaboration.
 - Use `transport: 'websocket'` with `relayUrl` for larger rooms or constrained networks where direct peer mesh is not a fit.
+- If a deployment must survive WebSocket blocking, opt into `websocket: { fallbackTransport: 'polling' }` on `transport: 'websocket'`.
 - If initial signaling is unavailable and peers share the same origin, `transport: 'webrtc'` falls back to BroadcastChannel automatically.
 - Keep `maxPeers` explicit for mesh safety (for example `maxPeers: 8`).
 - Default STUN fallback is Google public STUN (`stun:stun.l.google.com:19302`) when `stunUrls` is omitted.
@@ -72,6 +73,8 @@ const room = createRoom('doc-123', {
 ```
 
 If you provide `relayAuth`, the client resolves the token before opening the socket and sends it as the relay URL query param `token`.
+
+When polling fallback is enabled and active, the same token is sent on relay HTTP requests as `Authorization: Bearer <token>`.
 
 ## Scaling Guidance
 

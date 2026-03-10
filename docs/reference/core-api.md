@@ -31,6 +31,9 @@ interface RoomOptions {
       protocol?: string;
     };
   };
+  websocket?: {
+    fallbackTransport?: 'polling';
+  };
   reconnect?: boolean | ReconnectOptions;
   encryption?: boolean | EncryptionOptions;
   debug?: boolean | DebugOptions;
@@ -45,7 +48,11 @@ Transport support in the current baseline:
 - `webrtc` uses `relayUrl` for SDP/ICE signaling and falls back to BroadcastChannel during initial connect when signaling is unavailable and same-origin broadcast is available.
 - `webrtc` still fails hard when `relayUrl` is missing, `RTCPeerConnection` is unavailable, or the relay rejects the join/auth request.
 - `websocket` uses `relayUrl` and `@flockjs/relay` for generic room message relay.
+- `websocket.fallbackTransport: 'polling'` enables connect-time fallback to relay HTTP polling when the initial WebSocket attempt is blocked or unavailable.
+- Once polling fallback activates, automatic reconnect stays on polling for that room instance until you call `disconnect()`. A later manual `connect()` retries WebSocket first.
+- Polling fallback does not add a public `transport: 'polling'` mode and does not change `auto` selection order.
 - `relayAuth` is resolved before connect and attached to the relay socket URL as the `token` query param.
+- When polling fallback is active, the same `relayAuth` token is sent on HTTP requests as `Authorization: Bearer <token>`.
 - Broadcast fallback is connect-time only; later signaling disconnects still emit `disconnected`.
 - Default STUN server: `stun:stun.l.google.com:19302` (override with `stunUrls`).
 - Default ICE gather timeout: `5000ms` (override with `webrtc.iceGatherTimeoutMs`).

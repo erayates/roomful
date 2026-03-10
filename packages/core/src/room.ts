@@ -26,7 +26,8 @@ import {
 } from './internal/state';
 import { readPersistedLwwState, writePersistedLwwState } from './internal/state.persistence';
 import { coerceTypedPeer } from './internal/typed-peer';
-import { selectTransportAdapter } from './transports/select-transport';
+import { createPollingTransportAdapter } from './transports/polling';
+import { selectTransportAdapter, shouldSelectWebSocketTransport } from './transports/select-transport';
 import type {
   RoomTransportSignal,
   TransportAdapter,
@@ -36,6 +37,7 @@ import {
   getTransportProtocolCapabilities,
   normalizeTransportSignal,
 } from './transports/transport.protocol';
+import { isWebSocketPollingFallbackEligibleError } from './transports/websocket';
 import type {
   AwarenessEngine,
   AwarenessState,
@@ -76,6 +78,12 @@ type InternalEventCallback<TPresence extends PresenceData> = (
   payload: unknown,
   from: Peer<TPresence>,
 ) => void;
+
+function isWebSocketPollingFallbackEnabled<TPresence extends PresenceData>(
+  options: RoomOptions<TPresence>,
+): boolean {
+  return options.websocket?.fallbackTransport === 'polling';
+}
 
 function isFlockError(value: unknown): value is FlockError {
   return value instanceof FlockError;
@@ -196,6 +204,8 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
   private reconnectAttempt = 0;
 
   private lastDisconnectReason: string | null = null;
+
+  private websocketFallbackTransportPreference: 'polling' | null = null;
 
   private unloadHandlersRegistered = false;
 
@@ -334,6 +344,7 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
 
   public async disconnect(): Promise<void> {
     this.cancelReconnect();
+    this.websocketFallbackTransportPreference = null;
 
     if (this.reconnectPromise) {
       await this.reconnectPromise.catch(() => {
@@ -1175,20 +1186,31 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
   }
 
   private async openTransportAttempt(): Promise<TransportAdapter> {
-    const transport = selectTransportAdapter(this.id, this.peerId, this.options);
-    const unsubscribe = transport.onMessage((signal) => {
-      this.handleSignal(signal);
-    });
+    if (
+      this.websocketFallbackTransportPreference === 'polling' &&
+      isWebSocketPollingFallbackEnabled(this.options)
+    ) {
+      return this.openPollingTransportAttempt();
+    }
+
+    let transport: TransportAdapter;
+    try {
+      transport = selectTransportAdapter(this.id, this.peerId, this.options);
+    } catch (error) {
+      if (this.shouldFallbackToPolling(error)) {
+        return this.openPollingTransportAttempt();
+      }
+
+      throw error;
+    }
 
     try {
-      await transport.connect();
-      this.pendingTransportUnsubscribe = unsubscribe;
-      return transport;
+      return await this.connectTransportAttempt(transport);
     } catch (error) {
-      unsubscribe();
-      await transport.disconnect().catch(() => {
-        return undefined;
-      });
+      if (transport.kind === 'websocket' && this.shouldFallbackToPolling(error)) {
+        return this.openPollingTransportAttempt();
+      }
+
       throw error;
     }
   }
@@ -1197,6 +1219,7 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     this.transport = transport;
     this.transportUnsubscribe = this.pendingTransportUnsubscribe;
     this.pendingTransportUnsubscribe = null;
+    this.websocketFallbackTransportPreference = transport.kind === 'polling' ? 'polling' : null;
 
     this.registerUnloadHandlers();
     this.hasConnectedBefore = true;
@@ -1217,6 +1240,38 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
       },
     });
     this.replayLocalEphemeralState();
+  }
+
+  private async connectTransportAttempt(transport: TransportAdapter): Promise<TransportAdapter> {
+    const unsubscribe = transport.onMessage((signal) => {
+      this.handleSignal(signal);
+    });
+
+    try {
+      await transport.connect();
+      this.pendingTransportUnsubscribe = unsubscribe;
+      return transport;
+    } catch (error) {
+      unsubscribe();
+      await transport.disconnect().catch(() => {
+        return undefined;
+      });
+      throw error;
+    }
+  }
+
+  private async openPollingTransportAttempt(): Promise<TransportAdapter> {
+    return this.connectTransportAttempt(
+      createPollingTransportAdapter(this.id, this.peerId, this.options),
+    );
+  }
+
+  private shouldFallbackToPolling(error: unknown): boolean {
+    return (
+      isWebSocketPollingFallbackEnabled(this.options) &&
+      shouldSelectWebSocketTransport(this.options) &&
+      isWebSocketPollingFallbackEligibleError(error)
+    );
   }
 
   private failInitialConnect(error: unknown): never {

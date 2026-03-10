@@ -22,6 +22,9 @@ export const env = {
   get hasWebSocket(): boolean {
     return typeof WebSocket !== 'undefined';
   },
+  get hasFetch(): boolean {
+    return typeof fetch === 'function';
+  },
   get hasCryptoRandomUUID(): boolean {
     return typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function';
   },

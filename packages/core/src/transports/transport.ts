@@ -6,7 +6,7 @@ import type {
 } from '../protocol/peer-message';
 import type { FlockError, Unsubscribe } from '../types';
 
-export type TransportKind = 'broadcast' | 'in-memory' | 'webrtc' | 'websocket';
+export type TransportKind = 'broadcast' | 'in-memory' | 'webrtc' | 'websocket' | 'polling';
 
 export type RoomTransportSignalType = PeerWireMessageType;
 export type RoomTransportSignal = PeerWireMessage;

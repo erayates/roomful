@@ -41,6 +41,7 @@ export type {
   Unsubscribe,
   WebRTCDataChannelOptions,
   WebRTCOptions,
+  WebSocketOptions,
 } from './types';
 
 export interface CoreHealth {

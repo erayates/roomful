@@ -27,6 +27,20 @@ import {
 
 const DEFAULT_JOIN_TIMEOUT_MS = 5_000;
 const WEBSOCKET_OPEN = 1;
+const WEBSOCKET_FAILURE_KINDS = new Set<string>([
+  'runtime-unavailable',
+  'connect-failed',
+  'connect-timeout',
+  'socket-closed-during-join',
+  'missing-relay-url',
+  'server-rejected',
+]);
+const POLLING_FALLBACK_ELIGIBLE_FAILURE_KINDS = new Set<string>([
+  'runtime-unavailable',
+  'connect-failed',
+  'connect-timeout',
+  'socket-closed-during-join',
+]);
 
 interface MessageEventLike {
   data: unknown;
@@ -56,10 +70,77 @@ export interface WebSocketLike extends EventTargetLike {
 
 export type WebSocketFactory = (url: string) => WebSocketLike;
 
+export type WebSocketTransportFailureKind =
+  | 'runtime-unavailable'
+  | 'connect-failed'
+  | 'connect-timeout'
+  | 'socket-closed-during-join'
+  | 'missing-relay-url'
+  | 'server-rejected';
+
+export interface WebSocketTransportFailure {
+  source: 'websocket-relay';
+  kind: WebSocketTransportFailureKind;
+  serverCode?: string;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function createWebSocketTransportFailure(
+  kind: WebSocketTransportFailureKind,
+  serverCode?: string,
+): WebSocketTransportFailure {
+  return serverCode === undefined
+    ? {
+        source: 'websocket-relay',
+        kind,
+      }
+    : {
+        source: 'websocket-relay',
+        kind,
+        serverCode,
+      };
+}
+
+function isWebSocketTransportFailure(value: unknown): value is WebSocketTransportFailure {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    value.source === 'websocket-relay' &&
+    typeof value.kind === 'string' &&
+    WEBSOCKET_FAILURE_KINDS.has(value.kind) &&
+    (value.serverCode === undefined || typeof value.serverCode === 'string')
+  );
+}
+
+export function readWebSocketTransportFailure(error: unknown): WebSocketTransportFailure | null {
+  if (isWebSocketTransportFailure(error)) {
+    return error;
+  }
+
+  if (error instanceof Error && 'cause' in error) {
+    return readWebSocketTransportFailure(error.cause);
+  }
+
+  return null;
+}
+
+export function isWebSocketPollingFallbackEligibleError(error: unknown): boolean {
+  const failure = readWebSocketTransportFailure(error);
+  return failure !== null && POLLING_FALLBACK_ELIGIBLE_FAILURE_KINDS.has(failure.kind);
+}
+
 function resolveRelayUrl<TPresence extends PresenceData>(options: RoomOptions<TPresence>): string {
   const relayUrl = options.relayUrl;
   if (!relayUrl || relayUrl.trim().length === 0) {
-    throw createWebSocketTransportError('WebSocket transport requires `relayUrl`.');
+    throw createWebSocketTransportError(
+      'WebSocket transport requires `relayUrl`.',
+      createWebSocketTransportFailure('missing-relay-url'),
+    );
   }
 
   return relayUrl;
@@ -71,7 +152,10 @@ function resolveWebSocketFactory(factory?: WebSocketFactory): WebSocketFactory {
   }
 
   if (!env.hasWebSocket) {
-    throw createWebSocketTransportError('WebSocket transport is not available in this runtime.');
+    throw createWebSocketTransportError(
+      'WebSocket transport is not available in this runtime.',
+      createWebSocketTransportFailure('runtime-unavailable'),
+    );
   }
 
   return (url: string) => {
@@ -86,8 +170,7 @@ function createWebSocketTransportError(message: string, cause?: unknown): FlockE
 function createRelayMessageError(message: string, serverCode: string): FlockError {
   if (serverCode === 'ROOM_FULL') {
     return createFlockError('ROOM_FULL', message, true, {
-      source: 'websocket-relay',
-      serverCode,
+      ...createWebSocketTransportFailure('server-rejected', serverCode),
     });
   }
 
@@ -96,8 +179,7 @@ function createRelayMessageError(message: string, serverCode: string): FlockErro
     message,
     false,
     {
-      source: 'websocket-relay',
-      serverCode,
+      ...createWebSocketTransportFailure('server-rejected', serverCode),
     },
   );
 }
@@ -318,6 +400,7 @@ export class WebSocketTransportAdapter<
         fail(
           createWebSocketTransportError(
             `Timed out waiting for relay join acknowledgement (${timeoutMs}ms).`,
+            createWebSocketTransportFailure('connect-timeout'),
           ),
         );
       }, timeoutMs);
@@ -353,7 +436,12 @@ export class WebSocketTransportAdapter<
       };
 
       const onError = (): void => {
-        fail(createWebSocketTransportError('Failed to establish relay socket.'));
+        fail(
+          createWebSocketTransportError(
+            'Failed to establish relay socket.',
+            createWebSocketTransportFailure('connect-failed'),
+          ),
+        );
       };
 
       const onClose = (event: CloseEventLike): void => {
@@ -362,6 +450,7 @@ export class WebSocketTransportAdapter<
             typeof event.reason === 'string' && event.reason.length > 0
               ? event.reason
               : 'Relay socket closed.',
+            createWebSocketTransportFailure('socket-closed-during-join'),
           ),
         );
       };
