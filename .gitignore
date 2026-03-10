@@ -4,6 +4,8 @@ node_modules/
 
 **/dist/
 **/coverage/
+benchmarks/results/*
+!benchmarks/results/README.md
 
 *.tsbuildinfo
 .DS_Store

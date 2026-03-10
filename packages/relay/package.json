@@ -49,6 +49,10 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "start": "node dist/cli.js",
     "benchmark:redis": "vitest bench --config ../../vitest.package.config.ts src/relay-redis-latency.bench.ts",
+    "benchmark:load": "pnpm build && node ../../benchmarks/relay/scripts/run-relay-load.mjs",
+    "benchmark:load:steady": "pnpm build && node ../../benchmarks/relay/scripts/run-relay-load.mjs steady-100",
+    "benchmark:load:scale": "pnpm build && node ../../benchmarks/relay/scripts/run-relay-load.mjs scale-500-redis",
+    "benchmark:load:soak": "pnpm build && node ../../benchmarks/relay/scripts/run-relay-load.mjs soak-500-redis",
     "clean": "rimraf dist coverage",
     "test:watch": "vitest --config ../../vitest.package.config.ts --fileParallelism=false"
   },

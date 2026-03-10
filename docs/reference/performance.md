@@ -52,6 +52,13 @@ Redis-backed relay validation:
 - Run `pnpm --filter @flockjs/relay benchmark:redis` with that Redis URL in the environment.
 - Compare the Redis cross-instance benchmark to the single-instance baseline and keep added median latency under `5ms` for local validation.
 
+Relay load validation:
+
+- Run `pnpm --filter @flockjs/relay benchmark:load:steady` for the single-room 100-peer baseline.
+- Run `pnpm --filter @flockjs/relay benchmark:load:scale -- --redis-url redis://127.0.0.1:6379/0` for the 500-peer, 50-room, 3-relay cluster scenario.
+- Run `pnpm --filter @flockjs/relay benchmark:load:soak -- --redis-url redis://127.0.0.1:6379/0` for the 30-minute soak and inspect `benchmarks/results/<run-id>/report.md`.
+- Increase `--vus` on the scale scenario to document the first concurrency level where latency thresholds or error-rate checks fail.
+
 ## Validation Targets
 
 - Stable cursor updates at expected peer count
