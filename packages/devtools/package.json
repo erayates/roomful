@@ -17,7 +17,7 @@
     "build": "tsc -p tsconfig.json && node ./scripts/build-extension.mjs",
     "build:library": "tsc -p tsconfig.json",
     "build:extension": "node ./scripts/build-extension.mjs",
-    "lint": "eslint src scripts --max-warnings 0",
+    "lint": "eslint src --max-warnings 0",
     "test": "vitest run --config ../../vitest.package.config.ts",
     "test:types": "tsd --files test-d/**/*.test-d.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",

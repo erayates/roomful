@@ -200,9 +200,9 @@ async function readPackageVersion() {
     : '0.0.0';
 }
 
-function zipDirectory(sourceDirectory, archivePath) {
+function zipDirectory(sourceDirectory, archiveFileName) {
   if (process.platform === 'win32') {
-    const command = `Compress-Archive -Path * -DestinationPath '${archivePath.replaceAll("'", "''")}' -Force`;
+    const command = `Compress-Archive -Path * -DestinationPath './${archiveFileName.replaceAll("'", "''")}' -Force`;
     const result = spawnSync('powershell.exe', ['-NoProfile', '-Command', command], {
       cwd: sourceDirectory,
       stdio: 'pipe',
@@ -211,7 +211,7 @@ function zipDirectory(sourceDirectory, archivePath) {
     return result.status === 0;
   }
 
-  const result = spawnSync('zip', ['-r', archivePath, '.'], {
+  const result = spawnSync('zip', ['-r', archiveFileName, '.'], {
     cwd: sourceDirectory,
     stdio: 'pipe',
   });
@@ -231,11 +231,18 @@ async function buildBrowserArtifacts(version) {
     const manifest = createExtensionManifest(browser, version);
     await writeFile(path.join(targetDirectory, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
 
+    const temporaryArchiveFileName = `flockjs-devtools-${browser}.zip`;
+    const temporaryArchivePath = path.join(targetDirectory, temporaryArchiveFileName);
     const archivePath = path.join(browserArtifactsDirectory, `flockjs-devtools-${browser}.zip`);
-    if (!(await fileExists(targetDirectory)) || !zipDirectory(targetDirectory, archivePath)) {
+    await rm(temporaryArchivePath, { force: true, recursive: false });
+    if (!(await fileExists(targetDirectory)) || !zipDirectory(targetDirectory, temporaryArchiveFileName)) {
       console.error(`Failed to package the ${browser} DevTools artifact.`);
       process.exitCode = 1;
+      continue;
     }
+
+    await copyFile(temporaryArchivePath, archivePath);
+    await rm(temporaryArchivePath, { force: true, recursive: false });
   }
 }
 
