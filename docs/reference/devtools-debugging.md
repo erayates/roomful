@@ -6,31 +6,29 @@ Audience: users and contributors.
 
 ```ts
 const room = createRoom('my-room', {
-  debug: {
-    transport: true,
-    state: true,
-    presence: false,
-    events: true,
-    performance: true,
-  },
+  debug: true,
 });
 ```
 
-`debug.transport` writes `console.debug` entries for both transport selection and peer-protocol negotiation. Selection payloads include:
+`debug: true` enables all debug categories. `debug: { ... }` keeps category-level control for:
 
-- requested mode
-- selected transport
-- selection reason
+- `transport`
+- `state`
+- `presence`
+- `events`
+- `performance`
 
-Negotiation payloads include:
+Logs are console-backed and emitted as `console.info`, `console.warn`, or `console.error` with a `[FlockJS]` prefix plus a structured payload. Every payload includes:
 
-- transport kind
-- remote peer id
-- negotiated protocol version
-- negotiated codec (`json` or `msgpack`)
-- downgrade or compatibility reason when applicable
+- `timestamp`
+- `roomId`
+- `category`
+- `component`
+- `message`
 
-Malformed peer protocol frames are reported through `console.warn` with transport and rejection context. They are ignored after logging instead of being delivered to the room.
+Normal lifecycle traces use `info`, malformed or ignored frames use `warn`, and surfaced runtime failures use `error`. In `NODE_ENV=production`, `info` logs are suppressed while `warn` and `error` still emit.
+
+Transport selection, protocol negotiation, reconnect attempts, state mutations, presence sync, event delivery, and queue/performance counters all use the same structured logger contract.
 
 ## Diagnostics Snapshot
 
@@ -39,11 +37,52 @@ const diagnostics = await room.getDiagnostics();
 
 console.log(diagnostics);
 // {
-//   transport: 'webrtc',
-//   peerCount: 3,
-//   latency: { 'peer-a': 12 },
-//   stateSize: 1204,
-//   messagesPerSecond: 8.3,
+//   timestamp: 1710000000000,
+//   roomId: 'my-room',
+//   peerId: 'peer-a',
+//   status: 'connected',
+//   transport: {
+//     current: 'webrtc',
+//     lastDisconnectReason: null,
+//     reconnectAttempt: 0,
+//   },
+//   debug: {
+//     transport: true,
+//     state: true,
+//     presence: true,
+//     events: true,
+//     performance: true,
+//     productionInfoSuppressed: false,
+//   },
+//   peers: {
+//     remoteCount: 2,
+//     remotePeerIds: ['peer-b', 'peer-c'],
+//   },
+//   presence: {
+//     selfLastSeen: 1710000000000,
+//     heartbeatActive: true,
+//   },
+//   state: {
+//     configured: true,
+//     strategy: 'lww',
+//     persistenceEnabled: false,
+//     queuedMutationCount: 0,
+//     offlineReplayInProgress: false,
+//     stateSizeBytes: 1204,
+//   },
+//   events: {
+//     registeredEventNames: ['ping'],
+//     messagesSent: 4,
+//     messagesReceived: 3,
+//     broadcastsSent: 3,
+//     directSends: 1,
+//     latestConnectDurationMs: 18,
+//   },
+//   encryption: {
+//     enabled: false,
+//     incompatiblePeerIds: [],
+//     decryptionErrorPeerIds: [],
+//   },
 // }
 ```
 
