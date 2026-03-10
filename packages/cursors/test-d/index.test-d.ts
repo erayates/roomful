@@ -11,8 +11,11 @@ import {
   type LiveIndicatorProps,
   PeerCursor,
   type PeerCursorProps,
+  PresenceAvatars,
+  type PresenceAvatarsProps,
   PresenceBar,
   type PresenceBarProps,
+  type PresenceSize,
   SelectionHighlight,
   type SelectionHighlightProps,
   TypingIndicator,
@@ -55,12 +58,20 @@ const peerCursorProps: PeerCursorProps = {
 };
 expectType<ReactElement>(PeerCursor(peerCursorProps));
 
+const presenceAvatarsProps: PresenceAvatarsProps<{ role: 'editor' }> = {
+  maxVisible: 3,
+  size: 'sm',
+};
+expectAssignable<PresenceAvatarsProps<{ role: 'editor' }>>(presenceAvatarsProps);
+expectType<ReactElement>(PresenceAvatars(presenceAvatarsProps));
+
 const presenceBarProps: PresenceBarProps<{ role: 'editor' }> = {
   maxVisible: 3,
   showNames: true,
 };
 expectAssignable<PresenceBarProps<{ role: 'editor' }>>(presenceBarProps);
 expectType<ReactElement>(PresenceBar(presenceBarProps));
+expectAssignable<PresenceSize>('md');
 
 const selectionHighlightProps: SelectionHighlightProps<{ role: 'editor' }> = {
   peer,

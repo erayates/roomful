@@ -2,14 +2,49 @@ import type { Dispatch, ReactNode, SetStateAction } from 'react';
 
 import { expectType } from 'tsd';
 
-import { FlockProvider, useCursors, useEvent, usePresence, useSharedState } from '..';
-import type { Peer, PresenceData } from '@flockjs/core';
+import {
+  createReactHealth,
+  FlockProvider,
+  type FlockProviderProps,
+  type ReactHealth,
+  type UseAwarenessResult,
+  useAwareness,
+  useConnectionStatus,
+  useCursors,
+  useEvent,
+  usePeers,
+  usePresence,
+  useRoom,
+  useSharedState,
+} from '..';
+import type { Peer, PresenceData, Room, RoomStatus } from '@flockjs/core';
 
 const provider = FlockProvider({
   children: null,
   roomId: 'room-id',
 });
 expectType<ReactNode>(provider);
+
+const providerProps = {
+  onDisconnect(payload) {
+    expectType<string | undefined>(payload.reason);
+  },
+  onError(error) {
+    expectType<string>(error.message);
+  },
+  presence: {
+    role: 'editor' as const,
+  },
+  roomId: 'room-id',
+} satisfies FlockProviderProps<{ role: 'editor' }>;
+expectType<string>(providerProps.roomId);
+
+const health = createReactHealth();
+expectType<ReactHealth>(health);
+expectType<'@flockjs/core'>(health.dependencies.core.packageName);
+
+const room = useRoom<{ role: 'editor' | 'viewer' }>();
+expectType<Room<{ role: 'editor' | 'viewer' }>>(room);
 
 const presence = usePresence<{ role: 'editor' | 'viewer' }>();
 expectType<'editor' | 'viewer' | undefined>(presence.self.role);
@@ -23,6 +58,16 @@ const emitMessage = useEvent('message', (payload: { text: string }, from: Peer<P
 });
 expectType<(payload: { text: string }) => void>(emitMessage);
 
+const awareness = useAwareness();
+expectType<UseAwarenessResult>(awareness);
+expectType<boolean | undefined>(awareness.others[0]?.typing);
+
+const peers = usePeers<{ role: 'editor' | 'viewer' }>();
+expectType<Peer<{ role: 'editor' | 'viewer' }>[]>(peers);
+
+const connectionStatus = useConnectionStatus();
+expectType<RoomStatus>(connectionStatus);
+
 const [votes, setVotes] = useSharedState('votes', {
   initialValue: {
     no: 0,
@@ -31,3 +76,7 @@ const [votes, setVotes] = useSharedState('votes', {
 });
 expectType<{ no: number; yes: number }>(votes);
 expectType<Dispatch<SetStateAction<{ no: number; yes: number }>>>(setVotes);
+setVotes((current) => {
+  expectType<{ no: number; yes: number }>(current);
+  return current;
+});

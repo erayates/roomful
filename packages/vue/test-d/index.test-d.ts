@@ -1,10 +1,14 @@
-import type { ShallowRef } from 'vue';
+import type { Plugin, ShallowRef } from 'vue';
 
-import { expectType } from 'tsd';
+import { expectAssignable, expectType } from 'tsd';
 
 import {
+  FlockPlugin,
+  type FlockPluginOptions,
   type ReadonlyRef,
   type SharedStateSetter,
+  type UseAwarenessResult,
+  useAwareness,
   useCursors,
   useEvent,
   usePresence,
@@ -14,6 +18,15 @@ import type { Peer, PresenceData } from '@flockjs/core';
 
 const presence = usePresence<{ role: 'editor' | 'viewer' }>();
 expectType<'editor' | 'viewer' | undefined>(presence.self.value.role);
+
+const pluginOptions = {
+  presence: {
+    role: 'editor' as const,
+  },
+  roomId: 'room-id',
+} satisfies FlockPluginOptions<{ role: 'editor' }>;
+expectType<string>(pluginOptions.roomId);
+expectAssignable<Plugin>(FlockPlugin);
 
 const cursors = useCursors<{ tool: 'eraser' | 'pen' }>();
 expectType<HTMLElement | null>(cursors.ref.value);
@@ -25,6 +38,10 @@ const emitMessage = useEvent('message', (payload: { text: string }, from: Peer<P
 });
 expectType<(payload: { text: string }) => void>(emitMessage);
 
+const awareness = useAwareness();
+expectType<UseAwarenessResult>(awareness);
+expectType<boolean | undefined>(awareness.others.value[0]?.typing);
+
 const [votes, setVotes] = useSharedState('votes', {
   initialValue: {
     no: 0,
@@ -34,3 +51,7 @@ const [votes, setVotes] = useSharedState('votes', {
 expectType<ReadonlyRef<{ no: number; yes: number }>>(votes);
 expectType<SharedStateSetter<{ no: number; yes: number }>>(setVotes);
 expectType<Readonly<ShallowRef<{ no: number; yes: number }>>>(votes);
+setVotes((current) => {
+  expectType<{ no: number; yes: number }>(current);
+  return current;
+});
