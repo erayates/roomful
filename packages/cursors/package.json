@@ -21,6 +21,22 @@
     "clean": "rimraf dist coverage",
     "test:watch": "vitest --config ../../vitest.package.config.ts"
   },
+  "dependencies": {
+    "@flockjs/core": "workspace:*",
+    "@flockjs/react": "workspace:*"
+  },
+  "devDependencies": {
+    "@testing-library/react": "^16.3.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "jsdom": "^26.0.0",
+    "react": "19.2.4",
+    "react-dom": "19.2.4"
+  },
+  "peerDependencies": {
+    "react": ">=18.0.0",
+    "react-dom": ">=18.0.0"
+  },
   "publishConfig": {
     "access": "public"
   }

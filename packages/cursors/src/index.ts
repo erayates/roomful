@@ -1,3 +1,3 @@
-export function createCursorsStub(): string {
-  return '@flockjs/cursors-stub';
-}
+export { PresenceAvatars } from './presence-avatars';
+export { PresenceBar } from './presence-bar';
+export type { PresenceAvatarsProps, PresenceBarProps, PresenceSize } from './presence-types';
