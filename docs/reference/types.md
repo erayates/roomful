@@ -85,6 +85,14 @@ export interface ReconnectOptions {
   maxBackoffMs?: number;
 }
 
+export interface DebugOptions {
+  transport?: boolean;
+  state?: boolean;
+  presence?: boolean;
+  events?: boolean;
+  performance?: boolean;
+}
+
 export type RoomEventName =
   | 'connected'
   | 'offline'
@@ -131,6 +139,13 @@ export interface EncryptionPassphraseOptions {
 export type EncryptionOptions = EncryptionKeyOptions | EncryptionPassphraseOptions;
 ```
 
+Diagnostics note:
+
+- `debug?: boolean | DebugOptions` remains the only public logging entry point.
+- `debug: true` resolves all debug categories to `true`.
+- `Room#getDiagnostics(): Promise<RoomDiagnostics>` returns a local snapshot with transport, debug, peers, presence, state, events, and encryption sections.
+- `RoomDiagnosticsTransport.current`, `RoomDiagnosticsTransport.lastDisconnectReason`, `RoomDiagnosticsState.strategy`, `RoomDiagnosticsState.stateSizeBytes`, and `RoomDiagnosticsEvents.latestConnectDurationMs` can be `null` when unavailable.
+
 Transport baseline note:
 
 - `RoomStatus`, `Peer`, and `FlockError` are now implemented in the core runtime.
@@ -151,7 +166,7 @@ Transport baseline note:
 - Successful automatic reconnect keeps the same room instance, `peerId`, and local engine state.
 - `offline` and `online` are room lifecycle events for unexpected disconnect windows; `connected` and `disconnected` remain the transport/session lifecycle markers.
 - `StateChangeMeta.pending` and `StateChangeMeta.queuedMutationCount` expose unsaved queued LWW mutations to subscribers.
-- `debug.transport` enables transport-selection and protocol-negotiation logging without changing public types.
+- `debug: true` enables all debug categories, while `DebugOptions` keeps category-level logging control without adding any separate logger configuration type.
 
 Yjs baseline note:
 

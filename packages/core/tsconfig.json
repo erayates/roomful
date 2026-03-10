@@ -1,6 +1,9 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
+    "paths": {
+      "@flockjs/devtools": ["packages/core/src/internal/devtools-contract.d.ts"]
+    },
     "rootDir": "src",
     "outDir": "dist",
     "tsBuildInfoFile": "node_modules/.cache/tsbuildinfo"

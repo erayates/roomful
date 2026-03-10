@@ -29,6 +29,14 @@ export type {
   ReconnectOptions,
   RelayAuthToken,
   Room,
+  RoomDiagnostics,
+  RoomDiagnosticsDebug,
+  RoomDiagnosticsEncryption,
+  RoomDiagnosticsEvents,
+  RoomDiagnosticsPeers,
+  RoomDiagnosticsPresence,
+  RoomDiagnosticsState,
+  RoomDiagnosticsTransport,
   RoomEventHandler,
   RoomEventMap,
   RoomEventName,
@@ -44,12 +52,26 @@ export type {
   WebSocketOptions,
 } from './types';
 
+/**
+ * Reports package-level health metadata for `@flockjs/core`.
+ */
 export interface CoreHealth {
+  /**
+   * Identifies the package.
+   */
   packageName: '@flockjs/core';
+
+  /**
+   * Reports the package health state.
+   */
   status: 'ok';
 }
 
-// Temporary compatibility export for early cross-package stub wiring.
+/**
+ * Returns package-level health metadata for `@flockjs/core`.
+ *
+ * @returns The static core package health payload.
+ */
 export function createCoreHealth(): CoreHealth {
   return {
     packageName: '@flockjs/core',

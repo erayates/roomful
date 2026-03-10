@@ -1,4 +1,4 @@
-import { logProtocolWarning } from '../internal/logger';
+import { createStructuredLogger } from '../internal/logger';
 import {
   createProtocolCapabilities,
   LEGACY_PROTOCOL_SESSION,
@@ -12,6 +12,7 @@ import {
   serializePeerWireEnvelope,
   serializePeerWireEnvelopeObject,
 } from '../protocol/peer-message';
+import type { DebugOptions } from '../types';
 import type { RoomTransportSignal, TransportKind } from './transport';
 
 const ROOM_TRANSPORT_SIGNAL_TYPES = new Set<string>([
@@ -32,17 +33,24 @@ const JSON_ONLY_CAPABILITIES = createProtocolCapabilities(['json'], 'json');
 const JSON_AND_MSGPACK_CAPABILITIES = createProtocolCapabilities(['json', 'msgpack'], 'msgpack');
 
 interface ParseOptions {
+  roomId: string;
+  debug: boolean | DebugOptions | undefined;
   transport: TransportKind | 'unknown';
   allowBinary?: boolean;
   now?: () => number;
 }
 
 function logRejectedMessage(
+  roomId: string,
+  debug: boolean | DebugOptions | undefined,
   transport: ParseOptions['transport'],
   reason: string,
   payload?: unknown,
 ): null {
-  logProtocolWarning({
+  createStructuredLogger({
+    roomId,
+    debug,
+  }).warn('transport', 'transport:protocol', 'Malformed protocol frame rejected', {
     transport,
     reason,
     ...(payload !== undefined ? { payload } : {}),
@@ -98,6 +106,8 @@ export function serializeTransportEnvelopeObject(
 export function serializeTransportEnvelope(
   signal: RoomTransportSignal,
   options: {
+    roomId: string;
+    debug: boolean | DebugOptions | undefined;
     session?: PeerProtocolSession;
     transport: TransportKind | 'unknown';
   },
@@ -107,7 +117,13 @@ export function serializeTransportEnvelope(
     return serialized;
   }
 
-  return logRejectedMessage(options.transport, 'Outbound message serialization failed.', signal);
+  return logRejectedMessage(
+    options.roomId,
+    options.debug,
+    options.transport,
+    'Outbound message serialization failed.',
+    signal,
+  );
 }
 
 export function parseTransportEnvelope(
@@ -117,6 +133,8 @@ export function parseTransportEnvelope(
   if (payload instanceof Uint8Array || payload instanceof ArrayBuffer) {
     if (options.allowBinary === false) {
       return logRejectedMessage(
+        options.roomId,
+        options.debug,
         options.transport,
         'Binary peer messages are not supported on this transport.',
       );
@@ -135,7 +153,13 @@ export function parseTransportEnvelope(
     return signal;
   }
 
-  return logRejectedMessage(options.transport, 'Malformed peer transport message.', payload);
+  return logRejectedMessage(
+    options.roomId,
+    options.debug,
+    options.transport,
+    'Malformed peer transport message.',
+    payload,
+  );
 }
 
 export function parseTransportSignal(payload: unknown): RoomTransportSignal | null {

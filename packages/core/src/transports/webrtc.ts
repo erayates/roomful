@@ -1,7 +1,7 @@
-import { createFlockError, FlockError as FlockErrorRuntime } from '../flock-error';
 import { createEncryptionHandshake, isEncryptionEnabled } from '../encryption';
+import { createFlockError, FlockError as FlockErrorRuntime } from '../flock-error';
 import { env } from '../internal/env';
-import { logProtocolNegotiation, logProtocolWarning } from '../internal/logger';
+import { createStructuredLogger, type StructuredLogger } from '../internal/logger';
 import { normalizeMaxPeers } from '../internal/max-peers';
 import type { PeerProtocolSession } from '../protocol/peer-message';
 import type { FlockError, PresenceData, RoomOptions } from '../types';
@@ -115,6 +115,8 @@ export class WebRTCTransportAdapter<
 
   private readonly listeners = new Set<(signal: TransportSignal) => void>();
 
+  private readonly logger: StructuredLogger;
+
   private readonly relayUrl: string;
 
   private readonly peerConnections = new Map<string, PeerConnectionContext>();
@@ -144,6 +146,10 @@ export class WebRTCTransportAdapter<
     private readonly peerId: string,
     private readonly options: RoomOptions<TPresence>,
   ) {
+    this.logger = createStructuredLogger({
+      roomId,
+      debug: options.debug,
+    });
     this.relayUrl = resolveRelayUrl(options);
     this.PeerConnectionCtor = getRTCPeerConnectionConstructor();
     const maxPeers = normalizeMaxPeers(options.maxPeers);
@@ -337,6 +343,8 @@ export class WebRTCTransportAdapter<
 
     channel.onmessage = (event) => {
       const signal = parseTransportEnvelope(event.data, {
+        roomId: this.roomId,
+        debug: this.options.debug,
         transport: 'webrtc',
         allowBinary: true,
       });
@@ -535,6 +543,8 @@ export class WebRTCTransportAdapter<
     }
 
     const serialized = serializeTransportEnvelope(signal, {
+      roomId: this.roomId,
+      debug: this.options.debug,
       transport: 'webrtc',
       session: this.getOutboundSession(context, signal),
     });
@@ -580,7 +590,7 @@ export class WebRTCTransportAdapter<
   ): void {
     const result = negotiateTransportProtocolSession('webrtc', signal.payload.protocol);
     if (!result.compatible) {
-      logProtocolWarning({
+      this.logger.warn('transport', 'transport:protocol', 'Peer protocol rejected', {
         transport: 'webrtc',
         reason: result.reason,
         payload: {
@@ -610,7 +620,7 @@ export class WebRTCTransportAdapter<
     }
 
     context.session = result.session;
-    logProtocolNegotiation(this.options.debug, {
+    this.logger.info('transport', 'transport:protocol', 'Peer protocol negotiated', {
       transport: 'webrtc',
       peerId: context.peerId,
       reason: result.reason,

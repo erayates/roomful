@@ -1,8 +1,17 @@
+import { fileURLToPath } from 'node:url';
+
 import { mergeConfig } from 'vitest/config';
 
 import baseConfig from '../../vitest.package.config';
 
+const devtoolsSourcePath = fileURLToPath(new URL('../devtools/src/index.ts', import.meta.url));
+
 export default mergeConfig(baseConfig, {
+  resolve: {
+    alias: {
+      '@flockjs/devtools': devtoolsSourcePath,
+    },
+  },
   test: {
     coverage: {
       enabled: true,

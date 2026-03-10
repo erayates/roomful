@@ -1,9 +1,10 @@
 import { createFlockError } from '../flock-error';
 import { env } from '../internal/env';
 import { isObject, readString } from '../internal/guards';
+import { createStructuredLogger, type StructuredLogger } from '../internal/logger';
 import { normalizeMaxPeers } from '../internal/max-peers';
 import type { PeerProtocolCapabilities, PeerProtocolSession } from '../protocol/peer-message';
-import type { FlockError, PresenceData, RelayAuthToken, RoomOptions } from '../types';
+import type { DebugOptions, FlockError, PresenceData, RelayAuthToken, RoomOptions } from '../types';
 import { resolveRelayHttpUrl } from './relay-url';
 import {
   type RoomTransportSignal,
@@ -159,8 +160,14 @@ async function readRelayResponseError(
   });
 }
 
-function parsePollingJoinResponse(payload: string): PollingJoinResponse | null {
-  const message = parseWebSocketRelayServerMessage(payload);
+function parsePollingJoinResponse(
+  payload: string,
+  options: {
+    roomId: string;
+    debug: boolean | DebugOptions | undefined;
+  },
+): PollingJoinResponse | null {
+  const message = parseWebSocketRelayServerMessage(payload, options);
   if (!message || message.type !== 'joined') {
     return null;
   }
@@ -187,8 +194,14 @@ function parsePollingJoinResponse(payload: string): PollingJoinResponse | null {
   }
 }
 
-function resolveEventResponseMessage(payload: unknown): WebSocketRelayServerMessage | null {
-  return parseWebSocketRelayServerMessage(payload);
+function resolveEventResponseMessage(
+  payload: unknown,
+  options: {
+    roomId: string;
+    debug: boolean | DebugOptions | undefined;
+  },
+): WebSocketRelayServerMessage | null {
+  return parseWebSocketRelayServerMessage(payload, options);
 }
 
 export class PollingTransportAdapter<
@@ -197,6 +210,8 @@ export class PollingTransportAdapter<
   public readonly kind = 'polling' as const;
 
   private readonly listeners = new Set<(signal: TransportSignal) => void>();
+
+  private readonly logger: StructuredLogger;
 
   private readonly relayUrl: string;
 
@@ -224,6 +239,10 @@ export class PollingTransportAdapter<
     private readonly options: RoomOptions<TPresence>,
     fetchImpl?: FetchLike,
   ) {
+    this.logger = createStructuredLogger({
+      roomId,
+      debug: options.debug,
+    });
     this.relayUrl = resolveRelayUrl(options);
     this.fetchImpl = resolveFetch(fetchImpl);
   }
@@ -324,7 +343,10 @@ export class PollingTransportAdapter<
     }
 
     const payload = await response.text();
-    const joined = parsePollingJoinResponse(payload);
+    const joined = parsePollingJoinResponse(payload, {
+      roomId: this.roomId,
+      debug: this.options.debug,
+    });
     if (!joined || joined.roomId !== this.roomId || joined.peerId !== this.peerId) {
       throw createPollingTransportError('Polling relay returned an invalid join response.', {
         source: 'polling-relay',
@@ -370,7 +392,10 @@ export class PollingTransportAdapter<
         }
 
         const payload = await readResponsePayload(response);
-        const message = resolveEventResponseMessage(payload);
+        const message = resolveEventResponseMessage(payload, {
+          roomId: this.roomId,
+          debug: this.options.debug,
+        });
         if (!message) {
           throw createPollingTransportError('Polling relay returned an invalid event frame.', {
             source: 'polling-relay',
@@ -493,10 +518,23 @@ export class PollingTransportAdapter<
     const result = negotiateTransportProtocolSession('polling', remoteProtocol);
     if (!result.compatible) {
       this.peerSessions.delete(peerId);
+      this.logger.warn('transport', 'transport:protocol', 'Peer protocol rejected', {
+        transport: 'polling',
+        reason: result.reason,
+        payload: {
+          peerId,
+        },
+      });
       return false;
     }
 
     this.peerSessions.set(peerId, result.session);
+    this.logger.info('transport', 'transport:protocol', 'Peer protocol negotiated', {
+      transport: 'polling',
+      peerId,
+      reason: result.reason,
+      session: result.session,
+    });
     return true;
   }
 

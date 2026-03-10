@@ -17,11 +17,14 @@ export class WebRTCFallbackTransportAdapter<
 
   private connected = false;
 
+  private readonly options: RoomOptions<TPresence>;
+
   public constructor(
     private readonly roomId: string,
     peerId: string,
     options: RoomOptions<TPresence>,
   ) {
+    this.options = options;
     this.activeTransport = createWebRTCTransportAdapter(roomId, peerId, options);
     this.attachTransport(this.activeTransport);
   }
@@ -45,7 +48,7 @@ export class WebRTCFallbackTransportAdapter<
       }
     }
 
-    const broadcastTransport = createBroadcastTransportAdapter(this.roomId);
+    const broadcastTransport = createBroadcastTransportAdapter(this.roomId, this.options.debug);
     this.replaceTransport(broadcastTransport);
 
     try {

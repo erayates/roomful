@@ -1,6 +1,6 @@
 import { createFlockError } from '../flock-error';
 import { env } from '../internal/env';
-import { logProtocolNegotiation, logProtocolWarning } from '../internal/logger';
+import { createStructuredLogger, type StructuredLogger } from '../internal/logger';
 import { normalizeMaxPeers } from '../internal/max-peers';
 import type { PeerProtocolCapabilities, PeerProtocolSession } from '../protocol/peer-message';
 import type { FlockError, PresenceData, RelayAuthToken, RoomOptions } from '../types';
@@ -215,6 +215,8 @@ export class WebSocketTransportAdapter<
 
   private readonly listeners = new Set<(signal: TransportSignal) => void>();
 
+  private readonly logger: StructuredLogger;
+
   private readonly relayUrl: string;
 
   private readonly createWebSocket: WebSocketFactory;
@@ -232,7 +234,10 @@ export class WebSocketTransportAdapter<
   private joinPromise: Promise<void> | null = null;
 
   private readonly handleSocketMessage = (event: MessageEventLike): void => {
-    const message = parseWebSocketRelayServerMessage(event.data);
+    const message = parseWebSocketRelayServerMessage(event.data, {
+      roomId: this.roomId,
+      debug: this.options.debug,
+    });
     if (!message) {
       return;
     }
@@ -270,6 +275,10 @@ export class WebSocketTransportAdapter<
   ) {
     this.relayUrl = resolveRelayUrl(options);
     this.createWebSocket = resolveWebSocketFactory(createWebSocket);
+    this.logger = createStructuredLogger({
+      roomId,
+      debug: options.debug,
+    });
   }
 
   public async connect(): Promise<void> {
@@ -350,9 +359,7 @@ export class WebSocketTransportAdapter<
 
   private async connectInternal(): Promise<void> {
     const relayAuthToken = await resolveRelayAuthToken(this.options.relayAuth);
-    const socket = this.createWebSocket(
-      appendRelayAuthTokenToUrl(this.relayUrl, relayAuthToken),
-    );
+    const socket = this.createWebSocket(appendRelayAuthTokenToUrl(this.relayUrl, relayAuthToken));
     setBinaryTypeIfSupported(socket);
     this.socket = socket;
 
@@ -419,7 +426,10 @@ export class WebSocketTransportAdapter<
       };
 
       const onMessage = (event: MessageEventLike): void => {
-        const message = parseWebSocketRelayServerMessage(event.data);
+        const message = parseWebSocketRelayServerMessage(event.data, {
+          roomId: this.roomId,
+          debug: this.options.debug,
+        });
         if (!message) {
           return;
         }
@@ -544,7 +554,7 @@ export class WebSocketTransportAdapter<
     const result = negotiateTransportProtocolSession('websocket', remoteProtocol);
     if (!result.compatible) {
       this.peerSessions.delete(peerId);
-      logProtocolWarning({
+      this.logger.warn('transport', 'transport:protocol', 'Peer protocol rejected', {
         transport: 'websocket',
         reason: result.reason,
         payload: {
@@ -565,7 +575,7 @@ export class WebSocketTransportAdapter<
     }
 
     this.peerSessions.set(peerId, result.session);
-    logProtocolNegotiation(this.options.debug, {
+    this.logger.info('transport', 'transport:protocol', 'Peer protocol negotiated', {
       transport: 'websocket',
       peerId,
       reason: result.reason,

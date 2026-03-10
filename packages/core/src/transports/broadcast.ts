@@ -1,4 +1,5 @@
 import { env } from '../internal/env';
+import type { DebugOptions } from '../types';
 import { toBroadcastSignal, type TransportAdapter, type TransportSignal } from './transport';
 import {
   isRoomTransportSignal,
@@ -21,6 +22,8 @@ export class BroadcastTransportAdapter implements TransportAdapter {
 
   private readonly handleChannelMessage = (event: MessageEvent<unknown>): void => {
     const signal = parseTransportEnvelope(event.data, {
+      roomId: this.roomId,
+      debug: this.debug,
       transport: 'broadcast',
       allowBinary: false,
     });
@@ -33,7 +36,10 @@ export class BroadcastTransportAdapter implements TransportAdapter {
     }
   };
 
-  public constructor(private readonly roomId: string) {}
+  public constructor(
+    private readonly roomId: string,
+    private readonly debug: boolean | DebugOptions | undefined = undefined,
+  ) {}
 
   public async connect(): Promise<void> {
     if (this.connected) {
@@ -72,6 +78,8 @@ export class BroadcastTransportAdapter implements TransportAdapter {
     }
 
     const serialized = serializeTransportEnvelope(signal, {
+      roomId: this.roomId,
+      debug: this.debug,
       transport: 'broadcast',
     });
     if (!serialized) {
@@ -97,6 +105,9 @@ export class BroadcastTransportAdapter implements TransportAdapter {
   }
 }
 
-export function createBroadcastTransportAdapter(roomId: string): TransportAdapter {
-  return new BroadcastTransportAdapter(roomId);
+export function createBroadcastTransportAdapter(
+  roomId: string,
+  debug?: boolean | DebugOptions,
+): TransportAdapter {
+  return new BroadcastTransportAdapter(roomId, debug);
 }

@@ -1,6 +1,6 @@
 import { createFlockError } from '../flock-error';
 import { env } from '../internal/env';
-import { logTransportSelection } from '../internal/logger';
+import { createStructuredLogger } from '../internal/logger';
 import type { FlockError, PresenceData, RoomOptions } from '../types';
 import { createBroadcastTransportAdapter, isBroadcastChannelAvailable } from './broadcast';
 import { createInMemoryTransportAdapter } from './in-memory';
@@ -45,12 +45,16 @@ function createWebRTCTransportError(error: unknown): FlockError {
 }
 
 function logSelection<TPresence extends PresenceData>(
+  roomId: string,
   options: RoomOptions<TPresence>,
   requestedMode: string,
   selectedTransport: TransportAdapter,
   reason: string,
 ): TransportAdapter {
-  logTransportSelection(options.debug, {
+  createStructuredLogger({
+    roomId,
+    debug: options.debug,
+  }).info('transport', 'transport', 'Transport selected', {
     requestedMode,
     selectedTransport: selectedTransport.kind,
     reason,
@@ -69,14 +73,16 @@ export function selectTransportAdapter<TPresence extends PresenceData>(
   if (mode === 'broadcast') {
     if (isBroadcastChannelAvailable()) {
       return logSelection(
+        roomId,
         options,
         mode,
-        createBroadcastTransportAdapter(roomId),
+        createBroadcastTransportAdapter(roomId, options.debug),
         'Explicit broadcast mode; BroadcastChannel available',
       );
     }
 
     return logSelection(
+      roomId,
       options,
       mode,
       createInMemoryTransportAdapter(roomId, peerId),
@@ -87,6 +93,7 @@ export function selectTransportAdapter<TPresence extends PresenceData>(
   if (mode === 'webrtc') {
     try {
       return logSelection(
+        roomId,
         options,
         mode,
         createWebRTCFallbackTransportAdapter(roomId, peerId, options),
@@ -99,6 +106,7 @@ export function selectTransportAdapter<TPresence extends PresenceData>(
 
   if (mode === 'websocket') {
     return logSelection(
+      roomId,
       options,
       mode,
       createWebSocketTransportAdapter(roomId, peerId, options),
@@ -108,9 +116,10 @@ export function selectTransportAdapter<TPresence extends PresenceData>(
 
   if (isBroadcastChannelAvailable()) {
     return logSelection(
+      roomId,
       options,
       mode,
-      createBroadcastTransportAdapter(roomId),
+      createBroadcastTransportAdapter(roomId, options.debug),
       'BroadcastChannel available',
     );
   }
@@ -118,6 +127,7 @@ export function selectTransportAdapter<TPresence extends PresenceData>(
   if (env.hasRTCPeerConnection && hasRelayUrl(options)) {
     try {
       return logSelection(
+        roomId,
         options,
         mode,
         createWebRTCFallbackTransportAdapter(roomId, peerId, options),
@@ -130,6 +140,7 @@ export function selectTransportAdapter<TPresence extends PresenceData>(
 
   if (hasRelayUrl(options)) {
     return logSelection(
+      roomId,
       options,
       mode,
       createWebSocketTransportAdapter(roomId, peerId, options),
@@ -138,6 +149,7 @@ export function selectTransportAdapter<TPresence extends PresenceData>(
   }
 
   return logSelection(
+    roomId,
     options,
     mode,
     createInMemoryTransportAdapter(roomId, peerId),

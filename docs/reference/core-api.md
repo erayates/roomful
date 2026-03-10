@@ -74,7 +74,9 @@ Transport support in the current baseline:
 - `reconnect` is opt-in; `reconnect: true` uses defaults of `maxAttempts: 5`, `backoffMs: 100`, `backoffMultiplier: 2`, and `maxBackoffMs: 2000`.
 - Automatic reconnect begins retrying within `500ms` of an unexpected transport disconnect and uses exponential backoff with internal jitter.
 - In browser environments, room lifecycle automatically handles `beforeunload` and `pagehide` to trigger disconnect and propagate peer leave.
-- `debug.transport` logs transport selection plus protocol negotiation and downgrade decisions via `console.debug`.
+- `debug: true` enables all debug categories; object form keeps per-category booleans for `transport`, `state`, `presence`, `events`, and `performance`.
+- Debug output is emitted through `console.info`, `console.warn`, and `console.error` as `[FlockJS] ${component}: ${message}` with a structured payload that always includes `timestamp`, `roomId`, `category`, `component`, and `message`.
+- `info` logs are suppressed when `NODE_ENV === 'production'`; `warn` and `error` still emit.
 
 ## `Room` Contract
 
@@ -88,6 +90,7 @@ interface Room<TPresence extends Record<string, unknown> = Record<string, unknow
 
   connect(): Promise<void>;
   disconnect(): Promise<void>;
+  getDiagnostics(): Promise<RoomDiagnostics>;
 
   usePresence(): PresenceEngine<TPresence>;
   useCursors<TCursor extends Record<string, unknown> = Record<string, unknown>>(
@@ -103,6 +106,8 @@ interface Room<TPresence extends Record<string, unknown> = Record<string, unknow
   off<T extends RoomEventName>(event: T, cb: RoomEventHandler<TPresence, T>): void;
 }
 ```
+
+`getDiagnostics()` returns a local snapshot of room runtime state. It includes transport state, resolved debug flags, peer ids, presence heartbeat status, state/offline queue metrics, custom-event counters, latest connect duration, and encryption compatibility/decryption anomalies. It does not perform any remote calls.
 
 Peer lifecycle notes:
 

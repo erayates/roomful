@@ -1,23 +1,40 @@
+import {
+  DEVTOOLS_BRIDGE_VERSION,
+  DEVTOOLS_MAX_EVENT_LOG_ENTRIES,
+  type DevtoolsCommandResult,
+  type DevtoolsEventDirection,
+  type DevtoolsEventLogEntry,
+  type DevtoolsPeerSnapshot,
+  type DevtoolsRoomSnapshot,
+  type DevtoolsRoomSummary,
+  type DevtoolsSerializedRecord,
+  type DevtoolsSerializedValue,
+  type DevtoolsStateSnapshot,
+  diffSerializedState,
+  serializeDevtoolsValue,
+} from '@flockjs/devtools';
+
+import {
+  createEncryptionHandshake,
+  decryptWirePayload,
+  type EncryptionEnvelopeHeader,
+  encryptWirePayload,
+  isEncryptionEnabled,
+  type ResolvedRoomEncryption,
+  resolveRoomEncryption,
+} from './encryption';
 import { createAwarenessEngine } from './engines/awareness';
 import { createCursorEngine } from './engines/cursors';
 import { createEventEngine } from './engines/events';
 import { createPresenceEngine } from './engines/presence';
 import { createStateEngine } from './engines/state';
 import { createCrdtStateEngine as createCrdtStateEngineRuntime } from './engines/state.crdt';
-import {
-  createEncryptionHandshake,
-  decryptWirePayload,
-  encryptWirePayload,
-  isEncryptionEnabled,
-  resolveRoomEncryption,
-  type EncryptionEnvelopeHeader,
-  type ResolvedRoomEncryption,
-} from './encryption';
 import { TypedEventEmitter } from './event-emitter';
 import { createFlockError, FlockError } from './flock-error';
+import { registerRoomDevtoolsAdapter } from './internal/devtools-bridge';
 import { createRuntimePeerId, getWindowEventTarget, type WindowEventTarget } from './internal/env';
-import { readString } from './internal/guards';
-import { logRoomError, logStatePersistence } from './internal/logger';
+import { isObject, readString } from './internal/guards';
+import { createStructuredLogger, type StructuredLogger } from './internal/logger';
 import { normalizeMaxPeers } from './internal/max-peers';
 import {
   appendOfflineQueueEntry,
@@ -25,15 +42,10 @@ import {
   countQueuedStateMutations,
   createOfflineStateMutation,
   hasQueuedStateMutations,
-  projectOfflineStateSnapshot,
   type OfflineQueueEntry,
+  projectOfflineStateSnapshot,
 } from './internal/offline-queue';
 import { PeerRegistry } from './internal/peer-registry';
-import {
-  decodeMessagePack,
-  encodeMessagePack,
-  type ProtocolSerializationResult,
-} from './protocol/messagepack';
 import {
   computeReconnectDelay,
   delayWithAbort,
@@ -49,12 +61,20 @@ import {
 } from './internal/state';
 import { readPersistedLwwState, writePersistedLwwState } from './internal/state.persistence';
 import { coerceTypedPeer } from './internal/typed-peer';
+import {
+  decodeMessagePack,
+  encodeMessagePack,
+  type ProtocolSerializationResult,
+} from './protocol/messagepack';
 import { createPollingTransportAdapter } from './transports/polling';
-import { selectTransportAdapter, shouldSelectWebSocketTransport } from './transports/select-transport';
+import {
+  selectTransportAdapter,
+  shouldSelectWebSocketTransport,
+} from './transports/select-transport';
 import type {
   RoomTransportSignal,
-  TransportKind,
   TransportAdapter,
+  TransportKind,
   TransportSignal,
 } from './transports/transport';
 import {
@@ -77,6 +97,7 @@ import type {
   PresenceData,
   PresenceEngine,
   Room,
+  RoomDiagnostics,
   RoomEventHandler,
   RoomEventMap,
   RoomEventName,
@@ -97,6 +118,10 @@ interface ConnectContext {
   isReconnectAttempt: boolean;
 }
 
+interface RoomInternalOptions {
+  hideFromDevtools?: boolean;
+}
+
 type PeerEventCallback<TPresence extends PresenceData> = (peers: Peer<TPresence>[]) => void;
 type CursorCallback = (positions: CursorPosition[]) => void;
 type StateSnapshotCallback = (snapshot: StateSnapshot) => void;
@@ -105,6 +130,11 @@ type InternalEventCallback<TPresence extends PresenceData> = (
   payload: unknown,
   from: Peer<TPresence>,
 ) => void;
+
+interface DevtoolsStateTracker {
+  readonly strategy: 'lww' | 'crdt';
+  readonly unsubscribe: Unsubscribe;
+}
 
 function isWebSocketPollingFallbackEnabled<TPresence extends PresenceData>(
   options: RoomOptions<TPresence>,
@@ -190,17 +220,42 @@ function readTypedStateEngine<T>(stateEngine: unknown): StateEngine<T> {
   return stateEngine as StateEngine<T>;
 }
 
-function readTypedCursorEngine<TCursor extends CursorData>(cursorEngine: unknown): CursorEngine<TCursor> {
+function readTypedCursorEngine<TCursor extends CursorData>(
+  cursorEngine: unknown,
+): CursorEngine<TCursor> {
   // The room exposes a singleton cursor engine, so callers choose the typed view they expect
   // over the shared runtime cursor payload shape for that room.
   // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
   return cursorEngine as CursorEngine<TCursor>;
 }
 
-function isBootstrapSignal(signal: RoomTransportSignal): signal is Extract<
-  RoomTransportSignal,
-  { type: 'hello' | 'welcome' }
-> {
+function computeUtf8ByteLength(value: string): number | null {
+  if (typeof TextEncoder !== 'function') {
+    return null;
+  }
+
+  return new TextEncoder().encode(value).byteLength;
+}
+
+function computeSerializedStateSizeBytes(value: unknown): number | null {
+  let serialized: string | undefined;
+
+  try {
+    serialized = JSON.stringify(value);
+  } catch {
+    return null;
+  }
+
+  if (serialized === undefined) {
+    return null;
+  }
+
+  return computeUtf8ByteLength(serialized);
+}
+
+function isBootstrapSignal(
+  signal: RoomTransportSignal,
+): signal is Extract<RoomTransportSignal, { type: 'hello' | 'welcome' }> {
   return signal.type === 'hello' || signal.type === 'welcome';
 }
 
@@ -235,12 +290,52 @@ function hasMatchingEncryptedSignalHeaders(
   );
 }
 
+function isSerializedRecord(value: DevtoolsSerializedValue): value is DevtoolsSerializedRecord {
+  return isObject(value) && !Array.isArray(value);
+}
+
+function serializeRecord(value: unknown): DevtoolsSerializedRecord {
+  const serialized = serializeDevtoolsValue(value);
+  if (isSerializedRecord(serialized)) {
+    return serialized;
+  }
+
+  return {
+    value: serialized,
+  };
+}
+
+function appendDevtoolsEventLog(
+  entries: DevtoolsEventLogEntry[],
+  nextEntry: DevtoolsEventLogEntry,
+): DevtoolsEventLogEntry[] {
+  if (entries.length < DEVTOOLS_MAX_EVENT_LOG_ENTRIES) {
+    return [...entries, nextEntry];
+  }
+
+  return [...entries.slice(entries.length - DEVTOOLS_MAX_EVENT_LOG_ENTRIES + 1), nextEntry];
+}
+
+function appendDevtoolsError(errors: string[], message: string): string[] {
+  if (errors.length < 20) {
+    return [...errors, message];
+  }
+
+  return [...errors.slice(errors.length - 19), message];
+}
+
 export class RoomImpl<TPresence extends PresenceData = PresenceData> implements Room<TPresence> {
   public readonly id: string;
 
   public readonly peerId: string;
 
+  private readonly instanceId: string;
+
   private readonly options: RoomOptions<TPresence>;
+
+  private readonly internalOptions: RoomInternalOptions;
+
+  private readonly logger: StructuredLogger;
 
   private readonly maxPeers: number | undefined;
 
@@ -344,12 +439,52 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
 
   private readonly decryptionErrorPeers = new Set<string>();
 
-  public constructor(roomId: string, options: RoomOptions<TPresence> = {}) {
+  private connectStartedAt: number | null = null;
+
+  private latestConnectDurationMs: number | null = null;
+
+  private customEventMessagesSent = 0;
+
+  private customEventMessagesReceived = 0;
+
+  private customEventBroadcastsSent = 0;
+
+  private customEventDirectSends = 0;
+
+  private devtoolsStateTracker: DevtoolsStateTracker | null = null;
+
+  private devtoolsStateValue: DevtoolsSerializedValue | null = null;
+
+  private devtoolsStateDiff: DevtoolsStateSnapshot['diff'] = [];
+
+  private devtoolsStateMeta: StateChangeMeta | null = null;
+
+  private devtoolsEventLog: DevtoolsEventLogEntry[] = [];
+
+  private devtoolsErrors: string[] = [];
+
+  private devtoolsUnregister: Unsubscribe | null = null;
+
+  private activeTransportKind: TransportKind | null = null;
+
+  private simulatedPeerRoom: RoomImpl<TPresence> | null = null;
+
+  public constructor(
+    roomId: string,
+    options: RoomOptions<TPresence> = {},
+    internalOptions: RoomInternalOptions = {},
+  ) {
     this.id = roomId;
     this.options = options;
+    this.internalOptions = internalOptions;
+    this.logger = createStructuredLogger({
+      roomId,
+      debug: options.debug,
+    });
     this.maxPeers = normalizeMaxPeers(options.maxPeers);
     this.reconnectOptions = resolveReconnectOptions(options.reconnect);
     this.peerId = createRuntimePeerId();
+    this.instanceId = `${roomId}::${this.peerId}`;
 
     const now = Date.now();
     const initialPresence = sanitizePresencePatch(options.presence ?? {});
@@ -377,6 +512,8 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     });
 
     this.awarenessByPeer.set(this.peerId, { peerId: this.peerId });
+
+    this.ensureDevtoolsAdapterRegistered();
   }
 
   private get selfPeer(): Peer<TPresence> {
@@ -408,6 +545,239 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     );
   }
 
+  private getStateSizeBytes(): number | null {
+    if (this.stateSnapshot) {
+      return computeSerializedStateSizeBytes(this.stateSnapshot.value);
+    }
+
+    if (this.stateStrategy === 'crdt' && this.stateEngineInstance) {
+      return computeSerializedStateSizeBytes(
+        readTypedStateEngine<unknown>(this.stateEngineInstance).get(),
+      );
+    }
+
+    return null;
+  }
+
+  private getRegisteredEventNames(): string[] {
+    return Array.from(this.customEventHandlers.keys()).sort();
+  }
+
+  private get hasSimulatedPeer(): boolean {
+    return this.simulatedPeerRoom !== null;
+  }
+
+  private ensureDevtoolsAdapterRegistered(): void {
+    if (this.internalOptions.hideFromDevtools || this.devtoolsUnregister) {
+      return;
+    }
+
+    this.devtoolsUnregister = registerRoomDevtoolsAdapter({
+      disconnectSimulatedPeer: () => {
+        return this.disconnectSimulatedPeer();
+      },
+      getSnapshot: () => {
+        return this.getDevtoolsSnapshot();
+      },
+      getSummary: () => {
+        return this.getDevtoolsSummary();
+      },
+      injectSimulatedPeer: () => {
+        return this.injectSimulatedPeer();
+      },
+      instanceId: this.instanceId,
+    });
+  }
+
+  private unregisterDevtoolsAdapter(): void {
+    this.devtoolsUnregister?.();
+    this.devtoolsUnregister = null;
+  }
+
+  private getDevtoolsSummary(): DevtoolsRoomSummary {
+    return {
+      hasSimulatedPeer: this.hasSimulatedPeer,
+      hasState: this.stateStrategy !== null,
+      instanceId: this.instanceId,
+      peerCount: this.peerCount,
+      peerId: this.peerId,
+      roomId: this.id,
+      status: this.status,
+      transport: this.activeTransportKind,
+    };
+  }
+
+  private getDevtoolsSnapshot(): DevtoolsRoomSnapshot {
+    return {
+      ...this.getDevtoolsSummary(),
+      bridgeVersion: DEVTOOLS_BRIDGE_VERSION,
+      errors: [...this.devtoolsErrors],
+      events: [...this.devtoolsEventLog],
+      peers: this.getDevtoolsPeers(),
+      state: this.getDevtoolsStateSnapshot(),
+    };
+  }
+
+  private getDevtoolsPeers(): DevtoolsPeerSnapshot[] {
+    return this.getSelfAndPeersSnapshot().map((peer) => {
+      return {
+        id: peer.id,
+        isSelf: peer.id === this.peerId,
+        isSimulated: peer.id !== this.peerId && Reflect.get(peer, 'simulated') === true,
+        joinedAt: peer.joinedAt,
+        lastSeen: peer.lastSeen,
+        presence: serializeRecord(peer),
+      };
+    });
+  }
+
+  private getDevtoolsStateSnapshot(): DevtoolsStateSnapshot {
+    return {
+      available: this.stateStrategy !== null && this.devtoolsStateValue !== null,
+      diff: [...this.devtoolsStateDiff],
+      lastChangedBy: this.devtoolsStateMeta?.changedBy ?? null,
+      lastUpdatedAt: this.devtoolsStateMeta?.timestamp ?? null,
+      pending: this.devtoolsStateMeta?.pending ?? false,
+      queuedMutationCount: this.devtoolsStateMeta?.queuedMutationCount ?? 0,
+      reason: this.devtoolsStateMeta?.reason ?? null,
+      strategy: this.stateStrategy,
+      value: this.devtoolsStateValue,
+    };
+  }
+
+  private recordDevtoolsEvent(
+    direction: DevtoolsEventDirection,
+    name: string,
+    payload: unknown,
+    fromPeer: Peer<TPresence> | null,
+    toPeerId?: string,
+  ): void {
+    const timestamp = Date.now();
+    const fromPeerId = direction === 'outgoing' ? this.peerId : fromPeer ? fromPeer.id : null;
+    const sender =
+      direction === 'outgoing'
+        ? serializeRecord(this.selfPeer)
+        : fromPeer
+          ? serializeRecord(fromPeer)
+          : null;
+
+    this.devtoolsEventLog = appendDevtoolsEventLog(this.devtoolsEventLog, {
+      direction,
+      fromPeerId,
+      id: `${timestamp}:${direction}:${name}:${this.devtoolsEventLog.length}`,
+      name,
+      payload: serializeDevtoolsValue(payload),
+      sender,
+      timestamp,
+      toPeerId: toPeerId ?? null,
+    });
+  }
+
+  private recordDevtoolsError(message: string): void {
+    this.devtoolsErrors = appendDevtoolsError(this.devtoolsErrors, message);
+  }
+
+  private ensureDevtoolsStateTracking<T>(
+    stateEngine: StateEngine<T>,
+    strategy: 'lww' | 'crdt',
+  ): void {
+    if (this.devtoolsStateTracker?.strategy === strategy) {
+      return;
+    }
+
+    this.devtoolsStateTracker?.unsubscribe();
+
+    const initialMeta =
+      strategy === 'lww' && this.stateSnapshot
+        ? {
+            reason: this.stateSnapshot.reason,
+            changedBy: this.stateSnapshot.changedBy,
+            timestamp: this.stateSnapshot.timestamp,
+            ...this.getStateSyncMeta(),
+          }
+        : null;
+
+    this.setDevtoolsStateSnapshot(stateEngine.get(), initialMeta);
+
+    const unsubscribe = stateEngine.subscribe((value, meta) => {
+      this.setDevtoolsStateSnapshot(value, meta);
+    });
+
+    this.devtoolsStateTracker = {
+      strategy,
+      unsubscribe,
+    };
+  }
+
+  private setDevtoolsStateSnapshot(value: unknown, meta: StateChangeMeta | null): void {
+    const nextValue = serializeDevtoolsValue(value);
+    this.devtoolsStateDiff =
+      this.devtoolsStateValue === null
+        ? []
+        : diffSerializedState(this.devtoolsStateValue, nextValue);
+    this.devtoolsStateValue = nextValue;
+    this.devtoolsStateMeta = meta;
+  }
+
+  private injectSimulatedPeer(): DevtoolsCommandResult {
+    if (this.simulatedPeerRoom) {
+      return {
+        ok: true,
+      };
+    }
+
+    const simulatedPresence = sanitizePresencePatch(this.options.presence ?? {});
+    Reflect.set(simulatedPresence, 'name', 'Simulated Peer');
+    Reflect.set(simulatedPresence, 'color', '#F97316');
+    Reflect.set(simulatedPresence, 'simulated', true);
+
+    const simulatedRoom = new RoomImpl<TPresence>(
+      this.id,
+      {
+        ...this.options,
+        presence: simulatedPresence,
+      },
+      {
+        hideFromDevtools: true,
+      },
+    );
+
+    this.simulatedPeerRoom = simulatedRoom;
+    void simulatedRoom.connect().catch((error) => {
+      if (this.simulatedPeerRoom === simulatedRoom) {
+        this.simulatedPeerRoom = null;
+      }
+
+      this.recordDevtoolsError(
+        error instanceof Error ? error.message : 'Failed to connect the simulated peer.',
+      );
+    });
+
+    return {
+      ok: true,
+    };
+  }
+
+  private disconnectSimulatedPeer(): DevtoolsCommandResult {
+    const simulatedRoom = this.simulatedPeerRoom;
+    if (!simulatedRoom) {
+      return {
+        ok: true,
+      };
+    }
+
+    this.simulatedPeerRoom = null;
+    void simulatedRoom.disconnect().catch((error) => {
+      this.recordDevtoolsError(
+        error instanceof Error ? error.message : 'Failed to disconnect the simulated peer.',
+      );
+    });
+
+    return {
+      ok: true,
+    };
+  }
+
   public get status(): RoomStatus {
     return this.currentStatus;
   }
@@ -421,6 +791,8 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
   }
 
   public connect(): Promise<void> {
+    this.ensureDevtoolsAdapterRegistered();
+
     if (this.currentStatus === 'connected') {
       return Promise.resolve();
     }
@@ -461,6 +833,8 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     this.cancelOfflineQueueReplay();
     this.offlineReplayRequested = false;
     this.offlineWindowActive = false;
+    this.connectStartedAt = null;
+    this.disconnectSimulatedPeer();
     this.websocketFallbackTransportPreference = null;
 
     if (this.reconnectPromise) {
@@ -479,8 +853,14 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     this.stopPresenceHeartbeat();
 
     if (!this.transport) {
+      this.activeTransportKind = null;
       this.lastDisconnectReason = 'manual';
+      this.logger.info('transport', 'transport', 'Transport disconnected', {
+        reason: 'manual',
+        transport: null,
+      });
       this.clearRemoteState();
+      this.unregisterDevtoolsAdapter();
       this.setStatus('disconnected');
       this.roomEventEmitter.emit('disconnected', { reason: 'manual' });
       return;
@@ -501,12 +881,69 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
 
     await this.transport.disconnect();
     this.transport = null;
+    this.activeTransportKind = null;
 
     this.lastDisconnectReason = 'manual';
+    this.logger.info('transport', 'transport', 'Transport disconnected', {
+      reason: 'manual',
+      transport: null,
+    });
     this.clearRemoteState();
+    this.unregisterDevtoolsAdapter();
 
     this.setStatus('disconnected');
     this.roomEventEmitter.emit('disconnected', { reason: 'manual' });
+  }
+
+  public async getDiagnostics(): Promise<RoomDiagnostics> {
+    return {
+      timestamp: Date.now(),
+      roomId: this.id,
+      peerId: this.peerId,
+      status: this.currentStatus,
+      transport: {
+        current: this.activeTransportKind,
+        lastDisconnectReason: this.lastDisconnectReason,
+        reconnectAttempt: this.reconnectAttempt,
+      },
+      debug: {
+        ...this.logger.resolvedDebug,
+        productionInfoSuppressed: this.logger.productionInfoSuppressed,
+      },
+      peers: {
+        remoteCount: this.peerRegistry.getRemoteCount(),
+        remotePeerIds: this.peers
+          .map((peer) => {
+            return peer.id;
+          })
+          .sort(),
+      },
+      presence: {
+        selfLastSeen: this.selfPeer.lastSeen,
+        heartbeatActive: this.presenceHeartbeat !== null,
+      },
+      state: {
+        configured: this.stateConfigured,
+        strategy: this.stateStrategy,
+        persistenceEnabled: this.statePersistenceEnabled,
+        queuedMutationCount: this.getQueuedStateMutationCount(),
+        offlineReplayInProgress: this.offlineReplayInProgress,
+        stateSizeBytes: this.getStateSizeBytes(),
+      },
+      events: {
+        registeredEventNames: this.getRegisteredEventNames(),
+        messagesSent: this.customEventMessagesSent,
+        messagesReceived: this.customEventMessagesReceived,
+        broadcastsSent: this.customEventBroadcastsSent,
+        directSends: this.customEventDirectSends,
+        latestConnectDurationMs: this.latestConnectDurationMs,
+      },
+      encryption: {
+        enabled: this.encryptionEnabled,
+        incompatiblePeerIds: Array.from(this.incompatibleEncryptionPeers).sort(),
+        decryptionErrorPeerIds: Array.from(this.decryptionErrorPeers).sort(),
+      },
+    };
   }
 
   public usePresence(): PresenceEngine<TPresence> {
@@ -589,6 +1026,7 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
           ? this.createCrdtStateEngine(options)
           : this.createLwwStateEngine(options);
       this.stateEngineInstance = stateEngine;
+      this.ensureDevtoolsStateTracking(stateEngine, strategy);
       return stateEngine;
     }
 
@@ -598,7 +1036,9 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
       this.enableStatePersistence();
     }
 
-    return readTypedStateEngine<T>(this.stateEngineInstance);
+    const stateEngine = readTypedStateEngine<T>(this.stateEngineInstance);
+    this.ensureDevtoolsStateTracking(stateEngine, strategy);
+    return stateEngine;
   }
 
   public getYDoc(): FlockYjsProvider['doc'] {
@@ -658,6 +1098,28 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
             payload,
             loopback,
           };
+          const queued = this.shouldQueueOfflineWork();
+
+          this.recordDevtoolsEvent('outgoing', name, payload, this.selfPeer, toPeerId);
+          this.customEventMessagesSent += 1;
+          if (toPeerId) {
+            this.customEventDirectSends += 1;
+          } else {
+            this.customEventBroadcastsSent += 1;
+          }
+          this.logger.info('events', 'events', 'Outbound event emitted', {
+            eventName: name,
+            loopback,
+            queued,
+            targetPeerId: toPeerId ?? null,
+          });
+          this.logger.info('performance', 'performance', 'Custom event counters updated', {
+            broadcastsSent: this.customEventBroadcastsSent,
+            directSends: this.customEventDirectSends,
+            messagesReceived: this.customEventMessagesReceived,
+            messagesSent: this.customEventMessagesSent,
+            queuedEventCount: this.offlineQueue.length,
+          });
 
           const eventSignal: Omit<
             Extract<RoomTransportSignal, { type: 'event' }>,
@@ -675,7 +1137,7 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
 
           const outboundSignal = this.createOutboundSignal(eventSignal);
           if (outboundSignal) {
-            if (this.shouldQueueOfflineWork()) {
+            if (queued) {
               this.queueOfflineEventSignal(outboundSignal);
             } else {
               this.dispatchRoomSignal(outboundSignal);
@@ -689,24 +1151,73 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
         onEvent: (name, callback) => {
           const handlers =
             this.customEventHandlers.get(name) ?? new Set<InternalEventCallback<TPresence>>();
-          handlers.add(callback);
+          handlers.add(callback as InternalEventCallback<TPresence>);
           this.customEventHandlers.set(name, handlers);
 
           return () => {
-            this.removeCustomEventHandler(name, callback);
+            this.removeCustomEventHandler(name, callback as InternalEventCallback<TPresence>);
           };
         },
         offEvent: (name, callback) => {
-          this.removeCustomEventHandler(name, callback);
+          this.removeCustomEventHandler(name, callback as InternalEventCallback<TPresence>);
         },
       },
       options,
     );
   }
 
+  private createInstrumentedStateEngine<T>(
+    engine: StateEngine<T>,
+    strategy: 'lww' | 'crdt',
+  ): StateEngine<T> {
+    const logMutation = (reason: StateChangeMeta['reason']): void => {
+      const stateSizeBytes = this.getStateSizeBytes();
+
+      this.logger.info('state', 'state', 'Local state mutation applied', {
+        queuedMutationCount: this.getQueuedStateMutationCount(),
+        reason,
+        strategy,
+      });
+
+      if (stateSizeBytes !== null) {
+        this.logger.info('performance', 'performance', 'State snapshot size recorded', {
+          queuedMutationCount: this.getQueuedStateMutationCount(),
+          reason,
+          stateSizeBytes,
+          strategy,
+        });
+      }
+    };
+
+    return {
+      get() {
+        return engine.get();
+      },
+      set: (value) => {
+        engine.set(value);
+        logMutation('set');
+      },
+      patch: (partial) => {
+        engine.patch(partial);
+        logMutation('patch');
+      },
+      subscribe(cb) {
+        return engine.subscribe(cb);
+      },
+      undo: () => {
+        engine.undo();
+        logMutation('undo');
+      },
+      reset: () => {
+        engine.reset();
+        logMutation('reset');
+      },
+    };
+  }
+
   private createLwwStateEngine<T>(options: StateOptions<T>): StateEngine<T> {
     this.configureLwwState(options);
-    return createStateEngine<T>(options, {
+    const baseStateEngine = createStateEngine<T>(options, {
       actorId: this.peerId,
       getInitialValue: () => {
         return readTypedStateStoredValue<T>(this.stateInitialValue);
@@ -757,17 +1268,31 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
         this.sendStateSnapshot(snapshot);
       },
     });
+
+    this.logger.info('state', 'state', 'State engine configured', {
+      persistenceEnabled: this.statePersistenceEnabled,
+      strategy: 'lww',
+    });
+
+    return this.createInstrumentedStateEngine(baseStateEngine, 'lww');
   }
 
   private createCrdtStateEngine<T>(options: StateOptions<T>): StateEngine<T> {
     this.configureCrdtState(options);
-    return createCrdtStateEngineRuntime<T>(options, {
+    const baseStateEngine = createCrdtStateEngineRuntime<T>(options, {
       actorId: this.peerId,
       doc: this.getOrCreateYjsController().doc,
       getInitialValue: () => {
         return readTypedStateStoredValue<T>(this.stateInitialValue);
       },
     });
+
+    this.logger.info('state', 'state', 'State engine configured', {
+      persistenceEnabled: this.statePersistenceEnabled,
+      strategy: 'crdt',
+    });
+
+    return this.createInstrumentedStateEngine(baseStateEngine, 'crdt');
   }
 
   private resolveRequestedStateStrategy(
@@ -1001,10 +1526,9 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     });
   }
 
-  private createBootstrapPayload(kind: TransportKind): Extract<
-    RoomTransportSignal,
-    { type: 'hello' | 'welcome' }
-  >['payload'] {
+  private createBootstrapPayload(
+    kind: TransportKind,
+  ): Extract<RoomTransportSignal, { type: 'hello' | 'welcome' }>['payload'] {
     return {
       peer: this.getBootstrapPeer(),
       protocol: getTransportProtocolCapabilities(kind),
@@ -1087,13 +1611,18 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     reason: string,
     cause?: unknown,
   ): FlockError {
-    return createFlockError('DECRYPTION_ERROR', `Failed to decrypt message from ${signal.fromPeerId}.`, true, {
-      source: 'room-encryption',
-      kind: reason,
-      roomId: signal.roomId,
-      fromPeerId: signal.fromPeerId,
-      ...(cause !== undefined ? { cause } : {}),
-    });
+    return createFlockError(
+      'DECRYPTION_ERROR',
+      `Failed to decrypt message from ${signal.fromPeerId}.`,
+      true,
+      {
+        source: 'room-encryption',
+        kind: reason,
+        roomId: signal.roomId,
+        fromPeerId: signal.fromPeerId,
+        ...(cause !== undefined ? { cause } : {}),
+      },
+    );
   }
 
   private async dispatchOutboundSignal(signal: RoomTransportSignal): Promise<void> {
@@ -1154,12 +1683,20 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
       );
       const decoded = decodeMessagePack(plaintext);
       if (!decoded.ok) {
-        throw this.createMalformedEncryptedSignalError(signal, 'invalid-inner-payload', decoded.error);
+        throw this.createMalformedEncryptedSignalError(
+          signal,
+          'invalid-inner-payload',
+          decoded.error,
+        );
       }
 
       const innerSignal = parseTransportSignal(decoded.value);
       if (!innerSignal || innerSignal.type === 'encrypted') {
-        throw this.createMalformedEncryptedSignalError(signal, 'invalid-inner-signal', decoded.value);
+        throw this.createMalformedEncryptedSignalError(
+          signal,
+          'invalid-inner-signal',
+          decoded.value,
+        );
       }
 
       if (!hasMatchingEncryptedSignalHeaders(signal, innerSignal)) {
@@ -1185,7 +1722,13 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
       this.roomEventEmitter.emit('reconnecting', { attempt: this.reconnectAttempt });
     }
 
+    this.connectStartedAt = Date.now();
     this.setStatus('connecting');
+    this.logger.info('transport', 'transport', 'Transport connect attempt started', {
+      isReconnectAttempt: context.isReconnectAttempt,
+      requestedTransport: this.options.transport ?? 'auto',
+      reconnectAttempt: this.reconnectAttempt,
+    });
 
     try {
       await this.ensureEncryptionContext();
@@ -1329,6 +1872,10 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     }
 
     this.peerRegistry.upsertRemote(coerceTypedPeer<TPresence>(signal.payload.peer));
+    this.logger.info('presence', 'presence', 'Peer hello received', {
+      peerId: signal.fromPeerId,
+      transport: this.activeTransportKind,
+    });
     this.sendSignal({
       type: 'welcome',
       toPeerId: signal.fromPeerId,
@@ -1356,6 +1903,14 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     }
 
     this.peerRegistry.upsertRemote(coerceTypedPeer<TPresence>(signal.payload.peer));
+    this.logger.info(
+      'presence',
+      'presence',
+      signal.type === 'welcome' ? 'Peer welcome received' : 'Remote presence updated',
+      {
+        peerId: signal.fromPeerId,
+      },
+    );
 
     if (signal.type === 'welcome') {
       void this.sendSelfPresence(signal.fromPeerId);
@@ -1367,6 +1922,9 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
   private handleLeaveSignal(signal: Extract<RoomTransportSignal, { type: 'leave' }>): void {
     this.incompatibleEncryptionPeers.delete(signal.fromPeerId);
     this.decryptionErrorPeers.delete(signal.fromPeerId);
+    this.logger.info('presence', 'presence', 'Remote peer leave received', {
+      peerId: signal.fromPeerId,
+    });
     const peer = signal.payload.peer;
     this.yjsController?.handlePeerLeft(signal.fromPeerId);
 
@@ -1395,6 +1953,27 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
       } else {
         this.setStateSnapshot(incomingSnapshot);
       }
+
+      this.logger.info('state', 'state', 'Remote state snapshot accepted', {
+        fromPeerId: signal.fromPeerId,
+        queuedMutationCount: this.getQueuedStateMutationCount(),
+        snapshotTimestamp: incomingSnapshot.timestamp,
+      });
+
+      const stateSizeBytes = computeSerializedStateSizeBytes(incomingSnapshot.value);
+      if (stateSizeBytes !== null) {
+        this.logger.info('performance', 'performance', 'State snapshot size recorded', {
+          fromPeerId: signal.fromPeerId,
+          source: 'remote',
+          stateSizeBytes,
+        });
+      }
+    } else {
+      this.logger.warn('state', 'state', 'Remote state snapshot ignored', {
+        currentTimestamp: comparisonSnapshot.timestamp,
+        fromPeerId: signal.fromPeerId,
+        snapshotTimestamp: incomingSnapshot.timestamp,
+      });
     }
 
     this.scheduleOfflineQueueReplay();
@@ -1432,6 +2011,25 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
       return;
     }
 
+    this.customEventMessagesReceived += 1;
+    this.recordDevtoolsEvent(
+      'incoming',
+      signal.payload.name,
+      signal.payload.payload,
+      fromPeer,
+      signal.toPeerId,
+    );
+    this.logger.info('events', 'events', 'Inbound event delivered', {
+      eventName: signal.payload.name,
+      fromPeerId: fromPeer.id,
+      targetPeerId: signal.toPeerId ?? null,
+    });
+    this.logger.info('performance', 'performance', 'Custom event counters updated', {
+      broadcastsSent: this.customEventBroadcastsSent,
+      directSends: this.customEventDirectSends,
+      messagesReceived: this.customEventMessagesReceived,
+      messagesSent: this.customEventMessagesSent,
+    });
     this.emitCustomEvent(signal.payload.name, signal.payload.payload, fromPeer);
   }
 
@@ -1454,6 +2052,11 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
 
     const reason = payload.reason ?? 'transport-disconnected';
     this.lastDisconnectReason = reason;
+    this.connectStartedAt = null;
+    this.logger.info('transport', 'transport', 'Transport disconnected', {
+      reason,
+      transport: this.activeTransportKind,
+    });
 
     if (!this.offlineWindowActive) {
       this.offlineWindowActive = true;
@@ -1465,6 +2068,7 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
 
     const transport = this.transport;
     this.transport = null;
+    this.activeTransportKind = null;
 
     if (transport) {
       await transport.disconnect().catch(() => {
@@ -1485,9 +2089,18 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
   }
 
   private setOfflineQueue(nextQueue: OfflineQueueEntry[], notifyStateSubscribers = true): void {
+    const previousQueueDepth = this.offlineQueue.length;
     const previousQueuedMutations = this.getQueuedStateMutationCount();
     this.offlineQueue = nextQueue;
+    const nextQueueDepth = this.offlineQueue.length;
     const nextQueuedMutations = this.getQueuedStateMutationCount();
+
+    if (previousQueueDepth !== nextQueueDepth) {
+      this.logger.info('performance', 'performance', 'Offline queue depth updated', {
+        queueDepth: nextQueueDepth,
+        queuedMutationCount: nextQueuedMutations,
+      });
+    }
 
     if (
       notifyStateSubscribers &&
@@ -1560,6 +2173,11 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     }
 
     this.offlineReplayInProgress = true;
+    let replayedEntries = 0;
+    this.logger.info('state', 'state:offline-queue', 'Offline queue replay started', {
+      queueDepth: this.offlineQueue.length,
+      queuedMutationCount: this.getQueuedStateMutationCount(),
+    });
 
     try {
       while (this.transport && this.offlineQueue.length > 0) {
@@ -1571,6 +2189,7 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
         if (entry.type === 'event') {
           this.setOfflineQueue(remaining);
           this.dispatchRoomSignal(entry.signal);
+          replayedEntries += 1;
           continue;
         }
 
@@ -1595,9 +2214,20 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
         this.setSyncedStateSnapshot(nextSnapshot);
         this.reconcileQueuedStateSnapshot();
         this.sendStateSnapshot(nextSnapshot);
+        replayedEntries += 1;
       }
     } finally {
       this.offlineReplayInProgress = false;
+      this.logger.info('state', 'state:offline-queue', 'Offline queue replay finished', {
+        queueDepth: this.offlineQueue.length,
+        queuedMutationCount: this.getQueuedStateMutationCount(),
+        replayedEntries,
+      });
+      this.logger.info('performance', 'performance', 'Offline queue replay metrics recorded', {
+        queueDepth: this.offlineQueue.length,
+        queuedMutationCount: this.getQueuedStateMutationCount(),
+        replayedEntries,
+      });
 
       if (this.offlineReplayRequested) {
         this.offlineReplayRequested = false;
@@ -1609,7 +2239,9 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     }
   }
 
-  private createOutboundSignal<TSignal extends Omit<RoomTransportSignal, 'roomId' | 'fromPeerId' | 'timestamp'>>(
+  private createOutboundSignal<
+    TSignal extends Omit<RoomTransportSignal, 'roomId' | 'fromPeerId' | 'timestamp'>,
+  >(
     signal: TSignal,
     timestamp = Date.now(),
   ): Extract<RoomTransportSignal, { type: TSignal['type'] }> | null {
@@ -1665,6 +2297,9 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
 
   private updateSelfPresence(data: Partial<TPresence>): void {
     const sanitized = sanitizePresencePatch(data);
+    this.logger.info('presence', 'presence', 'Local presence updated', {
+      keys: Object.keys(sanitized).sort(),
+    });
     this.applySelfPresence({
       ...this.selfPeer,
       ...sanitized,
@@ -1674,6 +2309,9 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
 
   private replaceSelfPresence(data: Partial<TPresence>): void {
     const sanitized = sanitizePresencePatch(data);
+    this.logger.info('presence', 'presence', 'Local presence replaced', {
+      keys: Object.keys(sanitized).sort(),
+    });
     this.applySelfPresence({
       id: this.selfPeer.id,
       joinedAt: this.selfPeer.joinedAt,
@@ -1689,9 +2327,13 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
   }
 
   private refreshSelfPresenceLastSeen(): void {
+    const lastSeen = Date.now();
+    this.logger.info('presence', 'presence:heartbeat', 'Presence heartbeat tick', {
+      lastSeen,
+    });
     this.applySelfPresence({
       ...this.selfPeer,
-      lastSeen: Date.now(),
+      lastSeen,
     });
   }
 
@@ -1826,10 +2468,9 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     }
 
     if (result.error) {
-      logStatePersistence(this.options.debug, {
-        operation: 'read',
-        roomId: this.id,
+      this.logger.warn('state', 'state:persistence', 'State persistence read failed', {
         key: result.key,
+        operation: 'read',
         reason: result.reason ?? 'unknown',
         error: result.error,
       });
@@ -1848,10 +2489,9 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
       return;
     }
 
-    logStatePersistence(this.options.debug, {
-      operation: 'write',
-      roomId: this.id,
+    this.logger.warn('state', 'state:persistence', 'State persistence write failed', {
       key: result.key,
+      operation: 'write',
       reason: result.reason ?? 'unknown',
       error: result.error,
     });
@@ -1866,6 +2506,9 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
       this.websocketFallbackTransportPreference === 'polling' &&
       isWebSocketPollingFallbackEnabled(this.options)
     ) {
+      this.logger.warn('transport', 'transport:websocket', 'Polling fallback reused', {
+        reason: 'sticky-polling-preference',
+      });
       return this.openPollingTransportAttempt();
     }
 
@@ -1874,6 +2517,9 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
       transport = selectTransportAdapter(this.id, this.peerId, this.options);
     } catch (error) {
       if (this.shouldFallbackToPolling(error)) {
+        this.logger.warn('transport', 'transport:websocket', 'Polling fallback selected', {
+          reason: 'selection-failed',
+        });
         return this.openPollingTransportAttempt();
       }
 
@@ -1884,6 +2530,9 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
       return await this.connectTransportAttempt(transport);
     } catch (error) {
       if (transport.kind === 'websocket' && this.shouldFallbackToPolling(error)) {
+        this.logger.warn('transport', 'transport:websocket', 'Polling fallback selected', {
+          reason: 'websocket-connect-failed',
+        });
         return this.openPollingTransportAttempt();
       }
 
@@ -1892,7 +2541,9 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
   }
 
   private activateConnectedTransport(transport: TransportAdapter): void {
+    const connectedAt = Date.now();
     this.transport = transport;
+    this.activeTransportKind = transport.kind;
     this.transportUnsubscribe = this.pendingTransportUnsubscribe;
     this.pendingTransportUnsubscribe = null;
     this.websocketFallbackTransportPreference = transport.kind === 'polling' ? 'polling' : null;
@@ -1901,6 +2552,9 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     this.hasConnectedBefore = true;
     this.reconnectAttempt = 0;
     this.lastDisconnectReason = null;
+    this.latestConnectDurationMs =
+      this.connectStartedAt === null ? null : connectedAt - this.connectStartedAt;
+    this.connectStartedAt = null;
     this.setStatus('connected');
     this.yjsController?.syncSelfPeer();
     this.yjsController?.handleRoomConnected();
@@ -1915,6 +2569,16 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     this.replayLocalEphemeralState();
     this.scheduleOfflineQueueReplay();
     this.completeOfflineWindowIfReady();
+
+    this.logger.info('transport', 'transport', 'Transport connected', {
+      transport: transport.kind,
+    });
+    if (this.latestConnectDurationMs !== null) {
+      this.logger.info('performance', 'performance', 'Connect duration recorded', {
+        connectDurationMs: this.latestConnectDurationMs,
+        transport: transport.kind,
+      });
+    }
   }
 
   private async connectTransportAttempt(transport: TransportAdapter): Promise<TransportAdapter> {
@@ -1951,6 +2615,7 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
 
   private failInitialConnect(error: unknown): never {
     const flockError = toTransportError(error);
+    this.connectStartedAt = null;
     this.unregisterUnloadHandlers();
     this.stopPresenceHeartbeat();
     this.clearRemoteState();
@@ -1959,6 +2624,7 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     this.transportUnsubscribe?.();
     this.transportUnsubscribe = null;
     this.transport = null;
+    this.activeTransportKind = null;
     this.setStatus('error');
     if (flockError.code === 'ROOM_FULL') {
       this.roomEventEmitter.emit('room:full', undefined);
@@ -1979,6 +2645,9 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     }
 
     this.setStatus('reconnecting');
+    this.logger.info('transport', 'transport', 'Reconnect loop started', {
+      reason,
+    });
     const task = this.runReconnectLoop(reason);
     this.reconnectPromise = task;
 
@@ -2020,6 +2689,11 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
 
       try {
         const delayMs = computeReconnectDelay(attempt, reconnectOptions, Math.random);
+        this.logger.info('performance', 'performance', 'Reconnect attempt scheduled', {
+          attempt,
+          delayMs,
+          reason,
+        });
         await delayWithAbort(delayMs, controller.signal);
       } catch (error) {
         if (isAbortError(error)) {
@@ -2036,6 +2710,7 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
       }
 
       try {
+        this.connectStartedAt = Date.now();
         const transport = await this.openTransportAttempt();
 
         if (this.wasReconnectAborted(controller)) {
@@ -2055,6 +2730,12 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     this.clearReconnectController(controller);
     this.reconnectAttempt = 0;
     this.setStatus('disconnected');
+    this.connectStartedAt = null;
+    this.logger.error('transport', 'transport', 'Reconnect exhausted', {
+      attempts: reconnectOptions.maxAttempts,
+      lastDisconnectReason: this.lastDisconnectReason,
+      lastError,
+    });
     this.emitRoomError(
       createReconnectExhaustedError(
         reconnectOptions.maxAttempts,
@@ -2103,9 +2784,7 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
       });
     }
 
-    const selfAwareness = this.yjsController
-      ? null
-      : this.awarenessByPeer.get(this.peerId);
+    const selfAwareness = this.yjsController ? null : this.awarenessByPeer.get(this.peerId);
     if (selfAwareness && this.hasReplayableAwareness(selfAwareness)) {
       this.sendSignal({
         type: 'awareness:update',
@@ -2148,7 +2827,13 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
   }
 
   private emitRoomError(error: FlockError): void {
-    logRoomError(this.options.debug, error);
+    this.recordDevtoolsError(`${error.code}: ${error.message}`);
+    this.logger.error('transport', 'transport', 'Room error emitted', {
+      cause: error.cause,
+      code: error.code,
+      errorMessage: error.message,
+      recoverable: error.recoverable,
+    });
     this.roomEventEmitter.emit('error', error);
   }
 
@@ -2288,6 +2973,14 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
   }
 }
 
+/**
+ * Creates a realtime room instance.
+ *
+ * @typeParam TPresence - The custom peer presence shape inferred from `options.presence`.
+ * @param roomId - The room identifier to join or create.
+ * @param options - Optional room configuration.
+ * @returns The created room instance.
+ */
 export function createRoom<TPresence extends PresenceData = PresenceData>(
   roomId: string,
   options: RoomOptions<TPresence> = {},

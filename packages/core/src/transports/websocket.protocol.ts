@@ -10,8 +10,14 @@ import {
   type PeerProtocolCapabilities,
   type PeerProtocolSession,
 } from '../protocol/peer-message';
+import type { DebugOptions } from '../types';
 import type { RoomTransportSignal } from './transport';
 import { parseTransportEnvelope, serializeTransportEnvelopeObject } from './transport.protocol';
+
+interface RelayTransportParseOptions {
+  roomId?: string | undefined;
+  debug?: boolean | DebugOptions | undefined;
+}
 
 function parseJson(payload: string): unknown | null {
   try {
@@ -170,6 +176,7 @@ export function serializeWebSocketRelayMessage(
 
 export function parseWebSocketRelayServerMessage(
   payload: unknown,
+  options: RelayTransportParseOptions = {},
 ): WebSocketRelayServerMessage | null {
   const parsed = parseRelayPayload(payload);
   if (!parsed) {
@@ -250,6 +257,12 @@ export function parseWebSocketRelayServerMessage(
 
   if (type === 'transport') {
     const signal = parseTransportEnvelope(parsed.message, {
+      roomId:
+        options.roomId ??
+        (isObject(parsed.message)
+          ? (readString(parsed.message, 'roomId') ?? 'unknown')
+          : 'unknown'),
+      debug: options.debug,
       transport: 'websocket',
       allowBinary: true,
     });
@@ -284,6 +297,7 @@ export function parseWebSocketRelayServerMessage(
 
 export function parseWebSocketRelayClientMessage(
   payload: unknown,
+  options: RelayTransportParseOptions = {},
 ): WebSocketRelayClientMessage | null {
   const parsed = parseRelayPayload(payload);
   if (!parsed) {
@@ -345,6 +359,12 @@ export function parseWebSocketRelayClientMessage(
 
   if (type === 'transport') {
     const signal = parseTransportEnvelope(parsed.message, {
+      roomId:
+        options.roomId ??
+        (isObject(parsed.message)
+          ? (readString(parsed.message, 'roomId') ?? 'unknown')
+          : 'unknown'),
+      debug: options.debug,
       transport: 'websocket',
       allowBinary: true,
     });

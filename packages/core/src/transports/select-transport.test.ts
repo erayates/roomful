@@ -184,7 +184,7 @@ describe('selectTransportAdapter', () => {
   });
 
   it('logs transport selection in debug mode with the expected reason', () => {
-    const debugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {
+    const infoSpy = vi.spyOn(console, 'info').mockImplementation(() => {
       return undefined;
     });
 
@@ -201,11 +201,16 @@ describe('selectTransportAdapter', () => {
       },
     });
 
-    expect(debugSpy).toHaveBeenCalledTimes(1);
-    expect(debugSpy).toHaveBeenCalledWith('[flockjs][transport] selection', {
+    expect(infoSpy).toHaveBeenCalledTimes(1);
+    expect(infoSpy).toHaveBeenCalledWith('[FlockJS] transport: Transport selected', {
+      category: 'transport',
+      component: 'transport',
+      message: 'Transport selected',
       requestedMode: 'auto',
+      roomId: 'room-select',
       selectedTransport: 'broadcast',
       reason: 'BroadcastChannel available',
+      timestamp: expect.any(Number),
     });
   });
 });

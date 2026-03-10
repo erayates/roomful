@@ -180,7 +180,7 @@ describe('createRoom', () => {
 
   it('logs structured room errors in debug transport mode', async () => {
     vi.resetModules();
-    const debugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {
       return undefined;
     });
 
@@ -216,14 +216,19 @@ describe('createRoom', () => {
         code: 'ROOM_FULL',
       });
 
-      expect(debugSpy).toHaveBeenCalledWith('[flockjs][room] error', {
+      expect(errorSpy).toHaveBeenCalledWith('[FlockJS] transport: Room error emitted', {
+        category: 'transport',
+        component: 'transport',
+        message: 'Room error emitted',
         code: 'ROOM_FULL',
-        message: 'Room is full.',
+        errorMessage: 'Room is full.',
         recoverable: true,
         cause: {
           source: 'websocket-relay',
           serverCode: 'ROOM_FULL',
         },
+        roomId: 'room-full-debug',
+        timestamp: expect.any(Number),
       });
     } finally {
       vi.doUnmock('./transports/select-transport');

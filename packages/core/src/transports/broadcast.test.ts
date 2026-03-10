@@ -250,6 +250,36 @@ describe('BroadcastTransportAdapter', () => {
     await adapter.disconnect();
   });
 
+  it('logs malformed protocol frames through the structured logger', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {
+      return undefined;
+    });
+    const adapter = createBroadcastTransportAdapter('room-invalid-log', {
+      transport: true,
+    });
+
+    await adapter.connect();
+
+    MockBroadcastChannel.emitRaw('flockjs:room-invalid-log', '{"source":"flockjs",');
+    await Promise.resolve();
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      '[FlockJS] transport:protocol: Malformed protocol frame rejected',
+      expect.objectContaining({
+        category: 'transport',
+        component: 'transport:protocol',
+        message: 'Malformed protocol frame rejected',
+        payload: '{"source":"flockjs",',
+        reason: 'Malformed peer transport message.',
+        roomId: 'room-invalid-log',
+        timestamp: expect.any(Number),
+        transport: 'broadcast',
+      }),
+    );
+
+    await adapter.disconnect();
+  });
+
   it('supports idempotent connect and disconnect', async () => {
     const adapter = createBroadcastTransportAdapter('room-idempotent');
 
