@@ -65,6 +65,9 @@ jobs:
       - name: Build
         run: pnpm build
 
+      - name: Build cursors Storybook
+        run: pnpm --filter @flockjs/cursors build-storybook
+
   browser-integration:
     name: Browser Integration (Node 20)
     runs-on: ubuntu-latest

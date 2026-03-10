@@ -15,10 +15,12 @@
   "sideEffects": false,
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "lint": "eslint src --max-warnings 0",
+    "build-storybook": "storybook build -c .storybook --output-dir storybook-static",
+    "lint": "eslint src stories .storybook --max-warnings 0",
+    "storybook": "storybook dev -p 6006 -c .storybook",
     "test": "vitest run --config ../../vitest.package.config.ts",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
-    "clean": "rimraf dist coverage",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.storybook.json --noEmit",
+    "clean": "rimraf dist coverage storybook-static",
     "test:watch": "vitest --config ../../vitest.package.config.ts"
   },
   "dependencies": {
@@ -26,12 +28,16 @@
     "@flockjs/react": "workspace:*"
   },
   "devDependencies": {
+    "@storybook/addon-docs": "^10.2.17",
+    "@storybook/react-vite": "^10.2.17",
     "@testing-library/react": "^16.3.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "jsdom": "^26.0.0",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "storybook": "^10.2.17",
+    "vite": "^7.3.1"
   },
   "peerDependencies": {
     "react": ">=18.0.0",

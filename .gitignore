@@ -4,6 +4,7 @@ node_modules/
 
 **/dist/
 **/coverage/
+packages/cursors/storybook-static/
 benchmarks/results/*
 !benchmarks/results/README.md
 

@@ -2,6 +2,8 @@
 
 Audience: users.
 
+Storybook: <https://erayates.github.io/flockjs/>
+
 ## Component Catalog
 
 | Component            | Purpose                            |
@@ -226,6 +228,7 @@ Provide `x` and `y` as normalized values (`0` to `1`) so you can anchor reaction
 
 ## Related Docs
 
+- [Package README](../../packages/cursors/README.md)
 - [Reference index](README.md)
 - [Cursor engine](engines-cursors.md)
 - [React adapter](adapters-react.md)

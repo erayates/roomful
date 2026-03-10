@@ -29,6 +29,9 @@ export default [
       parserOptions: {
         projectService: {
           allowDefaultProject: [
+            'packages/*/.storybook/*.ts',
+            'packages/*/stories/*.ts',
+            'packages/*/stories/*/*.ts',
             'packages/*/src/*.test.ts',
             'packages/*/src/*/*.test.ts',
             'packages/*/src/*/*/*.test.ts',
