@@ -46,6 +46,7 @@
     "build": "tsc -p tsconfig.json",
     "lint": "eslint src --max-warnings 0",
     "test": "vitest run --config ../../vitest.package.config.ts --fileParallelism=false",
+    "test:types": "tsd --files test-d/**/*.test-d.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "start": "node dist/cli.js",
     "benchmark:redis": "vitest bench --config ../../vitest.package.config.ts src/relay-redis-latency.bench.ts",
@@ -64,5 +65,13 @@
   },
   "publishConfig": {
     "access": "public"
+  },
+  "tsd": {
+    "compilerOptions": {
+      "module": "nodenext",
+      "types": [
+        "node"
+      ]
+    }
   }
 }

@@ -1,11 +1,21 @@
 import type { PresenceData } from '@flockjs/core';
 import { createElement, type CSSProperties, type ReactElement } from 'react';
 
-import type { CollaborationBadgePosition, CollaborationBadgeProps } from './collaboration-badge.types';
+import type {
+  CollaborationBadgePosition,
+  CollaborationBadgeProps,
+} from './collaboration-badge.types';
 import { DEFAULT_FONT_FAMILY, resolvePeerColor, resolvePeerDisplayName } from './presence-utils';
 
 const DEFAULT_BADGE_OFFSET = '0px';
 
+/**
+ * Renders a compact badge indicating which peer is actively editing.
+ *
+ * @typeParam TPresence - The peer presence shape.
+ * @param props - The peer and optional position override.
+ * @returns The rendered collaboration badge.
+ */
 export function CollaborationBadge<TPresence extends PresenceData = PresenceData>(
   props: CollaborationBadgeProps<TPresence>,
 ): ReactElement {
@@ -93,12 +103,8 @@ function resolvePosition(position: CollaborationBadgePosition | undefined): CSSP
   return {
     ...(bottom !== undefined ? { bottom } : {}),
     ...(left !== undefined ? { left } : {}),
-    ...(right !== undefined || left === undefined
-      ? { right: right ?? DEFAULT_BADGE_OFFSET }
-      : {}),
-    ...(top !== undefined || bottom === undefined
-      ? { top: top ?? DEFAULT_BADGE_OFFSET }
-      : {}),
+    ...(right !== undefined || left === undefined ? { right: right ?? DEFAULT_BADGE_OFFSET } : {}),
+    ...(top !== undefined || bottom === undefined ? { top: top ?? DEFAULT_BADGE_OFFSET } : {}),
   };
 }
 

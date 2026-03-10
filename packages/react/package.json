@@ -4,10 +4,10 @@
   "private": false,
   "type": "module",
   "main": "dist/index.js",
-  "types": "src/index.ts",
+  "types": "dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./src/index.ts",
+      "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
     }
@@ -17,6 +17,7 @@
     "build": "tsc -p tsconfig.json",
     "lint": "eslint src --max-warnings 0",
     "test": "vitest run --config ../../vitest.package.config.ts",
+    "test:types": "tsd --files test-d/**/*.test-d.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "clean": "rimraf dist coverage",
     "test:watch": "vitest --config ../../vitest.package.config.ts"

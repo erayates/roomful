@@ -19,7 +19,14 @@ import type {
 import { createRoom, FlockError } from '@flockjs/core';
 import { onDestroy, onMount } from 'svelte';
 import type { Action } from 'svelte/action';
-import type { Invalidator, Readable, Subscriber, Unsubscriber, Updater, Writable } from 'svelte/store';
+import type {
+  Invalidator,
+  Readable,
+  Subscriber,
+  Unsubscriber,
+  Updater,
+  Writable,
+} from 'svelte/store';
 
 const LOCKED_PRESENCE_KEYS = new Set(['id', 'joinedAt', 'lastSeen']);
 
@@ -90,64 +97,270 @@ interface EventChannelRecord<TPresence extends PresenceData> {
   store: ValueStore<EventChannelValue<unknown, TPresence> | null>;
 }
 
+/**
+ * Describes the value stored by the presence store.
+ *
+ * @typeParam TPresence - The room presence shape.
+ */
 export interface PresenceStoreValue<TPresence extends PresenceData = PresenceData> {
+  /**
+   * Exposes local and remote peers.
+   */
   all: Peer<TPresence>[];
+
+  /**
+   * Exposes remote peers only.
+   */
   others: Peer<TPresence>[];
+
+  /**
+   * Exposes the local peer snapshot.
+   */
   self: Peer<TPresence>;
 }
 
+/**
+ * Describes the value stored by the awareness store.
+ */
 export interface AwarenessStoreValue {
+  /**
+   * Exposes remote awareness state only.
+   */
   others: AwarenessState[];
 }
 
+/**
+ * Describes a custom event payload delivered through an event channel store.
+ *
+ * @typeParam TPayload - The event payload type.
+ * @typeParam TPresence - The room presence shape.
+ */
 export interface EventChannelValue<
   TPayload = unknown,
   TPresence extends PresenceData = PresenceData,
 > {
+  /**
+   * Exposes the sending peer.
+   */
   from: Peer<TPresence>;
+
+  /**
+   * Exposes the event payload.
+   */
   payload: TPayload;
 }
 
-export interface PresenceStore<TPresence extends PresenceData = PresenceData>
-  extends Readable<PresenceStoreValue<TPresence>> {
+/**
+ * Readable presence store augmented with write helpers.
+ *
+ * @typeParam TPresence - The room presence shape.
+ */
+export interface PresenceStore<TPresence extends PresenceData = PresenceData> extends Readable<
+  PresenceStoreValue<TPresence>
+> {
+  /**
+   * Replaces the local presence payload.
+   *
+   * @param value - The presence payload to publish.
+   * @returns Nothing.
+   */
   replace(value: Partial<TPresence>): void;
+
+  /**
+   * Partially updates the local presence payload.
+   *
+   * @param value - The partial presence payload to merge.
+   * @returns Nothing.
+   */
   set(value: Partial<TPresence>): void;
+
+  /**
+   * Updates the local presence payload from the previous value.
+   *
+   * @param updater - The updater that returns the next partial presence payload.
+   * @returns Nothing.
+   */
   update(updater: Updater<Partial<TPresence>>): void;
 }
 
-export interface CursorStore<TCursor extends CursorData = CursorData>
-  extends Readable<CursorPosition<TCursor>[]> {
+/**
+ * Readable cursor store augmented with DOM helpers.
+ *
+ * @typeParam TCursor - The custom cursor payload shape.
+ */
+export interface CursorStore<TCursor extends CursorData = CursorData> extends Readable<
+  CursorPosition<TCursor>[]
+> {
+  /**
+   * Svelte action that mounts cursor tracking on an element.
+   */
   mount: Action<HTMLElement, undefined>;
+
+  /**
+   * Renders remote cursors into the DOM.
+   *
+   * @param options - Optional cursor rendering overrides.
+   * @returns Nothing.
+   */
   render(options?: CursorRenderOptions): void;
+
+  /**
+   * Partially updates the local cursor payload.
+   *
+   * @param value - The partial cursor payload to publish.
+   * @returns Nothing.
+   */
   set(value: Partial<CursorPosition<TCursor>>): void;
+
+  /**
+   * Unmounts cursor tracking and rendering.
+   *
+   * @returns Nothing.
+   */
   unmount(): void;
+
+  /**
+   * Updates the local cursor payload from the previous value.
+   *
+   * @param updater - The updater that returns the next partial cursor payload.
+   * @returns Nothing.
+   */
   update(updater: Updater<Partial<CursorPosition<TCursor>>>): void;
 }
 
+/**
+ * Readable awareness store augmented with write helpers.
+ */
 export interface AwarenessStore extends Readable<AwarenessStoreValue> {
+  /**
+   * Merges arbitrary awareness metadata into the local peer.
+   *
+   * @param value - The awareness fields to merge.
+   * @returns Nothing.
+   */
   set(value: Record<string, unknown>): void;
+
+  /**
+   * Updates the local focus target.
+   *
+   * @param elementId - The focused element identifier, or `null` to clear it.
+   * @returns Nothing.
+   */
   setFocus(elementId: string | null): void;
+
+  /**
+   * Updates the local selection.
+   *
+   * @param selection - The active selection, or `null` to clear it.
+   * @returns Nothing.
+   */
   setSelection(selection: AwarenessSelection | null): void;
+
+  /**
+   * Updates the local typing state.
+   *
+   * @param isTyping - Whether the local peer is currently typing.
+   * @returns Nothing.
+   */
   setTyping(isTyping: boolean): void;
+
+  /**
+   * Updates awareness fields from the previous value.
+   *
+   * @param updater - The updater that returns the next awareness patch.
+   * @returns Nothing.
+   */
   update(updater: Updater<Record<string, unknown>>): void;
 }
 
+/**
+ * Readable event channel store augmented with emit helpers.
+ *
+ * @typeParam TPayload - The event payload type.
+ * @typeParam TPresence - The room presence shape.
+ */
 export interface EventChannelStore<
   TPayload = unknown,
   TPresence extends PresenceData = PresenceData,
 > extends Readable<EventChannelValue<TPayload, TPresence> | null> {
+  /**
+   * Broadcasts an event on the bound channel.
+   *
+   * @param payload - The payload to send.
+   * @returns Nothing.
+   */
   emit(payload: TPayload): void;
+
+  /**
+   * Sends an event on the bound channel to a specific peer.
+   *
+   * @param peerId - The target peer identifier.
+   * @param payload - The payload to send.
+   * @returns Nothing.
+   */
   emitTo(peerId: string, payload: TPayload): void;
 }
 
+/**
+ * Exposes event helpers for the adapter.
+ *
+ * @typeParam TPresence - The room presence shape.
+ */
 export interface EventsNamespace<TPresence extends PresenceData = PresenceData> {
+  /**
+   * Creates a readable store for a custom event channel.
+   *
+   * @typeParam TPayload - The event payload type.
+   * @param name - The custom event channel name.
+   * @returns The bound event channel store.
+   */
   channel<TPayload = unknown>(name: string): EventChannelStore<TPayload, TPresence>;
+
+  /**
+   * Broadcasts a custom event.
+   *
+   * @typeParam TPayload - The event payload type.
+   * @param name - The custom event channel name.
+   * @param payload - The payload to send.
+   * @returns Nothing.
+   */
   emit<TPayload = unknown>(name: string, payload: TPayload): void;
+
+  /**
+   * Sends a custom event to a specific peer.
+   *
+   * @typeParam TPayload - The event payload type.
+   * @param peerId - The target peer identifier.
+   * @param name - The custom event channel name.
+   * @param payload - The payload to send.
+   * @returns Nothing.
+   */
   emitTo<TPayload = unknown>(peerId: string, name: string, payload: TPayload): void;
+
+  /**
+   * Subscribes to a custom event channel.
+   *
+   * @typeParam TPayload - The event payload type.
+   * @param name - The custom event channel name.
+   * @param handler - The callback invoked for incoming events.
+   * @returns A function that removes the listener.
+   */
   on<TPayload = unknown>(name: string, handler: EventHandler<TPayload, TPresence>): Unsubscribe;
 }
 
+/**
+ * Exposes shared-state helpers for the adapter.
+ */
 export interface StateNamespace {
+  /**
+   * Creates or reuses a shared-state binding.
+   *
+   * @typeParam T - The shared state value type.
+   * @param key - The logical binding key used to reuse the same shared-state engine.
+   * @param initialValue - The initial shared-state value.
+   * @param options - Optional shared-state configuration overrides.
+   * @returns A Svelte writable store and setter pair.
+   */
   shared<T>(
     key: string,
     initialValue: T,
@@ -155,20 +368,72 @@ export interface StateNamespace {
   ): readonly [Writable<T>, (nextValue: SetStateAction<T>) => void];
 }
 
+/**
+ * Exposes the public Svelte adapter API.
+ *
+ * @typeParam TPresence - The room presence shape.
+ * @typeParam TCursor - The custom cursor payload shape.
+ */
 export interface FlockAdapter<
   TPresence extends PresenceData = PresenceData,
   TCursor extends CursorData = CursorData,
 > {
+  /**
+   * Exposes the awareness store.
+   */
   awareness: AwarenessStore;
+
+  /**
+   * Connects the room runtime.
+   *
+   * @returns A promise that resolves when connection startup completes.
+   */
   connect(): Promise<void>;
+
+  /**
+   * Exposes the cursor store.
+   */
   cursors: CursorStore<TCursor>;
+
+  /**
+   * Tears down the adapter and room permanently.
+   *
+   * @returns A promise that resolves when teardown completes.
+   */
   destroy(): Promise<void>;
+
+  /**
+   * Disconnects the room runtime.
+   *
+   * @returns A promise that resolves when disconnect teardown completes.
+   */
   disconnect(): Promise<void>;
+
+  /**
+   * Exposes the event namespace.
+   */
   events: EventsNamespace<TPresence>;
+
+  /**
+   * Exposes the presence store.
+   */
   presence: PresenceStore<TPresence>;
+
+  /**
+   * Exposes the shared-state namespace.
+   */
   state: StateNamespace;
 }
 
+/**
+ * Creates the Svelte adapter for a room.
+ *
+ * @typeParam TPresence - The room presence shape inferred from `options.presence`.
+ * @typeParam TCursor - The custom cursor payload shape.
+ * @param roomId - The room identifier to create or join.
+ * @param options - Optional room configuration.
+ * @returns The Svelte adapter.
+ */
 export function flock<
   TPresence extends PresenceData = PresenceData,
   TCursor extends CursorData = CursorData,
@@ -198,11 +463,7 @@ export function flock<
       return;
     }
 
-    throw new FlockError(
-      'INVALID_STATE',
-      `Cannot call ${methodName}() after destroy().`,
-      false,
-    );
+    throw new FlockError('INVALID_STATE', `Cannot call ${methodName}() after destroy().`, false);
   };
 
   const presenceStore = createValueStore(
@@ -427,7 +688,9 @@ export function flock<
       assertAvailable('presence.replace');
 
       const nextValue = sanitizePresenceInput(value);
-      if (areStructuredValuesEqual(readPresenceWritableValue(presenceStore.get().self), nextValue)) {
+      if (
+        areStructuredValuesEqual(readPresenceWritableValue(presenceStore.get().self), nextValue)
+      ) {
         return;
       }
 
@@ -632,7 +895,11 @@ export function flock<
 
       const existingRecord = eventChannels.get(name);
       if (existingRecord) {
-        return createEventChannelStore<TPayload, TPresence>(name, existingRecord.store, eventEngine);
+        return createEventChannelStore<TPayload, TPresence>(
+          name,
+          existingRecord.store,
+          eventEngine,
+        );
       }
 
       const record: EventChannelRecord<TPresence> = {
@@ -1123,10 +1390,9 @@ function readAwarenessWritableValue<TPresence extends PresenceData>(
   awareness: AwarenessEngine,
 ): Record<string, unknown> {
   const result: Record<string, unknown> = {};
-  const selfAwareness =
-    awareness.getAll().find((entry) => {
-      return entry.peerId === room.peerId;
-    }) ?? { peerId: room.peerId };
+  const selfAwareness = awareness.getAll().find((entry) => {
+    return entry.peerId === room.peerId;
+  }) ?? { peerId: room.peerId };
 
   for (const [key, value] of Object.entries(selfAwareness)) {
     if (key === 'peerId') {

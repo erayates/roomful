@@ -65,32 +65,111 @@ interface RelayPollingRoom {
   peers: Map<string, RelayPollingSession>;
 }
 
+/**
+ * Exposes the public relay server API.
+ */
 export interface RelayServer {
+  /**
+   * Reports the configured listening port.
+   */
   readonly port: number;
+
+  /**
+   * Registers a token-based auth handler.
+   *
+   * @param handler - The auth handler invoked for token-bearing join requests.
+   * @returns The relay server for chaining.
+   */
   auth(handler: RelayAuthHandler): RelayServer;
+
+  /**
+   * Starts listening for relay traffic.
+   *
+   * @returns A promise that resolves when the server starts listening.
+   */
   start(): Promise<void>;
+
+  /**
+   * Stops the relay server and closes active connections.
+   *
+   * @returns A promise that resolves when shutdown completes.
+   */
   stop(): Promise<void>;
+
+  /**
+   * Returns the base HTTP address for the running server.
+   *
+   * @returns The server address.
+   */
   getAddress(): string;
 }
 
+/**
+ * Handles relay auth checks for token-bearing join requests.
+ *
+ * @param peerId - The joining peer identifier.
+ * @param roomId - The requested room identifier.
+ * @param token - The resolved bearer token.
+ * @returns `false` to reject the join, otherwise a truthy/void success result.
+ */
 export type RelayAuthHandler = (
   peerId: string,
   roomId: string,
   token: string,
 ) => void | boolean | Promise<void | boolean>;
 
+/**
+ * Describes an authorization request passed to `authorize`.
+ */
 export interface RelayAuthorizeContext {
+  /**
+   * Identifies the requested room.
+   */
   roomId: string;
+
+  /**
+   * Identifies the joining peer.
+   */
   peerId: string;
+
+  /**
+   * Exposes the resolved bearer token when present.
+   */
   token?: string;
+
+  /**
+   * Exposes the incoming HTTP upgrade or polling request.
+   */
   request: IncomingMessage;
 }
 
+/**
+ * Configures the public relay server.
+ */
 export interface RelayServerOptions {
+  /**
+   * Selects the listening port.
+   */
   port: number;
+
+  /**
+   * Selects the listening host.
+   */
   host?: string;
+
+  /**
+   * Caps concurrent peer connections.
+   */
   maxConnections?: number;
+
+  /**
+   * Runs custom authorization before accepting a peer.
+   */
   authorize?: (context: RelayAuthorizeContext) => void | boolean | Promise<void | boolean>;
+
+  /**
+   * Enables Redis coordination across relay instances.
+   */
   redisUrl?: string;
 }
 
@@ -1675,6 +1754,12 @@ export class RelayServerImpl implements RelayServer {
   }
 }
 
+/**
+ * Creates a relay server instance.
+ *
+ * @param options - The relay server configuration.
+ * @returns The created relay server.
+ */
 export function createRelayServer(options: RelayServerOptions): RelayServer {
   return new RelayServerImpl(options);
 }

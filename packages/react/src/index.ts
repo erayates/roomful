@@ -26,44 +26,156 @@ import {
   useSyncExternalStore,
 } from 'react';
 
+/**
+ * Reports package-level health metadata for `@flockjs/react`.
+ */
 export interface ReactHealth {
+  /**
+   * Identifies the package.
+   */
   packageName: '@flockjs/react';
+
+  /**
+   * Reports the package health state.
+   */
   status: 'ok';
+
+  /**
+   * Reports package dependency health.
+   */
   dependencies: {
+    /**
+     * Reports health metadata for `@flockjs/core`.
+     */
     core: ReturnType<typeof createCoreHealth>;
   };
 }
 
+/**
+ * Configures the React provider.
+ *
+ * @typeParam TPresence - The room presence shape inferred from `presence`.
+ */
 export interface FlockProviderProps<
   TPresence extends PresenceData = PresenceData,
 > extends RoomOptions<TPresence> {
+  /**
+   * Identifies the room to create or join.
+   */
   roomId: string;
+
+  /**
+   * Renders the provider subtree.
+   */
   children?: ReactNode;
+
+  /**
+   * Runs after the room connects.
+   */
   onConnect?: () => void;
+
+  /**
+   * Runs after the room disconnects.
+   */
   onDisconnect?: (payload: { reason?: string }) => void;
+
+  /**
+   * Runs when the room emits an operational error.
+   */
   onError?: (error: FlockError) => void;
 }
 
+/**
+ * Describes the return value of `usePresence`.
+ *
+ * @typeParam TPresence - The room presence shape.
+ */
 export interface UsePresenceResult<TPresence extends PresenceData = PresenceData> {
+  /**
+   * Exposes the local peer snapshot.
+   */
   self: Peer<TPresence>;
+
+  /**
+   * Exposes remote peers only.
+   */
   others: Peer<TPresence>[];
+
+  /**
+   * Exposes local and remote peers.
+   */
   all: Peer<TPresence>[];
+
+  /**
+   * Partially updates the local presence payload.
+   */
   update: PresenceEngine<TPresence>['update'];
+
+  /**
+   * Replaces the local presence payload.
+   */
   replace: PresenceEngine<TPresence>['replace'];
 }
 
+/**
+ * Describes the return value of `useCursors`.
+ *
+ * @typeParam TCursor - The custom cursor payload shape.
+ */
 export interface UseCursorsResult<TCursor extends CursorData = CursorData> {
+  /**
+   * Callback ref that mounts the cursor engine on an element.
+   */
   ref: RefCallback<HTMLElement>;
+
+  /**
+   * Exposes the latest cursor positions.
+   */
   cursors: CursorPosition<TCursor>[];
+
+  /**
+   * Mounts cursor tracking on an element.
+   *
+   * @param element - The element to observe.
+   * @returns Nothing.
+   */
   mount(element: HTMLElement): void;
+
+  /**
+   * Unmounts cursor tracking.
+   *
+   * @returns Nothing.
+   */
   unmount(): void;
 }
 
+/**
+ * Describes the return value of `useAwareness`.
+ */
 export interface UseAwarenessResult {
+  /**
+   * Exposes remote awareness state only.
+   */
   others: AwarenessState[];
+
+  /**
+   * Merges arbitrary awareness metadata into the local peer.
+   */
   set: AwarenessEngine['set'];
+
+  /**
+   * Updates the local focus target.
+   */
   setFocus: AwarenessEngine['setFocus'];
+
+  /**
+   * Updates the local selection.
+   */
   setSelection: AwarenessEngine['setSelection'];
+
+  /**
+   * Updates the local typing state.
+   */
   setTyping: AwarenessEngine['setTyping'];
 }
 
@@ -134,6 +246,11 @@ const sharedStateBindings = new WeakMap<Room<PresenceData>, SharedStateBinding>(
 const FlockRoomContext = createContext<unknown>(null);
 FlockRoomContext.displayName = 'FlockRoomContext';
 
+/**
+ * Returns package-level health metadata for `@flockjs/react`.
+ *
+ * @returns The static React package health payload.
+ */
 export function createReactHealth(): ReactHealth {
   return {
     packageName: '@flockjs/react',
@@ -144,6 +261,13 @@ export function createReactHealth(): ReactHealth {
   };
 }
 
+/**
+ * Creates a room and provides it to the React subtree.
+ *
+ * @typeParam TPresence - The room presence shape inferred from `props.presence`.
+ * @param props - The provider configuration and children.
+ * @returns The provider element.
+ */
 export function FlockProvider<TPresence extends PresenceData = PresenceData>(
   props: FlockProviderProps<TPresence>,
 ): ReactNode {
@@ -201,6 +325,13 @@ export function FlockProvider<TPresence extends PresenceData = PresenceData>(
   return createElement(FlockRoomContext.Provider, { value: room }, props.children);
 }
 
+/**
+ * Returns the current room from `FlockProvider`.
+ *
+ * @typeParam TPresence - The room presence shape to project onto the room.
+ * @returns The current room instance.
+ * @throws {FlockError} When called outside `FlockProvider`.
+ */
 export function useRoom<TPresence extends PresenceData = PresenceData>(): Room<TPresence> {
   const room = useContext(FlockRoomContext);
 
@@ -211,6 +342,12 @@ export function useRoom<TPresence extends PresenceData = PresenceData>(): Room<T
   return room;
 }
 
+/**
+ * Subscribes to room presence snapshots.
+ *
+ * @typeParam TPresence - The room presence shape.
+ * @returns The local peer, remote peers, and presence mutators.
+ */
 export function usePresence<
   TPresence extends PresenceData = PresenceData,
 >(): UsePresenceResult<TPresence> {
@@ -236,6 +373,14 @@ export function usePresence<
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 }
 
+/**
+ * Subscribes to cursor snapshots and returns mounting helpers.
+ *
+ * @typeParam TCursor - The custom cursor payload shape.
+ * @typeParam TPresence - The room presence shape.
+ * @param options - Optional cursor tracking configuration.
+ * @returns The cursor snapshot and mounting helpers.
+ */
 export function useCursors<
   TCursor extends CursorData = CursorData,
   TPresence extends PresenceData = PresenceData,
@@ -322,6 +467,12 @@ export function useCursors<
   };
 }
 
+/**
+ * Subscribes to awareness snapshots.
+ *
+ * @typeParam TPresence - The room presence shape.
+ * @returns Remote awareness state and local awareness mutators.
+ */
 export function useAwareness<TPresence extends PresenceData = PresenceData>(): UseAwarenessResult {
   const room = useRoom<TPresence>();
   const awareness = room.useAwareness();
@@ -371,6 +522,15 @@ export function useAwareness<TPresence extends PresenceData = PresenceData>(): U
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 }
 
+/**
+ * Subscribes to a custom event channel and returns an emitter for that channel.
+ *
+ * @typeParam TPayload - The payload type for the channel.
+ * @typeParam TPresence - The room presence shape.
+ * @param name - The custom event channel name.
+ * @param handler - The callback invoked for incoming events.
+ * @returns A function that emits payloads on the same channel.
+ */
 export function useEvent<TPayload = unknown, TPresence extends PresenceData = PresenceData>(
   name: string,
   handler: EventHandlerRef<TPayload, TPresence>,
@@ -397,6 +557,12 @@ export function useEvent<TPayload = unknown, TPresence extends PresenceData = Pr
   }, []);
 }
 
+/**
+ * Subscribes to the full peer list for the current room.
+ *
+ * @typeParam TPresence - The room presence shape.
+ * @returns The latest peer list.
+ */
 export function usePeers<TPresence extends PresenceData = PresenceData>(): Peer<TPresence>[] {
   const room = useRoom<TPresence>();
   const presence = room.usePresence();
@@ -420,6 +586,12 @@ export function usePeers<TPresence extends PresenceData = PresenceData>(): Peer<
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 }
 
+/**
+ * Subscribes to the current room connection status.
+ *
+ * @typeParam TPresence - The room presence shape.
+ * @returns The latest connection status.
+ */
 export function useConnectionStatus<TPresence extends PresenceData = PresenceData>(): RoomStatus {
   const room = useRoom<TPresence>();
   const snapshotCacheRef = useRef<ConnectionStatusSnapshotCache<TPresence> | null>(null);
@@ -465,6 +637,15 @@ export function useConnectionStatus<TPresence extends PresenceData = PresenceDat
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 }
 
+/**
+ * Binds a shared state value to React state semantics.
+ *
+ * @typeParam T - The shared state value type.
+ * @typeParam TPresence - The room presence shape.
+ * @param key - The logical binding key used to enforce a single shared-state binding per room.
+ * @param options - The shared-state configuration.
+ * @returns The current shared state value and a React-style setter.
+ */
 export function useSharedState<T, TPresence extends PresenceData = PresenceData>(
   key: string,
   options: StateOptions<T>,

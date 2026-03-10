@@ -396,6 +396,63 @@ function createMockRoom(
     disconnect: vi.fn(async () => {
       return undefined;
     }),
+    getDiagnostics: vi.fn(async () => {
+      return {
+        timestamp: 1,
+        roomId,
+        peerId,
+        status: 'idle',
+        transport: {
+          current: null,
+          lastDisconnectReason: null,
+          reconnectAttempt: 0,
+        },
+        debug: {
+          transport: false,
+          state: false,
+          presence: false,
+          events: false,
+          performance: false,
+          productionInfoSuppressed: false,
+        },
+        peers: {
+          remoteCount: presenceEngine.getAll().length - 1,
+          remotePeerIds: presenceEngine
+            .getAll()
+            .filter((peer) => {
+              return peer.id !== peerId;
+            })
+            .map((peer) => {
+              return peer.id;
+            }),
+        },
+        presence: {
+          selfLastSeen: 1,
+          heartbeatActive: false,
+        },
+        state: {
+          configured: false,
+          strategy: null,
+          persistenceEnabled: false,
+          queuedMutationCount: 0,
+          offlineReplayInProgress: false,
+          stateSizeBytes: null,
+        },
+        events: {
+          registeredEventNames: [],
+          messagesSent: 0,
+          messagesReceived: 0,
+          broadcastsSent: 0,
+          directSends: 0,
+          latestConnectDurationMs: null,
+        },
+        encryption: {
+          enabled: false,
+          incompatiblePeerIds: [],
+          decryptionErrorPeerIds: [],
+        },
+      };
+    }),
     usePresence: vi.fn(() => {
       return presenceEngine;
     }),

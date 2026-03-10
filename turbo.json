@@ -12,12 +12,15 @@
       "dependsOn": ["^test"],
       "outputs": ["coverage/**"]
     },
+    "test:types": {
+      "dependsOn": ["build", "^build"]
+    },
     "test:watch": {
       "cache": false,
       "persistent": true
     },
     "typecheck": {
-      "dependsOn": ["^typecheck"]
+      "dependsOn": ["^build", "^typecheck"]
     },
     "clean": {
       "cache": false

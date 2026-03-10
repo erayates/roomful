@@ -1,10 +1,4 @@
-import {
-  createElement,
-  type CSSProperties,
-  type ReactElement,
-  useEffect,
-  useState,
-} from 'react';
+import { createElement, type CSSProperties, type ReactElement, useEffect, useState } from 'react';
 
 import type { PeerCursorProps, PeerCursorStyle } from './peer-cursor.types';
 import { renderPeerCursorMarker } from './peer-cursor-icons';
@@ -89,6 +83,12 @@ function createLabelStyle(color: string, isVisible: boolean): CSSProperties {
   };
 }
 
+/**
+ * Renders a remote peer cursor.
+ *
+ * @param props - The cursor position and styling props.
+ * @returns The rendered peer cursor.
+ */
 export function PeerCursor(props: PeerCursorProps): ReactElement {
   const { x, y, name, color, idle, style } = props;
   const [isLabelVisible, setIsLabelVisible] = useState(true);

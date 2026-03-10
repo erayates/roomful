@@ -18,6 +18,13 @@ import {
   sanitizeMaxVisible,
 } from './presence-utils';
 
+/**
+ * Renders a stacked presence avatar list for the current room.
+ *
+ * @typeParam TPresence - The peer presence shape.
+ * @param props - The avatar list configuration.
+ * @returns The rendered avatar list.
+ */
 export function PresenceAvatars<TPresence extends PresenceData = PresenceData>(
   props: PresenceAvatarsProps<TPresence>,
 ): ReactElement {

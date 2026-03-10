@@ -21,6 +21,7 @@ pnpm install
 ```bash
 pnpm build
 pnpm test
+pnpm test:types
 pnpm test:watch
 pnpm lint
 pnpm format:check
@@ -28,6 +29,7 @@ pnpm format:write
 pnpm typecheck
 pnpm typecheck:root
 pnpm typecheck:all
+pnpm verify:package-types
 pnpm changeset
 pnpm version-packages
 pnpm release:status
@@ -79,6 +81,7 @@ FLOCK_REDIS_URL=redis://127.0.0.1:6379/0 pnpm --filter @flockjs/relay start
 - Keep imports sorted and lint-clean before commit.
 - Run Prettier checks before opening a PR.
 - Keep package unit tests in `src/**/*.test.ts` for Vitest convention consistency.
+- Keep declaration-only type tests in `test-d/**/*.test-d.ts`.
 - Core package coverage threshold must stay at or above 80%.
 - Add a changeset file for release-relevant changes in `packages/*`.
 
@@ -87,7 +90,7 @@ FLOCK_REDIS_URL=redis://127.0.0.1:6379/0 pnpm --filter @flockjs/relay start
 - PR workflow: `.github/workflows/ci.yml`
 - Release workflow: `.github/workflows/release.yml`
 - PR validation matrix: Node `18`, `20`
-- Validation order: install -> lint -> typecheck -> test -> build
+- Validation order: install -> lint -> typecheck -> test -> build -> test:types -> verify:package-types
 - Release trigger: push tag matching `v*`
 
 Required GitHub secrets for release:
@@ -111,6 +114,8 @@ Use `--no-verify` only for emergency situations.
 - If type errors look stale, clear local build artifacts and rerun typecheck.
 - If `pnpm typecheck` passes but `pnpm typecheck:root` fails, verify root `tsconfig.json` includes only intended sources and excludes tests/build output.
 - If coverage output is missing, confirm tests are under `packages/*/src/**/*.test.ts` and rerun `pnpm test`.
+- If declaration-only tests fail, rebuild workspace packages before rerunning `pnpm test:types`.
+- If packaged declaration verification fails, run `pnpm build` and then `pnpm verify:package-types` to inspect the reported package.
 - If releases fail before publish, confirm `NPM_TOKEN` is configured in repository secrets.
 - If WebRTC peers do not connect, verify `relayUrl` points to a reachable `@flockjs/relay` instance and check browser console ICE errors.
 - Same-origin BroadcastChannel fallback only occurs during the initial WebRTC connect attempt when signaling is unavailable.

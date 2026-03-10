@@ -28,13 +28,43 @@ const FLOATING_REACTION_STYLE = `
   }
 `;
 
+/**
+ * Configures the floating reaction overlay.
+ */
 export interface FloatingReactionProps {
+  /**
+   * Supplies the emoji or text glyph to render.
+   */
   emoji: string;
+
+  /**
+   * Supplies the normalized horizontal coordinate.
+   */
   x: number;
+
+  /**
+   * Supplies the normalized vertical coordinate.
+   */
   y: number;
+
+  /**
+   * Overrides the rendered emoji size in pixels.
+   */
   size?: number;
+
+  /**
+   * Overrides the animation duration in milliseconds.
+   */
   durationMs?: number;
+
+  /**
+   * Delays the animation start in milliseconds.
+   */
   delayMs?: number;
+
+  /**
+   * Runs after the animation completes.
+   */
   onAnimationEnd?: () => void;
 }
 
@@ -91,16 +121,14 @@ function createRootStyle(
   };
 }
 
+/**
+ * Renders a transient reaction that floats upward and fades out.
+ *
+ * @param props - The floating reaction configuration.
+ * @returns The rendered floating reaction, or `null` after the animation completes.
+ */
 export function FloatingReaction(props: FloatingReactionProps): ReactElement | null {
-  const {
-    emoji,
-    x,
-    y,
-    size = DEFAULT_EMOJI_SIZE,
-    durationMs,
-    delayMs,
-    onAnimationEnd,
-  } = props;
+  const { emoji, x, y, size = DEFAULT_EMOJI_SIZE, durationMs, delayMs, onAnimationEnd } = props;
 
   const [isVisible, setIsVisible] = useState(true);
   const duration = Math.max(0, durationMs ?? DEFAULT_DURATION_MS);

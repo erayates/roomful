@@ -65,6 +65,12 @@ jobs:
       - name: Build
         run: pnpm build
 
+      - name: Type declaration tests
+        run: pnpm test:types
+
+      - name: Verify packaged declarations
+        run: pnpm verify:package-types
+
       - name: Ensure NPM token is configured
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}

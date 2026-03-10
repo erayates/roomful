@@ -268,24 +268,6 @@ function CompositeHookProbe(): ReactElement {
   );
 }
 
-function callOriginalAddEventListener(
-  element: HTMLElement,
-  type: string,
-  listener: EventListenerOrEventListenerObject,
-  options?: boolean | AddEventListenerOptions,
-): void {
-  HTMLElement.prototype.addEventListener.call(element, type, listener, options);
-}
-
-function callOriginalRemoveEventListener(
-  element: HTMLElement,
-  type: string,
-  listener: EventListenerOrEventListenerObject,
-  options?: boolean | EventListenerOptions,
-): void {
-  HTMLElement.prototype.removeEventListener.call(element, type, listener, options);
-}
-
 function createElementEventTracker(targetId: string): {
   getCounts(type: TrackedEventName): EventListenerCounts;
   restore(): void;
@@ -299,6 +281,8 @@ function createElementEventTracker(targetId: string): {
     HTMLElement.prototype,
     'removeEventListener',
   );
+  const originalAddEventListener = originalAddEventListenerDescriptor?.value;
+  const originalRemoveEventListener = originalRemoveEventListenerDescriptor?.value;
 
   HTMLElement.prototype.addEventListener = function addTrackedEventListener(
     type: string,
@@ -321,7 +305,7 @@ function createElementEventTracker(targetId: string): {
       });
     }
 
-    callOriginalAddEventListener(this, type, listener, options);
+    originalAddEventListener?.call(this, type, listener, options);
   };
 
   HTMLElement.prototype.removeEventListener = function removeTrackedEventListener(
@@ -345,15 +329,17 @@ function createElementEventTracker(targetId: string): {
       });
     }
 
-    callOriginalRemoveEventListener(this, type, listener, options);
+    originalRemoveEventListener?.call(this, type, listener, options);
   };
 
   return {
     getCounts(type: TrackedEventName): EventListenerCounts {
-      return counts.get(type) ?? {
-        add: 0,
-        remove: 0,
-      };
+      return (
+        counts.get(type) ?? {
+          add: 0,
+          remove: 0,
+        }
+      );
     },
     restore(): void {
       if (originalAddEventListenerDescriptor) {

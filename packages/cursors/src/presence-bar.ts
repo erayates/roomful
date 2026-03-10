@@ -4,7 +4,11 @@ import { createElement, type CSSProperties, type ReactElement } from 'react';
 
 import { useAnimatedPresencePeers } from './presence-animated-list';
 import { PresenceAvatar } from './presence-avatar';
-import type { PresenceAnimationPhase, PresenceBarProps, PresenceSizeTokens } from './presence-types';
+import type {
+  PresenceAnimationPhase,
+  PresenceBarProps,
+  PresenceSizeTokens,
+} from './presence-types';
 import {
   createPeerListTitle,
   DEFAULT_FONT_FAMILY,
@@ -14,6 +18,13 @@ import {
   sanitizeMaxVisible,
 } from './presence-utils';
 
+/**
+ * Renders a labeled presence list for the current room.
+ *
+ * @typeParam TPresence - The peer presence shape.
+ * @param props - The presence bar configuration.
+ * @returns The rendered presence bar.
+ */
 export function PresenceBar<TPresence extends PresenceData = PresenceData>(
   props: PresenceBarProps<TPresence>,
 ): ReactElement {

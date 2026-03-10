@@ -4,10 +4,10 @@
   "private": false,
   "type": "module",
   "main": "dist/index.js",
-  "types": "src/index.ts",
+  "types": "dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./src/index.ts",
+      "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
     }
@@ -17,6 +17,7 @@
     "build": "tsc -p tsconfig.json",
     "lint": "eslint src \"integration/**/*.test.ts\" --max-warnings 0",
     "test": "vitest run --config vitest.config.ts",
+    "test:types": "tsd --files test-d/**/*.test-d.ts",
     "test:engines": "vitest run --config vitest.engines.config.ts --coverage.enabled=false",
     "test:engines:coverage": "vitest run --config vitest.engines.config.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.integration.json --noEmit",
@@ -27,6 +28,7 @@
     "access": "public"
   },
   "dependencies": {
+    "@flockjs/devtools": "workspace:*",
     "y-protocols": "^1.0.7",
     "yjs": "^13.6.29"
   }

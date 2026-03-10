@@ -38,6 +38,13 @@ interface TextNodeSlice {
 
 type HighlightConstructor = new (...ranges: Range[]) => unknown;
 
+/**
+ * Renders a live text selection highlight for a peer.
+ *
+ * @typeParam TPresence - The peer presence shape.
+ * @param props - The peer and selection to highlight.
+ * @returns `null`; the component renders through DOM side effects.
+ */
 export function SelectionHighlight<TPresence extends PresenceData = PresenceData>(
   props: SelectionHighlightProps<TPresence>,
 ): null {

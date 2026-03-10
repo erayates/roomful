@@ -6,6 +6,13 @@ import type { TypingIndicatorProps } from './indicator-types';
 import { createTypingIndicatorText } from './indicator-utils';
 import { DEFAULT_FONT_FAMILY } from './presence-utils';
 
+/**
+ * Renders a typing indicator for the provided peers.
+ *
+ * @typeParam TPresence - The peer presence shape.
+ * @param props - The typing indicator configuration.
+ * @returns The rendered typing indicator, or `null` when nobody is typing.
+ */
 export function TypingIndicator<TPresence extends PresenceData = PresenceData>(
   props: TypingIndicatorProps<TPresence>,
 ): ReactElement | null {

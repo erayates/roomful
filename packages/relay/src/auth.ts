@@ -2,13 +2,36 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 
 import { isObject } from './internal/guards.js';
 
+/**
+ * Describes the decoded JWT payload accepted by the relay.
+ */
 export interface RelayJwtPayload extends Record<string, unknown> {
+  /**
+   * Stores the expiration time as a Unix timestamp in seconds.
+   */
   exp?: number;
+
+  /**
+   * Stores the not-before time as a Unix timestamp in seconds.
+   */
   nbf?: number;
+
+  /**
+   * Stores the issued-at time as a Unix timestamp in seconds.
+   */
   iat?: number;
 }
 
+/**
+ * Thrown when relay JWT verification fails.
+ */
 export class RelayJwtVerificationError extends TypeError {
+  /**
+   * Creates a relay JWT verification error.
+   *
+   * @param message - The verification failure message.
+   * @returns A new `RelayJwtVerificationError` instance.
+   */
   public constructor(message: string) {
     super(message);
     this.name = 'RelayJwtVerificationError';
@@ -73,6 +96,14 @@ function readNumericClaim(
   return value;
 }
 
+/**
+ * Verifies an HS256 JWT for relay authorization.
+ *
+ * @param token - The compact JWT string to verify.
+ * @param secret - The shared secret used to verify the signature.
+ * @returns The decoded relay JWT payload.
+ * @throws {RelayJwtVerificationError} When the token is malformed, expired, or invalid.
+ */
 export function verifyJWT(token: string, secret: string): RelayJwtPayload {
   if (typeof token !== 'string' || token.length === 0) {
     throw createRelayJwtVerificationError('JWT token must be a non-empty string.');

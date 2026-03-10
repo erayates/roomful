@@ -64,7 +64,11 @@ type TestAwarenessEngine = AwarenessEngine & {
 };
 
 type TestEventEngine = EventEngine<PresenceData> & {
-  on: ReturnType<typeof vi.fn<(name: string, cb: (payload: unknown, from: Peer<PresenceData>) => void) => () => void>>;
+  on: ReturnType<
+    typeof vi.fn<
+      (name: string, cb: (payload: unknown, from: Peer<PresenceData>) => void) => () => void
+    >
+  >;
 };
 
 type TestStateEngine<T> = StateEngine<T> & {
@@ -145,10 +149,7 @@ function createCursor(
   };
 }
 
-function createAwareness(
-  peerId: string,
-  overrides: Partial<AwarenessState> = {},
-): AwarenessState {
+function createAwareness(peerId: string, overrides: Partial<AwarenessState> = {}): AwarenessState {
   return {
     peerId,
     ...overrides,
@@ -269,6 +270,58 @@ function createMockRoom(
     }),
     disconnect: vi.fn(async () => {
       return undefined;
+    }),
+    getDiagnostics: vi.fn(async () => {
+      return {
+        timestamp: 1,
+        roomId,
+        peerId,
+        status: currentStatus,
+        transport: {
+          current: null,
+          lastDisconnectReason: null,
+          reconnectAttempt: 0,
+        },
+        debug: {
+          transport: false,
+          state: false,
+          presence: false,
+          events: false,
+          performance: false,
+          productionInfoSuppressed: false,
+        },
+        peers: {
+          remoteCount: currentPeers.length,
+          remotePeerIds: currentPeers.map((peer) => {
+            return peer.id;
+          }),
+        },
+        presence: {
+          selfLastSeen: 1,
+          heartbeatActive: false,
+        },
+        state: {
+          configured: false,
+          strategy: null,
+          persistenceEnabled: false,
+          queuedMutationCount: 0,
+          offlineReplayInProgress: false,
+          stateSizeBytes: null,
+        },
+        events: {
+          registeredEventNames: [],
+          messagesSent: 0,
+          messagesReceived: 0,
+          broadcastsSent: 0,
+          directSends: 0,
+          latestConnectDurationMs: null,
+        },
+        encryption: {
+          enabled: false,
+          incompatiblePeerIds: [],
+          decryptionErrorPeerIds: [],
+        },
+      };
     }),
     usePresence: vi.fn(() => {
       return presenceEngine;

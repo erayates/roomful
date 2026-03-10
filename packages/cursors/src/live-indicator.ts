@@ -9,6 +9,12 @@ import {
   sanitizeIndicatorSize,
 } from './indicator-utils';
 
+/**
+ * Renders an animated live-activity indicator.
+ *
+ * @param props - The live indicator configuration.
+ * @returns The rendered live indicator.
+ */
 export function LiveIndicator(props: LiveIndicatorProps): ReactElement {
   const color = sanitizeIndicatorColor(props.color, DEFAULT_LIVE_INDICATOR_COLOR);
   const size = sanitizeIndicatorSize(props.size, DEFAULT_LIVE_INDICATOR_SIZE);

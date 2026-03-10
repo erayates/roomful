@@ -17,41 +17,140 @@ import { createRoom, FlockError } from '@flockjs/core';
 import type { Directive, InjectionKey, ObjectDirective, Plugin, ShallowRef } from 'vue';
 import { getCurrentInstance, inject, markRaw, shallowRef, watch } from 'vue';
 
+/**
+ * Configures the Vue plugin.
+ *
+ * @typeParam TPresence - The room presence shape inferred from `presence`.
+ */
 export interface FlockPluginOptions<
   TPresence extends PresenceData = PresenceData,
 > extends RoomOptions<TPresence> {
+  /**
+   * Identifies the room to create or join.
+   */
   roomId: string;
 }
 
+/**
+ * Wraps a Vue `ShallowRef` in a readonly view for consumers.
+ *
+ * @typeParam T - The referenced value type.
+ */
 export type ReadonlyRef<T> = Readonly<ShallowRef<T>>;
 
+/**
+ * Describes the return value of `usePresence`.
+ *
+ * @typeParam TPresence - The room presence shape.
+ */
 export interface UsePresenceResult<TPresence extends PresenceData = PresenceData> {
+  /**
+   * Exposes the local peer snapshot.
+   */
   self: ReadonlyRef<Peer<TPresence>>;
+
+  /**
+   * Exposes remote peers only.
+   */
   others: ReadonlyRef<Peer<TPresence>[]>;
+
+  /**
+   * Exposes local and remote peers.
+   */
   all: ReadonlyRef<Peer<TPresence>[]>;
+
+  /**
+   * Partially updates the local presence payload.
+   */
   update: PresenceEngine<TPresence>['update'];
+
+  /**
+   * Replaces the local presence payload.
+   */
   replace: PresenceEngine<TPresence>['replace'];
 }
 
+/**
+ * Describes the return value of `useCursors`.
+ *
+ * @typeParam TCursor - The custom cursor payload shape.
+ */
 export interface UseCursorsResult<TCursor extends CursorData = CursorData> {
+  /**
+   * Holds the mounted cursor host element.
+   */
   ref: ShallowRef<HTMLElement | null>;
+
+  /**
+   * Exposes the latest cursor positions.
+   */
   cursors: ReadonlyRef<CursorPosition<TCursor>[]>;
+
+  /**
+   * Mounts cursor tracking on an element.
+   *
+   * @param element - The element to observe.
+   * @returns Nothing.
+   */
   mount(element: HTMLElement): void;
+
+  /**
+   * Unmounts cursor tracking.
+   *
+   * @returns Nothing.
+   */
   unmount(): void;
 }
 
+/**
+ * Describes the return value of `useAwareness`.
+ */
 export interface UseAwarenessResult {
+  /**
+   * Exposes remote awareness state only.
+   */
   others: ReadonlyRef<AwarenessState[]>;
+
+  /**
+   * Merges arbitrary awareness metadata into the local peer.
+   */
   set: AwarenessEngine['set'];
+
+  /**
+   * Updates the local focus target.
+   */
   setFocus: AwarenessEngine['setFocus'];
+
+  /**
+   * Updates the local selection.
+   */
   setSelection: AwarenessEngine['setSelection'];
+
+  /**
+   * Updates the local typing state.
+   */
   setTyping: AwarenessEngine['setTyping'];
 }
 
+/**
+ * Mirrors React-style updater semantics for Vue shared state setters.
+ *
+ * @typeParam T - The shared state value type.
+ */
 export type SharedStateUpdater<T> = T | ((previous: T) => T);
 
+/**
+ * Updates a shared state binding.
+ *
+ * @typeParam T - The shared state value type.
+ * @param nextValue - The next value or updater function.
+ * @returns Nothing.
+ */
 export type SharedStateSetter<T> = (nextValue: SharedStateUpdater<T>) => void;
 
+/**
+ * Vue directive type used by `v-flock-cursors`.
+ */
 export type FlockCursorsDirective = Directive<HTMLElement, CursorOptions | undefined>;
 
 interface FlockPluginContext {
@@ -106,6 +205,9 @@ type EventHandlerRef<TPayload, TPresence extends PresenceData> = {
 const FLOCK_CONTEXT_KEY: InjectionKey<FlockPluginContext> = Symbol('FlockPluginContext');
 const sharedStateBindings = new WeakMap<Room<PresenceData>, SharedStateBinding>();
 
+/**
+ * Installs the FlockJS Vue plugin and cursor directive.
+ */
 export const FlockPlugin: Plugin<FlockPluginOptions<PresenceData>> = {
   install(app, rawOptions) {
     if (!isFlockPluginOptions(rawOptions)) {
@@ -160,6 +262,12 @@ export const FlockPlugin: Plugin<FlockPluginOptions<PresenceData>> = {
   },
 };
 
+/**
+ * Subscribes to room presence snapshots.
+ *
+ * @typeParam TPresence - The room presence shape.
+ * @returns The local peer, remote peers, and presence mutators.
+ */
 export function usePresence<
   TPresence extends PresenceData = PresenceData,
 >(): UsePresenceResult<TPresence> {
@@ -221,6 +329,14 @@ export function usePresence<
   };
 }
 
+/**
+ * Subscribes to cursor snapshots and returns mounting helpers.
+ *
+ * @typeParam TCursor - The custom cursor payload shape.
+ * @typeParam TPresence - The room presence shape.
+ * @param options - Optional cursor tracking configuration.
+ * @returns The cursor snapshot and mounting helpers.
+ */
 export function useCursors<
   TCursor extends CursorData = CursorData,
   TPresence extends PresenceData = PresenceData,
@@ -322,6 +438,15 @@ export function useCursors<
   };
 }
 
+/**
+ * Binds a shared state value to Vue refs.
+ *
+ * @typeParam T - The shared state value type.
+ * @typeParam TPresence - The room presence shape.
+ * @param key - The logical binding key used to enforce a single shared-state binding per room.
+ * @param options - The shared-state configuration.
+ * @returns A readonly ref for the value and a setter function.
+ */
 export function useSharedState<T, TPresence extends PresenceData = PresenceData>(
   key: string,
   options: StateOptions<T>,
@@ -381,6 +506,12 @@ export function useSharedState<T, TPresence extends PresenceData = PresenceData>
   return [value, setValue] as const;
 }
 
+/**
+ * Subscribes to awareness snapshots.
+ *
+ * @typeParam TPresence - The room presence shape.
+ * @returns Remote awareness state and local awareness mutators.
+ */
 export function useAwareness<TPresence extends PresenceData = PresenceData>(): UseAwarenessResult {
   const context = useFlockContext('useAwareness');
   const initialRoom = requireTypedRoom<TPresence>(context.room.value, 'useAwareness');
@@ -443,6 +574,15 @@ export function useAwareness<TPresence extends PresenceData = PresenceData>(): U
   };
 }
 
+/**
+ * Subscribes to a custom event channel and returns an emitter for that channel.
+ *
+ * @typeParam TPayload - The payload type for the channel.
+ * @typeParam TPresence - The room presence shape.
+ * @param name - The custom event channel name.
+ * @param handler - The callback invoked for incoming events.
+ * @returns A function that emits payloads on the same channel.
+ */
 export function useEvent<TPayload = unknown, TPresence extends PresenceData = PresenceData>(
   name: string,
   handler: EventHandlerRef<TPayload, TPresence>,

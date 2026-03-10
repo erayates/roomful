@@ -1,6 +1,13 @@
 import type { Peer, PresenceData } from '@flockjs/core';
 
+/**
+ * Tracks the enter/leave animation phase for a rendered peer.
+ */
 export type PresenceAnimationPhase = 'entering' | 'entered' | 'exiting';
+
+/**
+ * Selects the rendered avatar/chip size.
+ */
 export type PresenceSize = 'sm' | 'md' | 'lg';
 
 export interface PresenceBaseProps<TPresence extends PresenceData = PresenceData> {
@@ -9,11 +16,25 @@ export interface PresenceBaseProps<TPresence extends PresenceData = PresenceData
   size?: PresenceSize;
 }
 
-export interface PresenceBarProps<TPresence extends PresenceData = PresenceData>
-  extends PresenceBaseProps<TPresence> {
+/**
+ * Configures the presence bar component.
+ *
+ * @typeParam TPresence - The peer presence shape.
+ */
+export interface PresenceBarProps<
+  TPresence extends PresenceData = PresenceData,
+> extends PresenceBaseProps<TPresence> {
+  /**
+   * Shows peer names alongside avatars when `true`.
+   */
   showNames?: boolean;
 }
 
+/**
+ * Configures the presence avatars component.
+ *
+ * @typeParam TPresence - The peer presence shape.
+ */
 export type PresenceAvatarsProps<TPresence extends PresenceData = PresenceData> =
   PresenceBaseProps<TPresence>;
 

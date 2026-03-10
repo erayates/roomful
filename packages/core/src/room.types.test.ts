@@ -30,6 +30,7 @@ describe('Room generics', () => {
     const cursors = room.useCursors<CursorShape>();
     const ydoc = room.getYDoc();
     const provider = room.getYProvider();
+    const diagnostics = room.getDiagnostics();
 
     expectTypeOf(room.peers).toEqualTypeOf<Array<Partial<PresenceShape> & { id: string }>>();
     expectTypeOf(presence.getSelf().role).toEqualTypeOf<'editor' | 'viewer' | undefined>();
@@ -38,6 +39,9 @@ describe('Room generics', () => {
       .toEqualTypeOf<{ pressure: number } | undefined>();
     expectTypeOf(ydoc.clientID).toEqualTypeOf<number>();
     expectTypeOf(provider.synced).toEqualTypeOf<boolean>();
+    const snapshot = await diagnostics;
+    expectTypeOf(snapshot.roomId).toEqualTypeOf<string>();
+    expectTypeOf(snapshot.peerId).toEqualTypeOf<string>();
 
     await room.connect();
     presence.update({
