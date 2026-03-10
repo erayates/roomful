@@ -2,6 +2,26 @@
 
 Audience: users and contributors.
 
+## DevTools Extension
+
+`@flockjs/devtools` now ships a browser DevTools extension bundle for Chrome and Firefox.
+
+Build the extension artifacts:
+
+```bash
+pnpm --filter @flockjs/devtools build
+```
+
+Output artifacts land in `packages/devtools/dist/browser/`:
+
+- `chrome/` unpacked Chrome extension
+- `firefox/` temporary Firefox extension
+- `flockjs-devtools-chrome.zip` store-ready Chrome archive
+- `flockjs-devtools-firefox.zip` store-ready Firefox archive
+- `listings/` store listing copy and manual QA notes
+
+The panel reads page diagnostics from the bridge injected by the core SDK at `window.__flockjs_devtools__`.
+
 ## Debug Configuration
 
 ```ts
@@ -29,6 +49,14 @@ Logs are console-backed and emitted as `console.info`, `console.warn`, or `conso
 Normal lifecycle traces use `info`, malformed or ignored frames use `warn`, and surfaced runtime failures use `error`. In `NODE_ENV=production`, `info` logs are suppressed while `warn` and `error` still emit.
 
 Transport selection, protocol negotiation, reconnect attempts, state mutations, presence sync, event delivery, and queue/performance counters all use the same structured logger contract.
+
+## What the Panel Shows
+
+- connected peers with serialized presence payloads
+- shared state with diff highlighting
+- recent event traffic with timestamps and sender metadata
+- room status and active transport
+- a simulated peer toggle for solo testing
 
 ## Diagnostics Snapshot
 

@@ -75,7 +75,7 @@ window.addEventListener('beforeunload', () => {
 | `@flockjs/svelte`   | Svelte store/action integration         | Planned   |
 | `@flockjs/cursors`  | prebuilt collaboration UI components    | Planned   |
 | `@flockjs/relay`    | self-hosted relay server                | Available |
-| `@flockjs/devtools` | debugging and diagnostics tooling       | Planned   |
+| `@flockjs/devtools` | debugging and diagnostics tooling       | Available |
 
 ## Documentation
 
