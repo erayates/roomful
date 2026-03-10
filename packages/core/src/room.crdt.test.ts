@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import * as Y from 'yjs';
 
 import { createRoom } from './index';
 
@@ -17,6 +18,26 @@ const waitFor = async (condition: () => boolean, timeoutMs = 2_000): Promise<voi
 
     await wait(10);
   }
+};
+
+const createXmlParagraph = (text: string): Y.XmlElement => {
+  const paragraph = new Y.XmlElement('paragraph');
+  paragraph.insert(0, [new Y.XmlText(text)]);
+  return paragraph;
+};
+
+const readXmlParagraphs = (fragment: Y.XmlFragment): string[] => {
+  return fragment
+    .querySelectorAll('paragraph')
+    .flatMap((node) => {
+      if (!(node instanceof Y.XmlElement)) {
+        return [];
+      }
+
+      return [node.toString()];
+    })
+    .slice()
+    .sort();
 };
 
 afterEach(() => {
@@ -144,7 +165,7 @@ describe('Room CRDT/Yjs', () => {
     await roomB.disconnect();
   });
 
-  it('syncs Y.Text, Y.Array, and Y.Map changes across 3 peers and late joiners', async () => {
+  it('syncs Y.Text, Y.Array, Y.Map, and Y.XmlFragment changes across 3 peers and late joiners', async () => {
     const roomA = createRoom('room-crdt-doc', {
       transport: 'broadcast',
     });
@@ -173,6 +194,9 @@ describe('Room CRDT/Yjs', () => {
     const mapA = docA.getMap<number>('meta');
     const mapB = docB.getMap<number>('meta');
     const mapC = docC.getMap<number>('meta');
+    const proseA = docA.getXmlFragment('prosemirror');
+    const proseB = docB.getXmlFragment('prosemirror');
+    const proseC = docC.getXmlFragment('prosemirror');
 
     textA.insert(0, 'A');
     textB.insert(0, 'B');
@@ -183,6 +207,9 @@ describe('Room CRDT/Yjs', () => {
     mapA.set('a', 1);
     mapB.set('b', 2);
     mapC.set('c', 3);
+    proseA.insert(0, [createXmlParagraph('Alpha')]);
+    proseB.insert(0, [createXmlParagraph('Bravo')]);
+    proseC.insert(0, [createXmlParagraph('Charlie')]);
 
     await waitFor(() => {
       return (
@@ -194,7 +221,10 @@ describe('Room CRDT/Yjs', () => {
         arrayC.length === 3 &&
         mapA.size === 3 &&
         mapB.size === 3 &&
-        mapC.size === 3
+        mapC.size === 3 &&
+        proseA.length === 3 &&
+        proseB.length === 3 &&
+        proseC.length === 3
       );
     });
 
@@ -207,20 +237,39 @@ describe('Room CRDT/Yjs', () => {
     expect(mapA.toJSON()).toEqual({ a: 1, b: 2, c: 3 });
     expect(mapB.toJSON()).toEqual({ a: 1, b: 2, c: 3 });
     expect(mapC.toJSON()).toEqual({ a: 1, b: 2, c: 3 });
+    expect(readXmlParagraphs(proseA)).toEqual([
+      '<paragraph>Alpha</paragraph>',
+      '<paragraph>Bravo</paragraph>',
+      '<paragraph>Charlie</paragraph>',
+    ]);
+    expect(readXmlParagraphs(proseB)).toEqual([
+      '<paragraph>Alpha</paragraph>',
+      '<paragraph>Bravo</paragraph>',
+      '<paragraph>Charlie</paragraph>',
+    ]);
+    expect(readXmlParagraphs(proseC)).toEqual([
+      '<paragraph>Alpha</paragraph>',
+      '<paragraph>Bravo</paragraph>',
+      '<paragraph>Charlie</paragraph>',
+    ]);
 
     const lateRoom = createRoom('room-crdt-doc', {
       transport: 'broadcast',
     });
     const lateDoc = lateRoom.getYDoc();
+    const lateJoinStartedAt = Date.now();
     await lateRoom.connect();
 
     await waitFor(() => {
       return (
+        lateRoom.getYProvider().synced &&
         lateDoc.getText('content').toJSON().length === 3 &&
         lateDoc.getArray('items').length === 3 &&
-        lateDoc.getMap('meta').size === 3
+        lateDoc.getMap('meta').size === 3 &&
+        lateDoc.getXmlFragment('prosemirror').length === 3
       );
     });
+    expect(Date.now() - lateJoinStartedAt).toBeLessThan(2_000);
 
     expect(lateDoc.getText('content').toJSON().split('').sort()).toEqual(['A', 'B', 'C']);
     expect(lateDoc.getArray('items').toArray().slice().sort()).toEqual([
@@ -229,6 +278,11 @@ describe('Room CRDT/Yjs', () => {
       'gamma',
     ]);
     expect(lateDoc.getMap('meta').toJSON()).toEqual({ a: 1, b: 2, c: 3 });
+    expect(readXmlParagraphs(lateDoc.getXmlFragment('prosemirror'))).toEqual([
+      '<paragraph>Alpha</paragraph>',
+      '<paragraph>Bravo</paragraph>',
+      '<paragraph>Charlie</paragraph>',
+    ]);
 
     await lateRoom.disconnect();
     await roomA.disconnect();

@@ -1183,26 +1183,30 @@ test.describe('multi-tab integration', () => {
       await late.connect();
 
       await expect
-        .poll(async () => {
-          return await late.getYjsSnapshot();
-        })
-        .toMatchObject({
-          arrays: {
-            items: expect.arrayContaining(['alpha', 'beta', 'gamma']),
+        .poll(
+          async () => {
+            const snapshot = await late.getYjsSnapshot();
+            return {
+              synced: snapshot.provider.synced,
+              text: (snapshot.texts.content ?? '').split('').sort().join(''),
+              items: [...(snapshot.arrays.items ?? [])].sort(),
+              meta: snapshot.maps.meta ?? null,
+            };
           },
-          maps: {
-            meta: {
-              a: 1,
-              b: 2,
-              c: 3,
-            },
+          {
+            timeout: 2_000,
+          },
+        )
+        .toEqual({
+          synced: true,
+          text: 'ABC',
+          items: ['alpha', 'beta', 'gamma'],
+          meta: {
+            a: 1,
+            b: 2,
+            c: 3,
           },
         });
-      expect(((await late.getYjsSnapshot()).texts.content ?? '').split('').sort()).toEqual([
-        'A',
-        'B',
-        'C',
-      ]);
     } finally {
       await context.close();
       await relay.stop();

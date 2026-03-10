@@ -2,7 +2,7 @@
 
 Audience: users.
 
-Goal: combine room lifecycle, presence, awareness, and CRDT state for document editing.
+Goal: combine room lifecycle, awareness, and Yjs CRDT primitives for document editing.
 
 ## Scenario
 
@@ -12,7 +12,7 @@ A Notion-style editor where users can:
 - see collaborator cursors/identity
 - view typing/focus signals
 
-## Example (Planned API)
+## Example
 
 ```ts
 import { createRoom } from '@flockjs/core';
@@ -26,18 +26,30 @@ const room = createRoom(`doc-${documentId}`, {
 await room.connect();
 
 const ydoc: Y.Doc = room.getYDoc();
-const yText = ydoc.getText('content');
+const provider = room.getYProvider();
+
+// CodeMirror-style editors usually bind to a shared Y.Text.
+const codeMirrorText = ydoc.getText('content');
+
+// ProseMirror-style editors usually bind to a shared Y.XmlFragment.
+const proseMirrorRoot = ydoc.getXmlFragment('prosemirror');
+
+// Use the shared Yjs awareness instance for selections and collaborator state.
+const awareness = provider.awareness;
 ```
 
 ## Integration Notes
 
-- Use CRDT strategy for concurrent text edits.
-- Use awareness for cursor selection ranges.
-- Keep document metadata in shared state if needed.
+- Pass `codeMirrorText` and `awareness` to your CodeMirror Yjs binding.
+- Pass `proseMirrorRoot` and `awareness` to your ProseMirror Yjs binding.
+- `room.getYDoc()` and `room.getYProvider()` are singletons per room instance, so reuse them across editor mounts.
+- `provider.synced` becomes `true` after the room finishes its initial Yjs sync handshake with connected peers.
+- Keep non-document metadata in shared state if you want a simpler `lww` or structured CRDT model beside the editor document.
 
 ## Failure Modes
 
 - Connection interruption: rely on reconnection and replay behavior.
+- Late joiners: wait for `provider.synced` before assuming the full document is present locally.
 - Conflicting metadata writes: use `lww` for simple title/tag fields.
 
 ## Related Docs
