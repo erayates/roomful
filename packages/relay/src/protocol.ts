@@ -1,6 +1,8 @@
 import { decode, encode } from '@msgpack/msgpack';
 import { z } from 'zod';
 
+import { isObject } from './internal/guards';
+
 const peerProtocolCodecSchema = z.enum(['json', 'msgpack']);
 const peerProtocolCapabilitiesSchema = z
   .object({
@@ -320,10 +322,6 @@ const RELAY_TRANSPORT_SIGNAL_TYPES = new Set<string>([
   'crdt:awareness',
 ]);
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
-}
-
 function isRelayTransportSignalType(value: unknown): value is RelayTransportSignal['type'] {
   return typeof value === 'string' && RELAY_TRANSPORT_SIGNAL_TYPES.has(value);
 }
@@ -336,7 +334,7 @@ function parseBaseSignal(value: unknown): {
   timestamp?: number;
   payload?: unknown;
 } | null {
-  if (!isRecord(value)) {
+  if (!isObject(value)) {
     return null;
   }
 
@@ -374,7 +372,7 @@ function parseLegacyTransportPayload(
     return payload ?? {};
   }
 
-  if (!isRecord(payload) || !isRecord(payload.event)) {
+  if (!isObject(payload) || !isObject(payload.event)) {
     return null;
   }
 
@@ -386,7 +384,7 @@ function normalizeTransportEnvelope(
   now: () => number,
   carrier: 'json' | 'msgpack' | 'object',
 ): RelayTransportSignal | null {
-  if (!isRecord(value)) {
+  if (!isObject(value)) {
     return null;
   }
 
@@ -431,7 +429,7 @@ function parseTransportWrapper(
   now: () => number,
   rawPayload: string | Uint8Array,
 ): RelayTransportMessage | null {
-  if (!isRecord(value) || value.type !== 'transport') {
+  if (!isObject(value) || value.type !== 'transport') {
     return null;
   }
 
@@ -579,7 +577,7 @@ export function parseRelayClientMessage(
 ): RelayClientMessage | null {
   if (typeof payload === 'string') {
     const parsed = parseJsonPayload(payload);
-    if (!parsed || !isRecord(parsed)) {
+    if (!parsed || !isObject(parsed)) {
       return null;
     }
 

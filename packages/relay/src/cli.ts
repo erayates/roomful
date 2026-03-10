@@ -13,7 +13,12 @@ interface RelayCliProcessLike {
 }
 
 interface RelayCliRuntime {
-  createServer?: (options: { port: number; host?: string; maxConnections?: number }) => RelayServer;
+  createServer?: (options: {
+    port: number;
+    host?: string;
+    maxConnections?: number;
+    redisUrl?: string;
+  }) => RelayServer;
   process?: RelayCliProcessLike;
 }
 
@@ -44,7 +49,7 @@ function parsePositiveIntegerEnv(
 
 export function resolveRelayCliOptions(
   env: NodeJS.ProcessEnv,
-): { port: number; host?: string; maxConnections?: number } | { error: string } {
+): { port: number; host?: string; maxConnections?: number; redisUrl?: string } | { error: string } {
   const port = parsePositiveIntegerEnv(env, 'PORT');
   if (typeof port === 'object') {
     return port;
@@ -55,17 +60,35 @@ export function resolveRelayCliOptions(
     return maxConnections;
   }
 
+  const redisUrl = env.FLOCK_REDIS_URL;
+  if (redisUrl !== undefined) {
+    try {
+      const parsed = new URL(redisUrl);
+      if (parsed.protocol !== 'redis:' && parsed.protocol !== 'rediss:') {
+        return {
+          error: `Invalid FLOCK_REDIS_URL value "${redisUrl}".`,
+        };
+      }
+    } catch {
+      return {
+        error: `Invalid FLOCK_REDIS_URL value "${redisUrl}".`,
+      };
+    }
+  }
+
   const host = env.HOST;
   const resolvedPort = typeof port === 'number' ? port : 8787;
   return host === undefined
     ? {
         port: resolvedPort,
         ...(typeof maxConnections === 'number' ? { maxConnections } : {}),
+        ...(redisUrl !== undefined ? { redisUrl } : {}),
       }
     : {
         port: resolvedPort,
         host,
         ...(typeof maxConnections === 'number' ? { maxConnections } : {}),
+        ...(redisUrl !== undefined ? { redisUrl } : {}),
       };
 }
 

@@ -64,6 +64,12 @@ HOST=0.0.0.0 PORT=8787 MAX_CONNECTIONS=1000 pnpm --filter @flockjs/relay start
 curl http://127.0.0.1:8787/health
 ```
 
+Optional multi-instance relay mode:
+
+```bash
+FLOCK_REDIS_URL=redis://127.0.0.1:6379/0 pnpm --filter @flockjs/relay start
+```
+
 ## Working Norms
 
 - Prefer small, focused PRs.

@@ -60,17 +60,29 @@ describe('relay cli', () => {
     });
   });
 
+  it('returns an error result for invalid redis urls', () => {
+    expect(
+      resolveRelayCliOptions({
+        FLOCK_REDIS_URL: 'not-a-url',
+      }),
+    ).toEqual({
+      error: 'Invalid FLOCK_REDIS_URL value "not-a-url".',
+    });
+  });
+
   it('resolves valid port, host, and max connection values', () => {
     expect(
       resolveRelayCliOptions({
         PORT: '8788',
         HOST: '0.0.0.0',
         MAX_CONNECTIONS: '250',
+        FLOCK_REDIS_URL: 'redis://127.0.0.1:6379/0',
       }),
     ).toEqual({
       port: 8788,
       host: '0.0.0.0',
       maxConnections: 250,
+      redisUrl: 'redis://127.0.0.1:6379/0',
     });
 
     expect(resolveRelayCliOptions({})).toEqual({
@@ -113,6 +125,7 @@ describe('relay cli', () => {
       PORT: '8788',
       HOST: '127.0.0.1',
       MAX_CONNECTIONS: '42',
+      FLOCK_REDIS_URL: 'redis://127.0.0.1:6379/0',
     });
 
     await expect(
@@ -126,6 +139,7 @@ describe('relay cli', () => {
       port: 8788,
       host: '127.0.0.1',
       maxConnections: 42,
+      redisUrl: 'redis://127.0.0.1:6379/0',
     });
     expect(start).toHaveBeenCalledTimes(1);
     expect(processLike.stdout.write).toHaveBeenCalledWith(

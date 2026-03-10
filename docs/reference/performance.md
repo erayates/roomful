@@ -46,6 +46,12 @@ const cursors = room.useCursors({
 4. Move to websocket relay for sustained larger rooms or constrained networks.
 5. Add horizontal relay scaling as concurrency grows.
 
+Redis-backed relay validation:
+
+- Set `FLOCK_REDIS_URL` on two relay instances that share the same Redis deployment.
+- Run `pnpm --filter @flockjs/relay benchmark:redis` with that Redis URL in the environment.
+- Compare the Redis cross-instance benchmark to the single-instance baseline and keep added median latency under `5ms` for local validation.
+
 ## Validation Targets
 
 - Stable cursor updates at expected peer count

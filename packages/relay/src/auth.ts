@@ -1,5 +1,7 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 
+import { isObject } from './internal/guards';
+
 export interface RelayJwtPayload extends Record<string, unknown> {
   exp?: number;
   nbf?: number;
@@ -15,10 +17,6 @@ export class RelayJwtVerificationError extends TypeError {
 
 function createRelayJwtVerificationError(message: string): RelayJwtVerificationError {
   return new RelayJwtVerificationError(message);
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
 }
 
 function decodeBase64UrlToBuffer(segment: string, part: string): Buffer {
@@ -46,7 +44,7 @@ function decodeBase64UrlJson(segment: string, part: string): Record<string, unkn
     throw createRelayJwtVerificationError(`JWT ${part} must decode to a JSON object.`);
   }
 
-  if (!isRecord(parsed)) {
+  if (!isObject(parsed)) {
     throw createRelayJwtVerificationError(`JWT ${part} must decode to a JSON object.`);
   }
 

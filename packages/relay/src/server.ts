@@ -17,11 +17,17 @@ import {
   serializeRelayServerMessage,
   serializeRelayTransportMessage,
 } from './protocol';
+import type { RelayCoordinatorMessage, RelayRoomCoordinator } from './relay-coordinator';
+import { createLocalRelayRoomCoordinator } from './relay-local-coordinator';
+import { createRedisRelayRoomCoordinator } from './relay-redis-coordinator';
+import type { RelayRedisStore, RelayRedisStoreOptions } from './relay-redis-store';
 
 const HEALTH_RESPONSE_BODY = '{"status":"ok"}';
 const SHUTDOWN_TIMEOUT_MS = 1_000;
 const AUTH_CLOSE_CODE = 4_401;
 const AUTH_CLOSE_REASON = 'auth-failed';
+const REDIS_UNAVAILABLE_CODE = 'REDIS_UNAVAILABLE';
+const REDIS_UNAVAILABLE_MESSAGE = 'Redis coordination is unavailable.';
 
 interface RelayPeerContext {
   roomId: string;
@@ -31,7 +37,6 @@ interface RelayPeerContext {
 
 interface RelayRoom {
   peers: Map<string, WebSocket>;
-  capacity?: number;
 }
 
 export interface RelayServer {
@@ -60,6 +65,11 @@ export interface RelayServerOptions {
   host?: string;
   maxConnections?: number;
   authorize?: (context: RelayAuthorizeContext) => void | boolean | Promise<void | boolean>;
+  redisUrl?: string;
+}
+
+export interface RelayServerInternalOptions extends RelayServerOptions {
+  createRedisStore?: (options: RelayRedisStoreOptions) => RelayRedisStore;
 }
 
 function normalizeRawData(data: RawData, isBinary: boolean): string | Uint8Array {
@@ -223,6 +233,20 @@ function waitForSocketClose(socket: WebSocket, timeoutMs = SHUTDOWN_TIMEOUT_MS):
   });
 }
 
+function createRelayRoomCoordinator(options: RelayServerInternalOptions): RelayRoomCoordinator {
+  if (!options.redisUrl) {
+    return createLocalRelayRoomCoordinator();
+  }
+
+  return createRedisRelayRoomCoordinator({
+    redisUrl: options.redisUrl,
+    ...(options.createRedisStore ? { createStore: options.createRedisStore } : {}),
+    onError: (message, error) => {
+      process.stderr.write(`[relay] ${message} error=${normalizeLogValue(readErrorMessage(error))}\n`);
+    },
+  });
+}
+
 export class RelayServerImpl implements RelayServer {
   private httpServer: HttpServer | null = null;
 
@@ -233,6 +257,8 @@ export class RelayServerImpl implements RelayServer {
   private readonly pendingAuthTokens = new WeakMap<WebSocket, string>();
 
   private readonly rooms = new Map<string, RelayRoom>();
+
+  private readonly coordinator: RelayRoomCoordinator;
 
   private currentPort: number;
 
@@ -246,10 +272,14 @@ export class RelayServerImpl implements RelayServer {
 
   private stopping = false;
 
-  public constructor(private readonly options: RelayServerOptions) {
+  public constructor(private readonly options: RelayServerInternalOptions) {
     this.currentPort = options.port;
     this.host = options.host ?? '127.0.0.1';
     this.maxConnections = normalizeMaxConnections(options.maxConnections);
+    this.coordinator = createRelayRoomCoordinator(options);
+    this.coordinator.onMessage((message) => {
+      this.handleCoordinatorMessage(message);
+    });
   }
 
   public get port(): number {
@@ -284,44 +314,51 @@ export class RelayServerImpl implements RelayServer {
       await this.stopPromise;
     }
 
-    const httpServer = createServer((request, response) => {
-      this.handleHttpRequest(request, response);
-    });
-    const wsServer = new WebSocketServer({
-      noServer: true,
-    });
+    await this.coordinator.start();
 
-    wsServer.on('connection', (socket, request) => {
-      this.handleConnection(socket, request);
-    });
+    try {
+      const httpServer = createServer((request, response) => {
+        this.handleHttpRequest(request, response);
+      });
+      const wsServer = new WebSocketServer({
+        noServer: true,
+      });
 
-    httpServer.on('upgrade', (request, socket, head) => {
-      this.handleUpgrade(wsServer, request, socket, head);
-    });
+      wsServer.on('connection', (socket, request) => {
+        this.handleConnection(socket, request);
+      });
 
-    await new Promise<void>((resolve, reject) => {
-      const onListening = (): void => {
-        httpServer.off('error', onError);
-        const address = httpServer.address();
-        if (address && typeof address !== 'string') {
-          this.currentPort = address.port;
-        }
-        resolve();
-      };
+      httpServer.on('upgrade', (request, socket, head) => {
+        this.handleUpgrade(wsServer, request, socket, head);
+      });
 
-      const onError = (error: Error): void => {
-        httpServer.off('listening', onListening);
-        reject(error);
-      };
+      await new Promise<void>((resolve, reject) => {
+        const onListening = (): void => {
+          httpServer.off('error', onError);
+          const address = httpServer.address();
+          if (address && typeof address !== 'string') {
+            this.currentPort = address.port;
+          }
+          resolve();
+        };
 
-      httpServer.once('listening', onListening);
-      httpServer.once('error', onError);
-      httpServer.listen(this.options.port, this.host);
-    });
+        const onError = (error: Error): void => {
+          httpServer.off('listening', onListening);
+          reject(error);
+        };
 
-    this.stopping = false;
-    this.httpServer = httpServer;
-    this.wsServer = wsServer;
+        httpServer.once('listening', onListening);
+        httpServer.once('error', onError);
+        httpServer.listen(this.options.port, this.host);
+      });
+
+      this.stopping = false;
+      this.httpServer = httpServer;
+      this.wsServer = wsServer;
+    } catch (error) {
+      await this.coordinator.stop();
+      throw error;
+    }
   }
 
   public async stop(): Promise<void> {
@@ -373,6 +410,7 @@ export class RelayServerImpl implements RelayServer {
         ]);
       } finally {
         this.rooms.clear();
+        await this.coordinator.stop();
         this.stopPromise = null;
         this.stopping = false;
       }
@@ -438,17 +476,23 @@ export class RelayServerImpl implements RelayServer {
         return;
       }
 
-      void this.handleClientMessage(socket, request, message);
+      void this.handleClientMessage(socket, request, message).catch((error) => {
+        this.logRelayError('Client message handling failed.', error);
+      });
     });
 
     socket.on('close', () => {
       this.pendingAuthTokens.delete(socket);
-      this.removePeerFromRoom(socket);
+      void this.removePeerFromRoom(socket).catch((error) => {
+        this.logRelayError('Socket cleanup failed.', error);
+      });
     });
 
     socket.on('error', () => {
       this.pendingAuthTokens.delete(socket);
-      this.removePeerFromRoom(socket);
+      void this.removePeerFromRoom(socket).catch((error) => {
+        this.logRelayError('Socket cleanup failed.', error);
+      });
     });
   }
 
@@ -479,7 +523,7 @@ export class RelayServerImpl implements RelayServer {
         return;
       }
 
-      this.removePeerFromRoom(socket);
+      await this.removePeerFromRoom(socket);
       return;
     }
 
@@ -494,7 +538,7 @@ export class RelayServerImpl implements RelayServer {
         return;
       }
 
-      this.forwardSignal(context.roomId, message);
+      await this.forwardSignal(context.roomId, message);
       return;
     }
 
@@ -508,7 +552,7 @@ export class RelayServerImpl implements RelayServer {
       return;
     }
 
-    this.forwardTransport(context.roomId, context.peerId, message);
+    await this.forwardTransport(context.roomId, context.peerId, message);
   }
 
   private async handleJoinMessage(
@@ -527,52 +571,76 @@ export class RelayServerImpl implements RelayServer {
       return;
     }
 
-    const room = this.rooms.get(message.roomId) ?? {
-      peers: new Map<string, WebSocket>(),
-      ...(message.maxPeers !== undefined ? { capacity: message.maxPeers } : {}),
-    };
-
-    if (room.peers.has(message.peerId)) {
-      this.sendError(socket, 'PEER_EXISTS', 'PeerId already exists in this room.');
+    if (!this.coordinator.isReady()) {
+      this.sendRedisUnavailableError(socket);
       return;
     }
 
-    if (room.capacity !== undefined && room.peers.size >= room.capacity) {
-      this.sendError(socket, 'ROOM_FULL', 'Room is full.');
-      return;
-    }
+    let subscribed = false;
+    try {
+      await this.coordinator.subscribe(message.roomId);
+      subscribed = true;
 
-    const existingPeers = Array.from(room.peers.entries()).map(([peerId, peerSocket]) => {
-      const peerContext = this.contexts.get(peerSocket);
-      return {
-        peerId,
-        ...(peerContext?.protocol ? { protocol: peerContext.protocol } : {}),
-      };
-    });
-    room.peers.set(message.peerId, socket);
-    this.rooms.set(message.roomId, room);
-    this.contexts.set(socket, {
-      roomId: message.roomId,
-      peerId: message.peerId,
-      ...(message.protocol ? { protocol: message.protocol } : {}),
-    });
-    this.pendingAuthTokens.delete(socket);
-
-    socket.send(
-      serializeRelayServerMessage({
-        type: 'joined',
+      const joinResult = await this.coordinator.join({
         roomId: message.roomId,
         peerId: message.peerId,
-        peers: existingPeers,
-      }),
-    );
+        ...(message.protocol ? { protocol: message.protocol } : {}),
+        ...(message.maxPeers !== undefined ? { maxPeers: message.maxPeers } : {}),
+      });
+      if (!joinResult.ok) {
+        await this.coordinator.unsubscribe(message.roomId);
+        this.sendError(socket, joinResult.code, joinResult.message);
+        return;
+      }
 
-    this.broadcastToRoom(message.roomId, message.peerId, {
-      type: 'peer-joined',
-      roomId: message.roomId,
-      peerId: message.peerId,
-      ...(message.protocol ? { protocol: message.protocol } : {}),
-    });
+      const room = this.rooms.get(message.roomId) ?? {
+        peers: new Map<string, WebSocket>(),
+      };
+      room.peers.set(message.peerId, socket);
+      this.rooms.set(message.roomId, room);
+      this.contexts.set(socket, {
+        roomId: message.roomId,
+        peerId: message.peerId,
+        ...(message.protocol ? { protocol: message.protocol } : {}),
+      });
+      this.pendingAuthTokens.delete(socket);
+
+      socket.send(
+        serializeRelayServerMessage({
+          type: 'joined',
+          roomId: message.roomId,
+          peerId: message.peerId,
+          peers: joinResult.peers.map((peer) => {
+            return peer.protocol
+              ? {
+                  peerId: peer.peerId,
+                  protocol: peer.protocol,
+                }
+              : {
+                  peerId: peer.peerId,
+                };
+          }),
+        }),
+      );
+
+      const peerJoinedMessage: RelayPeerJoinedMessage = {
+        type: 'peer-joined',
+        roomId: message.roomId,
+        peerId: message.peerId,
+        ...(message.protocol ? { protocol: message.protocol } : {}),
+      };
+      this.broadcastToLocalRoom(message.roomId, message.peerId, peerJoinedMessage);
+      await this.publishCoordinatorMessage(peerJoinedMessage);
+    } catch (error) {
+      if (subscribed) {
+        await this.coordinator.unsubscribe(message.roomId).catch(() => {
+          return undefined;
+        });
+      }
+
+      this.logRelayError('Join coordination failed.', error);
+      this.sendRedisUnavailableError(socket);
+    }
   }
 
   private isAuthEnabled(): boolean {
@@ -680,79 +748,50 @@ export class RelayServerImpl implements RelayServer {
     process.stderr.write(`${parts.join(' ')}\n`);
   }
 
-  private forwardSignal(
+  private async forwardSignal(
     roomId: string,
     message: Extract<RelayClientMessage, { type: 'signal' }>,
-  ): void {
-    const room = this.rooms.get(roomId);
-    if (!room) {
+  ): Promise<void> {
+    const target = this.rooms.get(roomId)?.peers.get(message.toPeerId);
+    if (target) {
+      target.send(serializeRelayServerMessage(message));
       return;
     }
 
-    const target = room.peers.get(message.toPeerId);
-    if (!target) {
-      return;
-    }
-
-    const outboundSignal: RelayClientMessage = {
-      type: 'signal',
-      roomId,
-      fromPeerId: message.fromPeerId,
-      toPeerId: message.toPeerId,
-    };
-
-    const signalMessage =
-      message.description || message.candidate
-        ? {
-            ...outboundSignal,
-            ...(message.description ? { description: message.description } : {}),
-            ...(message.candidate ? { candidate: message.candidate } : {}),
-          }
-        : outboundSignal;
-
-    target.send(serializeRelayServerMessage(signalMessage));
+    await this.publishCoordinatorMessage(message);
   }
 
-  private forwardTransport(
+  private async forwardTransport(
     roomId: string,
     senderPeerId: string,
     message: Extract<RelayClientMessage, { type: 'transport' }>,
-  ): void {
+  ): Promise<void> {
     const room = this.rooms.get(roomId);
-    if (!room) {
-      return;
-    }
-
     if (message.signal.toPeerId) {
-      const target = room.peers.get(message.signal.toPeerId);
-      if (!target) {
+      const target = room?.peers.get(message.signal.toPeerId);
+      if (target) {
+        this.sendTransportToSocket(target, message);
         return;
       }
 
-      const targetContext = this.contexts.get(target);
-      target.send(
-        serializeRelayTransportMessage(message, {
-          transportSession: resolveRelayTransportSession(targetContext?.protocol),
-        }),
-      );
+      await this.publishCoordinatorMessage(message);
       return;
     }
 
-    for (const [peerId, socket] of room.peers.entries()) {
-      if (peerId === senderPeerId) {
-        continue;
-      }
+    if (room) {
+      for (const [peerId, peerSocket] of room.peers.entries()) {
+        if (peerId === senderPeerId) {
+          continue;
+        }
 
-      const targetContext = this.contexts.get(socket);
-      socket.send(
-        serializeRelayTransportMessage(message, {
-          transportSession: resolveRelayTransportSession(targetContext?.protocol),
-        }),
-      );
+        this.sendTransportToSocket(peerSocket, message);
+      }
     }
+
+    await this.publishCoordinatorMessage(message);
   }
 
-  private removePeerFromRoom(socket: WebSocket): void {
+  private async removePeerFromRoom(socket: WebSocket): Promise<void> {
     this.pendingAuthTokens.delete(socket);
     const context = this.contexts.get(socket);
     if (!context) {
@@ -769,16 +808,81 @@ export class RelayServerImpl implements RelayServer {
     room.peers.delete(context.peerId);
     if (room.peers.size === 0) {
       this.rooms.delete(context.roomId);
+    } else {
+      this.rooms.set(context.roomId, room);
     }
 
-    this.broadcastToRoom(context.roomId, context.peerId, {
+    await this.coordinator.leave(context.roomId, context.peerId).catch((error) => {
+      this.logRelayError('Leave coordination failed.', error);
+    });
+
+    const peerLeftMessage: RelayPeerLeftMessage = {
       type: 'peer-left',
       roomId: context.roomId,
       peerId: context.peerId,
-    });
+    };
+    this.broadcastToLocalRoom(context.roomId, context.peerId, peerLeftMessage);
+    await this.publishCoordinatorMessage(peerLeftMessage);
+
+    if (room.peers.size === 0) {
+      await this.coordinator.unsubscribe(context.roomId).catch((error) => {
+        this.logRelayError('Room unsubscribe failed.', error);
+      });
+    }
   }
 
-  private broadcastToRoom(
+  private handleCoordinatorMessage(message: RelayCoordinatorMessage): void {
+    if (message.type === 'peer-joined' || message.type === 'peer-left') {
+      this.broadcastToLocalRoom(message.roomId, message.peerId, message);
+      return;
+    }
+
+    if (message.type === 'signal') {
+      const target = this.rooms.get(message.roomId)?.peers.get(message.toPeerId);
+      if (!target) {
+        return;
+      }
+
+      target.send(serializeRelayServerMessage(message));
+      return;
+    }
+
+    if (message.signal.toPeerId) {
+      const target = this.rooms.get(message.signal.roomId)?.peers.get(message.signal.toPeerId);
+      if (!target) {
+        return;
+      }
+
+      this.sendTransportToSocket(target, message);
+      return;
+    }
+
+    const room = this.rooms.get(message.signal.roomId);
+    if (!room) {
+      return;
+    }
+
+    for (const [peerId, socket] of room.peers.entries()) {
+      if (peerId === message.signal.fromPeerId) {
+        continue;
+      }
+
+      this.sendTransportToSocket(socket, message);
+    }
+  }
+
+  private sendTransportToSocket(socket: WebSocket, message: Extract<RelayClientMessage, { type: 'transport' }>): void;
+  private sendTransportToSocket(socket: WebSocket, message: Extract<RelayCoordinatorMessage, { type: 'transport' }>): void;
+  private sendTransportToSocket(socket: WebSocket, message: Extract<RelayCoordinatorMessage, { type: 'transport' }>): void {
+    const targetContext = this.contexts.get(socket);
+    socket.send(
+      serializeRelayTransportMessage(message, {
+        transportSession: resolveRelayTransportSession(targetContext?.protocol),
+      }),
+    );
+  }
+
+  private broadcastToLocalRoom(
     roomId: string,
     excludePeerId: string,
     message: RelayPeerJoinedMessage | RelayPeerLeftMessage,
@@ -796,6 +900,22 @@ export class RelayServerImpl implements RelayServer {
 
       socket.send(payload);
     }
+  }
+
+  private async publishCoordinatorMessage(message: RelayCoordinatorMessage): Promise<void> {
+    try {
+      await this.coordinator.publish(message);
+    } catch (error) {
+      this.logRelayError('Remote relay publish failed.', error);
+    }
+  }
+
+  private sendRedisUnavailableError(socket: WebSocket): void {
+    this.sendError(socket, REDIS_UNAVAILABLE_CODE, REDIS_UNAVAILABLE_MESSAGE);
+  }
+
+  private logRelayError(message: string, error: unknown): void {
+    process.stderr.write(`[relay] ${message} error=${normalizeLogValue(readErrorMessage(error))}\n`);
   }
 
   private sendError(socket: WebSocket, code: string, message: string): void {

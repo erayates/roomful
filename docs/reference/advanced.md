@@ -50,6 +50,7 @@ import { createRelayServer, verifyJWT } from '@flockjs/relay';
 const relay = createRelayServer({
   port: 8787,
   maxConnections: 1000,
+  redisUrl: process.env.FLOCK_REDIS_URL,
 }).auth(async (peerId, roomId, token) => {
   const claims = verifyJWT(token, process.env.RELAY_JWT_SECRET ?? '');
   if (claims.roomId !== roomId) {
@@ -67,6 +68,14 @@ HOST=0.0.0.0 PORT=8787 MAX_CONNECTIONS=1000 pnpm --filter @flockjs/relay start
 curl http://127.0.0.1:8787/health
 ```
 
+Horizontal scaling with Redis:
+
+```bash
+HOST=0.0.0.0 PORT=8787 MAX_CONNECTIONS=1000 \
+FLOCK_REDIS_URL=redis://127.0.0.1:6379/0 \
+pnpm --filter @flockjs/relay start
+```
+
 The relay package is the self-hostable baseline for both:
 
 - WebRTC SDP/ICE signaling
@@ -78,10 +87,19 @@ Relay runtime defaults and knobs:
 - `HOST`: default `127.0.0.1`
 - `PORT`: default `8787`
 - `MAX_CONNECTIONS`: optional global concurrent WebSocket cap per relay instance
+- `FLOCK_REDIS_URL`: optional Redis connection string; when set, relay room coordination switches to multi-instance mode automatically
 - relay auth is disabled by default; unconfigured relays remain open
 - when auth is enabled, clients must connect with a single non-empty `token` query param
 - invalid upgrade-stage tokens are rejected with HTTP `401`
 - join-time auth failures emit `AUTH_FAILED` and close the socket with code `4401`
+- join attempts emit `REDIS_UNAVAILABLE` when Redis-backed coordination is configured but not currently ready
+
+Redis-backed relay behavior:
+
+- room membership is shared across relay instances
+- peer join/leave notifications are forwarded through Redis room channels
+- direct relay signaling and websocket transport frames are forwarded across instances
+- existing same-instance sockets remain connected during transient Redis loss, but new joins are rejected until coordination recovers
 
 WebSocket relay example:
 

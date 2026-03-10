@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { WebSocket } from 'ws';
 
 import { createRelayServer, type RelayServer } from './index';
+import { registerRedisIntegrationTests } from './redis.integration.helper';
 
 interface JsonMessage {
   type: string;
@@ -1373,3 +1374,5 @@ describe(
     });
   },
 );
+
+registerRedisIntegrationTests();
