@@ -11,6 +11,10 @@ function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
+function isWindowObject(value: unknown): value is Window {
+  return isObject(value);
+}
+
 function isBrowserApi(value: unknown): value is ExtensionBrowserApi {
   return isObject(value);
 }
@@ -20,16 +24,17 @@ function isPromiseLike(value: unknown): value is PromiseLike<unknown> {
 }
 
 export function getExtensionBrowserApi(): ExtensionBrowserApi | null {
-  if (typeof window === 'undefined') {
+  const windowObject = Reflect.get(globalThis, 'window');
+  if (!isWindowObject(windowObject)) {
     return null;
   }
 
-  const browserApi = window.browser;
+  const browserApi = windowObject.browser;
   if (isBrowserApi(browserApi)) {
     return browserApi;
   }
 
-  const chromeApi = window.chrome;
+  const chromeApi = windowObject.chrome;
   if (isBrowserApi(chromeApi)) {
     return chromeApi;
   }

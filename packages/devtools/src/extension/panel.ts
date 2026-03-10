@@ -2,7 +2,7 @@ import { createInspectedPageBridgeClient } from './bridge-client.js';
 import { getExtensionDevtoolsApi } from './browser-api.js';
 import { createDevtoolsPanelController } from './controller.js';
 
-function bootPanel(): void {
+export function bootPanel(): void {
   const root = document.getElementById('app');
   if (!(root instanceof HTMLElement)) {
     return;

@@ -21,7 +21,9 @@ function isRecord(value: DevtoolsSerializedValue): value is DevtoolsSerializedRe
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function resolveSelectedRoom(state: DevtoolsPanelState) {
+function resolveSelectedRoom(
+  state: DevtoolsPanelState,
+): NonNullable<DevtoolsPanelState['snapshot']> | DevtoolsPanelState['rooms'][number] | null {
   if (state.snapshot) {
     return state.snapshot;
   }

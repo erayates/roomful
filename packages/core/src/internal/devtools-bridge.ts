@@ -76,17 +76,16 @@ export function registerRoomDevtoolsAdapter(adapter: RoomDevtoolsAdapter): Unsub
     };
   }
 
-  const bridgeWindow = windowObject as Window & Record<string, unknown>;
   roomAdapters.set(adapter.instanceId, adapter);
-  bridgeWindow[DEVTOOLS_BRIDGE_GLOBAL] = getBridge();
+  Reflect.set(windowObject, DEVTOOLS_BRIDGE_GLOBAL, getBridge());
 
   return () => {
     roomAdapters.delete(adapter.instanceId);
     if (roomAdapters.size === 0) {
-      delete bridgeWindow[DEVTOOLS_BRIDGE_GLOBAL];
+      Reflect.deleteProperty(windowObject, DEVTOOLS_BRIDGE_GLOBAL);
       return;
     }
 
-    bridgeWindow[DEVTOOLS_BRIDGE_GLOBAL] = getBridge();
+    Reflect.set(windowObject, DEVTOOLS_BRIDGE_GLOBAL, getBridge());
   };
 }

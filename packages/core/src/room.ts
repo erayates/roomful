@@ -238,19 +238,16 @@ function computeUtf8ByteLength(value: string): number | null {
 }
 
 function computeSerializedStateSizeBytes(value: unknown): number | null {
-  let serialized: string | undefined;
-
   try {
-    serialized = JSON.stringify(value);
+    const serialized = JSON.stringify(value);
+    if (typeof serialized !== 'string') {
+      return null;
+    }
+
+    return computeUtf8ByteLength(serialized);
   } catch {
     return null;
   }
-
-  if (serialized === undefined) {
-    return null;
-  }
-
-  return computeUtf8ByteLength(serialized);
 }
 
 function isBootstrapSignal(

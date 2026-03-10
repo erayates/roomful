@@ -11,6 +11,10 @@ const DEFAULT_SERIALIZATION_OPTIONS: Required<DevtoolsSerializationOptions> = {
   maxStringLength: 200,
 };
 
+function isObjectRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
 function truncateString(value: string, maxLength: number): string {
   if (value.length <= maxLength) {
     return value;
@@ -25,7 +29,7 @@ function readSymbolLabel(value: symbol): string {
   return description && description.length > 0 ? description : '(anonymous)';
 }
 
-function readFunctionLabel(value: (...args: unknown[]) => unknown): string {
+function readFunctionLabel(value: { readonly name: string }): string {
   return value.name.length > 0 ? value.name : 'anonymous';
 }
 
@@ -119,7 +123,7 @@ function serializeValue(
   }
 
   if (typeof value === 'bigint') {
-    return `[BigInt ${String(value)}]`;
+    return '[BigInt]';
   }
 
   if (typeof value === 'undefined') {
@@ -131,7 +135,7 @@ function serializeValue(
   }
 
   if (typeof value === 'function') {
-    return `[Function ${readFunctionLabel(value as (...args: unknown[]) => unknown)}]`;
+    return `[Function ${readFunctionLabel(value)}]`;
   }
 
   if (depth >= options.maxDepth) {
@@ -154,13 +158,13 @@ function serializeValue(
     return serializeArray(value, seen, options, depth);
   }
 
-  if (typeof value === 'object') {
+  if (isObjectRecord(value)) {
     if (seen.has(value)) {
       return '[Circular]';
     }
 
     seen.add(value);
-    return serializeObject(value as Record<string, unknown>, seen, options, depth);
+    return serializeObject(value, seen, options, depth);
   }
 
   return `[Unsupported ${typeof value}]`;

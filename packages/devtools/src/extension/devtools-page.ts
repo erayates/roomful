@@ -1,6 +1,6 @@
 import { createDevtoolsPanel, getExtensionDevtoolsApi } from './browser-api.js';
 
-async function bootDevtoolsPanel(): Promise<void> {
+export async function bootDevtoolsPanel(): Promise<void> {
   const devtoolsApi = getExtensionDevtoolsApi();
   if (!devtoolsApi) {
     return;

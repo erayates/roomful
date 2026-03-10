@@ -1,7 +1,7 @@
-import { DEVTOOLS_BRIDGE_VERSION } from '../constants';
-import type { DevtoolsRoomSnapshot, DevtoolsRoomSummary } from '../types';
 import { describe, expect, it } from 'vitest';
 
+import { DEVTOOLS_BRIDGE_VERSION } from '../constants';
+import type { DevtoolsRoomSnapshot, DevtoolsRoomSummary } from '../types';
 import { createInspectedPageBridgeClient } from './bridge-client.js';
 import type { ExtensionDevtoolsApi } from './types.js';
 

@@ -177,21 +177,25 @@ export function isDevtoolsRoomSnapshot(value: unknown): value is DevtoolsRoomSna
     return false;
   }
 
-  const snapshot = value as DevtoolsRoomSnapshot;
+  const bridgeVersion: unknown = Reflect.get(value, 'bridgeVersion');
+  const errors: unknown = Reflect.get(value, 'errors');
+  const events: unknown = Reflect.get(value, 'events');
+  const peers: unknown = Reflect.get(value, 'peers');
+  const state: unknown = Reflect.get(value, 'state');
   return (
-    snapshot.bridgeVersion === DEVTOOLS_BRIDGE_VERSION &&
-    Array.isArray(snapshot.errors) &&
-    snapshot.errors.every((entry: unknown) => {
+    bridgeVersion === DEVTOOLS_BRIDGE_VERSION &&
+    Array.isArray(errors) &&
+    errors.every((entry: unknown) => {
       return isString(entry);
     }) &&
-    Array.isArray(snapshot.events) &&
-    snapshot.events.every((entry: unknown) => {
+    Array.isArray(events) &&
+    events.every((entry: unknown) => {
       return isEventLogEntry(entry);
     }) &&
-    Array.isArray(snapshot.peers) &&
-    snapshot.peers.every((entry: unknown) => {
+    Array.isArray(peers) &&
+    peers.every((entry: unknown) => {
       return isPeerSnapshot(entry);
     }) &&
-    isStateSnapshot(snapshot.state)
+    isStateSnapshot(state)
   );
 }

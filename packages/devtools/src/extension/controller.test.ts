@@ -1,10 +1,16 @@
 // @vitest-environment jsdom
 
-import { fireEvent, getByRole, getByTestId, screen, waitFor, within } from '@testing-library/dom';
+import {
+  fireEvent,
+  getByRole,
+  getByTestId,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { DevtoolsRoomSnapshot, DevtoolsRoomSummary } from '../types';
-
 import { createDevtoolsPanelController } from './controller.js';
 import type { DevtoolsBridgeClient, DevtoolsBridgeReadResult } from './types.js';
 
