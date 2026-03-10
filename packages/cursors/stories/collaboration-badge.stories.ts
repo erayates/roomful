@@ -2,10 +2,7 @@ import type { Peer } from '@flockjs/core';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { createElement, type CSSProperties } from 'react';
 
-import {
-  CollaborationBadge,
-  type CollaborationBadgePosition,
-} from '../src';
+import { CollaborationBadge, type CollaborationBadgePosition } from '../src';
 import { createStoryPeer, type StoryPresence } from './story-fixtures';
 import { StoryGrid, StorySurface } from './story-layout';
 

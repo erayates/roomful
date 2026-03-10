@@ -2,11 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { createElement, type CSSProperties, type ReactElement, useId } from 'react';
 
 import { SelectionHighlight } from '../src';
-import {
-  createStoryPeer,
-  SAMPLE_SELECTION_TEXT,
-  type StoryPresence,
-} from './story-fixtures';
+import { createStoryPeer, SAMPLE_SELECTION_TEXT, type StoryPresence } from './story-fixtures';
 import { StoryStack, StorySurface } from './story-layout';
 
 interface SelectionHighlightStoryArgs {

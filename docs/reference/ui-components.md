@@ -43,12 +43,12 @@ export function HeaderPresence() {
 
 ### `PresenceBar` Props
 
-| Prop          | Type                       | Notes                                                         |
-| ------------- | -------------------------- | ------------------------------------------------------------- |
-| `maxVisible`  | `number`                   | visible peer chips before rendering a separate `+N` overflow chip |
-| `showNames`   | `boolean`                  | shows or hides inline peer names; defaults to `true`          |
-| `size`        | `'sm' \| 'md' \| 'lg'`     | controls avatar, chip, and text sizing                        |
-| `onUserClick` | `(peer: Peer) => void`     | makes peer chips interactive and receives the clicked peer    |
+| Prop          | Type                   | Notes                                                             |
+| ------------- | ---------------------- | ----------------------------------------------------------------- |
+| `maxVisible`  | `number`               | visible peer chips before rendering a separate `+N` overflow chip |
+| `showNames`   | `boolean`              | shows or hides inline peer names; defaults to `true`              |
+| `size`        | `'sm' \| 'md' \| 'lg'` | controls avatar, chip, and text sizing                            |
+| `onUserClick` | `(peer: Peer) => void` | makes peer chips interactive and receives the clicked peer        |
 
 `PresenceBar` reads peers from `usePresence().all`, includes the local user, and uses native `title` tooltips for full names. Avatars come from `peer.avatar`; when absent, the chip shows colored initials using `peer.color` or a deterministic fallback color derived from `peer.id`.
 
@@ -69,10 +69,10 @@ export function CompactPresence() {
 
 ### `PresenceAvatars` Props
 
-| Prop          | Type                   | Notes                                                      |
-| ------------- | ---------------------- | ---------------------------------------------------------- |
-| `maxVisible`  | `number`               | visible avatar circles before rendering a stacked `+N` badge |
-| `size`        | `'sm' \| 'md' \| 'lg'` | controls avatar and overflow badge sizing                  |
+| Prop          | Type                   | Notes                                                          |
+| ------------- | ---------------------- | -------------------------------------------------------------- |
+| `maxVisible`  | `number`               | visible avatar circles before rendering a stacked `+N` badge   |
+| `size`        | `'sm' \| 'md' \| 'lg'` | controls avatar and overflow badge sizing                      |
 | `onUserClick` | `(peer: Peer) => void` | makes avatar circles interactive and receives the clicked peer |
 
 `PresenceAvatars` uses the same peer data and avatar fallback rules as `PresenceBar`, but renders an overlapping stack of avatar circles for dense header layouts.
@@ -83,21 +83,16 @@ export function CompactPresence() {
 import { TypingIndicator } from '@flockjs/cursors';
 
 export function ComposerFooter({ peers }) {
-  return (
-    <TypingIndicator
-      peers={peers}
-      ariaLabel="Users currently typing"
-    />
-  );
+  return <TypingIndicator peers={peers} ariaLabel="Users currently typing" />;
 }
 ```
 
 ### `TypingIndicator` Props
 
-| Prop        | Type                   | Notes                                                       |
-| ----------- | ---------------------- | ----------------------------------------------------------- |
-| `peers`     | `Peer[]`               | peers currently typing; renders nothing when the array is empty |
-| `ariaLabel` | `string`               | overrides the default accessible label text                 |
+| Prop        | Type     | Notes                                                           |
+| ----------- | -------- | --------------------------------------------------------------- |
+| `peers`     | `Peer[]` | peers currently typing; renders nothing when the array is empty |
+| `ariaLabel` | `string` | overrides the default accessible label text                     |
 
 `TypingIndicator` renders inline text plus three animated CSS dots. It shows up to three peer names and collapses any remainder into `and N others`.
 
@@ -113,10 +108,10 @@ export function LivePresenceBadge() {
 
 ### `LiveIndicator` Props
 
-| Prop        | Type     | Notes                                      |
-| ----------- | -------- | ------------------------------------------ |
-| `color`     | `string` | pulse and core color; defaults to green    |
-| `size`      | `number` | rendered diameter in pixels                |
+| Prop        | Type     | Notes                                       |
+| ----------- | -------- | ------------------------------------------- |
+| `color`     | `string` | pulse and core color; defaults to green     |
+| `size`      | `number` | rendered diameter in pixels                 |
 | `ariaLabel` | `string` | overrides the default accessible label text |
 
 `LiveIndicator` renders a compact pulsing dot for presence hotspots and uses inline styles plus embedded keyframes only.
@@ -138,10 +133,10 @@ export function FieldBadge({ peer }) {
 
 ### `CollaborationBadge` Props
 
-| Prop       | Type                                                       | Notes                                                       |
-| ---------- | ---------------------------------------------------------- | ----------------------------------------------------------- |
-| `peer`     | `Peer`                                                     | supplies the badge label and color fallback                 |
-| `position` | `{ top?: number \| string; right?: number \| string; bottom?: number \| string; left?: number \| string }` | absolute offsets inside a relatively positioned parent      |
+| Prop       | Type                                                                                                       | Notes                                                  |
+| ---------- | ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| `peer`     | `Peer`                                                                                                     | supplies the badge label and color fallback            |
+| `position` | `{ top?: number \| string; right?: number \| string; bottom?: number \| string; left?: number \| string }` | absolute offsets inside a relatively positioned parent |
 
 `CollaborationBadge` renders a decorative absolute-positioned badge for peers actively editing an element. It uses `peer.name` when available, falls back to `peer.id`, and derives the badge color from `peer.color` or the same deterministic fallback palette used by the presence components.
 
@@ -167,14 +162,14 @@ import { PeerCursor } from '@flockjs/cursors';
 
 ### `PeerCursor` Props
 
-| Prop    | Type                            | Notes                                             |
-| ------- | ------------------------------- | ------------------------------------------------- |
-| `x`     | `number`                        | normalized horizontal position from `0` to `1`    |
-| `y`     | `number`                        | normalized vertical position from `0` to `1`      |
-| `name`  | `string`                        | peer label rendered next to the cursor            |
-| `color` | `string`                        | marker color and label background color           |
-| `idle`  | `boolean`                       | starts a 3 second label hide timer when `true`    |
-| `style` | `'arrow' \| 'dot' \| 'pointer'` | selects one of the built-in inline SVG markers    |
+| Prop    | Type                            | Notes                                          |
+| ------- | ------------------------------- | ---------------------------------------------- |
+| `x`     | `number`                        | normalized horizontal position from `0` to `1` |
+| `y`     | `number`                        | normalized vertical position from `0` to `1`   |
+| `name`  | `string`                        | peer label rendered next to the cursor         |
+| `color` | `string`                        | marker color and label background color        |
+| `idle`  | `boolean`                       | starts a 3 second label hide timer when `true` |
+| `style` | `'arrow' \| 'dot' \| 'pointer'` | selects one of the built-in inline SVG markers |
 
 `PeerCursor` uses inline styles only, sets `aria-hidden="true"`, and keeps movement interpolation inside the component with CSS transitions. When `idle` becomes `true`, the marker stays visible and the name label fades out after 3 seconds of inactivity.
 
@@ -187,10 +182,7 @@ export function RemoteSelection({ peer }) {
   return (
     <>
       <p id="editor-copy">Ada Lovelace writes tests.</p>
-      <SelectionHighlight
-        peer={peer}
-        selection={{ elementId: 'editor-copy', from: 4, to: 12 }}
-      />
+      <SelectionHighlight peer={peer} selection={{ elementId: 'editor-copy', from: 4, to: 12 }} />
     </>
   );
 }
@@ -198,9 +190,9 @@ export function RemoteSelection({ peer }) {
 
 ### `SelectionHighlight` Props
 
-| Prop        | Type                                                | Notes                                                       |
-| ----------- | --------------------------------------------------- | ----------------------------------------------------------- |
-| `peer`      | `Peer`                                              | supplies the highlight color fallback                       |
+| Prop        | Type                                                      | Notes                                                             |
+| ----------- | --------------------------------------------------------- | ----------------------------------------------------------------- |
+| `peer`      | `Peer`                                                    | supplies the highlight color fallback                             |
 | `selection` | `{ elementId: string; from: number; to: number } \| null` | targets a text range inside the element identified by `elementId` |
 
 `SelectionHighlight` prefers the CSS Custom Highlight API and falls back to span injection when highlights are unavailable. The component normalizes reversed ranges, clamps invalid offsets, and removes any injected styles or wrapper spans when the selection changes or the component unmounts.
