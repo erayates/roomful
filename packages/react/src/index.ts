@@ -737,6 +737,10 @@ function createRoomDefinition<TPresence extends PresenceData = PresenceData>(
     options.webrtc = props.webrtc;
   }
 
+  if (props.websocket !== undefined) {
+    options.websocket = props.websocket;
+  }
+
   if (props.encryption !== undefined) {
     options.encryption = props.encryption;
   }
@@ -771,6 +775,7 @@ function areRoomOptionsEqual<TPresence extends PresenceData = PresenceData>(
     a.relayAuth === b.relayAuth &&
     areShallowValuesEqual(a.reconnect, b.reconnect) &&
     areShallowObjectsEqual(a.webrtc, b.webrtc) &&
+    areShallowObjectsEqual(a.websocket, b.websocket) &&
     areShallowValuesEqual(a.encryption, b.encryption) &&
     areShallowValuesEqual(a.debug, b.debug)
   );
