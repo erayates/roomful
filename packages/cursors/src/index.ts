@@ -1,8 +1,14 @@
 export { CollaborationBadge } from './collaboration-badge';
 export type { CollaborationBadgePosition, CollaborationBadgeProps } from './collaboration-badge.types';
+export type { FloatingReactionProps } from './floating-reaction';
+export { FloatingReaction } from './floating-reaction';
 export type { LiveIndicatorProps, TypingIndicatorProps } from './indicator-types';
 export { LiveIndicator } from './live-indicator';
+export { PeerCursor } from './peer-cursor';
+export type { PeerCursorProps, PeerCursorStyle } from './peer-cursor.types';
 export { PresenceAvatars } from './presence-avatars';
 export { PresenceBar } from './presence-bar';
 export type { PresenceAvatarsProps, PresenceBarProps, PresenceSize } from './presence-types';
+export { SelectionHighlight } from './selection-highlight';
+export type { SelectionHighlightProps, SelectionRange } from './selection-highlight.types';
 export { TypingIndicator } from './typing-indicator';
