@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { WebSocket } from 'ws';
 
-import { createRelayServer, type RelayServer } from './index';
-import { isObject } from './internal/guards';
-import { isRelayJoinProtocol } from './relay-protocol-guards';
+import { createRelayServer, type RelayServer } from './index.js';
+import { isObject } from './internal/guards.js';
+import { isRelayJoinProtocol } from './relay-protocol-guards.js';
 import type {
   RelayRedisEnvelope,
   RelayRedisJoinRequest,
@@ -11,8 +11,8 @@ import type {
   RelayRedisStore,
   RelayRedisStoreOptions,
   RelayRedisSyncRequest,
-} from './relay-redis-store';
-import type { RelayServerInternalOptions } from './server';
+} from './relay-redis-store.js';
+import type { RelayServerInternalOptions } from './server.js';
 
 interface JsonMessage {
   type: string;

@@ -2,8 +2,8 @@ import { encode } from '@msgpack/msgpack';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { WebSocket } from 'ws';
 
-import { createRelayServer, type RelayServer } from './index';
-import { registerRedisIntegrationTests } from './redis.integration.helper';
+import { createRelayServer, type RelayServer } from './index.js';
+import { registerRedisIntegrationTests } from './redis.integration.helper.js';
 
 interface JsonMessage {
   type: string;
@@ -97,7 +97,10 @@ function waitForRawMessage(
   });
 }
 
-function waitForClose(socket: WebSocket, timeoutMs = 2_000): Promise<{ code: number; reason: string }> {
+function waitForClose(
+  socket: WebSocket,
+  timeoutMs = 2_000,
+): Promise<{ code: number; reason: string }> {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
       socket.off('close', onClose);
@@ -1175,6 +1178,185 @@ describe(
 
       const notFoundResponse = await fetch(toHttpUrl(relayServer.getAddress(), '/missing'));
       expect(notFoundResponse.status).toBe(404);
+    });
+
+    it('supports polling sessions alongside websocket peers for transport delivery', async () => {
+      relayServer = createRelayServer({
+        port: 0,
+      });
+      await relayServer.start();
+
+      const websocketPeer = new WebSocket(relayServer.getAddress());
+      sockets.push(websocketPeer);
+      await waitForOpen(websocketPeer);
+
+      send(websocketPeer, {
+        type: 'join',
+        roomId: 'room-polling-mixed',
+        peerId: 'ws-a',
+      });
+      await waitForMessage(websocketPeer, (message) => message.type === 'joined');
+
+      const pollingJoinResponse = await createPollingSession(relayServer.getAddress(), {
+        type: 'join',
+        roomId: 'room-polling-mixed',
+        peerId: 'poll-b',
+      });
+      expect(pollingJoinResponse.status).toBe(200);
+      const pollingJoin = (await pollingJoinResponse.json()) as {
+        sessionId: string;
+        peers: Array<{ peerId: string }>;
+      };
+      expect(pollingJoin.peers).toEqual([
+        {
+          peerId: 'ws-a',
+        },
+      ]);
+
+      const peerJoinedAtWs = await waitForMessage(
+        websocketPeer,
+        (message) => message.type === 'peer-joined' && message.peerId === 'poll-b',
+      );
+      expect(peerJoinedAtWs).toMatchObject({
+        type: 'peer-joined',
+        roomId: 'room-polling-mixed',
+        peerId: 'poll-b',
+      });
+
+      const transportToWs = waitForMessage(
+        websocketPeer,
+        (message) =>
+          message.type === 'transport' &&
+          (message.message as { signal?: { fromPeerId?: string } } | undefined)?.signal
+            ?.fromPeerId === 'poll-b',
+      );
+      const pollingSendResponse = await sendPollingTransport(
+        relayServer.getAddress(),
+        pollingJoin.sessionId,
+        createTransportFrame({
+          type: 'event',
+          roomId: 'room-polling-mixed',
+          fromPeerId: 'poll-b',
+          toPeerId: 'ws-a',
+          payload: {
+            name: 'from-polling',
+            payload: {
+              ok: true,
+            },
+          },
+        }),
+      );
+      expect(pollingSendResponse.status).toBe(202);
+      await expect(transportToWs).resolves.toMatchObject({
+        type: 'transport',
+        message: {
+          signal: {
+            fromPeerId: 'poll-b',
+            toPeerId: 'ws-a',
+          },
+        },
+      });
+
+      send(
+        websocketPeer,
+        createTransportFrame({
+          type: 'event',
+          roomId: 'room-polling-mixed',
+          fromPeerId: 'ws-a',
+          payload: {
+            name: 'from-websocket',
+            payload: {
+              ok: true,
+            },
+          },
+        }),
+      );
+
+      const pollingEventResponse = await waitForPollingEvent(
+        relayServer.getAddress(),
+        pollingJoin.sessionId,
+      );
+      expect(pollingEventResponse.status).toBe(200);
+      await expect(pollingEventResponse.json()).resolves.toMatchObject({
+        type: 'transport',
+        message: {
+          signal: {
+            fromPeerId: 'ws-a',
+            type: 'event',
+          },
+        },
+      });
+
+      const deleteResponse = await deletePollingSession(
+        relayServer.getAddress(),
+        pollingJoin.sessionId,
+      );
+      expect(deleteResponse.status).toBe(204);
+
+      const peerLeftAtWs = await waitForMessage(
+        websocketPeer,
+        (message) => message.type === 'peer-left' && message.peerId === 'poll-b',
+      );
+      expect(peerLeftAtWs).toMatchObject({
+        type: 'peer-left',
+        roomId: 'room-polling-mixed',
+        peerId: 'poll-b',
+      });
+    });
+
+    it('returns 204 when a polling event request times out with no queued messages', async () => {
+      relayServer = createRelayServer({
+        port: 0,
+      });
+      await relayServer.start();
+
+      const pollingJoinResponse = await createPollingSession(relayServer.getAddress(), {
+        type: 'join',
+        roomId: 'room-polling-timeout',
+        peerId: 'poll-a',
+      });
+      const pollingJoin = (await pollingJoinResponse.json()) as { sessionId: string };
+
+      const eventResponse = await waitForPollingEvent(
+        relayServer.getAddress(),
+        pollingJoin.sessionId,
+        10,
+      );
+      expect(eventResponse.status).toBe(204);
+
+      await deletePollingSession(relayServer.getAddress(), pollingJoin.sessionId);
+    });
+
+    it('requires bearer auth for polling joins when relay auth is enabled', async () => {
+      relayServer = createRelayServer({
+        port: 0,
+      }).auth(async (_peerId, _roomId, token) => {
+        return token === 'allow';
+      });
+      await relayServer.start();
+
+      const missingAuthResponse = await createPollingSession(relayServer.getAddress(), {
+        type: 'join',
+        roomId: 'room-polling-auth',
+        peerId: 'poll-a',
+      });
+      expect(missingAuthResponse.status).toBe(401);
+      await expect(missingAuthResponse.json()).resolves.toMatchObject({
+        code: 'AUTH_FAILED',
+      });
+
+      const allowedResponse = await createPollingSession(
+        relayServer.getAddress(),
+        {
+          type: 'join',
+          roomId: 'room-polling-auth',
+          peerId: 'poll-a',
+        },
+        'allow',
+      );
+      expect(allowedResponse.status).toBe(200);
+      const allowedJoin = (await allowedResponse.json()) as { sessionId: string };
+      await deletePollingSession(relayServer.getAddress(), allowedJoin.sessionId);
     });
 
     it('rejects websocket upgrades when maxConnections is reached', async () => {

@@ -1,10 +1,10 @@
-import type { RelayRoomCoordinator } from './relay-coordinator';
+import type { RelayRoomCoordinator } from './relay-coordinator.js';
 import type {
   RelayCoordinatorMessage,
   RelayJoinPeer,
   RelayJoinRequest,
   RelayJoinResult,
-} from './relay-coordinator';
+} from './relay-coordinator.js';
 
 interface LocalRelayRoomState {
   peers: Map<string, RelayJoinPeer>;

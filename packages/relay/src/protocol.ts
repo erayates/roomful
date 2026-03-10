@@ -1,7 +1,7 @@
 import { decode, encode } from '@msgpack/msgpack';
 import { z } from 'zod';
 
-import { isObject } from './internal/guards';
+import { isObject } from './internal/guards.js';
 
 const peerProtocolCodecSchema = z.enum(['json', 'msgpack']);
 const peerProtocolCapabilitiesSchema = z

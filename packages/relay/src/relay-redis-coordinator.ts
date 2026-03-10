@@ -6,7 +6,7 @@ import type {
   RelayJoinRequest,
   RelayJoinResult,
   RelayRoomCoordinator,
-} from './relay-coordinator';
+} from './relay-coordinator.js';
 import {
   createRelayRedisEnvelope,
   createRelayRedisStore,
@@ -14,7 +14,7 @@ import {
   type RelayRedisStore,
   type RelayRedisStoreOptions,
   roomRedisChannel,
-} from './relay-redis-store';
+} from './relay-redis-store.js';
 
 interface RedisRelayRoomState {
   peers: Map<string, RelayJoinPeer>;

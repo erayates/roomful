@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 
-import { isObject } from './internal/guards';
+import { isObject } from './internal/guards.js';
 
 export interface RelayJwtPayload extends Record<string, unknown> {
   exp?: number;

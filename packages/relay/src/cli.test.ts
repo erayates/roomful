@@ -1,9 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { resolveRelayCliOptions, runRelayCli } from './cli';
-import type { RelayServer } from './server';
+import { resolveRelayCliOptions, runRelayCli } from './cli.js';
+import type { RelayServer } from './server.js';
 
 interface FakeProcess {
+  argv?: string[];
   env: NodeJS.ProcessEnv;
   stdout: {
     write: ReturnType<typeof vi.fn<(chunk: string) => void>>;
@@ -15,12 +16,16 @@ interface FakeProcess {
   on(signal: 'SIGINT' | 'SIGTERM', listener: () => void): void;
 }
 
-function createFakeProcess(env: NodeJS.ProcessEnv): {
+function createFakeProcess(
+  env: NodeJS.ProcessEnv,
+  argv: string[] = [],
+): {
   processLike: FakeProcess;
   signalHandlers: Map<'SIGINT' | 'SIGTERM', () => void>;
 } {
   const signalHandlers = new Map<'SIGINT' | 'SIGTERM', () => void>();
   const processLike: FakeProcess = {
+    argv,
     env,
     stdout: {
       write: vi.fn<(chunk: string) => void>(),
@@ -42,9 +47,12 @@ function createFakeProcess(env: NodeJS.ProcessEnv): {
 describe('relay cli', () => {
   it('returns an error result for invalid ports', () => {
     expect(
-      resolveRelayCliOptions({
-        PORT: 'invalid',
-      }),
+      resolveRelayCliOptions(
+        {
+          PORT: 'invalid',
+        },
+        [],
+      ),
     ).toEqual({
       error: 'Invalid PORT value "invalid".',
     });
@@ -52,9 +60,12 @@ describe('relay cli', () => {
 
   it('returns an error result for invalid max connections', () => {
     expect(
-      resolveRelayCliOptions({
-        MAX_CONNECTIONS: 'invalid',
-      }),
+      resolveRelayCliOptions(
+        {
+          MAX_CONNECTIONS: 'invalid',
+        },
+        [],
+      ),
     ).toEqual({
       error: 'Invalid MAX_CONNECTIONS value "invalid".',
     });
@@ -62,9 +73,12 @@ describe('relay cli', () => {
 
   it('returns an error result for invalid redis urls', () => {
     expect(
-      resolveRelayCliOptions({
-        FLOCK_REDIS_URL: 'not-a-url',
-      }),
+      resolveRelayCliOptions(
+        {
+          FLOCK_REDIS_URL: 'not-a-url',
+        },
+        [],
+      ),
     ).toEqual({
       error: 'Invalid FLOCK_REDIS_URL value "not-a-url".',
     });
@@ -72,12 +86,15 @@ describe('relay cli', () => {
 
   it('resolves valid port, host, and max connection values', () => {
     expect(
-      resolveRelayCliOptions({
-        PORT: '8788',
-        HOST: '0.0.0.0',
-        MAX_CONNECTIONS: '250',
-        FLOCK_REDIS_URL: 'redis://127.0.0.1:6379/0',
-      }),
+      resolveRelayCliOptions(
+        {
+          PORT: '8788',
+          HOST: '0.0.0.0',
+          MAX_CONNECTIONS: '250',
+          FLOCK_REDIS_URL: 'redis://127.0.0.1:6379/0',
+        },
+        [],
+      ),
     ).toEqual({
       port: 8788,
       host: '0.0.0.0',
@@ -85,8 +102,33 @@ describe('relay cli', () => {
       redisUrl: 'redis://127.0.0.1:6379/0',
     });
 
-    expect(resolveRelayCliOptions({})).toEqual({
+    expect(resolveRelayCliOptions({}, [])).toEqual({
       port: 8787,
+    });
+  });
+
+  it('prefers cli flags over environment variables', () => {
+    expect(
+      resolveRelayCliOptions(
+        {
+          PORT: '8787',
+          HOST: '127.0.0.1',
+          MAX_CONNECTIONS: '100',
+          FLOCK_REDIS_URL: 'redis://127.0.0.1:6379/0',
+        },
+        ['--port', '8080', '--host', '0.0.0.0', '--max-connections', '200'],
+      ),
+    ).toEqual({
+      port: 8080,
+      host: '0.0.0.0',
+      maxConnections: 200,
+      redisUrl: 'redis://127.0.0.1:6379/0',
+    });
+  });
+
+  it('returns an error result for invalid cli flag values', () => {
+    expect(resolveRelayCliOptions({}, ['--port', 'invalid'])).toEqual({
+      error: 'Invalid --port value "invalid".',
     });
   });
 
@@ -101,6 +143,23 @@ describe('relay cli', () => {
       }),
     ).resolves.toBe(1);
     expect(processLike.stderr.write).toHaveBeenCalledWith('Invalid PORT value "not-a-number".\n');
+  });
+
+  it('prints help output without starting the relay', async () => {
+    const createServer = vi.fn();
+    const { processLike } = createFakeProcess({}, ['node', 'flockjs-relay', '--help']);
+
+    await expect(
+      runRelayCli({
+        createServer,
+        process: processLike,
+      }),
+    ).resolves.toBe(0);
+
+    expect(createServer).not.toHaveBeenCalled();
+    expect(processLike.stdout.write).toHaveBeenCalledWith(
+      expect.stringContaining('Usage: flockjs-relay [options]'),
+    );
   });
 
   it('starts the relay and stops it on shutdown without calling process.exit', async () => {
@@ -121,12 +180,15 @@ describe('relay cli', () => {
       }),
     );
 
-    const { processLike, signalHandlers } = createFakeProcess({
-      PORT: '8788',
-      HOST: '127.0.0.1',
-      MAX_CONNECTIONS: '42',
-      FLOCK_REDIS_URL: 'redis://127.0.0.1:6379/0',
-    });
+    const { processLike, signalHandlers } = createFakeProcess(
+      {
+        PORT: '8788',
+        HOST: '127.0.0.1',
+        MAX_CONNECTIONS: '42',
+        FLOCK_REDIS_URL: 'redis://127.0.0.1:6379/0',
+      },
+      ['node', 'flockjs-relay'],
+    );
 
     await expect(
       runRelayCli({

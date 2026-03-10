@@ -2,14 +2,14 @@ import { randomUUID } from 'node:crypto';
 
 import Redis from 'ioredis';
 
-import { isObject, isUnknownArray } from './internal/guards';
+import { isObject, isUnknownArray } from './internal/guards.js';
 import type {
   RelayCoordinatorMessage,
   RelayJoinPeer,
   RelayJoinProtocol,
   RelayJoinResult,
-} from './relay-coordinator';
-import { isRelayJoinProtocol } from './relay-protocol-guards';
+} from './relay-coordinator.js';
+import { isRelayJoinProtocol } from './relay-protocol-guards.js';
 
 const REDIS_NAMESPACE = 'flock:relay:v1';
 

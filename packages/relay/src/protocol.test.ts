@@ -7,7 +7,7 @@ import {
   resolveRelayTransportSession,
   serializeRelayServerMessage,
   serializeRelayTransportMessage,
-} from './protocol';
+} from './protocol.js';
 
 const protocol = {
   minVersion: 1 as const,

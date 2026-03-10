@@ -5,7 +5,7 @@ import type {
   RelayServerMessage,
   RelaySignalMessage,
   RelayTransportMessage,
-} from './protocol';
+} from './protocol.js';
 
 export type RelayJoinProtocol = Extract<RelayClientMessage, { type: 'join' }>['protocol'];
 

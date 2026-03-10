@@ -3,8 +3,8 @@ import { performance } from 'node:perf_hooks';
 import { afterAll, beforeAll, bench, describe, expect } from 'vitest';
 import { WebSocket } from 'ws';
 
-import { isObject } from './internal/guards';
-import { createRelayServer, type RelayServer } from './server';
+import { isObject } from './internal/guards.js';
+import { createRelayServer, type RelayServer } from './server.js';
 
 interface BenchmarkClientPair {
   receiver: WebSocket;

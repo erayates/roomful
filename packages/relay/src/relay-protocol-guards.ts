@@ -1,5 +1,5 @@
-import { isObject } from './internal/guards';
-import type { RelayClientMessage } from './protocol';
+import { isObject } from './internal/guards.js';
+import type { RelayClientMessage } from './protocol.js';
 
 type RelayJoinProtocol = Extract<RelayClientMessage, { type: 'join' }>['protocol'];
 

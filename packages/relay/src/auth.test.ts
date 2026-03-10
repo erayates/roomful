@@ -2,7 +2,7 @@ import { createHmac } from 'node:crypto';
 
 import { describe, expect, it } from 'vitest';
 
-import { RelayJwtVerificationError, verifyJWT } from './auth';
+import { RelayJwtVerificationError, verifyJWT } from './auth.js';
 
 function encodeBase64Url(value: string): string {
   return Buffer.from(value, 'utf8').toString('base64url');
