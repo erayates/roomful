@@ -172,6 +172,51 @@ function withQueryTokens(address: string, ...tokens: string[]): string {
   return url.toString();
 }
 
+async function createPollingSession(
+  address: string,
+  payload: Record<string, unknown>,
+  token?: string,
+): Promise<Response> {
+  return fetch(toHttpUrl(address, '/poll/sessions'), {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json; charset=utf-8',
+      ...(token ? { authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(payload),
+  });
+}
+
+async function waitForPollingEvent(
+  address: string,
+  sessionId: string,
+  timeoutMs = 2_000,
+): Promise<Response> {
+  const url = new URL(toHttpUrl(address, `/poll/sessions/${encodeURIComponent(sessionId)}/events`));
+  url.searchParams.set('timeoutMs', String(timeoutMs));
+  return fetch(url.toString());
+}
+
+async function sendPollingTransport(
+  address: string,
+  sessionId: string,
+  payload: JsonMessage,
+): Promise<Response> {
+  return fetch(toHttpUrl(address, `/poll/sessions/${encodeURIComponent(sessionId)}/messages`), {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json; charset=utf-8',
+    },
+    body: JSON.stringify(payload),
+  });
+}
+
+async function deletePollingSession(address: string, sessionId: string): Promise<Response> {
+  return fetch(toHttpUrl(address, `/poll/sessions/${encodeURIComponent(sessionId)}`), {
+    method: 'DELETE',
+  });
+}
+
 function send(socket: WebSocket, payload: JsonMessage): void {
   socket.send(JSON.stringify(payload));
 }
@@ -1197,6 +1242,10 @@ describe(
       });
       await waitForMessage(websocketPeer, (message) => message.type === 'joined');
 
+      const peerJoinedAtWsPromise = waitForMessage(
+        websocketPeer,
+        (message) => message.type === 'peer-joined' && message.peerId === 'poll-b',
+      );
       const pollingJoinResponse = await createPollingSession(relayServer.getAddress(), {
         type: 'join',
         roomId: 'room-polling-mixed',
@@ -1213,10 +1262,7 @@ describe(
         },
       ]);
 
-      const peerJoinedAtWs = await waitForMessage(
-        websocketPeer,
-        (message) => message.type === 'peer-joined' && message.peerId === 'poll-b',
-      );
+      const peerJoinedAtWs = await peerJoinedAtWsPromise;
       expect(peerJoinedAtWs).toMatchObject({
         type: 'peer-joined',
         roomId: 'room-polling-mixed',
@@ -1287,16 +1333,17 @@ describe(
         },
       });
 
+      const peerLeftAtWsPromise = waitForMessage(
+        websocketPeer,
+        (message) => message.type === 'peer-left' && message.peerId === 'poll-b',
+      );
       const deleteResponse = await deletePollingSession(
         relayServer.getAddress(),
         pollingJoin.sessionId,
       );
       expect(deleteResponse.status).toBe(204);
 
-      const peerLeftAtWs = await waitForMessage(
-        websocketPeer,
-        (message) => message.type === 'peer-left' && message.peerId === 'poll-b',
-      );
+      const peerLeftAtWs = await peerLeftAtWsPromise;
       expect(peerLeftAtWs).toMatchObject({
         type: 'peer-left',
         roomId: 'room-polling-mixed',

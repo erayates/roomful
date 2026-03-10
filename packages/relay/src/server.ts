@@ -557,7 +557,12 @@ export class RelayServerImpl implements RelayServer {
     this.stopPromise = (async () => {
       try {
         const closeHttpServer = new Promise<void>((resolve, reject) => {
+          const timer = setTimeout(() => {
+            httpServer.closeAllConnections();
+            resolve();
+          }, SHUTDOWN_TIMEOUT_MS);
           httpServer.close((error) => {
+            clearTimeout(timer);
             if (error) {
               reject(error);
               return;
@@ -588,7 +593,11 @@ export class RelayServerImpl implements RelayServer {
 
         await Promise.all([
           new Promise<void>((resolve) => {
+            const timer = setTimeout(() => {
+              resolve();
+            }, SHUTDOWN_TIMEOUT_MS);
             wsServer.close(() => {
+              clearTimeout(timer);
               resolve();
             });
           }),
