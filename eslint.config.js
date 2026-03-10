@@ -24,7 +24,7 @@ export default [
   ...tseslint.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,
   {
-    files: ['**/*.ts'],
+    files: ['**/*.{ts,tsx}'],
     languageOptions: {
       parserOptions: {
         projectService: {
@@ -38,8 +38,8 @@ export default [
             'packages/*/integration/*.test.ts',
             'packages/*/integration/*/*.test.ts',
             'packages/*/integration/*/*/*.test.ts',
-            'apps/*/src/*.test.ts',
-            'apps/*/src/*/*.test.ts',
+            'apps/*/vite.config.ts',
+            'apps/*/vitest.config.ts',
           ],
           maximumDefaultProjectFileMatchCount_THIS_WILL_SLOW_DOWN_LINTING: 50,
         },
@@ -108,7 +108,7 @@ export default [
     },
   },
   {
-    files: ['**/*.test.ts'],
+    files: ['**/*.test.{ts,tsx}'],
     rules: {
       '@typescript-eslint/no-non-null-assertion': 'off',
       '@typescript-eslint/no-explicit-any': 'off',
