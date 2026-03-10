@@ -25,19 +25,19 @@ Building collaboration features usually requires you to stitch together transpor
 
 ## Feature Overview
 
-| Area                | Description                                   | Status  |
-| ------------------- | --------------------------------------------- | ------- |
-| Core room lifecycle | `createRoom`, connect/disconnect, peer events | Planned |
-| Presence engine     | peer metadata, subscriptions, updates         | Planned |
-| Cursor engine       | pointer sync, rendering helpers               | Planned |
-| Shared state engine | `lww`, `crdt`, `custom` merge strategies      | Planned |
-| Awareness engine    | transient focus/typing/selection state        | Planned |
-| Event engine        | ephemeral room and peer-targeted events       | Planned |
-| React adapter       | provider + hooks API                          | Planned |
-| Vue adapter         | plugin + composables                          | Planned |
-| Svelte adapter      | stores + actions                              | Planned |
-| Relay server        | optional WebSocket relay for scale            | Planned |
-| Prebuilt UI kit     | cursors/presence/typing components            | Planned |
+| Area                | Description                                   | Status    |
+| ------------------- | --------------------------------------------- | --------- |
+| Core room lifecycle | `createRoom`, connect/disconnect, peer events | Planned   |
+| Presence engine     | peer metadata, subscriptions, updates         | Planned   |
+| Cursor engine       | pointer sync, rendering helpers               | Planned   |
+| Shared state engine | `lww`, `crdt`, `custom` merge strategies      | Planned   |
+| Awareness engine    | transient focus/typing/selection state        | Planned   |
+| Event engine        | ephemeral room and peer-targeted events       | Planned   |
+| React adapter       | provider + hooks API                          | Planned   |
+| Vue adapter         | plugin + composables                          | Planned   |
+| Svelte adapter      | stores + actions                              | Planned   |
+| Relay server        | optional WebSocket relay for scale            | Available |
+| Prebuilt UI kit     | cursors/presence/typing components            | Planned   |
 
 ## Quick Start (Planned API)
 
@@ -67,15 +67,15 @@ window.addEventListener('beforeunload', () => {
 
 ## Package Matrix
 
-| Package             | Purpose                                 | Status  |
-| ------------------- | --------------------------------------- | ------- |
-| `@flockjs/core`     | room, transports, collaboration engines | Planned |
-| `@flockjs/react`    | React provider/hooks                    | Planned |
-| `@flockjs/vue`      | Vue plugin/composables                  | Planned |
-| `@flockjs/svelte`   | Svelte store/action integration         | Planned |
-| `@flockjs/cursors`  | prebuilt collaboration UI components    | Planned |
-| `@flockjs/relay`    | self-hosted relay server                | Planned |
-| `@flockjs/devtools` | debugging and diagnostics tooling       | Planned |
+| Package             | Purpose                                 | Status    |
+| ------------------- | --------------------------------------- | --------- |
+| `@flockjs/core`     | room, transports, collaboration engines | Planned   |
+| `@flockjs/react`    | React provider/hooks                    | Planned   |
+| `@flockjs/vue`      | Vue plugin/composables                  | Planned   |
+| `@flockjs/svelte`   | Svelte store/action integration         | Planned   |
+| `@flockjs/cursors`  | prebuilt collaboration UI components    | Planned   |
+| `@flockjs/relay`    | self-hosted relay server                | Available |
+| `@flockjs/devtools` | debugging and diagnostics tooling       | Planned   |
 
 ## Documentation
 
@@ -86,6 +86,44 @@ window.addEventListener('beforeunload', () => {
 - [Code quality guidelines](docs/project/flockjs-code-quality-guidelines.md)
 - [Contributing guide](CONTRIBUTING.md)
 - [Roadmap](ROADMAP.md)
+
+## Relay CLI and Docker
+
+Install the relay as a global CLI:
+
+```bash
+npm install -g @flockjs/relay
+flockjs-relay --port 8080
+```
+
+Relay runtime environment variables:
+
+| Variable          | Default     | Description                                                              |
+| ----------------- | ----------- | ------------------------------------------------------------------------ |
+| `PORT`            | `8787`      | TCP port the relay listens on                                            |
+| `HOST`            | `127.0.0.1` | Interface the relay binds to. Docker examples override this to `0.0.0.0` |
+| `MAX_CONNECTIONS` | unset       | Optional concurrent WebSocket connection cap                             |
+| `FLOCK_REDIS_URL` | unset       | Optional Redis URL used to coordinate multiple relay instances           |
+
+Docker image:
+
+```bash
+docker pull flockjs/relay:latest
+docker run --rm -p 8787:8787 -e HOST=0.0.0.0 flockjs/relay:latest
+```
+
+Compose examples:
+
+```bash
+# Local image build
+docker compose up --build
+
+# Local build with Redis coordination
+FLOCK_REDIS_URL=redis://redis:6379/0 docker compose --profile redis up --build
+
+# Production image
+docker compose -f docker-compose.prod.yml up -d
+```
 
 ## Monorepo Setup
 
@@ -135,9 +173,9 @@ CI/CD baseline for EP-01 `#005`:
 - PR validation runs on every PR to `main`.
 - Validation runs on Node `18` and `20`.
 - Pipeline order: install -> lint -> typecheck -> test -> build.
-- Release workflow triggers on `v*` tags and publishes `@flockjs/*` via Changesets.
+- Release workflow triggers on `v*` tags, publishes `@flockjs/*` via Changesets, and publishes `flockjs/relay` to Docker Hub.
 - Changesets release PR workflow (`.github/workflows/changesets-release-pr.yml`) runs on pushes to `main`.
-- Release workflow requires `NPM_TOKEN` and optionally uses `TURBO_TEAM` / `TURBO_TOKEN`.
+- Release workflow requires `NPM_TOKEN`, `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`, and optionally uses `TURBO_TEAM` / `TURBO_TOKEN`.
 
 ### Workspace Layout
 

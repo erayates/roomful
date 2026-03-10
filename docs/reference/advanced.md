@@ -64,16 +64,15 @@ await relay.start();
 CLI startup:
 
 ```bash
-HOST=0.0.0.0 PORT=8787 MAX_CONNECTIONS=1000 pnpm --filter @flockjs/relay start
+flockjs-relay --host 0.0.0.0 --port 8787 --max-connections 1000
 curl http://127.0.0.1:8787/health
 ```
 
 Horizontal scaling with Redis:
 
 ```bash
-HOST=0.0.0.0 PORT=8787 MAX_CONNECTIONS=1000 \
 FLOCK_REDIS_URL=redis://127.0.0.1:6379/0 \
-pnpm --filter @flockjs/relay start
+flockjs-relay --host 0.0.0.0 --port 8787 --max-connections 1000
 ```
 
 The relay package is the self-hostable baseline for both:
@@ -94,6 +93,13 @@ Relay runtime defaults and knobs:
 - join-time auth failures emit `AUTH_FAILED` and close the socket with code `4401`
 - join attempts emit `REDIS_UNAVAILABLE` when Redis-backed coordination is configured but not currently ready
 
+Docker runtime:
+
+```bash
+docker pull flockjs/relay:latest
+docker run --rm -p 8787:8787 -e HOST=0.0.0.0 flockjs/relay:latest
+```
+
 Redis-backed relay behavior:
 
 - room membership is shared across relay instances
@@ -107,8 +113,18 @@ WebSocket relay example:
 const room = createRoom('doc-room', {
   transport: 'websocket',
   relayUrl: 'ws://localhost:8787',
+  websocket: {
+    fallbackTransport: 'polling',
+  },
 });
 ```
+
+Polling fallback notes:
+
+- fallback is opt-in on `transport: 'websocket'`
+- fallback only applies during the initial connect/reconnect attempt when WebSocket is blocked or unavailable
+- once fallback activates, that room instance stays on polling until you call `disconnect()`
+- `auto` selection order is unchanged; polling is not a public transport mode
 
 ## Reconnection
 

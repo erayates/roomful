@@ -34,6 +34,9 @@ npm install @flockjs/cursors
 
 # Self-hosted relay server (optional)
 npm install @flockjs/relay
+
+# Relay CLI (optional)
+npm install -g @flockjs/relay
 ```
 
 ## Environment Constraints

@@ -1,0 +1,27 @@
+services:
+  relay:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: flockjs/relay:local
+    environment:
+      HOST: 0.0.0.0
+      PORT: ${PORT:-8787}
+      MAX_CONNECTIONS: ${MAX_CONNECTIONS:-1000}
+      FLOCK_REDIS_URL: ${FLOCK_REDIS_URL:-}
+    ports:
+      - '${PORT:-8787}:${PORT:-8787}'
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    profiles:
+      - redis
+    command: ['redis-server', '--save', '', '--appendonly', 'no']
+    ports:
+      - '6379:6379'
+    volumes:
+      - relay-redis-data:/data
+
+volumes:
+  relay-redis-data:

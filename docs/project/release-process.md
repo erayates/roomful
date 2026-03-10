@@ -41,7 +41,7 @@ Changelog model:
 6. Maintainers merge the release PR.
 7. Maintainers push tag matching `v*`.
 8. Tag triggers `.github/workflows/release.yml`.
-9. Release workflow validates and publishes to npm via Changesets.
+9. Release workflow validates, publishes to npm via Changesets, and publishes the relay Docker image to Docker Hub.
 
 ## Pre-Release and Stable Strategy
 
@@ -66,6 +66,8 @@ Release trigger:
 Release secrets:
 
 - `NPM_TOKEN` (required)
+- `DOCKERHUB_USERNAME` (required for relay image publish)
+- `DOCKERHUB_TOKEN` (required for relay image publish)
 - `TURBO_TEAM` (optional)
 - `TURBO_TOKEN` (optional)
 
@@ -78,6 +80,8 @@ Release secrets:
 - [ ] Breaking changes explicitly documented
 - [ ] Security notes included where relevant
 - [ ] `NPM_TOKEN` configured
+- [ ] `DOCKERHUB_USERNAME` configured
+- [ ] `DOCKERHUB_TOKEN` configured
 - [ ] Release tag (`v*`) pushed from intended commit
 
 ## Related Docs

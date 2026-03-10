@@ -1,24 +1,53 @@
 {
   "name": "@flockjs/relay",
   "version": "0.0.0",
+  "description": "Self-hosted relay server for FlockJS realtime transports.",
   "private": false,
   "type": "module",
+  "license": "MIT",
   "main": "dist/index.js",
-  "types": "src/index.ts",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "flockjs-relay": "./dist/cli.js"
+  },
   "exports": {
     ".": {
-      "types": "./src/index.ts",
+      "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
-    }
+    },
+    "./package.json": "./package.json"
   },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/erayates/flockjs.git",
+    "directory": "packages/relay"
+  },
+  "bugs": {
+    "url": "https://github.com/erayates/flockjs/issues"
+  },
+  "homepage": "https://github.com/erayates/flockjs/tree/main/packages/relay#readme",
+  "keywords": [
+    "flockjs",
+    "relay",
+    "webrtc",
+    "websocket",
+    "realtime"
+  ],
   "sideEffects": false,
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "lint": "eslint src --max-warnings 0",
     "test": "vitest run --config ../../vitest.package.config.ts --fileParallelism=false",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "start": "node dist/index.js",
+    "start": "node dist/cli.js",
     "benchmark:redis": "vitest bench --config ../../vitest.package.config.ts src/relay-redis-latency.bench.ts",
     "clean": "rimraf dist coverage",
     "test:watch": "vitest --config ../../vitest.package.config.ts --fileParallelism=false"

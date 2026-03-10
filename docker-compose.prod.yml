@@ -1,0 +1,12 @@
+services:
+  relay:
+    image: flockjs/relay:latest
+    environment:
+      HOST: 0.0.0.0
+      PORT: ${PORT:-8787}
+      MAX_CONNECTIONS: ${MAX_CONNECTIONS:-1000}
+      FLOCK_REDIS_URL: ${FLOCK_REDIS_URL:-}
+    ports:
+      - '${PORT:-8787}:${PORT:-8787}'
+    pull_policy: always
+    restart: always
