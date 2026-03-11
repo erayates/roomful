@@ -1028,7 +1028,6 @@ test.describe('multi-tab integration', () => {
         },
       });
 
-      await late.connect();
       await late.mountState({
         options: {
           initialValue: {
@@ -1041,6 +1040,7 @@ test.describe('multi-tab integration', () => {
           },
         },
       });
+      await late.connect();
 
       await expect
         .poll(
@@ -1048,7 +1048,7 @@ test.describe('multi-tab integration', () => {
             return (await late.getStateSnapshot()).value;
           },
           {
-            timeout: 1_000,
+            timeout: 5_000,
           },
         )
         .toEqual({

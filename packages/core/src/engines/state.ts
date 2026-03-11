@@ -76,7 +76,9 @@ export function createStateEngine<T>(
   assertSupportedStateStrategy(options.strategy);
 
   const subscribers = new Set<(value: T, meta: StateChangeMeta) => void>();
-  const now = context?.now ?? Date.now;
+  const now = (): number => {
+    return context?.now?.() ?? Date.now();
+  };
   let localValue = cloneStateValue(options.initialValue);
   let localHistory: T[] = [];
   let localSnapshot = createInitialStateSnapshot(options.initialValue, 'local', 0);
