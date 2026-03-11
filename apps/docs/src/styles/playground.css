@@ -1,0 +1,124 @@
+.playground-shell {
+  display: grid;
+  gap: 1rem;
+}
+
+.playground-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(0, 22rem) minmax(0, 1fr);
+}
+
+.playground-card {
+  display: grid;
+  gap: 0.85rem;
+  padding: 1rem;
+  border-radius: 1rem;
+  border: 1px solid var(--sl-color-gray-3);
+  background: color-mix(in srgb, var(--sl-color-bg) 75%, white 25%);
+}
+
+:root[data-theme='dark'] .playground-card {
+  background: color-mix(in srgb, var(--sl-color-bg) 78%, black 22%);
+}
+
+.playground-form {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.playground-field {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.playground-field input,
+.playground-field select,
+.playground-field textarea,
+.playground-button {
+  width: 100%;
+  border-radius: 0.8rem;
+  border: 1px solid var(--sl-color-gray-3);
+  padding: 0.8rem 0.95rem;
+  font: inherit;
+  background: var(--sl-color-bg);
+  color: inherit;
+}
+
+.playground-actions {
+  display: grid;
+  gap: 0.65rem;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+}
+
+.playground-button {
+  cursor: pointer;
+}
+
+.playground-button--primary {
+  border-color: var(--sl-color-accent);
+  background: var(--sl-color-accent);
+  color: white;
+}
+
+.playground-kpi-list,
+.playground-peer-list,
+.playground-log {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.playground-peer {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.playground-log {
+  max-height: 18rem;
+  overflow: auto;
+}
+
+.playground-log li,
+.playground-peer,
+.playground-kpi-list li {
+  border-radius: 0.8rem;
+  border: 1px solid var(--sl-color-gray-3);
+  padding: 0.75rem 0.85rem;
+}
+
+.playground-note {
+  min-height: 9rem;
+}
+
+.playground-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.95rem;
+}
+
+.playground-status::before {
+  content: '';
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 999px;
+  background: #d97706;
+}
+
+.playground-status[data-state='connected']::before {
+  background: #0f766e;
+}
+
+.playground-status[data-state='error']::before {
+  background: #dc2626;
+}
+
+@media (max-width: 60rem) {
+  .playground-grid {
+    grid-template-columns: 1fr;
+  }
+}

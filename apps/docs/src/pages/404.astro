@@ -1,0 +1,51 @@
+---
+const homeHref = '/';
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Page not found | FlockJS Docs</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        font-family: "Space Grotesk Variable", "Space Grotesk", sans-serif;
+        background: #101716;
+        color: #f5fbf8;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        background:
+          radial-gradient(circle at top right, rgba(245, 158, 11, 0.2), transparent 25%),
+          radial-gradient(circle at top left, rgba(15, 118, 110, 0.24), transparent 28%),
+          #101716;
+      }
+
+      main {
+        width: min(32rem, calc(100vw - 2rem));
+        padding: 2rem;
+        border-radius: 1.5rem;
+        border: 1px solid rgba(82, 194, 166, 0.28);
+        background: rgba(18, 32, 30, 0.9);
+      }
+
+      a {
+        color: #d6fff4;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p>404</p>
+      <h1>Page not found</h1>
+      <p>Check the URL or head back to the FlockJS documentation home.</p>
+      <p><a href={homeHref}>Open docs home</a></p>
+    </main>
+  </body>
+</html>

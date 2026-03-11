@@ -1,0 +1,35 @@
+---
+const versions = [
+  { label: 'Latest', slug: '' },
+  { label: 'v1.0', slug: 'v1-0' },
+];
+
+const pathname = Astro.url.pathname;
+const segments = pathname.split('/').filter(Boolean);
+const currentSlug = segments[0] === 'v1-0' ? 'v1-0' : '';
+const rest = currentSlug ? segments.slice(1).join('/') : segments.join('/');
+const suffix = rest ? `${rest}/` : '';
+
+function buildVersionPath(slug: string) {
+  return slug ? `/${slug}/${suffix}` : `/${suffix}`;
+}
+---
+
+<label class="flock-version-select">
+  <span class="sr-only">Version</span>
+  <select
+    aria-label="Documentation version"
+    data-version-switcher
+    onchange="window.location.assign(this.selectedOptions[0]?.dataset.path || '/')"
+  >
+    {versions.map((version) => (
+      <option
+        data-path={buildVersionPath(version.slug)}
+        selected={version.slug === currentSlug}
+        value={version.slug}
+      >
+        {version.label}
+      </option>
+    ))}
+  </select>
+</label>

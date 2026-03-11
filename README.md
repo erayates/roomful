@@ -79,6 +79,7 @@ window.addEventListener('beforeunload', () => {
 
 ## Documentation
 
+- [Documentation site](https://docs.flockjs.dev)
 - [Documentation index](docs/README.md)
 - [Installation](docs/getting-started/installation.md)
 - [Quickstart](docs/getting-started/quickstart.md)

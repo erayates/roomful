@@ -5,9 +5,12 @@
   "packageManager": "pnpm@10.11.0",
   "scripts": {
     "build": "turbo run build",
+    "docs:prepare": "node scripts/docs/prepare-docs-site.mjs",
+    "docs:snippets": "node scripts/docs/validate-doc-snippets.mjs",
     "lint": "turbo run lint",
     "test": "turbo run test --filter=./packages/*",
     "test:demo": "pnpm --filter @flockjs/app-demo test",
+    "test:docs": "pnpm --filter @flockjs/app-docs build && playwright test --config playwright.docs.config.ts",
     "test:types": "turbo run test:types --filter=./packages/*",
     "test:integration": "pnpm --filter @flockjs/core build && playwright test --config playwright.config.ts",
     "test:integration:demo": "playwright test --config playwright.demo.config.ts",

@@ -1,0 +1,22 @@
+---
+import EditLink from '@astrojs/starlight/components/EditLink.astro';
+import LastUpdated from '@astrojs/starlight/components/LastUpdated.astro';
+import Pagination from '@astrojs/starlight/components/Pagination.astro';
+---
+
+<footer class="flock-footer">
+  <div class="flock-footer__meta">
+    <div class="flock-footer__links">
+      <a href="https://github.com/erayates/flockjs">GitHub</a>
+      <a href="https://github.com/erayates/flockjs/issues">Issues</a>
+      <a href="https://github.com/erayates/flockjs/discussions">Discussions</a>
+      <a href="https://github.com/erayates/flockjs/blob/main/CONTRIBUTING.md">Contributing</a>
+      <a href="https://github.com/erayates/flockjs/blob/main/CODE_OF_CONDUCT.md">Code of Conduct</a>
+    </div>
+    <div class="flock-footer__signals">
+      <EditLink />
+      <LastUpdated />
+    </div>
+  </div>
+  <Pagination />
+</footer>

@@ -1,12 +1,17 @@
 node_modules/
 .pnpm-store/
 .turbo/
+.tmp/
 
 **/dist/
 **/coverage/
+apps/docs/.astro/
+apps/docs/src/content/docs/
 packages/cursors/storybook-static/
 benchmarks/results/*
 !benchmarks/results/README.md
 
 *.tsbuildinfo
 .DS_Store
+playwright-report/
+test-results/

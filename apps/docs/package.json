@@ -3,13 +3,30 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "main": "dist/index.js",
-  "types": "src/index.ts",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "lint": "eslint src --max-warnings 0",
-    "test": "vitest run --config ../../vitest.config.ts --passWithNoTests",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
-    "clean": "rimraf dist coverage"
+    "dev": "node ../../scripts/docs/prepare-docs-site.mjs && astro dev",
+    "build": "node ../../scripts/docs/prepare-docs-site.mjs && astro build",
+    "preview": "node ../../scripts/docs/prepare-docs-site.mjs && astro preview",
+    "lint": "eslint \"src/**/*.{ts,tsx}\" --max-warnings 0",
+    "test": "node ../../scripts/docs/validate-doc-snippets.mjs",
+    "typecheck": "node ../../scripts/docs/prepare-docs-site.mjs && astro check",
+    "clean": "rimraf dist .astro"
+  },
+  "dependencies": {
+    "@flockjs/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@astrojs/check": "0.9.4",
+    "@astrojs/react": "5.0.0",
+    "@astrojs/starlight": "0.37.7",
+    "@astrojs/starlight-docsearch": "0.6.1",
+    "@fontsource-variable/space-grotesk": "5.2.10",
+    "@types/react": "19.0.0",
+    "@types/react-dom": "19.0.0",
+    "astro": "5.18.1",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "typescript": "5.8.2",
+    "zod": "3.25.76"
   }
 }
