@@ -26,14 +26,32 @@ function toUtf8(data: unknown): string {
   return Buffer.from(data as ArrayBuffer).toString('utf8');
 }
 
-function waitForOpen(socket: WebSocket): Promise<void> {
+function waitForOpen(socket: WebSocket, timeoutMs = 2_000): Promise<void> {
   return new Promise((resolve, reject) => {
+    if (socket.readyState === WebSocket.OPEN) {
+      resolve();
+      return;
+    }
+
+    if (socket.readyState !== WebSocket.CONNECTING) {
+      reject(new Error(`Socket is not connecting (readyState=${socket.readyState}).`));
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      socket.off('open', onOpen);
+      socket.off('error', onError);
+      reject(new Error(`Timed out waiting for socket open after ${timeoutMs}ms.`));
+    }, timeoutMs);
+
     const onOpen = (): void => {
+      clearTimeout(timer);
       socket.off('error', onError);
       resolve();
     };
 
     const onError = (error: Error): void => {
+      clearTimeout(timer);
       socket.off('open', onOpen);
       reject(error);
     };

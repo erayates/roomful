@@ -52,6 +52,19 @@ const defaultSharedDocument: SharedDocument = {
   note: 'Open a second tab and connect to the same room to watch sync happen live.',
 };
 
+function getRuntimeWindow(): Window | null {
+  return 'window' in globalThis ? globalThis.window : null;
+}
+
+function isTransportMode(value: string): value is TransportMode {
+  return (
+    value === 'auto' ||
+    value === 'broadcast' ||
+    value === 'webrtc' ||
+    value === 'websocket'
+  );
+}
+
 function appendLog(entries: LogEntry[], message: string): LogEntry[] {
   return [...entries.slice(-11), { id: Date.now() + entries.length, message }];
 }
@@ -61,11 +74,12 @@ function describeStateChange(meta: StateChangeMeta): string {
 }
 
 function readInitialForm(): FormState {
-  if (typeof window === 'undefined') {
+  const runtimeWindow = getRuntimeWindow();
+  if (!runtimeWindow) {
     return defaultFormState;
   }
 
-  const params = new URLSearchParams(window.location.search);
+  const params = new URLSearchParams(runtimeWindow.location.search);
   const transport = params.get('transport');
 
   return {
@@ -226,19 +240,21 @@ export function PlaygroundApp(): ReactElement {
   };
 
   const openSecondTab = (): void => {
-    if (typeof window === 'undefined') {
+    const runtimeWindow = getRuntimeWindow();
+    if (!runtimeWindow) {
       return;
     }
 
-    window.open(window.location.href, '_blank', 'noopener,noreferrer');
+    runtimeWindow.open(runtimeWindow.location.href, '_blank', 'noopener,noreferrer');
   };
 
   const copyRoomLink = async (): Promise<void> => {
-    if (typeof window === 'undefined') {
+    const runtimeWindow = getRuntimeWindow();
+    if (!runtimeWindow) {
       return;
     }
 
-    const url = new URL(window.location.href);
+    const url = new URL(runtimeWindow.location.href);
     url.searchParams.set('roomId', form.roomId);
     url.searchParams.set('name', form.name);
     url.searchParams.set('color', form.color);
@@ -256,11 +272,12 @@ export function PlaygroundApp(): ReactElement {
   };
 
   useEffect(() => {
-    if (typeof window === 'undefined') {
+    const runtimeWindow = getRuntimeWindow();
+    if (!runtimeWindow) {
       return;
     }
 
-    const url = new URL(window.location.href);
+    const url = new URL(runtimeWindow.location.href);
     url.searchParams.set('roomId', form.roomId);
     url.searchParams.set('name', form.name);
     url.searchParams.set('color', form.color);
@@ -270,7 +287,7 @@ export function PlaygroundApp(): ReactElement {
     } else {
       url.searchParams.delete('relayUrl');
     }
-    window.history.replaceState(null, '', url);
+    runtimeWindow.history.replaceState(null, '', url);
   }, [form]);
 
   useEffect(() => {
@@ -334,9 +351,14 @@ export function PlaygroundApp(): ReactElement {
               <select
                 value={form.transport}
                 onChange={(event) => {
+                  const nextTransport = event.target.value;
+                  if (!isTransportMode(nextTransport)) {
+                    return;
+                  }
+
                   setForm((current) => ({
                     ...current,
-                    transport: event.target.value as TransportMode,
+                    transport: nextTransport,
                   }));
                 }}
               >
