@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { createFlockError } from './flock-error';
 import type { TransportAdapter, TransportSignal } from './transports/transport';
+import type { Room } from './types';
 
 class MockTransportAdapter implements TransportAdapter {
   public disconnectCalls = 0;
@@ -52,11 +53,17 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+interface FallbackRoomHarness {
+  room: Room;
+  selectTransportAdapter: ReturnType<typeof vi.fn>;
+  createPollingTransportAdapter: ReturnType<typeof vi.fn>;
+}
+
 async function createRoomWithFallbackMocks(options: {
   selectTransportAdapter: () => MockTransportAdapter;
   createPollingTransportAdapter: () => MockTransportAdapter;
   reconnect?: boolean;
-}) {
+}): Promise<FallbackRoomHarness> {
   vi.resetModules();
   const selectTransportAdapter = vi.fn(() => {
     return options.selectTransportAdapter();

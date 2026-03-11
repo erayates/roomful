@@ -1,15 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  getBootstrapProtocolSession,
-  getTransportProtocolCapabilities,
-} from './transport.protocol';
-import {
   createPollingTransportAdapter,
   type FetchLike,
   type FetchRequestInitLike,
   type FetchResponseLike,
 } from './polling';
+import {
+  getBootstrapProtocolSession,
+  getTransportProtocolCapabilities,
+} from './transport.protocol';
 import {
   parseWebSocketRelayClientMessage,
   serializeWebSocketRelayMessage,

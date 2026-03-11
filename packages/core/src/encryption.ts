@@ -1,4 +1,5 @@
 import { createFlockError } from './flock-error';
+import { env } from './internal/env';
 import type { EncryptionOptions } from './types';
 
 const AES_GCM_ALGORITHM = 'AES-GCM';
@@ -35,11 +36,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function getCryptoOrThrow(): Crypto {
-  if (
-    typeof crypto === 'undefined' ||
-    typeof crypto.subtle === 'undefined' ||
-    typeof crypto.getRandomValues !== 'function'
-  ) {
+  const webCrypto = env.crypto;
+  if (!webCrypto || typeof webCrypto.subtle === 'undefined') {
     throw createFlockError(
       'ENCRYPTION_ERROR',
       'Web Crypto API encryption support is unavailable in this runtime.',
@@ -51,7 +49,7 @@ function getCryptoOrThrow(): Crypto {
     );
   }
 
-  return crypto;
+  return webCrypto;
 }
 
 function assertValidEncryptionKey(key: CryptoKey): void {

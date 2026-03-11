@@ -26,6 +26,10 @@ const createXmlParagraph = (text: string): Y.XmlElement => {
   return paragraph;
 };
 
+const renderXmlParagraph = (paragraph: Y.XmlElement): string => {
+  return Y.XmlElement.prototype.toString.call(paragraph);
+};
+
 const readXmlParagraphs = (fragment: Y.XmlFragment): string[] => {
   return fragment
     .querySelectorAll('paragraph')
@@ -34,7 +38,7 @@ const readXmlParagraphs = (fragment: Y.XmlFragment): string[] => {
         return [];
       }
 
-      return [node.toString()];
+      return [renderXmlParagraph(node)];
     })
     .slice()
     .sort();

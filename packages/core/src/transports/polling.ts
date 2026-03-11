@@ -1,10 +1,10 @@
-import { createFlockError } from '../flock-error';
+import { createFlockError, FlockError } from '../flock-error';
 import { env } from '../internal/env';
 import { isObject, readString } from '../internal/guards';
 import { createStructuredLogger, type StructuredLogger } from '../internal/logger';
 import { normalizeMaxPeers } from '../internal/max-peers';
 import type { PeerProtocolCapabilities, PeerProtocolSession } from '../protocol/peer-message';
-import type { DebugOptions, FlockError, PresenceData, RelayAuthToken, RoomOptions } from '../types';
+import type { DebugOptions, PresenceData, RelayAuthToken, RoomOptions } from '../types';
 import { resolveRelayHttpUrl } from './relay-url';
 import {
   type RoomTransportSignal,
@@ -104,7 +104,7 @@ function resolveFetch(fetchImpl?: FetchLike): FetchLike {
   }
 
   return (input, init) => {
-    return fetch(input, init as RequestInit) as Promise<FetchResponseLike>;
+    return fetch(input, init);
   };
 }
 
@@ -131,26 +131,27 @@ async function readResponsePayload(response: FetchResponseLike): Promise<unknown
   return response.text();
 }
 
+function parseJsonPayload(payload: string): unknown | null {
+  try {
+    return JSON.parse(payload);
+  } catch {
+    return null;
+  }
+}
+
 async function readRelayResponseError(
   response: FetchResponseLike,
   fallbackMessage: string,
 ): Promise<FlockError> {
   const payload = await readResponsePayload(response);
   if (typeof payload === 'string') {
-    try {
-      const parsed = JSON.parse(payload);
-      if (isObject(parsed)) {
-        const code = readString(parsed, 'code');
-        const message = readString(parsed, 'message');
-        if (code && message) {
-          return createRelayMessageError(message, code);
-        }
+    const parsed = parseJsonPayload(payload);
+    if (isObject(parsed)) {
+      const code = readString(parsed, 'code');
+      const message = readString(parsed, 'message');
+      if (code && message) {
+        return createRelayMessageError(message, code);
       }
-    } catch {
-      return createPollingTransportError(fallbackMessage, {
-        source: 'polling-relay',
-        status: response.status,
-      });
     }
   }
 
@@ -172,26 +173,22 @@ function parsePollingJoinResponse(
     return null;
   }
 
-  try {
-    const parsed = JSON.parse(payload);
-    if (!isObject(parsed)) {
-      return null;
-    }
-
-    const sessionId = readString(parsed, 'sessionId');
-    if (!sessionId) {
-      return null;
-    }
-
-    return {
-      sessionId,
-      roomId: message.roomId,
-      peerId: message.peerId,
-      peers: message.peers,
-    };
-  } catch {
+  const parsed = parseJsonPayload(payload);
+  if (!isObject(parsed)) {
     return null;
   }
+
+  const sessionId = readString(parsed, 'sessionId');
+  if (!sessionId) {
+    return null;
+  }
+
+  return {
+    sessionId,
+    roomId: message.roomId,
+    peerId: message.peerId,
+    peers: message.peers,
+  };
 }
 
 function resolveEventResponseMessage(
@@ -202,6 +199,18 @@ function resolveEventResponseMessage(
   },
 ): WebSocketRelayServerMessage | null {
   return parseWebSocketRelayServerMessage(payload, options);
+}
+
+function toPollingTransportError(error: unknown, fallbackMessage: string): FlockError {
+  if (error instanceof FlockError) {
+    return error;
+  }
+
+  if (error instanceof Error && error.name === 'AbortError') {
+    return createPollingTransportError('Polling relay request was aborted.');
+  }
+
+  return createPollingTransportError(fallbackMessage, error);
 }
 
 export class PollingTransportAdapter<
@@ -361,13 +370,18 @@ export class PollingTransportAdapter<
   }
 
   private async pollLoop(): Promise<void> {
-    while (this.connected && this.sessionId) {
+    for (;;) {
+      const sessionId = this.sessionId;
+      if (!this.connected || !sessionId) {
+        return;
+      }
+
       const controller = new AbortController();
       this.pollController = controller;
 
       try {
         const response = await this.fetchImpl(
-          `${this.resolveSessionUrl(this.sessionId)}/events?timeoutMs=${DEFAULT_POLL_TIMEOUT_MS}`,
+          `${this.resolveSessionUrl(sessionId)}/events?timeoutMs=${DEFAULT_POLL_TIMEOUT_MS}`,
           {
             method: 'GET',
             headers: {
@@ -379,7 +393,7 @@ export class PollingTransportAdapter<
         );
         this.pollController = null;
 
-        if (!this.connected) {
+        if (controller.signal.aborted) {
           return;
         }
 
@@ -406,14 +420,11 @@ export class PollingTransportAdapter<
         this.handleServerMessage(message);
       } catch (error) {
         this.pollController = null;
-        if (controller.signal.aborted || !this.connected) {
+        if (controller.signal.aborted) {
           return;
         }
 
-        const flockError =
-          error instanceof Error && error.name === 'AbortError'
-            ? createPollingTransportError('Polling relay request was aborted.')
-            : (error as FlockError);
+        const flockError = toPollingTransportError(error, 'Polling relay event request failed.');
         this.emitErrorSignal(flockError);
         this.handleTransportFailure(flockError.message);
         return;

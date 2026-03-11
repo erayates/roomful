@@ -2,9 +2,43 @@ import { createFlockError } from '../flock-error';
 
 export type WindowEventTarget = Pick<Window, 'addEventListener' | 'removeEventListener'>;
 
+function readGlobalCrypto(): Crypto | null {
+  return typeof crypto === 'undefined' ? null : crypto;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function readNodeEnv(): string | null {
+  const globalValue: unknown = globalThis;
+  if (!isRecord(globalValue)) {
+    return null;
+  }
+
+  const processValue = globalValue.process;
+  if (!isRecord(processValue)) {
+    return null;
+  }
+
+  const envValue = processValue.env;
+  if (!isRecord(envValue)) {
+    return null;
+  }
+
+  const nodeEnv = envValue.NODE_ENV;
+  return typeof nodeEnv === 'string' ? nodeEnv : null;
+}
+
 export const env = {
   get isBrowser(): boolean {
     return typeof window !== 'undefined';
+  },
+  get crypto(): Crypto | null {
+    return readGlobalCrypto();
+  },
+  get nodeEnv(): string | null {
+    return readNodeEnv();
   },
   get hasLocalStorage(): boolean {
     try {
@@ -26,10 +60,10 @@ export const env = {
     return typeof fetch === 'function';
   },
   get hasCryptoRandomUUID(): boolean {
-    return typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function';
+    return typeof readGlobalCrypto()?.randomUUID === 'function';
   },
   get hasCryptoGetRandomValues(): boolean {
-    return typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function';
+    return typeof readGlobalCrypto()?.getRandomValues === 'function';
   },
 };
 
@@ -49,11 +83,12 @@ export function getWindowEventTarget(): WindowEventTarget | null {
 }
 
 export function createRuntimePeerId(): string {
-  if (env.hasCryptoRandomUUID) {
-    return crypto.randomUUID();
+  const runtimeCrypto = env.crypto;
+  if (typeof runtimeCrypto?.randomUUID === 'function') {
+    return runtimeCrypto.randomUUID();
   }
 
-  if (!env.hasCryptoGetRandomValues) {
+  if (!runtimeCrypto || typeof runtimeCrypto.getRandomValues !== 'function') {
     throw createFlockError(
       'NETWORK_ERROR',
       'Secure random peer ID generation is unavailable in this runtime.',
@@ -66,7 +101,7 @@ export function createRuntimePeerId(): string {
   }
 
   const bytes = new Uint8Array(16);
-  crypto.getRandomValues(bytes);
+  runtimeCrypto.getRandomValues(bytes);
 
   const versionByte = bytes[6];
   const variantByte = bytes[8];

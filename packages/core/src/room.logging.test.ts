@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createInitialStateSnapshot } from './internal/state';
-import { getTransportProtocolCapabilities } from './transports/transport.protocol';
 import type { TransportAdapter, TransportSignal } from './transports/transport';
+import { getTransportProtocolCapabilities } from './transports/transport.protocol';
 import type { Room } from './types';
 
 class MockTransportAdapter implements TransportAdapter {

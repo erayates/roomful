@@ -126,10 +126,9 @@ type PeerEventCallback<TPresence extends PresenceData> = (peers: Peer<TPresence>
 type CursorCallback = (positions: CursorPosition[]) => void;
 type StateSnapshotCallback = (snapshot: StateSnapshot) => void;
 type AwarenessCallback = (peers: AwarenessState[]) => void;
-type InternalEventCallback<TPresence extends PresenceData> = (
-  payload: unknown,
-  from: Peer<TPresence>,
-) => void;
+type InternalEventCallback<TPresence extends PresenceData> = {
+  bivarianceHack(payload: unknown, from: Peer<TPresence>): void;
+}['bivarianceHack'];
 
 interface DevtoolsStateTracker {
   readonly strategy: 'lww' | 'crdt';
@@ -1133,7 +1132,7 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
               };
 
           const outboundSignal = this.createOutboundSignal(eventSignal);
-          if (outboundSignal) {
+          if (outboundSignal?.type === 'event') {
             if (queued) {
               this.queueOfflineEventSignal(outboundSignal);
             } else {
@@ -1148,15 +1147,15 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
         onEvent: (name, callback) => {
           const handlers =
             this.customEventHandlers.get(name) ?? new Set<InternalEventCallback<TPresence>>();
-          handlers.add(callback as InternalEventCallback<TPresence>);
+          handlers.add(callback);
           this.customEventHandlers.set(name, handlers);
 
           return () => {
-            this.removeCustomEventHandler(name, callback as InternalEventCallback<TPresence>);
+            this.removeCustomEventHandler(name, callback);
           };
         },
         offEvent: (name, callback) => {
-          this.removeCustomEventHandler(name, callback as InternalEventCallback<TPresence>);
+          this.removeCustomEventHandler(name, callback);
         },
       },
       options,
@@ -2171,13 +2170,14 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
 
     this.offlineReplayInProgress = true;
     let replayedEntries = 0;
+    let shouldReschedule = false;
     this.logger.info('state', 'state:offline-queue', 'Offline queue replay started', {
       queueDepth: this.offlineQueue.length,
       queuedMutationCount: this.getQueuedStateMutationCount(),
     });
 
     try {
-      while (this.transport && this.offlineQueue.length > 0) {
+      while (this.offlineQueue.length > 0) {
         const [entry, ...remaining] = this.offlineQueue;
         if (!entry) {
           break;
@@ -2225,15 +2225,16 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
         queuedMutationCount: this.getQueuedStateMutationCount(),
         replayedEntries,
       });
-
-      if (this.offlineReplayRequested) {
-        this.offlineReplayRequested = false;
-        this.scheduleOfflineQueueReplay();
-        return;
-      }
-
-      this.completeOfflineWindowIfReady();
+      shouldReschedule = this.offlineReplayRequested;
+      this.offlineReplayRequested = false;
     }
+
+    if (shouldReschedule) {
+      this.scheduleOfflineQueueReplay();
+      return;
+    }
+
+    this.completeOfflineWindowIfReady();
   }
 
   private createOutboundSignal<
@@ -2241,13 +2242,19 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
   >(
     signal: TSignal,
     timestamp = Date.now(),
-  ): Extract<RoomTransportSignal, { type: TSignal['type'] }> | null {
-    return normalizeTransportSignal({
+  ): RoomTransportSignal | null {
+    const normalizedSignal = normalizeTransportSignal({
       ...signal,
       roomId: this.id,
       fromPeerId: this.peerId,
       timestamp,
-    }) as Extract<RoomTransportSignal, { type: TSignal['type'] }> | null;
+    });
+
+    if (!normalizedSignal || normalizedSignal.type !== signal.type) {
+      return null;
+    }
+
+    return normalizedSignal;
   }
 
   private dispatchRoomSignal(signal: RoomTransportSignal): void {
@@ -2373,11 +2380,11 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
       shouldBroadcastPersistedSnapshot = true;
     }
 
-    if (!this.syncedStateSnapshot && this.stateSnapshot) {
-      this.syncedStateSnapshot = cloneStateSnapshot(this.stateSnapshot);
+    if (!this.syncedStateSnapshot) {
+      this.syncedStateSnapshot = cloneStateSnapshot(this.requireStateSnapshot());
     }
 
-    const configuredSnapshot = this.stateSnapshot;
+    const configuredSnapshot = this.requireStateSnapshot();
 
     if (this.statePersistenceEnabled) {
       this.persistStateSnapshot(configuredSnapshot);

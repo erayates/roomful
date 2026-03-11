@@ -1,9 +1,8 @@
 import type { RoomTransportSignal } from '../transports/transport';
-
 import {
-  compareStateSnapshots,
-  cloneStateValue,
   cloneStateSnapshot,
+  cloneStateValue,
+  compareStateSnapshots,
   patchStateSnapshot,
   resetStateSnapshot,
   setStateSnapshot,

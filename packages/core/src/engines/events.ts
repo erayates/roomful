@@ -1,5 +1,9 @@
 import type { EventEngine, EventOptions, Peer, PresenceData, Unsubscribe } from '../types';
 
+type EventCallback<TPresence extends PresenceData, TPayload = unknown> = {
+  bivarianceHack(payload: TPayload, from: Peer<TPresence>): void;
+}['bivarianceHack'];
+
 interface EventEngineContext<TPresence extends PresenceData> {
   emitEvent<TPayload>(
     name: string,
@@ -9,9 +13,9 @@ interface EventEngineContext<TPresence extends PresenceData> {
   ): void;
   onEvent<TPayload>(
     name: string,
-    cb: (payload: TPayload, from: Peer<TPresence>) => void,
+    cb: EventCallback<TPresence, TPayload>,
   ): Unsubscribe;
-  offEvent<TPayload>(name: string, cb: (payload: TPayload, from: Peer<TPresence>) => void): void;
+  offEvent<TPayload>(name: string, cb: EventCallback<TPresence, TPayload>): void;
 }
 
 /**
@@ -35,14 +39,11 @@ export function createEventEngine<TPresence extends PresenceData>(
     emitTo<TPayload>(peerId: string, name: string, payload: TPayload) {
       context.emitEvent(name, payload, peerId, defaultLoopback);
     },
-    on<TPayload>(name: string, cb: (payload: TPayload, from: Peer<TPresence>) => void) {
-      return context.onEvent(
-        name,
-        cb as unknown as (payload: unknown, from: Peer<TPresence>) => void,
-      );
+    on<TPayload>(name: string, cb: EventCallback<TPresence, TPayload>) {
+      return context.onEvent(name, cb);
     },
-    off<TPayload>(name: string, cb: (payload: TPayload, from: Peer<TPresence>) => void) {
-      context.offEvent(name, cb as unknown as (payload: unknown, from: Peer<TPresence>) => void);
+    off<TPayload>(name: string, cb: EventCallback<TPresence, TPayload>) {
+      context.offEvent(name, cb);
     },
   };
 }

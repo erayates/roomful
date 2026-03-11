@@ -276,7 +276,7 @@ describe('Room end-to-end encryption', () => {
       }),
     ).toBe(true);
 
-    await awarenessB.setTyping(false);
+    awarenessB.setTyping(false);
     await roomA.disconnect();
     await roomB.disconnect();
   });

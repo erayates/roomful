@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
-import { createInitialStateSnapshot, setStateSnapshot } from './state';
 import {
-  applyOfflineStateMutation,
   appendOfflineQueueEntry,
+  applyOfflineStateMutation,
   countQueuedStateMutations,
   OFFLINE_EVENT_QUEUE_LIMIT,
-  projectOfflineStateSnapshot,
   type OfflineQueueEntry,
+  projectOfflineStateSnapshot,
 } from './offline-queue';
+import { createInitialStateSnapshot, setStateSnapshot } from './state';
 
 describe('offline queue helpers', () => {
   it('replays queued patch mutations on top of the latest remote snapshot', () => {

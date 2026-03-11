@@ -1,4 +1,5 @@
 import type { DebugOptions } from '../types';
+import { env } from './env';
 
 const DEBUG_CATEGORIES = ['transport', 'state', 'presence', 'events', 'performance'] as const;
 
@@ -47,30 +48,15 @@ function createDisabledDebugOptions(): ResolvedDebugOptions {
   };
 }
 
-function readNodeEnv(): string | null {
-  const globalValue = globalThis as Record<string, unknown>;
-  const processValue = globalValue.process;
-  if (typeof processValue !== 'object' || processValue === null) {
-    return null;
-  }
+function getConsoleMethod(level: LogLevel): ConsoleMethod {
+  const consoleRef = globalThis.console;
+  const methods = {
+    info: consoleRef.info.bind(consoleRef),
+    warn: consoleRef.warn.bind(consoleRef),
+    error: consoleRef.error.bind(consoleRef),
+  } satisfies Record<LogLevel, ConsoleMethod>;
 
-  const envValue = Reflect.get(processValue, 'env');
-  if (typeof envValue !== 'object' || envValue === null) {
-    return null;
-  }
-
-  const nodeEnv = Reflect.get(envValue, 'NODE_ENV');
-  return typeof nodeEnv === 'string' ? nodeEnv : null;
-}
-
-function getConsoleMethod(level: LogLevel): ConsoleMethod | null {
-  const consoleLike = globalThis.console as Partial<Record<LogLevel, ConsoleMethod>> | undefined;
-  if (!consoleLike) {
-    return null;
-  }
-
-  const method = consoleLike[level];
-  return typeof method === 'function' ? method.bind(globalThis.console) : null;
+  return methods[level];
 }
 
 export function resolveDebugOptions(
@@ -99,7 +85,7 @@ export function resolveDebugOptions(
 }
 
 export function isProductionInfoSuppressed(): boolean {
-  return readNodeEnv() === 'production';
+  return env.nodeEnv === 'production';
 }
 
 export function createStructuredLogger(config: StructuredLoggerConfig): StructuredLogger {
@@ -122,10 +108,6 @@ export function createStructuredLogger(config: StructuredLoggerConfig): Structur
     }
 
     const log = getConsoleMethod(level);
-    if (!log) {
-      return;
-    }
-
     const payload = {
       ...(details ?? {}),
       timestamp: Date.now(),
