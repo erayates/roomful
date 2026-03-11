@@ -64,6 +64,21 @@ interface CursorHarnessState {
   }>;
 }
 
+interface PresenceHarnessState {
+  peers: Array<{
+    id: string;
+    joinedAt: number;
+    lastSeen: number;
+    name?: string;
+    color?: string;
+    [key: string]: unknown;
+  }>;
+  updates: Array<{
+    peers: Array<Record<string, unknown>>;
+    at: number;
+  }>;
+}
+
 interface StateHarnessChange {
   value: unknown;
   meta: {
@@ -77,6 +92,24 @@ interface StateHarnessChange {
 interface StateHarnessState {
   value: unknown;
   changes: StateHarnessChange[];
+}
+
+interface AwarenessHarnessState {
+  peers: Array<{
+    peerId: string;
+    typing?: boolean;
+    focus?: string | null;
+    selection?: {
+      elementId: string;
+      from: number;
+      to: number;
+    } | null;
+    [key: string]: unknown;
+  }>;
+  updates: Array<{
+    peers: Array<Record<string, unknown>>;
+    at: number;
+  }>;
 }
 
 interface YjsHarnessState {
@@ -106,28 +139,38 @@ interface PageHarnessApi {
     options?: Record<string, unknown>;
     renderOptions?: Record<string, unknown>;
   }): void;
-  mountState(config?: {
-    options?: Record<string, unknown>;
-  }): void;
-  mountYjs(config?: {
-    textKeys?: string[];
-    arrayKeys?: string[];
-    mapKeys?: string[];
-  }): void;
+  mountPresence(): void;
+  mountState(config?: { options?: Record<string, unknown> }): void;
+  mountAwareness(): void;
+  mountYjs(config?: { textKeys?: string[]; arrayKeys?: string[]; mapKeys?: string[] }): void;
   unmountCursors(): void;
-  dispatchCursorMove(input: { x: number; y: number; kind?: 'mouse' | 'touchstart' | 'touchmove' }): void;
+  dispatchCursorMove(input: {
+    x: number;
+    y: number;
+    kind?: 'mouse' | 'touchstart' | 'touchmove';
+  }): void;
+  updatePresence(value: Record<string, unknown>): void;
+  replacePresence(value: Record<string, unknown>): void;
   setState(value: unknown): void;
   patchState(value: unknown): void;
   undoState(): void;
   resetState(): void;
+  setAwareness(value: Record<string, unknown>): void;
+  setTyping(isTyping: boolean): void;
+  setFocus(elementId: string | null): void;
+  setSelection(selection: { elementId: string; from: number; to: number } | null): void;
   insertYText(input: { key: string; index: number; text: string }): void;
   pushYArray(input: { key: string; values: unknown[] }): void;
   setYMapValue(input: { key: string; entryKey: string; value: unknown }): void;
   getSnapshot(): HarnessSnapshot;
   getCursorState(): CursorHarnessState;
+  getPresenceSnapshot(): PresenceHarnessState;
   getStateSnapshot(): StateHarnessState;
+  getAwarenessSnapshot(): AwarenessHarnessState;
   getYjsSnapshot(): YjsHarnessState;
   getEvents(): HarnessEventRecord[];
+  setTimeOverride(timestamp: number): void;
+  clearTimeOverride(): void;
   waitForEvent(input: {
     kind: 'room' | 'custom';
     name: string;
@@ -246,18 +289,28 @@ class IntegrationPage {
     }, config);
   }
 
+  public async mountPresence(): Promise<void> {
+    await this.page.evaluate(() => {
+      window.__flockjsIntegration.mountPresence();
+    });
+  }
+
   public async unmountCursors(): Promise<void> {
     await this.page.evaluate(() => {
       window.__flockjsIntegration.unmountCursors();
     });
   }
 
-  public async mountState(config?: {
-    options?: Record<string, unknown>;
-  }): Promise<void> {
+  public async mountState(config?: { options?: Record<string, unknown> }): Promise<void> {
     await this.page.evaluate((value) => {
       window.__flockjsIntegration.mountState(value);
     }, config);
+  }
+
+  public async mountAwareness(): Promise<void> {
+    await this.page.evaluate(() => {
+      window.__flockjsIntegration.mountAwareness();
+    });
   }
 
   public async mountYjs(config?: {
@@ -278,6 +331,18 @@ class IntegrationPage {
     await this.page.evaluate((value) => {
       window.__flockjsIntegration.dispatchCursorMove(value);
     }, input);
+  }
+
+  public async updatePresence(value: Record<string, unknown>): Promise<void> {
+    await this.page.evaluate((nextValue) => {
+      window.__flockjsIntegration.updatePresence(nextValue);
+    }, value);
+  }
+
+  public async replacePresence(value: Record<string, unknown>): Promise<void> {
+    await this.page.evaluate((nextValue) => {
+      window.__flockjsIntegration.replacePresence(nextValue);
+    }, value);
   }
 
   public async setState(value: unknown): Promise<void> {
@@ -304,22 +369,57 @@ class IntegrationPage {
     });
   }
 
+  public async setAwareness(value: Record<string, unknown>): Promise<void> {
+    await this.page.evaluate((nextValue) => {
+      window.__flockjsIntegration.setAwareness(nextValue);
+    }, value);
+  }
+
+  public async setTyping(isTyping: boolean): Promise<void> {
+    await this.page.evaluate((nextValue) => {
+      window.__flockjsIntegration.setTyping(nextValue);
+    }, isTyping);
+  }
+
+  public async setFocus(elementId: string | null): Promise<void> {
+    await this.page.evaluate((nextValue) => {
+      window.__flockjsIntegration.setFocus(nextValue);
+    }, elementId);
+  }
+
+  public async setSelection(
+    selection: { elementId: string; from: number; to: number } | null,
+  ): Promise<void> {
+    await this.page.evaluate((nextValue) => {
+      window.__flockjsIntegration.setSelection(nextValue);
+    }, selection);
+  }
+
   public async insertYText(key: string, index: number, text: string): Promise<void> {
-    await this.page.evaluate((value) => {
-      window.__flockjsIntegration.insertYText(value);
-    }, { key, index, text });
+    await this.page.evaluate(
+      (value) => {
+        window.__flockjsIntegration.insertYText(value);
+      },
+      { key, index, text },
+    );
   }
 
   public async pushYArray(key: string, values: unknown[]): Promise<void> {
-    await this.page.evaluate((value) => {
-      window.__flockjsIntegration.pushYArray(value);
-    }, { key, values });
+    await this.page.evaluate(
+      (value) => {
+        window.__flockjsIntegration.pushYArray(value);
+      },
+      { key, values },
+    );
   }
 
   public async setYMapValue(key: string, entryKey: string, value: unknown): Promise<void> {
-    await this.page.evaluate((payload) => {
-      window.__flockjsIntegration.setYMapValue(payload);
-    }, { key, entryKey, value });
+    await this.page.evaluate(
+      (payload) => {
+        window.__flockjsIntegration.setYMapValue(payload);
+      },
+      { key, entryKey, value },
+    );
   }
 
   public async getCursorState(): Promise<CursorHarnessState> {
@@ -328,9 +428,21 @@ class IntegrationPage {
     });
   }
 
+  public async getPresenceSnapshot(): Promise<PresenceHarnessState> {
+    return this.page.evaluate(() => {
+      return window.__flockjsIntegration.getPresenceSnapshot();
+    });
+  }
+
   public async getStateSnapshot(): Promise<StateHarnessState> {
     return this.page.evaluate(() => {
       return window.__flockjsIntegration.getStateSnapshot();
+    });
+  }
+
+  public async getAwarenessSnapshot(): Promise<AwarenessHarnessState> {
+    return this.page.evaluate(() => {
+      return window.__flockjsIntegration.getAwarenessSnapshot();
     });
   }
 
@@ -343,6 +455,18 @@ class IntegrationPage {
   public async getEvents(): Promise<HarnessEventRecord[]> {
     return this.page.evaluate(() => {
       return window.__flockjsIntegration.getEvents();
+    });
+  }
+
+  public async setTimeOverride(timestamp: number): Promise<void> {
+    await this.page.evaluate((value) => {
+      window.__flockjsIntegration.setTimeOverride(value);
+    }, timestamp);
+  }
+
+  public async clearTimeOverride(): Promise<void> {
+    await this.page.evaluate(() => {
+      window.__flockjsIntegration.clearTimeOverride();
     });
   }
 
@@ -494,6 +618,130 @@ test.describe('multi-tab integration', () => {
         .toBe(0);
     } finally {
       await context.close();
+    }
+  });
+
+  test('syncs presence across 3 browser contexts and propagates peer updates', async ({
+    browser,
+  }, testInfo) => {
+    const relay = new RelayController(await reserveRelayPort());
+    await relay.start();
+
+    const contexts = await Promise.all([
+      browser.newContext(),
+      browser.newContext(),
+      browser.newContext(),
+    ]);
+    const roomId = createRoomId(testInfo, 'presence-websocket');
+    const peers = await Promise.all([
+      initializeHarnessPage(contexts[0], {
+        roomId,
+        options: {
+          transport: 'websocket',
+          relayUrl: relay.url,
+          presence: {
+            name: 'Ada',
+            color: '#ff6b35',
+            role: 'editor',
+          },
+        },
+      }),
+      initializeHarnessPage(contexts[1], {
+        roomId,
+        options: {
+          transport: 'websocket',
+          relayUrl: relay.url,
+          presence: {
+            name: 'Bea',
+            color: '#1ea896',
+            role: 'reviewer',
+          },
+        },
+      }),
+      initializeHarnessPage(contexts[2], {
+        roomId,
+        options: {
+          transport: 'websocket',
+          relayUrl: relay.url,
+          presence: {
+            name: 'Cy',
+            color: '#3d5a80',
+            role: 'observer',
+          },
+        },
+      }),
+    ]);
+    const [first, second, third] = peers;
+    if (!first || !second || !third) {
+      throw new Error('Expected three presence pages.');
+    }
+
+    try {
+      await Promise.all(
+        peers.map((page) => {
+          return page.mountPresence();
+        }),
+      );
+      await Promise.all(
+        peers.map((page) => {
+          return page.connect();
+        }),
+      );
+
+      for (const page of peers) {
+        await expect
+          .poll(
+            async () => {
+              return (await page.getPresenceSnapshot()).peers.length;
+            },
+            {
+              timeout: 40_000,
+            },
+          )
+          .toBe(3);
+        await expect
+          .poll(async () => {
+            return (await page.getPresenceSnapshot()).peers
+              .map((peer) => {
+                return String(peer.name ?? '');
+              })
+              .sort();
+          })
+          .toEqual(['Ada', 'Bea', 'Cy']);
+      }
+
+      const secondPeerId = (await second.getSnapshot()).peerId;
+      await second.updatePresence({
+        color: '#f4a261',
+        role: 'editor',
+      });
+
+      for (const page of [first, third]) {
+        await expect
+          .poll(async () => {
+            const snapshot = await page.getPresenceSnapshot();
+            const peer = snapshot.peers.find((entry) => {
+              return entry.id === secondPeerId;
+            });
+            return peer
+              ? {
+                  color: peer.color ?? null,
+                  role: peer.role ?? null,
+                }
+              : null;
+          })
+          .toEqual({
+            color: '#f4a261',
+            role: 'editor',
+          });
+      }
+    } finally {
+      await Promise.all(
+        contexts.map((context) => {
+          return context.close();
+        }),
+      );
+      await relay.stop();
     }
   });
 
@@ -841,6 +1089,288 @@ test.describe('multi-tab integration', () => {
         .toEqual(initialValue);
     } finally {
       await context.close();
+    }
+  });
+
+  test('applies deterministic LWW ordering for concurrent websocket updates after a drop', async ({
+    browser,
+  }, testInfo) => {
+    const relay = new RelayController(await reserveRelayPort());
+    await relay.start();
+
+    const contexts = await Promise.all([browser.newContext(), browser.newContext()]);
+    const roomId = createRoomId(testInfo, 'state-lww-concurrent');
+    const pages = await Promise.all([
+      initializeHarnessPage(contexts[0], {
+        roomId,
+        options: {
+          transport: 'websocket',
+          relayUrl: relay.url,
+          reconnect: {
+            maxAttempts: 20,
+            backoffMs: 100,
+            backoffMultiplier: 1.2,
+            maxBackoffMs: 250,
+          },
+        },
+      }),
+      initializeHarnessPage(contexts[1], {
+        roomId,
+        options: {
+          transport: 'websocket',
+          relayUrl: relay.url,
+          reconnect: {
+            maxAttempts: 20,
+            backoffMs: 100,
+            backoffMultiplier: 1.2,
+            maxBackoffMs: 250,
+          },
+        },
+      }),
+    ]);
+    const [first, second] = pages;
+    if (!first || !second) {
+      throw new Error('Expected two state pages.');
+    }
+
+    try {
+      await Promise.all(
+        pages.map((page) => {
+          return page.mountState({
+            options: {
+              initialValue: {
+                owner: 'initial',
+                revision: 0,
+              },
+              strategy: 'lww',
+            },
+          });
+        }),
+      );
+      await Promise.all(
+        pages.map((page) => {
+          return page.connect();
+        }),
+      );
+
+      await Promise.all(
+        pages.map((page) => {
+          return expect
+            .poll(async () => {
+              return (await page.getSnapshot()).peerCount;
+            })
+            .toBe(1);
+        }),
+      );
+
+      const firstPeerId = (await first.getSnapshot()).peerId;
+      const secondPeerId = (await second.getSnapshot()).peerId;
+      if (!firstPeerId || !secondPeerId) {
+        throw new Error('Expected connected peers to expose stable peer ids.');
+      }
+      const expectedWinner =
+        firstPeerId > secondPeerId
+          ? {
+              owner: 'first',
+              revision: 1,
+            }
+          : {
+              owner: 'second',
+              revision: 2,
+            };
+
+      await relay.stop();
+
+      await Promise.all(
+        pages.map((page) => {
+          return expect
+            .poll(async () => {
+              return (await page.getSnapshot()).status;
+            })
+            .toBe('reconnecting');
+        }),
+      );
+
+      await Promise.all([first.setTimeOverride(50_000), second.setTimeOverride(50_000)]);
+      await Promise.all([
+        first.setState({
+          owner: 'first',
+          revision: 1,
+        }),
+        second.setState({
+          owner: 'second',
+          revision: 2,
+        }),
+      ]);
+      await Promise.all([first.clearTimeOverride(), second.clearTimeOverride()]);
+
+      await relay.start();
+
+      await Promise.all(
+        pages.map((page) => {
+          return expect
+            .poll(async () => {
+              return (await page.getSnapshot()).status;
+            })
+            .toBe('connected');
+        }),
+      );
+      await Promise.all(
+        pages.map((page) => {
+          return expect
+            .poll(
+              async () => {
+                return (await page.getStateSnapshot()).value;
+              },
+              {
+                timeout: 40_000,
+              },
+            )
+            .toEqual(expectedWinner);
+        }),
+      );
+    } finally {
+      await Promise.all([
+        first?.clearTimeOverride() ?? Promise.resolve(),
+        second?.clearTimeOverride() ?? Promise.resolve(),
+      ]);
+      await Promise.all(
+        contexts.map((context) => {
+          return context.close();
+        }),
+      );
+      await relay.stop();
+    }
+  });
+
+  test('syncs awareness typing indicators across websocket peers and clears on disconnect', async ({
+    browser,
+  }, testInfo) => {
+    const relay = new RelayController(await reserveRelayPort());
+    await relay.start();
+
+    const contexts = await Promise.all([browser.newContext(), browser.newContext()]);
+    const roomId = createRoomId(testInfo, 'awareness-typing');
+    const pages = await Promise.all([
+      initializeHarnessPage(contexts[0], {
+        roomId,
+        options: {
+          transport: 'websocket',
+          relayUrl: relay.url,
+          presence: {
+            name: 'Writer',
+          },
+        },
+      }),
+      initializeHarnessPage(contexts[1], {
+        roomId,
+        options: {
+          transport: 'websocket',
+          relayUrl: relay.url,
+          presence: {
+            name: 'Reader',
+          },
+        },
+      }),
+    ]);
+    const [first, second] = pages;
+    if (!first || !second) {
+      throw new Error('Expected two awareness pages.');
+    }
+
+    try {
+      await Promise.all(
+        pages.map((page) => {
+          return page.mountAwareness();
+        }),
+      );
+      await Promise.all(
+        pages.map((page) => {
+          return page.connect();
+        }),
+      );
+
+      await Promise.all(
+        pages.map((page) => {
+          return expect
+            .poll(async () => {
+              return (await page.getSnapshot()).peerCount;
+            })
+            .toBe(1);
+        }),
+      );
+
+      const firstPeerId = (await first.getSnapshot()).peerId;
+      await first.setTyping(true);
+      await first.setFocus('message-input');
+      await first.setSelection({
+        elementId: 'message-input',
+        from: 2,
+        to: 6,
+      });
+
+      await expect
+        .poll(async () => {
+          const snapshot = await second.getAwarenessSnapshot();
+          return (
+            snapshot.peers.find((peer) => {
+              return peer.peerId === firstPeerId;
+            }) ?? null
+          );
+        })
+        .toMatchObject({
+          peerId: firstPeerId,
+          typing: true,
+          focus: 'message-input',
+          selection: {
+            elementId: 'message-input',
+            from: 2,
+            to: 6,
+          },
+        });
+
+      await first.setTyping(false);
+      await first.setFocus(null);
+      await first.setSelection(null);
+
+      await expect
+        .poll(async () => {
+          const snapshot = await second.getAwarenessSnapshot();
+          const peer = snapshot.peers.find((entry) => {
+            return entry.peerId === firstPeerId;
+          });
+          return peer
+            ? {
+                typing: peer.typing ?? null,
+                focus: peer.focus ?? null,
+                selection: peer.selection ?? null,
+              }
+            : null;
+        })
+        .toEqual({
+          typing: false,
+          focus: null,
+          selection: null,
+        });
+
+      await first.disconnect();
+      await expect
+        .poll(
+          async () => {
+            return (await second.getAwarenessSnapshot()).peers.length;
+          },
+          {
+            timeout: 2_000,
+          },
+        )
+        .toBe(0);
+    } finally {
+      await Promise.all(
+        contexts.map((context) => {
+          return context.close();
+        }),
+      );
+      await relay.stop();
     }
   });
 

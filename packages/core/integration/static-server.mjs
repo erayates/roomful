@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 const integrationDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(integrationDir, '../../..');
 const fixtureDir = path.join(integrationDir, 'fixture');
-const coreDistDir = path.join(repoRoot, 'packages/core/dist');
+const packagesDir = path.join(repoRoot, 'packages');
 const coreNodeModulesDir = path.join(repoRoot, 'packages/core/node_modules');
 const pnpmStoreDir = path.join(repoRoot, 'node_modules/.pnpm');
 const host = '127.0.0.1';
@@ -33,14 +33,20 @@ function resolveFixturePath(pathname) {
   return null;
 }
 
-function resolveDistPath(pathname) {
-  if (!pathname.startsWith('/packages/core/dist/')) {
+function resolveWorkspaceDistPath(pathname) {
+  if (!pathname.startsWith('/packages/')) {
     return null;
   }
 
-  const relativePath = pathname.slice('/packages/core/dist/'.length);
-  const resolvedPath = path.resolve(coreDistDir, relativePath);
-  if (!resolvedPath.startsWith(coreDistDir)) {
+  const segments = pathname.split('/').filter(Boolean);
+  const [packagesSegment, packageName, distSegment, ...rest] = segments;
+  if (packagesSegment !== 'packages' || !packageName || distSegment !== 'dist') {
+    return null;
+  }
+
+  const packageDistDir = path.join(packagesDir, packageName, 'dist');
+  const resolvedPath = path.resolve(packageDistDir, ...rest);
+  if (!resolvedPath.startsWith(packageDistDir)) {
     return null;
   }
 
@@ -218,7 +224,7 @@ async function resolveExistingFilePath(filePath) {
 }
 
 async function ensureCoreBuildExists() {
-  const entryPath = path.join(coreDistDir, 'index.js');
+  const entryPath = path.join(packagesDir, 'core', 'dist', 'index.js');
   await fs.access(entryPath);
 }
 
@@ -237,7 +243,7 @@ const server = http.createServer(async (request, response) => {
 
   const requestedPath =
     resolveFixturePath(pathname) ??
-    resolveDistPath(pathname) ??
+    resolveWorkspaceDistPath(pathname) ??
     (await resolvePackagePathname(pathname));
   if (!requestedPath) {
     response.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });

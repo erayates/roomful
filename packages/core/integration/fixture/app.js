@@ -16,17 +16,25 @@ const state = {
   room: null,
   eventEngine: null,
   cursorEngine: null,
+  presenceEngine: null,
   stateEngine: null,
+  awarenessEngine: null,
   roomEventUnsubscribes: [],
   customEventUnsubscribes: [],
   yjsUnsubscribes: [],
   cursorUnsubscribe: null,
+  presenceUnsubscribe: null,
   stateUnsubscribe: null,
+  awarenessUnsubscribe: null,
   roomEvents: [],
   customEvents: [],
   cursorPositions: [],
+  presencePeers: [],
+  presenceUpdates: [],
   sharedState: null,
   stateChanges: [],
+  awarenessPeers: [],
+  awarenessUpdates: [],
   yDoc: null,
   yProvider: null,
   yjsConfig: {
@@ -41,6 +49,7 @@ const state = {
     dataChannelsCreated: 0,
     dataChannelsOpened: 0,
   },
+  originalDateNow: Date.now.bind(Date),
 };
 
 function snapshotValue(value) {
@@ -103,8 +112,12 @@ function clearSubscriptions() {
 
   state.cursorUnsubscribe?.();
   state.cursorUnsubscribe = null;
+  state.presenceUnsubscribe?.();
+  state.presenceUnsubscribe = null;
   state.stateUnsubscribe?.();
   state.stateUnsubscribe = null;
+  state.awarenessUnsubscribe?.();
+  state.awarenessUnsubscribe = null;
 
   state.roomEventUnsubscribes = [];
   state.customEventUnsubscribes = [];
@@ -114,14 +127,21 @@ function clearSubscriptions() {
 function resetState() {
   clearSubscriptions();
   state.cursorEngine?.unmount();
+  Date.now = state.originalDateNow;
   state.roomEvents = [];
   state.customEvents = [];
   state.cursorPositions = [];
   state.eventEngine = null;
   state.cursorEngine = null;
+  state.presenceEngine = null;
   state.stateEngine = null;
+  state.awarenessEngine = null;
+  state.presencePeers = [];
+  state.presenceUpdates = [];
   state.sharedState = null;
   state.stateChanges = [];
+  state.awarenessPeers = [];
+  state.awarenessUpdates = [];
   state.yDoc = null;
   state.yProvider = null;
   state.yjsConfig = {
@@ -346,6 +366,25 @@ window.__flockjsIntegration = {
     }
   },
 
+  mountPresence() {
+    if (!state.room) {
+      throw new Error('Room has not been initialized.');
+    }
+
+    state.presenceEngine = state.room.usePresence();
+    state.presencePeers = snapshotValue(state.presenceEngine.getAll());
+    state.presenceUpdates = [];
+    state.presenceUnsubscribe?.();
+    state.presenceUnsubscribe = state.presenceEngine.subscribe((peers) => {
+      const snapshot = snapshotValue(peers);
+      state.presencePeers = snapshot;
+      state.presenceUpdates.push({
+        peers: snapshot,
+        at: Date.now(),
+      });
+    });
+  },
+
   mountState(config = {}) {
     if (!state.room) {
       throw new Error('Room has not been initialized.');
@@ -401,6 +440,41 @@ window.__flockjsIntegration = {
     );
   },
 
+  mountAwareness() {
+    if (!state.room) {
+      throw new Error('Room has not been initialized.');
+    }
+
+    state.awarenessEngine = state.room.useAwareness();
+    state.awarenessPeers = snapshotValue(state.awarenessEngine.getAll());
+    state.awarenessUpdates = [];
+    state.awarenessUnsubscribe?.();
+    state.awarenessUnsubscribe = state.awarenessEngine.subscribe((peers) => {
+      const snapshot = snapshotValue(peers);
+      state.awarenessPeers = snapshot;
+      state.awarenessUpdates.push({
+        peers: snapshot,
+        at: Date.now(),
+      });
+    });
+  },
+
+  updatePresence(value) {
+    if (!state.presenceEngine) {
+      throw new Error('Presence engine is not initialized.');
+    }
+
+    state.presenceEngine.update(value);
+  },
+
+  replacePresence(value) {
+    if (!state.presenceEngine) {
+      throw new Error('Presence engine is not initialized.');
+    }
+
+    state.presenceEngine.replace(value);
+  },
+
   setState(value) {
     if (!state.stateEngine) {
       throw new Error('State engine is not initialized.');
@@ -431,6 +505,38 @@ window.__flockjsIntegration = {
     }
 
     state.stateEngine.reset();
+  },
+
+  setAwareness(value) {
+    if (!state.awarenessEngine) {
+      throw new Error('Awareness engine is not initialized.');
+    }
+
+    state.awarenessEngine.set(value);
+  },
+
+  setTyping(isTyping) {
+    if (!state.awarenessEngine) {
+      throw new Error('Awareness engine is not initialized.');
+    }
+
+    state.awarenessEngine.setTyping(isTyping);
+  },
+
+  setFocus(elementId) {
+    if (!state.awarenessEngine) {
+      throw new Error('Awareness engine is not initialized.');
+    }
+
+    state.awarenessEngine.setFocus(elementId);
+  },
+
+  setSelection(selection) {
+    if (!state.awarenessEngine) {
+      throw new Error('Awareness engine is not initialized.');
+    }
+
+    state.awarenessEngine.setSelection(selection);
   },
 
   getStateSnapshot() {
@@ -469,6 +575,20 @@ window.__flockjsIntegration = {
 
   getYjsSnapshot() {
     return getYjsSnapshot();
+  },
+
+  getPresenceSnapshot() {
+    return {
+      peers: snapshotValue(state.presencePeers),
+      updates: snapshotValue(state.presenceUpdates),
+    };
+  },
+
+  getAwarenessSnapshot() {
+    return {
+      peers: snapshotValue(state.awarenessPeers),
+      updates: snapshotValue(state.awarenessUpdates),
+    };
   },
 
   unmountCursors() {
@@ -523,6 +643,14 @@ window.__flockjsIntegration = {
 
   getState() {
     return window.__flockjsIntegration.getStateSnapshot();
+  },
+
+  setTimeOverride(timestamp) {
+    Date.now = () => timestamp;
+  },
+
+  clearTimeOverride() {
+    Date.now = state.originalDateNow;
   },
 
   getEvents() {
