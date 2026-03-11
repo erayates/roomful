@@ -1,4 +1,4 @@
-name: Storybook
+name: Docs
 
 on:
   push:
@@ -12,14 +12,17 @@ permissions:
   id-token: write
 
 concurrency:
-  group: storybook-pages
+  group: docs-pages
   cancel-in-progress: true
 
 jobs:
   build:
-    name: Build Storybook
+    name: Build Docs
     runs-on: ubuntu-latest
     env:
+      PUBLIC_DOCSEARCH_API_KEY: ${{ secrets.PUBLIC_DOCSEARCH_API_KEY }}
+      PUBLIC_DOCSEARCH_APP_ID: ${{ secrets.PUBLIC_DOCSEARCH_APP_ID }}
+      PUBLIC_DOCSEARCH_INDEX_NAME: ${{ secrets.PUBLIC_DOCSEARCH_INDEX_NAME }}
       TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
       TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
     steps:
@@ -40,19 +43,30 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Ensure DocSearch env is configured
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in PUBLIC_DOCSEARCH_APP_ID PUBLIC_DOCSEARCH_API_KEY PUBLIC_DOCSEARCH_INDEX_NAME; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::${name} secret is required for docs deployment."
+              exit 1
+            fi
+          done
+
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
 
-      - name: Build Storybook
-        run: pnpm --filter @flockjs/cursors build-storybook
+      - name: Build docs site
+        run: pnpm --filter @flockjs/app-docs build
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: packages/cursors/storybook-static
+          path: apps/docs/dist
 
   deploy:
-    name: Deploy Storybook
+    name: Deploy Docs
     needs: build
     runs-on: ubuntu-latest
     environment:

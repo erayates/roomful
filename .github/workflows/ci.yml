@@ -65,6 +65,9 @@ jobs:
       - name: Test demo app
         run: pnpm --filter @flockjs/app-demo test
 
+      - name: Validate docs snippets
+        run: pnpm docs:snippets
+
       - name: Build
         run: pnpm build
 
@@ -121,6 +124,9 @@ jobs:
 
       - name: Demo browser integration tests
         run: pnpm test:integration:demo
+
+      - name: Docs smoke tests
+        run: pnpm test:docs
 
   relay-distribution:
     name: Relay Distribution

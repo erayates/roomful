@@ -62,6 +62,9 @@ jobs:
       - name: Test
         run: pnpm test
 
+      - name: Validate docs snippets
+        run: pnpm docs:snippets
+
       - name: Build
         run: pnpm build
 
