@@ -1,3 +1,4 @@
+import { env } from '../internal/env';
 import type {
   CursorEngine,
   CursorOptions,
@@ -82,8 +83,7 @@ function extractPointerPoint(event: unknown): PointerPoint | null {
 
   const touches = getTouchList(event, 'touches');
   if (touches.length > 0) {
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    return touches[0]!;
+    return touches[0] ?? null;
   }
 
   const changedTouches = getTouchList(event, 'changedTouches');
@@ -104,7 +104,7 @@ function resolveDocument(mountedElement: HTMLElement | null): Document | null {
     return mountedElement.ownerDocument;
   }
 
-  if (typeof document !== 'undefined') {
+  if (env.hasDocument) {
     return document;
   }
 
@@ -340,12 +340,15 @@ export function createCursorEngine(
       return;
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const waitMs = Math.max(0, throttleMs - (Date.now() - lastDispatchAt!));
+    const timeSinceLastDispatch =
+      lastDispatchAt === null ? throttleMs : Date.now() - lastDispatchAt;
+    const waitMs = Math.max(0, throttleMs - timeSinceLastDispatch);
     throttleTimer = globalThis.setTimeout(() => {
       throttleTimer = null;
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      context.setSelfPosition(pendingPosition!);
+      if (pendingPosition === null) {
+        return;
+      }
+      context.setSelfPosition(pendingPosition);
       lastDispatchAt = Date.now();
       pendingPosition = null;
     }, waitMs);

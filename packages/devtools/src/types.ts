@@ -23,7 +23,7 @@ export type DevtoolsTransportKind =
 /**
  * Represents the active shared-state strategy shown in devtools.
  */
-export type DevtoolsStateStrategy = 'lww' | 'crdt' | null;
+export type DevtoolsStateStrategy = 'lww' | 'crdt' | 'custom' | null;
 
 /**
  * Represents the latest shared-state mutation reason shown in devtools.

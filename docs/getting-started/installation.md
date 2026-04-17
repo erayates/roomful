@@ -24,6 +24,9 @@ Install only what you need.
 # Core SDK (required)
 npm install @flockjs/core
 
+# CRDT / Yjs support (required only when using strategy: 'crdt' or Yjs APIs)
+npm install yjs y-protocols
+
 # Framework adapters (optional)
 npm install @flockjs/react
 npm install @flockjs/vue
@@ -44,6 +47,12 @@ npm install -g @flockjs/relay
 - WebRTC-based collaboration depends on browser support and network policy.
 - Cross-network sessions need STUN/TURN configuration for production.
 - SSR/Node environments can document configuration but cannot run browser WebRTC transport directly.
+
+## CRDT Dependency Note
+
+- `@flockjs/core` declares `yjs` and `y-protocols` as peer dependencies.
+- Install them when you use `room.getYDoc()`, `room.getYProvider()`, or `useState({ strategy: 'crdt' })`.
+- If you only use `lww` or `custom` state strategies, no extra CRDT packages are needed beyond the base install.
 
 ## Versioning Note
 

@@ -1,6 +1,6 @@
 {
   "name": "@flockjs/relay",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "description": "Self-hosted relay server for FlockJS realtime transports.",
   "private": false,
   "type": "module",

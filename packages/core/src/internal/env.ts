@@ -59,6 +59,9 @@ export const env = {
   get hasFetch(): boolean {
     return typeof fetch === 'function';
   },
+  get hasDocument(): boolean {
+    return typeof document !== 'undefined';
+  },
   get hasCryptoRandomUUID(): boolean {
     return typeof readGlobalCrypto()?.randomUUID === 'function';
   },

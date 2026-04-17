@@ -218,7 +218,7 @@ describe('createStateEngine', () => {
         },
         strategy: 'crdt',
       });
-    }).toThrowError(/not implemented/i);
+    }).toThrowError(/requires the Yjs-based engine/i);
 
     expect(() => {
       createStateEngine({
@@ -227,7 +227,18 @@ describe('createStateEngine', () => {
         },
         strategy: 'custom',
       });
-    }).toThrowError(/not implemented/i);
+    }).toThrowError(/"merge" function/i);
+  });
+
+  it('resolves custom merge strategy with merge function', () => {
+    const engine = createStateEngine({
+      initialValue: { count: 0 },
+      strategy: 'custom',
+      merge: (local, remote) => ({ ...local, ...remote }),
+    });
+
+    engine.set({ count: 5 });
+    expect(engine.get()).toEqual({ count: 5 });
   });
 
   it('resolves LWW ordering with vector clocks, timestamps, and changedBy tie-breaks', () => {
@@ -324,9 +335,7 @@ describe('createStateEngine', () => {
     );
 
     const commitChange = vi.fn(
-      (change: {
-        snapshot: ReturnType<typeof createInitialStateSnapshot>;
-      }) => {
+      (change: { snapshot: ReturnType<typeof createInitialStateSnapshot> }) => {
         currentSnapshot = change.snapshot;
       },
     );

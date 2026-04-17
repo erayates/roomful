@@ -1,3 +1,4 @@
+import { createFlockError } from '../flock-error';
 import {
   assertSupportedStateStrategy,
   cloneStateValue,
@@ -65,6 +66,9 @@ function trimLocalHistory<T>(history: T[]): T[] {
 }
 
 function readSnapshotValue<T>(snapshot: StateSnapshot): T {
+  // The snapshot stores a generically-typed value that the caller knows is T.
+  // This is the same pattern as typed-peer.ts: the internal snapshot is the
+  // single source of truth and the generic parameter flows from the caller.
   // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
   return snapshot.value as T;
 }
@@ -74,6 +78,30 @@ export function createStateEngine<T>(
   context?: StateEngineContext<T>,
 ): StateEngine<T> {
   assertSupportedStateStrategy(options.strategy);
+
+  if (options.strategy === 'custom' && typeof options.merge !== 'function') {
+    throw createFlockError(
+      'INVALID_STATE',
+      'State strategy "custom" requires a "merge" function. Provide a merge(a, b) => T function in StateOptions.',
+      false,
+      { strategy: 'custom' },
+    );
+  }
+
+  const resolveMerger = (): ((local: T, remote: Partial<T>) => T) | null => {
+    if (options.strategy !== 'custom' || typeof options.merge !== 'function') {
+      return null;
+    }
+
+    const mergeFn = options.merge;
+    return (local: T, remote: Partial<T>): T => {
+      // Partial<T> is T with optional keys; merge function expects the full shape.
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+      return mergeFn(local, remote as T);
+    };
+  };
+
+  const customMerger = resolveMerger();
 
   const subscribers = new Set<(value: T, meta: StateChangeMeta) => void>();
   const now = (): number => {
@@ -141,8 +169,27 @@ export function createStateEngine<T>(
       );
     },
     patch(partial) {
+      const currentSnapshot = getSnapshot();
+      if (customMerger) {
+        const current = readSnapshotValue<T>(currentSnapshot);
+        const merged = customMerger(cloneStateValue(current), partial);
+        if (!context) {
+          localHistory = trimLocalHistory([...localHistory, cloneStateValue(localValue)]);
+          localValue = cloneStateValue(merged);
+        }
+
+        applySnapshot(
+          setStateSnapshot(currentSnapshot, merged, context?.actorId ?? 'local', now()),
+          {
+            reason: 'patch',
+            payload: cloneStateValue(partial),
+          },
+        );
+        return;
+      }
+
       const nextSnapshot = patchStateSnapshot(
-        getSnapshot(),
+        currentSnapshot,
         partial,
         context?.actorId ?? 'local',
         now(),

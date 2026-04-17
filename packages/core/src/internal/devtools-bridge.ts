@@ -1,3 +1,4 @@
+import type { Unsubscribe } from '../types';
 import {
   DEVTOOLS_BRIDGE_GLOBAL,
   DEVTOOLS_BRIDGE_VERSION,
@@ -5,9 +6,7 @@ import {
   type DevtoolsCommandResult,
   type DevtoolsRoomSnapshot,
   type DevtoolsRoomSummary,
-} from '@flockjs/devtools';
-
-import type { Unsubscribe } from '../types';
+} from './devtools';
 import { env } from './env';
 
 interface RoomDevtoolsAdapter {

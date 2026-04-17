@@ -6,11 +6,12 @@ FlockJS is an open-source, framework-agnostic SDK designed to help frontend team
 
 ## Project Status
 
-FlockJS is currently in **early development** and this repository is building toward a production-ready `v1.0`.
+FlockJS is approaching **v1.0** release. All major features are implemented and tested across 7 packages.
 
-- API contracts in this repo are the current canonical direction.
-- Some packages and features documented here are **planned** and not fully implemented yet.
-- Breaking changes are expected before `v1.0`.
+- API contracts are stable and implemented.
+- All framework adapters (React, Vue, Svelte) provide full presence, cursors, state, awareness, and events APIs.
+- The relay server supports WebSocket, polling, JWT auth, and Redis coordination.
+- Breaking changes are possible before `v1.0` but not expected.
 
 ## Why FlockJS
 
@@ -27,22 +28,27 @@ Building collaboration features usually requires you to stitch together transpor
 
 | Area                | Description                                   | Status    |
 | ------------------- | --------------------------------------------- | --------- |
-| Core room lifecycle | `createRoom`, connect/disconnect, peer events | Planned   |
-| Presence engine     | peer metadata, subscriptions, updates         | Planned   |
-| Cursor engine       | pointer sync, rendering helpers               | Planned   |
-| Shared state engine | `lww`, `crdt`, `custom` merge strategies      | Planned   |
-| Awareness engine    | transient focus/typing/selection state        | Planned   |
-| Event engine        | ephemeral room and peer-targeted events       | Planned   |
-| React adapter       | provider + hooks API                          | Planned   |
-| Vue adapter         | plugin + composables                          | Planned   |
-| Svelte adapter      | stores + actions                              | Planned   |
+| Core room lifecycle | `createRoom`, connect/disconnect, peer events | Available |
+| Presence engine     | peer metadata, subscriptions, updates         | Available |
+| Cursor engine       | pointer sync, rendering helpers               | Available |
+| Shared state engine | `lww`, `crdt`, `custom` merge strategies      | Available |
+| Awareness engine    | transient focus/typing/selection state        | Available |
+| Event engine        | ephemeral room and peer-targeted events       | Available |
+| React adapter       | provider + hooks API                          | Available |
+| Vue adapter         | plugin + composables                          | Available |
+| Svelte adapter      | stores + actions                              | Available |
 | Relay server        | optional WebSocket relay for scale            | Available |
-| Prebuilt UI kit     | cursors/presence/typing components            | Planned   |
+| Prebuilt UI kit     | cursors/presence/typing components            | Available |
 
-## Quick Start (Planned API)
+CRDT note: `strategy: 'crdt'`, `room.getYDoc()`, and `room.getYProvider()` require installing the `yjs` and `y-protocols` peer dependencies.
+
+## Quick Start
 
 ```bash
 npm install @flockjs/core
+
+# Add these only if you use CRDT/Yjs features
+npm install yjs y-protocols
 ```
 
 ```ts
@@ -69,11 +75,11 @@ window.addEventListener('beforeunload', () => {
 
 | Package             | Purpose                                 | Status    |
 | ------------------- | --------------------------------------- | --------- |
-| `@flockjs/core`     | room, transports, collaboration engines | Planned   |
-| `@flockjs/react`    | React provider/hooks                    | Planned   |
-| `@flockjs/vue`      | Vue plugin/composables                  | Planned   |
-| `@flockjs/svelte`   | Svelte store/action integration         | Planned   |
-| `@flockjs/cursors`  | prebuilt collaboration UI components    | Planned   |
+| `@flockjs/core`     | room, transports, collaboration engines | Available |
+| `@flockjs/react`    | React provider/hooks                    | Available |
+| `@flockjs/vue`      | Vue plugin/composables                  | Available |
+| `@flockjs/svelte`   | Svelte store/action integration         | Available |
+| `@flockjs/cursors`  | prebuilt collaboration UI components    | Available |
 | `@flockjs/relay`    | self-hosted relay server                | Available |
 | `@flockjs/devtools` | debugging and diagnostics tooling       | Available |
 

@@ -44,16 +44,32 @@ export class RedisRelayRoomCoordinator implements RelayRoomCoordinator {
 
   private messageHandler: ((message: RelayCoordinatorMessage) => void) | null = null;
 
-  private readonly store: RelayRedisStore;
+  private _store: RelayRedisStore | null = null;
 
   private readyForJoins = false;
 
   private recoveryPromise: Promise<void> | null = null;
 
-  public constructor(private readonly options: RelayRedisCoordinatorOptions) {
-    const createStore = options.createStore ?? createRelayRedisStore;
-    this.store = createStore({
-      redisUrl: options.redisUrl,
+  private get store(): RelayRedisStore {
+    const store = this._store;
+    if (store === null) {
+      throw createRelayCoordinatorNotStartedError(
+        'Coordinator has not been started. Call start() first.',
+      );
+    }
+    return store;
+  }
+
+  public constructor(private readonly options: RelayRedisCoordinatorOptions) {}
+
+  public async start(): Promise<void> {
+    if (this._store !== null) {
+      return;
+    }
+
+    const createStore = this.options.createStore ?? createRelayRedisStore;
+    const store = createStore({
+      redisUrl: this.options.redisUrl,
       instanceId: this.instanceId,
       onMessage: (_channel, envelope) => {
         if (envelope.sourceInstanceId === this.instanceId || this.messageHandler === null) {
@@ -63,7 +79,8 @@ export class RedisRelayRoomCoordinator implements RelayRoomCoordinator {
         this.messageHandler(envelope.message);
       },
     });
-    this.store.onReadyStateChange((ready) => {
+
+    store.onReadyStateChange((ready) => {
       if (!ready) {
         this.readyForJoins = false;
         return;
@@ -73,11 +90,10 @@ export class RedisRelayRoomCoordinator implements RelayRoomCoordinator {
         this.reportError('Redis room resubscribe failed.', error);
       });
     });
-  }
 
-  public async start(): Promise<void> {
-    await this.store.start();
-    if (!this.store.isReady()) {
+    this._store = store;
+    await store.start();
+    if (!store.isReady()) {
       this.readyForJoins = false;
       return;
     }
@@ -92,7 +108,11 @@ export class RedisRelayRoomCoordinator implements RelayRoomCoordinator {
     this.pendingPeerLeftMessages.length = 0;
     this.readyForJoins = false;
     this.recoveryPromise = null;
-    await this.store.stop();
+    const store = this._store;
+    this._store = null;
+    if (store !== null) {
+      await store.stop();
+    }
   }
 
   public isReady(): boolean {
@@ -272,6 +292,12 @@ export class RedisRelayRoomCoordinator implements RelayRoomCoordinator {
 
     process.stderr.write(`[relay] ${message} error=${describeRelayRedisError(error)}\n`);
   }
+}
+
+function createRelayCoordinatorNotStartedError(message: string): Error {
+  const error = new Error(message);
+  error.name = 'RelayCoordinatorNotStartedError';
+  return error;
 }
 
 export function createRedisRelayRoomCoordinator(

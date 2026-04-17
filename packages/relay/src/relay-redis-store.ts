@@ -174,6 +174,12 @@ function createRelayRedisConfigurationError(message: string): TypeError {
   return error;
 }
 
+function createRelayRedisNotStartedError(message: string): Error {
+  const error = new Error(message);
+  error.name = 'RelayRedisNotStartedError';
+  return error;
+}
+
 function readRedisErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
@@ -210,9 +216,9 @@ function normalizeRelayRedisMessage(message: RelayCoordinatorMessage): RelayCoor
 }
 
 export class RelayRedisStoreImpl implements RelayRedisStore {
-  private readonly commandClient: Redis;
+  private commandClient: Redis | null = null;
 
-  private readonly subscriber: Redis;
+  private subscriber: Redis | null = null;
 
   private readonly subscribedChannels = new Set<string>();
 
@@ -222,25 +228,57 @@ export class RelayRedisStoreImpl implements RelayRedisStore {
 
   private started = false;
 
+  private readonly parsedRedisUrl: string;
+
   public constructor(private readonly options: RelayRedisStoreOptions) {
-    const redisUrl = parseRedisUrl(options.redisUrl);
-    this.commandClient = new Redis(redisUrl, {
+    this.parsedRedisUrl = parseRedisUrl(options.redisUrl);
+  }
+
+  private getClient(): Redis {
+    const client = this.commandClient;
+    if (client === null) {
+      throw createRelayRedisNotStartedError(
+        'RelayRedisStore has not been started. Call start() first.',
+      );
+    }
+    return client;
+  }
+
+  private getSubscriber(): Redis {
+    const client = this.subscriber;
+    if (client === null) {
+      throw createRelayRedisNotStartedError(
+        'RelayRedisStore has not been started. Call start() first.',
+      );
+    }
+    return client;
+  }
+
+  public async start(): Promise<void> {
+    if (this.started) {
+      return;
+    }
+
+    const commandClient = new Redis(this.parsedRedisUrl, {
       lazyConnect: true,
       enableOfflineQueue: false,
       maxRetriesPerRequest: 1,
     });
-    this.subscriber = this.commandClient.duplicate({
+    const subscriber = commandClient.duplicate({
       lazyConnect: true,
       enableOfflineQueue: false,
       maxRetriesPerRequest: 1,
       autoResubscribe: true,
     });
 
-    this.subscriber.on('message', (channel, message) => {
+    this.commandClient = commandClient;
+    this.subscriber = subscriber;
+
+    subscriber.on('message', (channel, message) => {
       this.handleSubscriberMessage(channel, message);
     });
 
-    for (const client of [this.commandClient, this.subscriber]) {
+    for (const client of [commandClient, subscriber]) {
       client.on('ready', () => {
         this.updateReadyState();
       });
@@ -257,14 +295,8 @@ export class RelayRedisStoreImpl implements RelayRedisStore {
         this.updateReadyState();
       });
     }
-  }
 
-  public async start(): Promise<void> {
-    if (this.started) {
-      return;
-    }
-
-    await Promise.all([this.commandClient.connect(), this.subscriber.connect()]);
+    await Promise.all([commandClient.connect(), subscriber.connect()]);
     this.started = true;
     this.updateReadyState();
   }
@@ -273,8 +305,18 @@ export class RelayRedisStoreImpl implements RelayRedisStore {
     this.started = false;
     this.subscribedChannels.clear();
     this.ready = false;
-    this.commandClient.disconnect(false);
-    this.subscriber.disconnect(false);
+
+    const commandClient = this.commandClient;
+    const subscriber = this.subscriber;
+    this.commandClient = null;
+    this.subscriber = null;
+
+    if (commandClient !== null) {
+      commandClient.disconnect(false);
+    }
+    if (subscriber !== null) {
+      subscriber.disconnect(false);
+    }
   }
 
   public isReady(): boolean {
@@ -293,7 +335,7 @@ export class RelayRedisStoreImpl implements RelayRedisStore {
       return;
     }
 
-    await this.subscriber.subscribe(channel);
+    await this.getSubscriber().subscribe(channel);
     this.subscribedChannels.add(channel);
   }
 
@@ -302,16 +344,16 @@ export class RelayRedisStoreImpl implements RelayRedisStore {
       return;
     }
 
-    await this.subscriber.unsubscribe(channel);
+    await this.getSubscriber().unsubscribe(channel);
     this.subscribedChannels.delete(channel);
   }
 
   public async publish(channel: string, message: RelayRedisEnvelope): Promise<void> {
-    await this.commandClient.publish(channel, JSON.stringify(message));
+    await this.getClient().publish(channel, JSON.stringify(message));
   }
 
   public async joinRoom(request: RelayRedisJoinRequest): Promise<RelayRedisJoinResult> {
-    const rawResult: unknown = await this.commandClient.eval(
+    const rawResult: unknown = await this.getClient().eval(
       JOIN_ROOM_SCRIPT,
       2,
       roomPeersKey(request.roomId),
@@ -375,7 +417,7 @@ export class RelayRedisStoreImpl implements RelayRedisStore {
   }
 
   public async leaveRoom(roomId: string, peerId: string): Promise<void> {
-    await this.commandClient.eval(
+    await this.getClient().eval(
       LEAVE_ROOM_SCRIPT,
       2,
       roomPeersKey(roomId),
@@ -387,8 +429,9 @@ export class RelayRedisStoreImpl implements RelayRedisStore {
   public async syncRoom(request: RelayRedisSyncRequest): Promise<void> {
     const peersKey = roomPeersKey(request.roomId);
     const capacityKey = roomCapacityKey(request.roomId);
-    const existing = await this.commandClient.hgetall(peersKey);
-    const pipeline = this.commandClient.pipeline();
+    const commandClient = this.getClient();
+    const existing = await commandClient.hgetall(peersKey);
+    const pipeline = commandClient.pipeline();
     const localPeerIds = new Set(request.peers.map((peer) => peer.peerId));
 
     for (const [peerId, rawValue] of Object.entries(existing)) {
@@ -412,7 +455,7 @@ export class RelayRedisStoreImpl implements RelayRedisStore {
     }
 
     if (request.peers.length > 0 && request.capacity !== undefined) {
-      const existingCapacity = await this.commandClient.get(capacityKey);
+      const existingCapacity = await this.getClient().get(capacityKey);
       if (existingCapacity === null) {
         pipeline.set(capacityKey, String(request.capacity));
       }
@@ -437,7 +480,13 @@ export class RelayRedisStoreImpl implements RelayRedisStore {
   }
 
   private updateReadyState(): void {
-    const nextReady = this.commandClient.status === 'ready' && this.subscriber.status === 'ready';
+    const commandClient = this.commandClient;
+    const subscriber = this.subscriber;
+    if (commandClient === null || subscriber === null) {
+      return;
+    }
+
+    const nextReady = commandClient.status === 'ready' && subscriber.status === 'ready';
     if (nextReady === this.ready) {
       return;
     }

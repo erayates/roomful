@@ -1,6 +1,6 @@
 {
   "name": "@flockjs/core",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "private": false,
   "type": "module",
   "main": "dist/index.js",
@@ -27,7 +27,11 @@
   "publishConfig": {
     "access": "public"
   },
-  "dependencies": {
+  "peerDependencies": {
+    "y-protocols": "^1.0.7",
+    "yjs": "^13.6.29"
+  },
+  "devDependencies": {
     "@flockjs/devtools": "workspace:*",
     "y-protocols": "^1.0.7",
     "yjs": "^13.6.29"

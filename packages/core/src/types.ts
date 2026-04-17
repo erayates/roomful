@@ -252,7 +252,7 @@ export interface RoomDiagnosticsState {
   /**
    * Reports the active shared-state strategy, when configured.
    */
-  strategy: 'lww' | 'crdt' | null;
+  strategy: 'lww' | 'crdt' | 'custom' | null;
 
   /**
    * Indicates whether local persistence is enabled.

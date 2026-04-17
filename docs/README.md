@@ -6,7 +6,7 @@ This directory is the canonical Markdown documentation hub for FlockJS.
 
 ## Current State
 
-FlockJS is under active development. API contracts and examples here define the intended direction, and some functionality is still planned.
+FlockJS is approaching v1.0 release. All major features are implemented and tested across 7 packages. API contracts are stable.
 
 ## Getting Started
 

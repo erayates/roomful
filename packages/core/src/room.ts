@@ -1,20 +1,4 @@
 import {
-  DEVTOOLS_BRIDGE_VERSION,
-  DEVTOOLS_MAX_EVENT_LOG_ENTRIES,
-  type DevtoolsCommandResult,
-  type DevtoolsEventDirection,
-  type DevtoolsEventLogEntry,
-  type DevtoolsPeerSnapshot,
-  type DevtoolsRoomSnapshot,
-  type DevtoolsRoomSummary,
-  type DevtoolsSerializedRecord,
-  type DevtoolsSerializedValue,
-  type DevtoolsStateSnapshot,
-  diffSerializedState,
-  serializeDevtoolsValue,
-} from '@flockjs/devtools';
-
-import {
   createEncryptionHandshake,
   decryptWirePayload,
   type EncryptionEnvelopeHeader,
@@ -31,6 +15,21 @@ import { createStateEngine } from './engines/state';
 import { createCrdtStateEngine as createCrdtStateEngineRuntime } from './engines/state.crdt';
 import { TypedEventEmitter } from './event-emitter';
 import { createFlockError, FlockError } from './flock-error';
+import {
+  DEVTOOLS_BRIDGE_VERSION,
+  DEVTOOLS_MAX_EVENT_LOG_ENTRIES,
+  type DevtoolsCommandResult,
+  type DevtoolsEventDirection,
+  type DevtoolsEventLogEntry,
+  type DevtoolsPeerSnapshot,
+  type DevtoolsRoomSnapshot,
+  type DevtoolsRoomSummary,
+  type DevtoolsSerializedRecord,
+  type DevtoolsSerializedValue,
+  type DevtoolsStateSnapshot,
+  diffSerializedState,
+  serializeDevtoolsValue,
+} from './internal/devtools';
 import { registerRoomDevtoolsAdapter } from './internal/devtools-bridge';
 import { createRuntimePeerId, getWindowEventTarget, type WindowEventTarget } from './internal/env';
 import { isObject, readString } from './internal/guards';
@@ -131,7 +130,7 @@ type InternalEventCallback<TPresence extends PresenceData> = {
 }['bivarianceHack'];
 
 interface DevtoolsStateTracker {
-  readonly strategy: 'lww' | 'crdt';
+  readonly strategy: 'lww' | 'crdt' | 'custom';
   readonly unsubscribe: Unsubscribe;
 }
 
@@ -411,7 +410,7 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
 
   private stateConfigured = false;
 
-  private stateStrategy: 'lww' | 'crdt' | null = null;
+  private stateStrategy: 'lww' | 'crdt' | 'custom' | null = null;
 
   private statePersistenceEnabled = false;
 
@@ -508,8 +507,6 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     });
 
     this.awarenessByPeer.set(this.peerId, { peerId: this.peerId });
-
-    this.ensureDevtoolsAdapterRegistered();
   }
 
   private get selfPeer(): Peer<TPresence> {
@@ -675,7 +672,7 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
 
   private ensureDevtoolsStateTracking<T>(
     stateEngine: StateEngine<T>,
-    strategy: 'lww' | 'crdt',
+    strategy: 'lww' | 'crdt' | 'custom',
   ): void {
     if (this.devtoolsStateTracker?.strategy === strategy) {
       return;
@@ -1020,7 +1017,9 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
       const stateEngine =
         strategy === 'crdt'
           ? this.createCrdtStateEngine(options)
-          : this.createLwwStateEngine(options);
+          : strategy === 'custom'
+            ? this.createCustomStateEngine(options)
+            : this.createLwwStateEngine(options);
       this.stateEngineInstance = stateEngine;
       this.ensureDevtoolsStateTracking(stateEngine, strategy);
       return stateEngine;
@@ -1164,7 +1163,7 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
 
   private createInstrumentedStateEngine<T>(
     engine: StateEngine<T>,
-    strategy: 'lww' | 'crdt',
+    strategy: 'lww' | 'crdt' | 'custom',
   ): StateEngine<T> {
     const logMutation = (reason: StateChangeMeta['reason']): void => {
       const stateSizeBytes = this.getStateSizeBytes();
@@ -1291,14 +1290,53 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     return this.createInstrumentedStateEngine(baseStateEngine, 'crdt');
   }
 
+  private createCustomStateEngine<T>(options: StateOptions<T>): StateEngine<T> {
+    const merge = options.merge;
+    if (typeof merge !== 'function') {
+      throw createFlockError(
+        'INVALID_STATE',
+        'State strategy "custom" requires a "merge" function. Provide a merge(a, b) => T function in StateOptions.',
+        false,
+        { strategy: 'custom' },
+      );
+    }
+
+    const baseStateEngine = createStateEngine<T>(options);
+
+    this.stateStrategy = 'custom';
+
+    this.logger.info('state', 'state', 'State engine configured', {
+      persistenceEnabled: this.statePersistenceEnabled,
+      strategy: 'custom',
+    });
+
+    return this.createInstrumentedStateEngine(baseStateEngine, 'custom');
+  }
+
   private resolveRequestedStateStrategy(
     strategy: StateOptions<unknown>['strategy'],
-  ): 'lww' | 'crdt' {
+  ): 'lww' | 'crdt' | 'custom' {
     const normalized = strategy ?? this.stateStrategy ?? 'lww';
+    if (normalized === 'custom' && strategy === 'custom') {
+      if (this.stateStrategy && this.stateStrategy !== 'custom') {
+        throw createFlockError(
+          'INVALID_STATE',
+          `Room state is already configured with strategy "${this.stateStrategy}".`,
+          false,
+          {
+            currentStrategy: this.stateStrategy,
+            requestedStrategy: normalized,
+          },
+        );
+      }
+
+      return normalized;
+    }
+
     if (normalized !== 'lww' && normalized !== 'crdt') {
       throw createFlockError(
         'INVALID_STATE',
-        `State strategy "${normalized}" is not implemented in this runtime. Use "lww" or "crdt".`,
+        `State strategy "${normalized}" is not implemented in this runtime. Use "lww", "crdt", or "custom".`,
         false,
         {
           strategy: normalized,
@@ -1326,7 +1364,7 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
   }
 
   private assertSupportedStatePersistence(
-    strategy: 'lww' | 'crdt',
+    strategy: 'lww' | 'crdt' | 'custom',
     persist: StateOptions<unknown>['persist'],
   ): void {
     if (persist !== true || strategy === 'lww') {
@@ -2239,10 +2277,7 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
 
   private createOutboundSignal<
     TSignal extends Omit<RoomTransportSignal, 'roomId' | 'fromPeerId' | 'timestamp'>,
-  >(
-    signal: TSignal,
-    timestamp = Date.now(),
-  ): RoomTransportSignal | null {
+  >(signal: TSignal, timestamp = Date.now()): RoomTransportSignal | null {
     const normalizedSignal = normalizeTransportSignal({
       ...signal,
       roomId: this.id,

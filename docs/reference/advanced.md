@@ -163,6 +163,9 @@ Behavior:
 
 FlockJS ships a room-scoped Yjs document and provider:
 
+- install `yjs` and `y-protocols` alongside `@flockjs/core`
+- `@flockjs/core` exposes them as peer dependencies because CRDT support is an advanced integration surface
+
 - `room.getYDoc()` returns the shared `Y.Doc`
 - `room.getYProvider()` returns the shared provider with `doc`, `awareness`, `status`, and `synced`
 - new peers bootstrap document state via Yjs state-vector exchange on the existing FlockJS transport

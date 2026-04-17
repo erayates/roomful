@@ -18,7 +18,7 @@ export type DevtoolsTransportKind =
   | 'polling'
   | null;
 
-export type DevtoolsStateStrategy = 'lww' | 'crdt' | null;
+export type DevtoolsStateStrategy = 'lww' | 'crdt' | 'custom' | null;
 export type DevtoolsStateReason = 'set' | 'patch' | 'undo' | 'reset' | null;
 export type DevtoolsEventDirection = 'incoming' | 'outgoing' | 'system';
 export type DevtoolsDiffKind = 'added' | 'removed' | 'changed';

@@ -182,19 +182,21 @@ export function parseStateSnapshot(value: unknown): StateSnapshot | null {
 
 export function assertSupportedStateStrategy(
   strategy: StateOptions<unknown>['strategy'],
-): 'lww' {
+): 'lww' | 'custom' {
   const normalized = strategy ?? 'lww';
   if (normalized === 'lww') {
     return normalized;
   }
 
+  if (normalized === 'custom') {
+    return 'custom';
+  }
+
   throw createFlockError(
     'INVALID_STATE',
-    `State strategy "${normalized}" is not implemented in this runtime. Use "lww".`,
+    'State strategy "crdt" requires the Yjs-based engine. Use room.useState() with strategy: "crdt" from the Room class.',
     false,
-    {
-      strategy: normalized,
-    },
+    { strategy: String(normalized) },
   );
 }
 
