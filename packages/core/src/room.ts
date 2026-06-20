@@ -112,6 +112,10 @@ import { RoomYjsController } from './yjs/controller';
 const LOCKED_PRESENCE_KEYS = new Set(['id', 'joinedAt', 'lastSeen']);
 const PRESENCE_HEARTBEAT_MS = 30_000;
 const OFFLINE_QUEUE_REPLAY_SETTLE_MS = 10;
+const MESSAGE_RATE_WINDOW_MS = 5_000;
+const MAX_LATENCY_SAMPLE_MS = 60_000;
+const DIAGNOSTIC_PING_EVENT = '__flockjs:diag:ping__';
+const DIAGNOSTIC_PONG_EVENT = '__flockjs:diag:pong__';
 
 interface ConnectContext {
   isReconnectAttempt: boolean;
@@ -138,6 +142,15 @@ function isWebSocketPollingFallbackEnabled<TPresence extends PresenceData>(
   options: RoomOptions<TPresence>,
 ): boolean {
   return options.websocket?.fallbackTransport === 'polling';
+}
+
+function readDiagnosticSentAt(payload: unknown): number | null {
+  if (typeof payload !== 'object' || payload === null) {
+    return null;
+  }
+
+  const value: unknown = Reflect.get(payload, 'sentAt');
+  return typeof value === 'number' ? value : null;
 }
 
 function isFlockError(value: unknown): value is FlockError {
@@ -371,6 +384,10 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
   private unloadEventTarget: WindowEventTarget | null = null;
 
   private presenceHeartbeat: ReturnType<typeof globalThis.setInterval> | null = null;
+
+  private readonly messageActivityTimestamps: number[] = [];
+
+  private readonly latencyByPeerId = new Map<string, number>();
 
   private readonly onBeforeUnload = (): void => {
     this.handleWindowUnload();
@@ -935,6 +952,14 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
         enabled: this.encryptionEnabled,
         incompatiblePeerIds: Array.from(this.incompatibleEncryptionPeers).sort(),
         decryptionErrorPeerIds: Array.from(this.decryptionErrorPeers).sort(),
+      },
+      network: {
+        messagesPerSecond: this.computeMessagesPerSecond(),
+        latency: Object.fromEntries(
+          Array.from(this.latencyByPeerId.entries()).sort(([first], [second]) => {
+            return first.localeCompare(second);
+          }),
+        ),
       },
     };
   }
@@ -1629,6 +1654,7 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
   private clearPeerRuntimeState(peerId: string): void {
     const cursorDeleted = this.cursorPositions.delete(peerId);
     const awarenessDeleted = this.awarenessByPeer.delete(peerId);
+    this.latencyByPeerId.delete(peerId);
     this.yjsController?.handlePeerLeft(peerId);
 
     if (cursorDeleted) {
@@ -1861,6 +1887,7 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
   }
 
   private handleRoomSignal(signal: RoomTransportSignal): void {
+    this.recordMessageActivity();
     switch (signal.type) {
       case 'hello':
         this.handleHelloSignal(signal);
@@ -2042,6 +2069,16 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
   private handleCustomEventSignal(signal: Extract<RoomTransportSignal, { type: 'event' }>): void {
     const fromPeer = this.peerRegistry.get(signal.fromPeerId);
     if (!fromPeer) {
+      return;
+    }
+
+    if (signal.payload.name === DIAGNOSTIC_PING_EVENT) {
+      this.handleDiagnosticPing(signal.fromPeerId, signal.payload.payload);
+      return;
+    }
+
+    if (signal.payload.name === DIAGNOSTIC_PONG_EVENT) {
+      this.handleDiagnosticPong(signal.fromPeerId, signal.payload.payload);
       return;
     }
 
@@ -2297,7 +2334,72 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
       return;
     }
 
+    this.recordMessageActivity();
     this.queueOutboundSignal(signal);
+  }
+
+  private recordMessageActivity(): void {
+    const now = Date.now();
+    this.messageActivityTimestamps.push(now);
+    const cutoff = now - MESSAGE_RATE_WINDOW_MS;
+    while (
+      this.messageActivityTimestamps.length > 0 &&
+      (this.messageActivityTimestamps[0] ?? 0) < cutoff
+    ) {
+      this.messageActivityTimestamps.shift();
+    }
+  }
+
+  private computeMessagesPerSecond(): number {
+    const cutoff = Date.now() - MESSAGE_RATE_WINDOW_MS;
+    const recent = this.messageActivityTimestamps.filter((timestamp) => {
+      return timestamp >= cutoff;
+    });
+    return recent.length / (MESSAGE_RATE_WINDOW_MS / 1_000);
+  }
+
+  private sendInternalEvent(name: string, payload: unknown, toPeerId: string): void {
+    const outboundSignal = this.createOutboundSignal({
+      type: 'event',
+      toPeerId,
+      payload: { name, payload },
+    });
+    if (outboundSignal?.type === 'event' && this.transport) {
+      this.dispatchRoomSignal(outboundSignal);
+    }
+  }
+
+  private sendDiagnosticPing(toPeerId: string): void {
+    this.sendInternalEvent(DIAGNOSTIC_PING_EVENT, { sentAt: Date.now() }, toPeerId);
+  }
+
+  private sendDiagnosticPings(): void {
+    for (const peer of this.peerRegistry.getRemotes()) {
+      this.sendDiagnosticPing(peer.id);
+    }
+  }
+
+  private handleDiagnosticPing(fromPeerId: string, payload: unknown): void {
+    const sentAt = readDiagnosticSentAt(payload);
+    if (sentAt === null) {
+      return;
+    }
+
+    this.sendInternalEvent(DIAGNOSTIC_PONG_EVENT, { sentAt }, fromPeerId);
+  }
+
+  private handleDiagnosticPong(fromPeerId: string, payload: unknown): void {
+    const sentAt = readDiagnosticSentAt(payload);
+    if (sentAt === null) {
+      return;
+    }
+
+    const roundTrip = Date.now() - sentAt;
+    if (roundTrip < 0 || roundTrip > MAX_LATENCY_SAMPLE_MS) {
+      return;
+    }
+
+    this.latencyByPeerId.set(fromPeerId, roundTrip);
   }
 
   private sendSignal(
@@ -2327,6 +2429,7 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     this.cursorPositions.clear();
     this.awarenessByPeer.clear();
     this.awarenessByPeer.set(this.peerId, { peerId: this.peerId });
+    this.latencyByPeerId.clear();
     this.incompatibleEncryptionPeers.clear();
     this.decryptionErrorPeers.clear();
 
@@ -2838,6 +2941,7 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     this.stopPresenceHeartbeat();
     this.presenceHeartbeat = globalThis.setInterval(() => {
       this.refreshSelfPresenceLastSeen();
+      this.sendDiagnosticPings();
     }, PRESENCE_HEARTBEAT_MS);
   }
 
@@ -2859,6 +2963,7 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
 
   private handlePeerRegistryJoin(peer: Peer<TPresence>): void {
     this.roomEventEmitter.emit('peer:join', peer);
+    this.sendDiagnosticPing(peer.id);
 
     if (this.maxPeers !== undefined && this.peerRegistry.getRemoteCount() + 1 >= this.maxPeers) {
       this.roomEventEmitter.emit('room:full', undefined);

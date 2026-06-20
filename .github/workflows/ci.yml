@@ -62,6 +62,9 @@ jobs:
       - name: Test
         run: pnpm test
 
+      - name: Engine coverage gate
+        run: pnpm --filter @flockjs/core run test:engines:coverage
+
       - name: Test demo app
         run: pnpm --filter @flockjs/app-demo test
 

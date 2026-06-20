@@ -2,7 +2,7 @@
 
 Audience: users.
 
-Storybook: <https://erayates.github.io/flockjs/>
+Storybook: <https://erayates.github.io/flockjs/storybook/>
 
 ## Component Catalog
 

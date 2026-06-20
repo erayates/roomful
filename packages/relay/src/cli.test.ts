@@ -253,4 +253,37 @@ describe('relay cli', () => {
     expect(stop).toHaveBeenCalledTimes(1);
     expect(processLike.exitCode).toBe(0);
   });
+
+  it('resolves the documented FLOCK_* environment variables', () => {
+    const resolved = resolveRelayCliOptions(
+      {
+        FLOCK_PORT: '9000',
+        FLOCK_MAX_ROOM_SIZE: '200',
+        FLOCK_CORS_ORIGIN: 'https://app.example.com',
+        FLOCK_AUTH_SECRET: 'top-secret',
+      },
+      [],
+    );
+
+    expect(resolved).toEqual({
+      port: 9000,
+      maxRoomSize: 200,
+      corsOrigin: 'https://app.example.com',
+      authSecret: 'top-secret',
+    });
+  });
+
+  it('prefers an explicit --port flag over FLOCK_PORT and PORT', () => {
+    const resolved = resolveRelayCliOptions(
+      {
+        FLOCK_PORT: '9000',
+        PORT: '8000',
+      },
+      ['--port', '7000'],
+    );
+
+    expect(resolved).toMatchObject({
+      port: 7000,
+    });
+  });
 });

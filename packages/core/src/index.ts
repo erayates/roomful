@@ -33,6 +33,7 @@ export type {
   RoomDiagnosticsDebug,
   RoomDiagnosticsEncryption,
   RoomDiagnosticsEvents,
+  RoomDiagnosticsNetwork,
   RoomDiagnosticsPeers,
   RoomDiagnosticsPresence,
   RoomDiagnosticsState,

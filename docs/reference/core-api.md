@@ -64,7 +64,7 @@ Transport support in the current baseline:
 - Default STUN server: `stun:stun.l.google.com:19302` (override with `stunUrls`).
 - Default ICE gather timeout: `5000ms` (override with `webrtc.iceGatherTimeoutMs`).
 - DataChannel default: ordered and reliable delivery (`ordered: true`, no `maxRetransmits` set).
-- `maxPeers` is a hard cap for WebRTC mesh peer-connection context creation.
+- `maxPeers` is a hard cap for WebRTC mesh peer-connection context creation. When unset, it defaults to `15` for the WebRTC transport; the relay and broadcast transports stay unlimited unless `maxPeers` is set.
 - BroadcastChannel transport uses a serialized JSON envelope (`source: "flockjs"`, `version: 1`).
 - Peer transport messages are schema-validated before room delivery.
 - WebRTC data channels and relay websocket transport negotiate a peer protocol version and codec on connect.
@@ -107,7 +107,7 @@ interface Room<TPresence extends Record<string, unknown> = Record<string, unknow
 }
 ```
 
-`getDiagnostics()` returns a local snapshot of room runtime state. It includes transport state, resolved debug flags, peer ids, presence heartbeat status, state/offline queue metrics, custom-event counters, latest connect duration, and encryption compatibility/decryption anomalies. It does not perform any remote calls.
+`getDiagnostics()` returns a local snapshot of room runtime state. It includes transport state, resolved debug flags, peer ids, presence heartbeat status, state/offline queue metrics, custom-event counters, latest connect duration, encryption compatibility/decryption anomalies, and a `network` section with recent throughput (`messagesPerSecond`) and per-peer round-trip `latency`. It does not perform any remote calls.
 
 Peer lifecycle notes:
 

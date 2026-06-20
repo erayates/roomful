@@ -88,8 +88,11 @@ The relay package is the self-hostable baseline for both:
 Relay runtime defaults and knobs:
 
 - `HOST`: default `127.0.0.1`
-- `PORT`: default `8787`
+- `PORT` (or `FLOCK_PORT`): default `8787`; `FLOCK_PORT` takes precedence over `PORT`
 - `MAX_CONNECTIONS`: optional global concurrent WebSocket cap per relay instance
+- `FLOCK_MAX_ROOM_SIZE`: optional hard per-room peer cap
+- `FLOCK_CORS_ORIGIN`: optional allowed browser origin; adds CORS headers on HTTP responses and rejects WebSocket upgrades from other origins (use `*` to allow any origin)
+- `FLOCK_AUTH_SECRET`: enables built-in HS256 JWT authorization; peers must present a valid token signed with this secret
 - `FLOCK_REDIS_URL`: optional Redis connection string; when set, relay room coordination switches to multi-instance mode automatically
 - relay auth is disabled by default; unconfigured relays remain open
 - when auth is enabled, clients must connect with a single non-empty `token` query param

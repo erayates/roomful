@@ -10,7 +10,7 @@ npm install @flockjs/cursors
 
 ## Storybook
 
-- Public Storybook: <https://erayates.github.io/flockjs/>
+- Public Storybook: <https://erayates.github.io/flockjs/storybook/>
 - Full component reference: <https://github.com/erayates/flockjs/blob/main/docs/reference/ui-components.md>
 
 ## Components

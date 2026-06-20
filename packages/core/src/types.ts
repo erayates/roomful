@@ -331,6 +331,23 @@ export interface RoomDiagnosticsEncryption {
 }
 
 /**
+ * Captures network-throughput and per-peer latency diagnostics for a room.
+ */
+export interface RoomDiagnosticsNetwork {
+  /**
+   * Estimates recent room message throughput in messages per second, averaged
+   * over a short sliding window across inbound and outbound signals.
+   */
+  messagesPerSecond: number;
+
+  /**
+   * Maps each remote peer ID to its most recently measured round-trip latency
+   * in milliseconds. Peers without a completed measurement are omitted.
+   */
+  latency: Record<string, number>;
+}
+
+/**
  * Aggregates room diagnostics across transports, presence, state, and events.
  */
 export interface RoomDiagnostics {
@@ -388,6 +405,11 @@ export interface RoomDiagnostics {
    * Reports encryption diagnostics.
    */
   encryption: RoomDiagnosticsEncryption;
+
+  /**
+   * Reports network throughput and per-peer latency diagnostics.
+   */
+  network: RoomDiagnosticsNetwork;
 }
 
 /**
@@ -739,9 +761,10 @@ export interface CursorRenderOptions {
   container?: string | HTMLElement;
 
   /**
-   * Chooses the cursor marker style.
+   * Chooses the cursor marker style. Use `'none'` to disable the built-in
+   * renderer while keeping cursor tracking active.
    */
-  style?: 'default' | string;
+  style?: 'default' | 'arrow' | 'dot' | 'pointer' | 'none' | (string & {});
 
   /**
    * Shows peer labels when `true`.
@@ -762,6 +785,12 @@ export interface CursorRenderOptions {
    * Sets the z-index applied to rendered cursor elements.
    */
   zIndex?: number;
+
+  /**
+   * Called with each peer cursor element when it is first created, allowing
+   * custom decoration of the rendered node.
+   */
+  onMount?: (element: HTMLElement) => void;
 }
 
 /**
@@ -894,11 +923,6 @@ export interface EventOptions {
    * Echoes emitted events back to the local room when `true`.
    */
   loopback?: boolean;
-
-  /**
-   * Marks emitted events as requiring reliable delivery when supported.
-   */
-  reliable?: boolean;
 }
 
 /**

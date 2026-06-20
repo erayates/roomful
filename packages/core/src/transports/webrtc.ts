@@ -2,7 +2,7 @@ import { createEncryptionHandshake, isEncryptionEnabled } from '../encryption';
 import { createFlockError, FlockError as FlockErrorRuntime } from '../flock-error';
 import { env } from '../internal/env';
 import { createStructuredLogger, type StructuredLogger } from '../internal/logger';
-import { normalizeMaxPeers } from '../internal/max-peers';
+import { normalizeMaxPeers, resolveWebRtcRemotePeerLimit } from '../internal/max-peers';
 import type { PeerProtocolSession } from '../protocol/peer-message';
 import type { FlockError, PresenceData, RoomOptions } from '../types';
 import {
@@ -152,9 +152,7 @@ export class WebRTCTransportAdapter<
     });
     this.relayUrl = resolveRelayUrl(options);
     this.PeerConnectionCtor = getRTCPeerConnectionConstructor();
-    const maxPeers = normalizeMaxPeers(options.maxPeers);
-    this.maxRemotePeers =
-      maxPeers === undefined ? Number.POSITIVE_INFINITY : Math.max(maxPeers - 1, 0);
+    this.maxRemotePeers = resolveWebRtcRemotePeerLimit(options.maxPeers);
     this.iceGatherTimeoutMs = options.webrtc?.iceGatherTimeoutMs ?? DEFAULT_ICE_GATHER_TIMEOUT_MS;
     this.dataChannelOptions = this.resolveDataChannelOptions();
     this.dataChannelProtocol =

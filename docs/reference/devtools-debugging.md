@@ -111,8 +111,14 @@ console.log(diagnostics);
 //     incompatiblePeerIds: [],
 //     decryptionErrorPeerIds: [],
 //   },
+//   network: {
+//     messagesPerSecond: 12,
+//     latency: { 'peer-b': 34, 'peer-c': 41 },
+//   },
 // }
 ```
+
+The `network` section reports a recent throughput estimate (`messagesPerSecond`) and a `latency` map of remote `peerId` to round-trip milliseconds.
 
 ## Common Issues
 

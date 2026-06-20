@@ -29,12 +29,15 @@ flockjs-relay --version
 
 Environment variables:
 
-| Variable          | Default     | Description                                        |
-| ----------------- | ----------- | -------------------------------------------------- |
-| `PORT`            | `8787`      | TCP port to listen on                              |
-| `HOST`            | `127.0.0.1` | Interface to bind the relay server to              |
-| `MAX_CONNECTIONS` | unset       | Optional concurrent WebSocket connection cap       |
-| `FLOCK_REDIS_URL` | unset       | Optional Redis URL for multi-instance coordination |
+| Variable                 | Default     | Description                                                                                                                                |
+| ------------------------ | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `PORT` (or `FLOCK_PORT`) | `8787`      | TCP port to listen on (`FLOCK_PORT` takes precedence over `PORT`)                                                                          |
+| `HOST`                   | `127.0.0.1` | Interface to bind the relay server to                                                                                                      |
+| `MAX_CONNECTIONS`        | unset       | Optional concurrent WebSocket connection cap                                                                                               |
+| `FLOCK_MAX_ROOM_SIZE`    | unset       | Hard per-room peer cap                                                                                                                     |
+| `FLOCK_CORS_ORIGIN`      | unset       | Allowed browser origin; adds CORS headers on HTTP responses and rejects WebSocket upgrades from other origins. Use `*` to allow any origin |
+| `FLOCK_AUTH_SECRET`      | unset       | Enables built-in HS256 JWT authorization; peers must present a valid token signed with this secret                                         |
+| `FLOCK_REDIS_URL`        | unset       | Optional Redis URL for multi-instance coordination                                                                                         |
 
 Health check:
 

@@ -10,6 +10,7 @@ import type { Duplex } from 'node:stream';
 
 import { type RawData, type WebSocket, WebSocketServer } from 'ws';
 
+import { verifyJWT } from './auth.js';
 import {
   parseRelayClientMessage,
   type RelayClientMessage,
@@ -171,6 +172,26 @@ export interface RelayServerOptions {
    * Enables Redis coordination across relay instances.
    */
   redisUrl?: string;
+
+  /**
+   * Caps the number of peers allowed in any single room. Applied as a hard
+   * ceiling on top of the client-provided `maxPeers`.
+   */
+  maxRoomSize?: number;
+
+  /**
+   * Restricts browser access by allowed origin. When set, HTTP responses carry
+   * matching CORS headers and WebSocket upgrades from other browser origins are
+   * rejected. Use `'*'` to allow any origin.
+   */
+  corsOrigin?: string;
+
+  /**
+   * Enables built-in JWT authorization. When set, peers must present a valid
+   * HS256 token signed with this secret unless a custom `authorize`/`auth()`
+   * handler is configured.
+   */
+  authSecret?: string;
 }
 
 export interface RelayServerInternalOptions extends RelayServerOptions {
@@ -203,6 +224,21 @@ function normalizeRawData(data: RawData, isBinary: boolean): string | Uint8Array
   }
 
   return new Uint8Array(data);
+}
+
+function clampRoomCapacity(
+  requested: number | undefined,
+  maxRoomSize: number | undefined,
+): number | undefined {
+  if (maxRoomSize === undefined || !Number.isInteger(maxRoomSize) || maxRoomSize <= 0) {
+    return requested;
+  }
+
+  if (requested === undefined) {
+    return maxRoomSize;
+  }
+
+  return Math.min(requested, maxRoomSize);
 }
 
 function resolveRequestPath(request: IncomingMessage): string {
@@ -518,6 +554,10 @@ export class RelayServerImpl implements RelayServer {
 
   private readonly maxConnections: number | undefined;
 
+  private readonly maxRoomSize: number | undefined;
+
+  private readonly corsOrigin: string | undefined;
+
   private authHandler: RelayAuthHandler | null = null;
 
   private stopPromise: Promise<void> | null = null;
@@ -530,6 +570,14 @@ export class RelayServerImpl implements RelayServer {
     this.currentPort = options.port;
     this.host = options.host ?? '127.0.0.1';
     this.maxConnections = normalizeMaxConnections(options.maxConnections);
+    this.maxRoomSize = options.maxRoomSize;
+    this.corsOrigin = options.corsOrigin;
+    if (options.authSecret !== undefined && options.authorize === undefined) {
+      const secret = options.authSecret;
+      this.authHandler = (_peerId: string, _roomId: string, token: string): void => {
+        verifyJWT(token, secret);
+      };
+    }
     this.coordinator = createRelayRoomCoordinator(options);
     this.coordinator.onMessage((message) => {
       this.handleCoordinatorMessage(message);
@@ -701,6 +749,12 @@ export class RelayServerImpl implements RelayServer {
 
   private handleHttpRequest(request: IncomingMessage, response: ServerResponse): void {
     const path = resolveRequestPath(request);
+    this.applyCorsHeaders(response);
+    if (request.method === 'OPTIONS') {
+      response.statusCode = 204;
+      response.end();
+      return;
+    }
     if (request.method === 'GET' && path === '/health') {
       response.statusCode = 200;
       response.setHeader('content-type', 'application/json');
@@ -728,6 +782,35 @@ export class RelayServerImpl implements RelayServer {
     response.end('Not Found');
   }
 
+  private applyCorsHeaders(response: ServerResponse): void {
+    if (this.corsOrigin === undefined) {
+      return;
+    }
+
+    response.setHeader('Access-Control-Allow-Origin', this.corsOrigin);
+    response.setHeader('Vary', 'Origin');
+    response.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    response.setHeader('Access-Control-Allow-Headers', 'content-type, authorization');
+  }
+
+  private isAllowedOrigin(request: IncomingMessage): boolean {
+    if (this.corsOrigin === undefined || this.corsOrigin === '*') {
+      return true;
+    }
+
+    const origin = request.headers.origin;
+    if (origin === undefined) {
+      return true;
+    }
+
+    return origin === this.corsOrigin;
+  }
+
+  private resolveJoinMaxPeers(messageMaxPeers: number | undefined): { maxPeers?: number } {
+    const capacity = clampRoomCapacity(messageMaxPeers, this.maxRoomSize);
+    return capacity !== undefined ? { maxPeers: capacity } : {};
+  }
+
   private handleUpgrade(
     wsServer: WebSocketServer,
     request: IncomingMessage,
@@ -741,6 +824,11 @@ export class RelayServerImpl implements RelayServer {
 
     if (this.maxConnections !== undefined && wsServer.clients.size >= this.maxConnections) {
       rejectUpgrade(socket, 503, 'Service Unavailable');
+      return;
+    }
+
+    if (!this.isAllowedOrigin(request)) {
+      rejectUpgrade(socket, 403, 'Forbidden');
       return;
     }
 
@@ -881,7 +969,7 @@ export class RelayServerImpl implements RelayServer {
         roomId: message.roomId,
         peerId: message.peerId,
         ...(message.protocol ? { protocol: message.protocol } : {}),
-        ...(message.maxPeers !== undefined ? { maxPeers: message.maxPeers } : {}),
+        ...this.resolveJoinMaxPeers(message.maxPeers),
       });
       if (!joinResult.ok) {
         await this.coordinator.unsubscribe(message.roomId);
@@ -1178,7 +1266,7 @@ export class RelayServerImpl implements RelayServer {
         roomId: message.roomId,
         peerId: message.peerId,
         ...(message.protocol ? { protocol: message.protocol } : {}),
-        ...(message.maxPeers !== undefined ? { maxPeers: message.maxPeers } : {}),
+        ...this.resolveJoinMaxPeers(message.maxPeers),
       });
       if (!joinResult.ok) {
         await this.coordinator.unsubscribe(message.roomId);

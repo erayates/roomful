@@ -230,15 +230,25 @@ describe('createStateEngine', () => {
     }).toThrowError(/"merge" function/i);
   });
 
-  it('resolves custom merge strategy with merge function', () => {
-    const engine = createStateEngine({
+  it('resolves custom merge strategy with merge function on set and patch', () => {
+    const engine = createStateEngine<{ count: number; label?: string }>({
       initialValue: { count: 0 },
       strategy: 'custom',
       merge: (local, remote) => ({ ...local, ...remote }),
     });
 
+    const subscriber = vi.fn();
+    engine.subscribe(subscriber);
+
     engine.set({ count: 5 });
     expect(engine.get()).toEqual({ count: 5 });
+
+    engine.patch({ label: 'merged' });
+    expect(engine.get()).toEqual({ count: 5, label: 'merged' });
+    expect(subscriber).toHaveBeenLastCalledWith(
+      { count: 5, label: 'merged' },
+      expect.objectContaining({ changedBy: 'local' }),
+    );
   });
 
   it('resolves LWW ordering with vector clocks, timestamps, and changedBy tie-breaks', () => {

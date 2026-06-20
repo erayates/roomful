@@ -1143,4 +1143,147 @@ describe('createCursorEngine', () => {
     await vi.advanceTimersByTimeAsync(100);
     expect(context.setSelfPosition).toHaveBeenCalledTimes(2);
   });
+
+  it('disables the built-in renderer when style is none', () => {
+    let subscriptionCallback: ((positions: CursorPosition[]) => void) | null = null;
+    const context = {
+      setSelfPosition: vi.fn(),
+      getPositions: vi.fn(() => [createRemoteCursor()]),
+      subscribe: vi.fn((callback: (positions: CursorPosition[]) => void) => {
+        subscriptionCallback = callback;
+        return () => {
+          return undefined;
+        };
+      }),
+    };
+
+    const doc = new MockDocument();
+    const board = doc.createElement('div');
+    doc.body.appendChild(board);
+
+    const engine = createCursorEngine(context);
+    engine.mount(board as unknown as HTMLElement);
+    engine.render({
+      container: board as unknown as HTMLElement,
+      style: 'default',
+    });
+    expect(getOverlayRoot(board).children).toHaveLength(1);
+
+    engine.render({
+      style: 'none',
+    });
+    expect(getOverlayRoot(board).children).toHaveLength(0);
+
+    subscriptionCallback?.([createRemoteCursor()]);
+    expect(getOverlayRoot(board).children).toHaveLength(0);
+
+    engine.unmount();
+  });
+
+  it('invokes the render onMount callback for each created cursor node', () => {
+    const onMount = vi.fn();
+    const context = {
+      setSelfPosition: vi.fn(),
+      getPositions: vi.fn(() => [createRemoteCursor()]),
+      subscribe: vi.fn(() => {
+        return () => {
+          return undefined;
+        };
+      }),
+    };
+
+    const doc = new MockDocument();
+    const board = doc.createElement('div');
+    doc.body.appendChild(board);
+
+    const engine = createCursorEngine(context);
+    engine.mount(board as unknown as HTMLElement);
+    engine.render({
+      container: board as unknown as HTMLElement,
+      onMount,
+    });
+
+    expect(onMount).toHaveBeenCalledTimes(1);
+    expect(onMount).toHaveBeenCalledWith(getCursorNode(board));
+
+    engine.unmount();
+  });
+
+  it('disables CSS transitions when smoothing is false', () => {
+    const context = {
+      setSelfPosition: vi.fn(),
+      getPositions: vi.fn(() => [createRemoteCursor()]),
+      subscribe: vi.fn(() => {
+        return () => {
+          return undefined;
+        };
+      }),
+    };
+
+    const doc = new MockDocument();
+    const board = doc.createElement('div');
+    doc.body.appendChild(board);
+
+    const engine = createCursorEngine(context, {
+      smoothing: false,
+    });
+    engine.mount(board as unknown as HTMLElement);
+    engine.render({
+      container: board as unknown as HTMLElement,
+    });
+
+    expect(getCursorNode(board).style.transition).toBe('none');
+
+    engine.unmount();
+  });
+
+  it('overrides the idle threshold using the render idleTimeout option', async () => {
+    vi.useFakeTimers();
+
+    const context = {
+      setSelfPosition: vi.fn(),
+      getPositions: vi.fn(() => []),
+      subscribe: vi.fn(() => {
+        return () => {
+          return undefined;
+        };
+      }),
+    };
+
+    const doc = new MockDocument();
+    const board = doc.createElement('div');
+    board.setBoundingRect({
+      left: 0,
+      top: 0,
+      width: 100,
+      height: 100,
+    });
+
+    const engine = createCursorEngine(context, {
+      throttleMs: 0,
+      idleAfterMs: 10_000,
+    });
+
+    engine.mount(board as unknown as HTMLElement);
+    engine.render({
+      container: board as unknown as HTMLElement,
+      idleTimeout: 50,
+    });
+
+    board.dispatch('mousemove', {
+      clientX: 10,
+      clientY: 10,
+    });
+    expect(context.setSelfPosition).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(50);
+    expect(context.setSelfPosition).toHaveBeenCalledTimes(2);
+    expect(context.setSelfPosition).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        idle: true,
+      }),
+    );
+
+    engine.unmount();
+  });
 });

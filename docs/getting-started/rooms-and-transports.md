@@ -26,7 +26,7 @@ A `room` is the primary collaboration scope in FlockJS.
 - Use `transport: 'websocket'` with `relayUrl` for larger rooms or constrained networks where direct peer mesh is not a fit.
 - If a deployment must survive WebSocket blocking, opt into `websocket: { fallbackTransport: 'polling' }` on `transport: 'websocket'`.
 - If initial signaling is unavailable and peers share the same origin, `transport: 'webrtc'` falls back to BroadcastChannel automatically.
-- Keep `maxPeers` explicit for mesh safety (for example `maxPeers: 8`).
+- `maxPeers` defaults to `15` for the `webrtc` transport when unset; the `relay` and `broadcast` transports stay unlimited unless `maxPeers` is set. Keep it explicit for mesh safety (for example `maxPeers: 8`).
 - Default STUN fallback is Google public STUN (`stun:stun.l.google.com:19302`) when `stunUrls` is omitted.
 - Default ICE gather timeout is `5000ms` (`webrtc.iceGatherTimeoutMs`).
 - Default DataChannel behavior is ordered and reliable (`ordered: true`, no `maxRetransmits` override).

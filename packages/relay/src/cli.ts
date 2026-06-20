@@ -17,9 +17,12 @@ Options:
   --help                      Show this help message
 
 Environment:
-  PORT
+  PORT (or FLOCK_PORT)
   HOST
   MAX_CONNECTIONS
+  FLOCK_MAX_ROOM_SIZE
+  FLOCK_CORS_ORIGIN
+  FLOCK_AUTH_SECRET
   FLOCK_REDIS_URL
 `;
 
@@ -42,13 +45,16 @@ interface RelayCliRuntime {
     host?: string;
     maxConnections?: number;
     redisUrl?: string;
+    maxRoomSize?: number;
+    corsOrigin?: string;
+    authSecret?: string;
   }) => RelayServer;
   process?: RelayCliProcessLike;
 }
 
 function parsePositiveIntegerOption(
   value: string | undefined,
-  name: 'PORT' | 'MAX_CONNECTIONS' | '--port' | '--max-connections',
+  name: 'PORT' | 'MAX_CONNECTIONS' | 'FLOCK_MAX_ROOM_SIZE' | '--port' | '--max-connections',
 ): number | { error: string } | undefined {
   if (value === undefined) {
     return undefined;
@@ -96,6 +102,15 @@ function parseRedisUrlOption(
 
 function readParsedStringValue(value: string | boolean | undefined): string | undefined {
   return typeof value === 'string' ? value : undefined;
+}
+
+function readNonEmptyEnv(value: string | undefined): string | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
 }
 
 function readRelayPackageVersion(): string {
@@ -196,7 +211,15 @@ export function resolveRelayCliOptions(
 ):
   | { helpText: string }
   | { versionText: string }
-  | { port: number; host?: string; maxConnections?: number; redisUrl?: string }
+  | {
+      port: number;
+      host?: string;
+      maxConnections?: number;
+      redisUrl?: string;
+      maxRoomSize?: number;
+      corsOrigin?: string;
+      authSecret?: string;
+    }
   | { error: string } {
   const parsedArgs = parseRelayCliArgs(argv);
   if ('error' in parsedArgs) {
@@ -220,7 +243,7 @@ export function resolveRelayCliOptions(
     return portFlag;
   }
 
-  const portEnv = parsePositiveIntegerOption(env.PORT, 'PORT');
+  const portEnv = parsePositiveIntegerOption(env.FLOCK_PORT ?? env.PORT, 'PORT');
   if (typeof portEnv === 'object') {
     return portEnv;
   }
@@ -248,23 +271,47 @@ export function resolveRelayCliOptions(
     return redisUrlEnv;
   }
 
+  const maxRoomSizeEnv = parsePositiveIntegerOption(env.FLOCK_MAX_ROOM_SIZE, 'FLOCK_MAX_ROOM_SIZE');
+  if (typeof maxRoomSizeEnv === 'object') {
+    return maxRoomSizeEnv;
+  }
+
   const host = parsedArgs.host ?? env.HOST;
+  const corsOrigin = readNonEmptyEnv(env.FLOCK_CORS_ORIGIN);
+  const authSecret = readNonEmptyEnv(env.FLOCK_AUTH_SECRET);
   const resolvedPort = portFlag ?? portEnv ?? 8787;
   const resolvedMaxConnections = maxConnectionsFlag ?? maxConnectionsEnv;
   const resolvedRedisUrl = redisUrlFlag ?? redisUrlEnv;
 
-  return host === undefined
-    ? {
-        port: resolvedPort,
-        ...(resolvedMaxConnections !== undefined ? { maxConnections: resolvedMaxConnections } : {}),
-        ...(resolvedRedisUrl !== undefined ? { redisUrl: resolvedRedisUrl } : {}),
-      }
-    : {
-        port: resolvedPort,
-        host,
-        ...(resolvedMaxConnections !== undefined ? { maxConnections: resolvedMaxConnections } : {}),
-        ...(resolvedRedisUrl !== undefined ? { redisUrl: resolvedRedisUrl } : {}),
-      };
+  const options: {
+    port: number;
+    host?: string;
+    maxConnections?: number;
+    redisUrl?: string;
+    maxRoomSize?: number;
+    corsOrigin?: string;
+    authSecret?: string;
+  } = { port: resolvedPort };
+  if (host !== undefined) {
+    options.host = host;
+  }
+  if (resolvedMaxConnections !== undefined) {
+    options.maxConnections = resolvedMaxConnections;
+  }
+  if (resolvedRedisUrl !== undefined) {
+    options.redisUrl = resolvedRedisUrl;
+  }
+  if (maxRoomSizeEnv !== undefined) {
+    options.maxRoomSize = maxRoomSizeEnv;
+  }
+  if (corsOrigin !== undefined) {
+    options.corsOrigin = corsOrigin;
+  }
+  if (authSecret !== undefined) {
+    options.authSecret = authSecret;
+  }
+
+  return options;
 }
 
 export async function runRelayCli(runtime: RelayCliRuntime = {}): Promise<number> {

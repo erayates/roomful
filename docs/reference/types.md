@@ -28,7 +28,13 @@ export interface Peer {
 export type PeerWithPresence<TPresence extends Record<string, unknown>> = Peer & Partial<TPresence>;
 
 export interface FlockError extends Error {
-  code: 'ROOM_FULL' | 'AUTH_FAILED' | 'NETWORK_ERROR' | 'ENCRYPTION_ERROR' | 'DECRYPTION_ERROR';
+  code:
+    | 'ROOM_FULL'
+    | 'AUTH_FAILED'
+    | 'NETWORK_ERROR'
+    | 'ENCRYPTION_ERROR'
+    | 'DECRYPTION_ERROR'
+    | 'INVALID_STATE';
   recoverable: boolean;
 }
 
@@ -143,7 +149,7 @@ Diagnostics note:
 
 - `debug?: boolean | DebugOptions` remains the only public logging entry point.
 - `debug: true` resolves all debug categories to `true`.
-- `Room#getDiagnostics(): Promise<RoomDiagnostics>` returns a local snapshot with transport, debug, peers, presence, state, events, and encryption sections.
+- `Room#getDiagnostics(): Promise<RoomDiagnostics>` returns a local snapshot with transport, debug, peers, presence, state, events, encryption, and network sections. The network section is `{ messagesPerSecond: number; latency: Record<string, number> }`, where `latency` maps remote `peerId` to round-trip milliseconds.
 - `RoomDiagnosticsTransport.current`, `RoomDiagnosticsTransport.lastDisconnectReason`, `RoomDiagnosticsState.strategy`, `RoomDiagnosticsState.stateSizeBytes`, and `RoomDiagnosticsEvents.latestConnectDurationMs` can be `null` when unavailable.
 
 Transport baseline note:
@@ -155,6 +161,7 @@ Transport baseline note:
 - `relayUrl` remains the canonical signaling URL for real WebRTC negotiation.
 - Relay-backed room messaging is available via `transport: 'websocket'`.
 - Optional end-to-end encryption is available through `encryption: { key }` or `encryption: { passphrase }`.
+- `FlockError.code` is one of six values: `ROOM_FULL` (room is at capacity), `AUTH_FAILED` (relay rejected the join/auth request), `NETWORK_ERROR` (transport/connectivity failure), `ENCRYPTION_ERROR` (encryption setup or configuration failed, such as a bad key/passphrase or missing WebCrypto), `DECRYPTION_ERROR` (a peer message failed to decrypt, for example with the wrong key), and `INVALID_STATE` (an invalid state operation, such as a failed CRDT persist or an unsupported strategy).
 - `DECRYPTION_ERROR` is emitted when an encrypted payload cannot be authenticated or decrypted with the local room key.
 - `transport: 'auto'` selects `broadcast`, then `webrtc`, then `websocket`, and finally `in-memory` when no browser-capable transport is available.
 - The internal peer wire protocol is versioned and codec-negotiated per peer; public room/event types stay unchanged.
@@ -194,14 +201,17 @@ export interface StateOptions<T> {
 
 export interface EventOptions {
   loopback?: boolean;
-  reliable?: boolean;
 }
 ```
+
+Cursor option notes:
+
+- `smoothing` defaults to `true` and toggles CSS-transition interpolation for rendered cursors.
 
 Event option notes:
 
 - `loopback` defaults to `false`.
-- `reliable` remains transport-defined and does not change the public event API contract.
+- Events are reliably delivered over all transports.
 
 ## Change Discipline
 

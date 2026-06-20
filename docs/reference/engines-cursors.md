@@ -53,15 +53,23 @@ cursors.render({
   showIdle: false,
   idleTimeout: 3000,
   zIndex: 9999,
+  onMount: (element) => element.classList.add('peer-cursor'),
 });
 ```
 
-Built-in renderer styles:
+Built-in renderer styles (`'default' | 'arrow' | 'dot' | 'pointer' | 'none'`):
 
 - `default`: SVG arrow cursor with a name label.
+- `arrow`: SVG arrow cursor with a name label.
 - `dot`: compact dot marker with an optional label.
 - `pointer`: compact pointer marker with an optional label.
+- `none`: disables the built-in renderer while keeping cursor tracking active.
 - Unknown style strings fall back to `default`.
+
+Render options:
+
+- `idleTimeout` (ms) overrides the idle threshold used by the renderer.
+- `onMount(element)` is called when each peer cursor element is first created, allowing custom decoration of the rendered node.
 
 Renderer behavior:
 
@@ -69,7 +77,7 @@ Renderer behavior:
 - `showName === false` hides the built-in name label.
 - `showIdle === false` hides idle peers until they move again.
 - `showIdle !== false` keeps idle peers rendered and marks them idle in the DOM.
-- Built-in cursor movement uses CSS transitions for smooth interpolation.
+- Built-in cursor movement uses CSS transitions for smooth interpolation. `CursorOptions.smoothing` (default `true`) toggles this CSS-transition interpolation.
 
 ## Custom Renderer Pattern
 

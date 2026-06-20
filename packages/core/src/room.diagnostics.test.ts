@@ -289,4 +289,53 @@ describe('Room diagnostics', () => {
 
     await room.disconnect();
   });
+
+  it('reports network throughput and per-peer latency', async () => {
+    const adapter = new MockTransportAdapter();
+    const room = await createMockedRoom(() => {
+      return adapter;
+    });
+    const protocol = getTransportProtocolCapabilities('webrtc');
+
+    await room.connect();
+    adapter.emit({
+      type: 'hello',
+      roomId: room.id,
+      fromPeerId: 'peer-b',
+      timestamp: 1,
+      payload: {
+        peer: {
+          id: 'peer-b',
+          joinedAt: 1,
+          lastSeen: 1,
+        },
+        protocol,
+      },
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+
+    // Simulate the diagnostic pong that answers the ping sent on peer join.
+    adapter.emit({
+      type: 'event',
+      roomId: room.id,
+      fromPeerId: 'peer-b',
+      timestamp: 2,
+      payload: {
+        name: '__flockjs:diag:pong__',
+        payload: {
+          sentAt: Date.now() - 12,
+        },
+      },
+    });
+    await Promise.resolve();
+
+    const diagnostics = await room.getDiagnostics();
+
+    expect(diagnostics.network.messagesPerSecond).toBeGreaterThan(0);
+    expect(diagnostics.network.latency['peer-b']).toBeGreaterThanOrEqual(0);
+    expect(diagnostics.network.latency['peer-b']).toBeLessThan(60_000);
+
+    await room.disconnect();
+  });
 });

@@ -1,3 +1,5 @@
+import { createHmac } from 'node:crypto';
+
 import { encode } from '@msgpack/msgpack';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { WebSocket } from 'ws';
@@ -1822,3 +1824,140 @@ describe(
 );
 
 registerRedisIntegrationTests();
+
+function encodeBase64UrlJson(value: Record<string, unknown>): string {
+  return Buffer.from(JSON.stringify(value), 'utf8').toString('base64url');
+}
+
+function createRelayJwt(payload: Record<string, unknown>, secret: string): string {
+  const encodedHeader = encodeBase64UrlJson({ alg: 'HS256', typ: 'JWT' });
+  const encodedPayload = encodeBase64UrlJson(payload);
+  const encodedSignature = createHmac('sha256', secret)
+    .update(`${encodedHeader}.${encodedPayload}`)
+    .digest('base64url');
+  return `${encodedHeader}.${encodedPayload}.${encodedSignature}`;
+}
+
+describe(
+  'relay configuration',
+  {
+    timeout: 30_000,
+  },
+  () => {
+    let relayServer: RelayServer | null = null;
+    const sockets: WebSocket[] = [];
+
+    afterEach(async () => {
+      await Promise.all(
+        sockets.map((socket) => {
+          return closeSocket(socket);
+        }),
+      );
+      sockets.length = 0;
+      await relayServer?.stop();
+      relayServer = null;
+      vi.restoreAllMocks();
+    });
+
+    it('rejects joins beyond the configured maxRoomSize', async () => {
+      relayServer = createRelayServer({
+        port: 0,
+        maxRoomSize: 2,
+      });
+      await relayServer.start();
+
+      const clientA = new WebSocket(relayServer.getAddress());
+      const clientB = new WebSocket(relayServer.getAddress());
+      const clientC = new WebSocket(relayServer.getAddress());
+      sockets.push(clientA, clientB, clientC);
+      await waitForOpen(clientA);
+      await waitForOpen(clientB);
+      await waitForOpen(clientC);
+
+      await sendAndWaitForMessage(
+        clientA,
+        { type: 'join', roomId: 'room-cap', peerId: 'a' },
+        (message) => message.type === 'joined',
+      );
+      await sendAndWaitForMessage(
+        clientB,
+        { type: 'join', roomId: 'room-cap', peerId: 'b' },
+        (message) => message.type === 'joined',
+      );
+      const rejected = await sendAndWaitForMessage(
+        clientC,
+        { type: 'join', roomId: 'room-cap', peerId: 'c' },
+        (message) => message.type === 'error',
+      );
+
+      expect(rejected).toMatchObject({
+        type: 'error',
+        code: 'ROOM_FULL',
+      });
+    });
+
+    it('serves CORS headers and answers preflight when corsOrigin is set', async () => {
+      relayServer = createRelayServer({
+        port: 0,
+        corsOrigin: 'https://app.example.com',
+      });
+      await relayServer.start();
+
+      const healthResponse = await fetch(toHttpUrl(relayServer.getAddress(), '/health'));
+      expect(healthResponse.status).toBe(200);
+      expect(healthResponse.headers.get('access-control-allow-origin')).toBe(
+        'https://app.example.com',
+      );
+
+      const preflight = await fetch(toHttpUrl(relayServer.getAddress(), '/health'), {
+        method: 'OPTIONS',
+      });
+      expect(preflight.status).toBe(204);
+    });
+
+    it('rejects WebSocket upgrades from a disallowed origin', async () => {
+      relayServer = createRelayServer({
+        port: 0,
+        corsOrigin: 'https://app.example.com',
+      });
+      await relayServer.start();
+
+      const blocked = new WebSocket(relayServer.getAddress(), {
+        origin: 'https://evil.example.com',
+      });
+      sockets.push(blocked);
+      const status = await waitForUpgradeRejection(blocked);
+      expect(status).toBe(403);
+    });
+
+    it('enforces JWT authorization when authSecret is configured', async () => {
+      relayServer = createRelayServer({
+        port: 0,
+        authSecret: 'relay-secret',
+      });
+      await relayServer.start();
+
+      const unauthenticated = new WebSocket(relayServer.getAddress());
+      sockets.push(unauthenticated);
+      expect(await waitForUpgradeRejection(unauthenticated)).toBe(401);
+
+      const token = createRelayJwt(
+        { sub: 'peer-a', exp: Math.floor(Date.now() / 1_000) + 60 },
+        'relay-secret',
+      );
+      const authenticated = new WebSocket(withQueryTokens(relayServer.getAddress(), token));
+      sockets.push(authenticated);
+      await waitForOpen(authenticated);
+      const joined = await sendAndWaitForMessage(
+        authenticated,
+        { type: 'join', roomId: 'room-auth', peerId: 'peer-a' },
+        (message) => message.type === 'joined',
+      );
+      expect(joined).toMatchObject({
+        type: 'joined',
+        roomId: 'room-auth',
+        peerId: 'peer-a',
+      });
+    });
+  },
+);

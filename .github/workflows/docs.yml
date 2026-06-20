@@ -50,6 +50,14 @@ jobs:
       - name: Build docs site
         run: pnpm --filter @flockjs/app-docs build
 
+      - name: Build cursors Storybook
+        run: pnpm --filter @flockjs/cursors build-storybook
+
+      - name: Bundle Storybook into the docs site
+        run: |
+          mkdir -p apps/docs/dist/storybook
+          cp -r packages/cursors/storybook-static/. apps/docs/dist/storybook/
+
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:

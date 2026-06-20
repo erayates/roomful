@@ -129,8 +129,12 @@ function resolveRenderContainer(
 }
 
 function resolveCursorStyle(style: CursorRenderOptions['style']): BuiltInCursorStyle {
-  if (style === 'dot' || style === 'pointer') {
-    return style;
+  if (style === 'dot') {
+    return 'dot';
+  }
+
+  if (style === 'pointer') {
+    return 'pointer';
   }
 
   return 'default';
@@ -290,7 +294,8 @@ export function createCursorEngine(
   options: CursorOptions = {},
 ): CursorEngine {
   const throttleMs = Math.max(0, options.throttleMs ?? DEFAULT_THROTTLE_MS);
-  const idleAfterMs = Math.max(0, options.idleAfterMs ?? DEFAULT_IDLE_AFTER_MS);
+  const smoothing = options.smoothing ?? true;
+  let idleAfterMs = Math.max(0, options.idleAfterMs ?? DEFAULT_IDLE_AFTER_MS);
 
   let mountedElement: HTMLElement | null = null;
   let lastLocalPosition: Partial<CursorPosition> | null = null;
@@ -345,6 +350,7 @@ export function createCursorEngine(
     const waitMs = Math.max(0, throttleMs - timeSinceLastDispatch);
     throttleTimer = globalThis.setTimeout(() => {
       throttleTimer = null;
+      /* v8 ignore next 3 -- defensive guard: the timer is always cleared whenever pendingPosition is reset */
       if (pendingPosition === null) {
         return;
       }
@@ -504,7 +510,7 @@ export function createCursorEngine(
     node.style.left = `${position.x * 100}%`;
     node.style.top = `${position.y * 100}%`;
     node.style.transform = renderer.transform;
-    node.style.transition = CURSOR_TRANSITION;
+    node.style.transition = smoothing ? CURSOR_TRANSITION : 'none';
     node.style.pointerEvents = 'none';
     node.style.display = 'inline-flex';
     node.style.alignItems = 'center';
@@ -557,7 +563,8 @@ export function createCursorEngine(
     }
 
     const doc = renderRoot.ownerDocument;
-    const renderablePositions = getRenderablePositions(positions, renderOptions);
+    const renderablePositions =
+      renderOptions.style === 'none' ? [] : getRenderablePositions(positions, renderOptions);
     const seenUserIds = new Set<string>();
 
     for (const position of renderablePositions) {
@@ -574,6 +581,7 @@ export function createCursorEngine(
       updateCursorNode(created, position, renderOptions);
       renderedNodes.set(position.userId, created);
       renderRoot.appendChild(created);
+      renderOptions.onMount?.(created);
     }
 
     for (const [userId, node] of Array.from(renderedNodes.entries())) {
@@ -661,6 +669,9 @@ export function createCursorEngine(
         ...renderOptions,
         ...nextOptions,
       };
+      if (nextOptions && typeof nextOptions.idleTimeout === 'number') {
+        idleAfterMs = Math.max(0, nextOptions.idleTimeout);
+      }
       ensureRenderer();
     },
     subscribe(cb) {
