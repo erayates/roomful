@@ -103,7 +103,11 @@ class MockTransportNetwork {
     this.getAdapter(roomId, peerId)?.emit(signal);
   }
 
-  public forceDisconnect(roomId: string, peerId: string, reason = 'mock-transport-disconnected'): void {
+  public forceDisconnect(
+    roomId: string,
+    peerId: string,
+    reason = 'mock-transport-disconnected',
+  ): void {
     const adapter = this.getAdapter(roomId, peerId);
     if (!adapter) {
       throw new Error(`Missing mock transport adapter for ${roomId}/${peerId}.`);

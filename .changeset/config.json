@@ -7,5 +7,13 @@
   "access": "public",
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
-  "ignore": ["@flockjs/app-demo", "@flockjs/app-docs", "@flockjs/app-playground"]
+  "ignore": [
+    "@flockjs/app-demo",
+    "@flockjs/app-docs",
+    "@flockjs/app-playground",
+    "@flockjs/example-collaborative-editor",
+    "@flockjs/example-live-dashboard",
+    "@flockjs/example-multiplayer-game",
+    "@flockjs/example-shared-canvas"
+  ]
 }

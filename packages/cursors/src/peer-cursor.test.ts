@@ -48,9 +48,7 @@ describe('PeerCursor', () => {
     ['dot', 'dot'],
     ['pointer', 'pointer'],
   ] as const)('renders the %s marker SVG variant', (style, expectedStyle) => {
-    const { container } = render(
-      createElement(PeerCursor, createProps({ style })),
-    );
+    const { container } = render(createElement(PeerCursor, createProps({ style })));
 
     const marker = container.querySelector('[data-flockjs-peer-cursor-marker="true"]');
     expect(marker).not.toBeNull();
@@ -81,9 +79,7 @@ describe('PeerCursor', () => {
   it('restores the label immediately when the peer becomes active again', async () => {
     vi.useFakeTimers();
 
-    const { container, rerender } = render(
-      createElement(PeerCursor, createProps({ idle: true })),
-    );
+    const { container, rerender } = render(createElement(PeerCursor, createProps({ idle: true })));
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(3_000);

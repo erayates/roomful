@@ -67,8 +67,12 @@ code {
   padding: 1.2rem 1.35rem;
   border: 1px solid rgba(22, 33, 45, 0.08);
   border-radius: 24px;
-  background:
-    linear-gradient(135deg, rgba(255, 250, 240, 0.96) 0%, rgba(255, 243, 221, 0.94) 48%, rgba(230, 244, 242, 0.96) 100%);
+  background: linear-gradient(
+    135deg,
+    rgba(255, 250, 240, 0.96) 0%,
+    rgba(255, 243, 221, 0.94) 48%,
+    rgba(230, 244, 242, 0.96) 100%
+  );
   box-shadow: var(--flock-shadow);
 }
 

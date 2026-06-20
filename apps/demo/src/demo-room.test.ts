@@ -30,8 +30,6 @@ describe('demo-room', () => {
   });
 
   it('computes the delay until next UTC midnight', () => {
-    expect(getMillisecondsUntilNextUtcMidnight(new Date('2026-03-11T23:59:59.000Z'))).toBe(
-      1_000,
-    );
+    expect(getMillisecondsUntilNextUtcMidnight(new Date('2026-03-11T23:59:59.000Z'))).toBe(1_000);
   });
 });

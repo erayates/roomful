@@ -242,9 +242,12 @@ describe('Room end-to-end encryption', () => {
       return (
         roomB.usePresence().get(roomA.peerId)?.role === 'editor' &&
         stateB.get().count === 1 &&
-        roomB.useAwareness().getAll().some((entry) => {
-          return entry.peerId === roomA.peerId && entry.typing === true;
-        }) &&
+        roomB
+          .useAwareness()
+          .getAll()
+          .some((entry) => {
+            return entry.peerId === roomA.peerId && entry.typing === true;
+          }) &&
         eventSpy.mock.calls.length === 1
       );
     });

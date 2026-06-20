@@ -1,12 +1,15 @@
 # Firefox Add-ons Listing
 
 ## Summary
+
 Live DevTools diagnostics for FlockJS rooms, peers, state, and event traffic.
 
 ## Description
+
 FlockJS DevTools adds a panel to Firefox DevTools for inspecting active FlockJS rooms on the current page.
 
 The panel shows:
+
 - peer presence snapshots
 - shared state with diff highlighting
 - event logs with sender information and timestamps
@@ -14,4 +17,5 @@ The panel shows:
 - a simulated peer toggle for solo testing workflows
 
 ## Data collection
+
 This extension does not collect or transmit telemetry or personal data.

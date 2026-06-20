@@ -171,12 +171,17 @@ class MockPollingRelay {
       );
     }
 
-    const payload = typeof body === 'string' ? body : new TextDecoder().decode(body ?? new Uint8Array());
+    const payload =
+      typeof body === 'string' ? body : new TextDecoder().decode(body ?? new Uint8Array());
     const message = parseWebSocketRelayClientMessage(payload);
     if (!message || message.type !== 'join') {
-      return new MockResponse(400, JSON.stringify({ code: 'INVALID_MESSAGE', message: 'Invalid join.' }), {
-        'content-type': 'application/json; charset=utf-8',
-      });
+      return new MockResponse(
+        400,
+        JSON.stringify({ code: 'INVALID_MESSAGE', message: 'Invalid join.' }),
+        {
+          'content-type': 'application/json; charset=utf-8',
+        },
+      );
     }
 
     const session: SessionState = {
@@ -238,9 +243,13 @@ class MockPollingRelay {
   private async handleEvents(sessionId: string): Promise<MockResponse> {
     const session = this.sessions.get(sessionId);
     if (!session) {
-      return new MockResponse(404, JSON.stringify({ code: 'NOT_JOINED', message: 'Missing session.' }), {
-        'content-type': 'application/json; charset=utf-8',
-      });
+      return new MockResponse(
+        404,
+        JSON.stringify({ code: 'NOT_JOINED', message: 'Missing session.' }),
+        {
+          'content-type': 'application/json; charset=utf-8',
+        },
+      );
     }
 
     const payload = session.queue.shift();
@@ -259,16 +268,24 @@ class MockPollingRelay {
   ): Promise<MockResponse> {
     const session = this.sessions.get(sessionId);
     if (!session) {
-      return new MockResponse(404, JSON.stringify({ code: 'NOT_JOINED', message: 'Missing session.' }), {
-        'content-type': 'application/json; charset=utf-8',
-      });
+      return new MockResponse(
+        404,
+        JSON.stringify({ code: 'NOT_JOINED', message: 'Missing session.' }),
+        {
+          'content-type': 'application/json; charset=utf-8',
+        },
+      );
     }
 
     const message = parseWebSocketRelayClientMessage(body ?? '');
     if (!message || message.type !== 'transport') {
-      return new MockResponse(400, JSON.stringify({ code: 'INVALID_MESSAGE', message: 'Invalid frame.' }), {
-        'content-type': 'application/json; charset=utf-8',
-      });
+      return new MockResponse(
+        400,
+        JSON.stringify({ code: 'INVALID_MESSAGE', message: 'Invalid frame.' }),
+        {
+          'content-type': 'application/json; charset=utf-8',
+        },
+      );
     }
 
     const room = this.rooms.get(session.roomId);
@@ -327,7 +344,10 @@ class MockPollingRelay {
 
   private enqueueTransportMessage(
     session: SessionState,
-    message: Extract<NonNullable<ReturnType<typeof parseWebSocketRelayClientMessage>>, { type: 'transport' }>,
+    message: Extract<
+      NonNullable<ReturnType<typeof parseWebSocketRelayClientMessage>>,
+      { type: 'transport' }
+    >,
   ): void {
     this.enqueueMessage(
       session,
@@ -472,8 +492,15 @@ describe('PollingTransportAdapter', () => {
 
     await waitFor(() => relay.requests.some((request) => request.url.includes('/messages')));
 
-    const joinRequest = relay.requests.find((request) => request.method === 'POST' && request.url.includes('/poll/sessions') && !request.url.includes('/messages'));
-    const messageRequest = relay.requests.find((request) => request.method === 'POST' && request.url.includes('/messages'));
+    const joinRequest = relay.requests.find(
+      (request) =>
+        request.method === 'POST' &&
+        request.url.includes('/poll/sessions') &&
+        !request.url.includes('/messages'),
+    );
+    const messageRequest = relay.requests.find(
+      (request) => request.method === 'POST' && request.url.includes('/messages'),
+    );
 
     expect(joinRequest?.headers.authorization).toBe('Bearer token-123');
     expect(messageRequest?.headers.authorization).toBe('Bearer token-123');

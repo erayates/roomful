@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 
@@ -12,6 +13,7 @@ Options:
   --host <address>            Host interface to bind (default: 127.0.0.1)
   --max-connections <number>  Maximum concurrent WebSocket connections
   --redis-url <url>           Redis URL for multi-instance coordination
+  --version                   Show the package version
   --help                      Show this help message
 
 Environment:
@@ -96,6 +98,23 @@ function readParsedStringValue(value: string | boolean | undefined): string | un
   return typeof value === 'string' ? value : undefined;
 }
 
+function readRelayPackageVersion(): string {
+  try {
+    const packageJson: unknown = JSON.parse(
+      readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
+    );
+
+    return typeof packageJson === 'object' &&
+      packageJson !== null &&
+      'version' in packageJson &&
+      typeof packageJson.version === 'string'
+      ? packageJson.version
+      : 'unknown';
+  } catch {
+    return 'unknown';
+  }
+}
+
 function parseRelayCliArgs(argv: readonly string[]):
   | {
       help: boolean;
@@ -103,6 +122,7 @@ function parseRelayCliArgs(argv: readonly string[]):
       maxConnections?: string;
       port?: string;
       redisUrl?: string;
+      version: boolean;
     }
   | { error: string } {
   try {
@@ -112,6 +132,9 @@ function parseRelayCliArgs(argv: readonly string[]):
       strict: true,
       options: {
         help: {
+          type: 'boolean',
+        },
+        version: {
           type: 'boolean',
         },
         host: {
@@ -140,8 +163,10 @@ function parseRelayCliArgs(argv: readonly string[]):
       maxConnections?: string;
       port?: string;
       redisUrl?: string;
+      version: boolean;
     } = {
       help: parsed.values.help ?? false,
+      version: parsed.values.version ?? false,
     };
 
     if (host !== undefined) {
@@ -170,6 +195,7 @@ export function resolveRelayCliOptions(
   argv: readonly string[] = [],
 ):
   | { helpText: string }
+  | { versionText: string }
   | { port: number; host?: string; maxConnections?: number; redisUrl?: string }
   | { error: string } {
   const parsedArgs = parseRelayCliArgs(argv);
@@ -180,6 +206,12 @@ export function resolveRelayCliOptions(
   if (parsedArgs.help) {
     return {
       helpText: RELAY_CLI_HELP,
+    };
+  }
+
+  if (parsedArgs.version) {
+    return {
+      versionText: `flockjs-relay ${readRelayPackageVersion()}\n`,
     };
   }
 
@@ -240,6 +272,11 @@ export async function runRelayCli(runtime: RelayCliRuntime = {}): Promise<number
   const resolved = resolveRelayCliOptions(processLike.env, processLike.argv?.slice(2) ?? []);
   if ('helpText' in resolved) {
     processLike.stdout.write(resolved.helpText);
+    return 0;
+  }
+
+  if ('versionText' in resolved) {
+    processLike.stdout.write(resolved.versionText);
     return 0;
   }
 

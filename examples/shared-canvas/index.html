@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FlockJS Shared Canvas Example</title>
+  </head>
+  <body>
+    <main class="example-shell">
+      <section class="example-panel">
+        <p class="eyebrow">Shared canvas</p>
+        <h1>Draw together with CRDT stroke history.</h1>
+        <div class="controls">
+          <label>
+            Room ID
+            <input id="room-id" value="shared-canvas-room" />
+          </label>
+          <label>
+            Name
+            <input id="name" value="Canvas peer" />
+          </label>
+          <label>
+            Color
+            <input id="color" type="color" value="#007f68" />
+          </label>
+          <button id="connect" type="button">Connect</button>
+          <button id="clear" type="button">Clear canvas</button>
+        </div>
+        <p id="status" class="status">idle</p>
+      </section>
+
+      <section class="canvas-frame" aria-label="Shared drawing surface">
+        <canvas id="canvas" width="960" height="540"></canvas>
+      </section>
+
+      <section class="example-panel">
+        <h2>Peers</h2>
+        <ul id="peers" class="peer-list"></ul>
+      </section>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

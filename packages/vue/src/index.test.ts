@@ -74,9 +74,7 @@ type TestAwarenessEngine = AwarenessEngine & {
   subscriberCount(): number;
   set: ReturnType<typeof vi.fn<(value: Record<string, unknown>) => void>>;
   setFocus: ReturnType<typeof vi.fn<(elementId: string | null) => void>>;
-  setSelection: ReturnType<
-    typeof vi.fn<(selection: AwarenessState['selection'] | null) => void>
-  >;
+  setSelection: ReturnType<typeof vi.fn<(selection: AwarenessState['selection'] | null) => void>>;
   setTyping: ReturnType<typeof vi.fn<(isTyping: boolean) => void>>;
 };
 
@@ -135,10 +133,7 @@ function createCursor(
   };
 }
 
-function createAwareness(
-  peerId: string,
-  overrides: Partial<AwarenessState> = {},
-): AwarenessState {
+function createAwareness(peerId: string, overrides: Partial<AwarenessState> = {}): AwarenessState {
   return {
     peerId,
     ...overrides,
@@ -193,9 +188,7 @@ function createMockPresenceEngine(
   return engine;
 }
 
-function createMockCursorEngine(
-  positions: CursorPosition<CursorData>[] = [],
-): TestCursorEngine {
+function createMockCursorEngine(positions: CursorPosition<CursorData>[] = []): TestCursorEngine {
   const subscribers = new Set<CursorSubscriber>();
   let currentPositions = positions;
 
@@ -496,11 +489,13 @@ function createMockRoom(
     stateEngine,
   } satisfies TestRoom;
 
-  createRoomMock.mockImplementationOnce((nextRoomId: string, nextOptions: RoomOptions<PresenceData>) => {
-    expect(nextRoomId).toBe(roomId);
-    expect(nextOptions).toEqual(expect.objectContaining(options));
-    return room;
-  });
+  createRoomMock.mockImplementationOnce(
+    (nextRoomId: string, nextOptions: RoomOptions<PresenceData>) => {
+      expect(nextRoomId).toBe(roomId);
+      expect(nextOptions).toEqual(expect.objectContaining(options));
+      return room;
+    },
+  );
 
   return room;
 }
@@ -611,11 +606,7 @@ describe('usePresence', () => {
       name: 'Ada Lovelace',
     });
 
-    presenceEngine.emit([
-      self,
-      other,
-      createPeer('presence-third', { name: 'Linus' }),
-    ]);
+    presenceEngine.emit([self, other, createPeer('presence-third', { name: 'Linus' })]);
     await nextTick();
 
     expect(wrapper.text()).toBe('Ada|2|3');
@@ -714,7 +705,8 @@ describe('useCursors and v-flock-cursors', () => {
             cursors: observedCursors.cursors,
           };
         },
-        template: '<div><div id="cursor-board" ref="boardRef"></div><span>{{ cursors.length }}</span></div>',
+        template:
+          '<div><div id="cursor-board" ref="boardRef"></div><span>{{ cursors.length }}</span></div>',
       }),
       {
         attachTo: document.body,
@@ -810,8 +802,11 @@ describe('useSharedState', () => {
         stateEngine,
       },
     );
-    let setValue: ((nextValue: { count: number } | ((previous: { count: number }) => { count: number })) => void) | null =
-      null;
+    let setValue:
+      | ((
+          nextValue: { count: number } | ((previous: { count: number }) => { count: number }),
+        ) => void)
+      | null = null;
 
     const wrapper = mount(
       defineComponent({

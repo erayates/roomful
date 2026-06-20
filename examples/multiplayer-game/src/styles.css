@@ -1,0 +1,132 @@
+:root {
+  color: #332217;
+  background: #fff8f2;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  line-height: 1.5;
+  --accent: #d35400;
+  --ink: #332217;
+  --line: #ead1be;
+  --panel: #ffffff;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+.example-shell {
+  display: grid;
+  gap: 18px;
+  width: min(960px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 28px 0;
+}
+
+.example-panel,
+.board {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  padding: 18px;
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  color: var(--accent);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+h1 {
+  margin: 0 0 14px;
+}
+
+.controls {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) minmax(140px, 1fr) 120px auto auto;
+  gap: 10px;
+  align-items: end;
+}
+
+label {
+  display: grid;
+  gap: 6px;
+  color: #7a604f;
+  font-size: 0.82rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+input {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--ink);
+  padding: 9px 10px;
+}
+
+button {
+  border: 0;
+  border-radius: 6px;
+  background: var(--ink);
+  color: #ffffff;
+  cursor: pointer;
+  padding: 10px 12px;
+  font-weight: 800;
+}
+
+button:first-of-type {
+  background: var(--accent);
+}
+
+.status {
+  margin: 12px 0 0;
+  color: #7a604f;
+}
+
+.board {
+  position: relative;
+  overflow: hidden;
+  min-height: 520px;
+  background:
+    linear-gradient(rgba(211, 84, 0, 0.09) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(211, 84, 0, 0.09) 1px, transparent 1px), #fffdf9;
+  background-size: 40px 40px;
+}
+
+.player {
+  position: absolute;
+  display: grid;
+  width: 72px;
+  height: 72px;
+  place-items: center;
+  border-radius: 18px;
+  color: #ffffff;
+  font-weight: 900;
+  transform: translate(-50%, -50%);
+  transition:
+    left 140ms ease,
+    top 140ms ease;
+}
+
+.controls-panel {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+@media (max-width: 760px) {
+  .controls,
+  .controls-panel {
+    grid-template-columns: 1fr;
+  }
+}

@@ -186,7 +186,10 @@ function drawCanvasScene(
   }
 }
 
-function toPoint(event: PointerEvent<HTMLElement>, element: HTMLElement): ReturnType<typeof createPoint> {
+function toPoint(
+  event: PointerEvent<HTMLElement>,
+  element: HTMLElement,
+): ReturnType<typeof createPoint> {
   const bounds = element.getBoundingClientRect();
   return createPoint(
     (event.clientX - bounds.left) / Math.max(bounds.width, 1),
@@ -228,11 +231,14 @@ export function DemoExperience(props: DemoExperienceProps): ReactElement {
   const { all, others, self, update } = usePresence<DemoPresence>();
   const connectionStatus = useConnectionStatus<DemoPresence>();
   const cursorTracking = useCursors({ idleAfterMs: 2_400, throttleMs: 24 });
-  const [canvasState, setCanvasState] = useSharedState<DemoCanvasState, DemoPresence>('demo-canvas', {
-    initialValue: EMPTY_CANVAS_STATE,
-    persist: false,
-    strategy: 'crdt',
-  });
+  const [canvasState, setCanvasState] = useSharedState<DemoCanvasState, DemoPresence>(
+    'demo-canvas',
+    {
+      initialValue: EMPTY_CANVAS_STATE,
+      persist: false,
+      strategy: 'crdt',
+    },
+  );
   const [draftName, setDraftName] = useState(identity.name);
   const [localPreview, setLocalPreview] = useState<DemoStroke | null>(null);
   const [remoteCursors, setRemoteCursors] = useState<Record<string, DemoRenderedCursor>>({});
@@ -249,29 +255,32 @@ export function DemoExperience(props: DemoExperienceProps): ReactElement {
   const syncedRoomLabelRef = useRef<string | null>(null);
   const cursors = cursorTracking.cursors;
 
-  const publishPreview = useEvent<DemoPreviewEvent, DemoPresence>(PREVIEW_CHANNEL, (payload, from) => {
-    if (from.id === self.id) {
-      return;
-    }
-
-    setRemotePreviews((current) => {
-      if (payload.kind === 'end') {
-        const existing = current[from.id];
-        if (!existing || existing.id !== payload.strokeId) {
-          return current;
-        }
-
-        const nextPreviews = { ...current };
-        delete nextPreviews[from.id];
-        return nextPreviews;
+  const publishPreview = useEvent<DemoPreviewEvent, DemoPresence>(
+    PREVIEW_CHANNEL,
+    (payload, from) => {
+      if (from.id === self.id) {
+        return;
       }
 
-      return {
-        ...current,
-        [from.id]: payload.stroke,
-      };
-    });
-  });
+      setRemotePreviews((current) => {
+        if (payload.kind === 'end') {
+          const existing = current[from.id];
+          if (!existing || existing.id !== payload.strokeId) {
+            return current;
+          }
+
+          const nextPreviews = { ...current };
+          delete nextPreviews[from.id];
+          return nextPreviews;
+        }
+
+        return {
+          ...current,
+          [from.id]: payload.stroke,
+        };
+      });
+    },
+  );
   const publishCursor = useEvent<DemoCursorEvent, DemoPresence>(CURSOR_CHANNEL, (payload, from) => {
     if (from.id === self.id) {
       return;
@@ -512,7 +521,12 @@ export function DemoExperience(props: DemoExperienceProps): ReactElement {
             instantly across every visitor.
           </p>
           <div className="hero-panel__actions">
-            <a className="button button--primary" href={shareLinks.x} rel="noreferrer" target="_blank">
+            <a
+              className="button button--primary"
+              href={shareLinks.x}
+              rel="noreferrer"
+              target="_blank"
+            >
               Share on X
             </a>
             <a

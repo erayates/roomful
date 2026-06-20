@@ -54,9 +54,7 @@ describe('TypingIndicator', () => {
     const { container } = render(
       createElement(TypingIndicator, {
         ariaLabel: 'Teammates are composing a response',
-        peers: [
-          createPeer('peer-a', { name: 'Ada Lovelace' }),
-        ],
+        peers: [createPeer('peer-a', { name: 'Ada Lovelace' })],
       }),
     );
 

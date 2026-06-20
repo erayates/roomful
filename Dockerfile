@@ -19,7 +19,7 @@ COPY packages/relay/tsconfig.json packages/relay/tsconfig.json
 COPY packages/relay/src packages/relay/src
 
 RUN pnpm --filter @flockjs/relay build
-RUN pnpm --filter @flockjs/relay deploy --prod /app
+RUN pnpm --filter @flockjs/relay deploy --prod --legacy /app
 
 FROM node:20-alpine AS runner
 

@@ -2,7 +2,11 @@
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { createDevtoolsPanel, getExtensionBrowserApi, getExtensionDevtoolsApi } from './browser-api.js';
+import {
+  createDevtoolsPanel,
+  getExtensionBrowserApi,
+  getExtensionDevtoolsApi,
+} from './browser-api.js';
 import type { ExtensionBrowserApi, ExtensionDevtoolsApi } from './types.js';
 
 function createDevtoolsApi(
@@ -64,12 +68,7 @@ describe('browser api helpers', () => {
 
   it('supports callback-based panel creation', async () => {
     const callbackPanelsCreate = vi.fn(
-      (
-        _title: string,
-        _iconPath: string,
-        _pagePath: string,
-        callback?: () => void,
-      ) => {
+      (_title: string, _iconPath: string, _pagePath: string, callback?: () => void) => {
         callback?.();
         return undefined;
       },

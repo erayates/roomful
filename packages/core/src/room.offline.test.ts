@@ -304,13 +304,15 @@ describe('Room offline queue', () => {
       onlineEvents.push(undefined);
     });
 
-    room.useState({
-      initialValue: {
-        count: 0,
-      },
-    }).set({
-      count: 1,
-    });
+    room
+      .useState({
+        initialValue: {
+          count: 0,
+        },
+      })
+      .set({
+        count: 1,
+      });
 
     await room.connect();
 

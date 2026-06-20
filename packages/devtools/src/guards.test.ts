@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import { DEVTOOLS_BRIDGE_VERSION } from './constants';
-import { isDevtoolsRoomSnapshot, isDevtoolsRoomSummary } from './guards';
-import type { DevtoolsRoomSnapshot } from './types';
+import { DEVTOOLS_BRIDGE_VERSION } from './constants.js';
+import { isDevtoolsRoomSnapshot, isDevtoolsRoomSummary } from './guards.js';
+import type { DevtoolsRoomSnapshot } from './types.js';
 
 describe('devtools guards', () => {
   it('accepts valid room summaries', () => {

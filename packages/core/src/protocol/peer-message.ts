@@ -1,12 +1,6 @@
 import { isObject, readBoolean, readNumber, readRecord, readString } from '../internal/guards';
 import { isStateChangeReason } from '../internal/state';
-import type {
-  AwarenessState,
-  CursorPosition,
-  Peer,
-  PresenceData,
-  StateChangeMeta,
-} from '../types';
+import type { AwarenessState, CursorPosition, Peer, PresenceData, StateChangeMeta } from '../types';
 import {
   decodeMessagePack,
   encodeMessagePack,

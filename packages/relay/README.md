@@ -24,6 +24,7 @@ CLI flags:
 flockjs-relay --port 8080
 flockjs-relay --host 0.0.0.0 --port 8787 --max-connections 1000
 flockjs-relay --redis-url redis://127.0.0.1:6379/0
+flockjs-relay --version
 ```
 
 Environment variables:

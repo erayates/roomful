@@ -6,12 +6,12 @@ FlockJS is an open-source, framework-agnostic SDK designed to help frontend team
 
 ## Project Status
 
-FlockJS is approaching **v1.0** release. All major features are implemented and tested across 7 packages.
+FlockJS is in release-candidate validation. All major features are implemented and tested across 7 public packages.
 
 - API contracts are stable and implemented.
 - All framework adapters (React, Vue, Svelte) provide full presence, cursors, state, awareness, and events APIs.
 - The relay server supports WebSocket, polling, JWT auth, and Redis coordination.
-- Breaking changes are possible before `v1.0` but not expected.
+- Release automation validates packages, consumer smoke apps, relay Docker images, and generated GitHub Releases before promotion.
 
 ## Why FlockJS
 
@@ -181,6 +181,7 @@ CI/CD baseline for EP-01 `#005`:
 - Validation runs on Node `18` and `20`.
 - Pipeline order: install -> lint -> typecheck -> test -> build.
 - Release workflow triggers on `v*` tags, publishes `@flockjs/*` via Changesets, and publishes `flockjs/relay` to Docker Hub.
+- Release workflow creates a GitHub Release after npm and Docker publishing succeed.
 - Changesets release PR workflow (`.github/workflows/changesets-release-pr.yml`) runs on pushes to `main`.
 - Release workflow requires `NPM_TOKEN`, `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`, and optionally uses `TURBO_TEAM` / `TURBO_TOKEN`.
 
@@ -188,8 +189,8 @@ CI/CD baseline for EP-01 `#005`:
 
 - `packages/*`: core SDK and adapters (`@flockjs/*`)
 - `apps/*`: internal applications
-- `examples/*`: placeholder examples for future implementation
-- `benchmarks/`: placeholder benchmark suite
+- `examples/*`: runnable collaboration examples for canvas, editor, dashboards, and multiplayer flows
+- `benchmarks/`: relay load and scaling benchmarks with report generation
 
 ## Development Direction
 

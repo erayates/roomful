@@ -1,5 +1,8 @@
 export { CollaborationBadge } from './collaboration-badge';
-export type { CollaborationBadgePosition, CollaborationBadgeProps } from './collaboration-badge.types';
+export type {
+  CollaborationBadgePosition,
+  CollaborationBadgeProps,
+} from './collaboration-badge.types';
 export type { FloatingReactionProps } from './floating-reaction';
 export { FloatingReaction } from './floating-reaction';
 export type { LiveIndicatorProps, TypingIndicatorProps } from './indicator-types';

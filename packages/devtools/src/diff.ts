@@ -3,7 +3,7 @@ import type {
   DevtoolsSerializedRecord,
   DevtoolsSerializedValue,
   DevtoolsStateDiffEntry,
-} from './types';
+} from './types.js';
 
 const DEFAULT_MAX_DIFF_ENTRIES = 50;
 

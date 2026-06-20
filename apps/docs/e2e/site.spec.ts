@@ -59,9 +59,7 @@ test('theme toggle and search modal work', async ({ page }, testInfo) => {
   const themeSelect = page.locator('starlight-theme-select select:visible').first();
   await expect(themeSelect).toBeVisible();
   await themeSelect.selectOption('dark');
-  await expect
-    .poll(() => page.evaluate(() => document.documentElement.dataset.theme))
-    .toBe('dark');
+  await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme)).toBe('dark');
 
   if (testInfo.project.use.isMobile) {
     await page.goto('/');
@@ -75,13 +73,17 @@ test('theme toggle and search modal work', async ({ page }, testInfo) => {
 
 test('playground and api reference pages render', async ({ page }) => {
   await page.goto('/playground/');
-  await expect(page.getByRole('heading', { level: 1, name: /Interactive Playground/i })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { level: 1, name: /Interactive Playground/i }),
+  ).toBeVisible();
   await expect(page.getByLabel('Room ID')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Open second tab' })).toBeVisible();
 
   await page.goto('/api/');
   await expect(page.getByRole('heading', { level: 1, name: /API Reference/i })).toBeVisible();
-  await expect(page.getByRole('main').getByRole('link', { name: '@flockjs/core', exact: true })).toBeVisible();
+  await expect(
+    page.getByRole('main').getByRole('link', { name: '@flockjs/core', exact: true }),
+  ).toBeVisible();
 });
 
 test('version switcher reaches the v1.0 snapshot', async ({ page }, testInfo) => {

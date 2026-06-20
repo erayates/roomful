@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { diffSerializedState } from './diff';
+import { diffSerializedState } from './diff.js';
 
 describe('diffSerializedState', () => {
   it('reports added, removed, and changed paths', () => {

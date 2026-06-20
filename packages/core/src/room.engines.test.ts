@@ -125,14 +125,12 @@ describe('Engine helpers and transport adapters', () => {
 
     const eventContext = {
       emitEvent: vi.fn(),
-      onEvent: vi.fn(
-        (_name: string, cb: (payload: unknown, from: { id: string }) => void) => {
-          cb({ text: 'hello' }, { id: 'peer-b' });
-          return () => {
-            return undefined;
-          };
-        },
-      ),
+      onEvent: vi.fn((_name: string, cb: (payload: unknown, from: { id: string }) => void) => {
+        cb({ text: 'hello' }, { id: 'peer-b' });
+        return () => {
+          return undefined;
+        };
+      }),
       offEvent: vi.fn(),
     };
 

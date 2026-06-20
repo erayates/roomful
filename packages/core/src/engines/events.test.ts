@@ -56,12 +56,16 @@ describe('EventEngine', () => {
     unsubscribe();
 
     await Promise.all([roomA.connect(), roomB.connect(), roomC.connect()]);
-    await harness.waitFor(() => roomA.peerCount === 2 && roomB.peerCount === 2 && roomC.peerCount === 2);
+    await harness.waitFor(
+      () => roomA.peerCount === 2 && roomB.peerCount === 2 && roomC.peerCount === 2,
+    );
 
     eventsA.emit('message', {
       text: 'broadcast',
     });
-    await harness.waitFor(() => onMessageB.mock.calls.length === 1 && onMessageC.mock.calls.length === 1);
+    await harness.waitFor(
+      () => onMessageB.mock.calls.length === 1 && onMessageC.mock.calls.length === 1,
+    );
 
     expect(onMessageA).not.toHaveBeenCalled();
     expect(onMessageB).toHaveBeenCalledWith(
@@ -138,7 +142,9 @@ describe('EventEngine', () => {
     eventsA.emit('notice', {
       id: 1,
     });
-    await harness.waitFor(() => onNoticeA.mock.calls.length === 1 && onNoticeB.mock.calls.length === 1);
+    await harness.waitFor(
+      () => onNoticeA.mock.calls.length === 1 && onNoticeB.mock.calls.length === 1,
+    );
 
     expect(onNoticeA).toHaveBeenCalledWith(
       {

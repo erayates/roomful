@@ -45,7 +45,10 @@ const unsubscribeState = state.subscribe((value, meta) => {
 expectType<Unsubscribe>(unsubscribeState);
 
 const events = room.useEvents();
-const handleMessage = (payload: { text: string }, from: Peer<{ displayName: string; role: 'editor' }>): void => {
+const handleMessage = (
+  payload: { text: string },
+  from: Peer<{ displayName: string; role: 'editor' }>,
+): void => {
   expectType<string>(payload.text);
   expectType<'editor' | undefined>(from.role);
 };

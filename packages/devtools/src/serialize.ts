@@ -2,7 +2,7 @@ import type {
   DevtoolsSerializationOptions,
   DevtoolsSerializedRecord,
   DevtoolsSerializedValue,
-} from './types';
+} from './types.js';
 
 const DEFAULT_SERIALIZATION_OPTIONS: Required<DevtoolsSerializationOptions> = {
   maxArrayLength: 50,

@@ -27,7 +27,10 @@
     "changeset": "changeset",
     "version-packages": "changeset version",
     "release": "changeset publish",
+    "release:downloads-baseline": "node scripts/release/npm-download-baseline.mjs",
+    "release:verify-public": "node scripts/release/verify-public-release.mjs",
     "release:status": "changeset status --verbose",
+    "smoke:publish": "node ./scripts/smoke/run-publish-smoke.mjs",
     "verify:tsconfig-extends": "node scripts/verify-tsconfig-extends.mjs",
     "prepare": "husky",
     "clean": "turbo run clean"

@@ -43,7 +43,7 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "rimraf dist && tsc -p tsconfig.json",
     "lint": "eslint src --max-warnings 0",
     "test": "vitest run --config ../../vitest.package.config.ts --fileParallelism=false",
     "test:types": "tsd --files test-d/**/*.test-d.ts",
@@ -73,5 +73,8 @@
         "node"
       ]
     }
+  },
+  "devDependencies": {
+    "@types/ws": "^8.18.1"
   }
 }

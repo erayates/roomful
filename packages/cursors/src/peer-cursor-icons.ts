@@ -10,10 +10,7 @@ interface MarkerDefinition {
   children: ReactElement[];
 }
 
-function createSvgChild(
-  type: 'circle' | 'path',
-  props: Record<string, string>,
-): ReactElement {
+function createSvgChild(type: 'circle' | 'path', props: Record<string, string>): ReactElement {
   return createElement(type, props);
 }
 
@@ -69,10 +66,7 @@ function getMarkerDefinition(style: PeerCursorStyle, color: string): MarkerDefin
   };
 }
 
-export function renderPeerCursorMarker(
-  style: PeerCursorStyle,
-  color: string,
-): ReactElement {
+export function renderPeerCursorMarker(style: PeerCursorStyle, color: string): ReactElement {
   const definition = getMarkerDefinition(style, color);
 
   return createElement(

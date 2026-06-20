@@ -26,11 +26,9 @@ export function sanitizeIndicatorSize(value: number | undefined, fallback: numbe
 export function createTypingIndicatorText<TPresence extends PresenceData>(
   peers: readonly Peer<TPresence>[],
 ): string {
-  const displayNames = peers
-    .slice(0, MAX_TYPING_NAMES)
-    .map((peer) => {
-      return resolvePeerDisplayName(peer);
-    });
+  const displayNames = peers.slice(0, MAX_TYPING_NAMES).map((peer) => {
+    return resolvePeerDisplayName(peer);
+  });
   const remainingCount = Math.max(0, peers.length - displayNames.length);
   const subject = joinDisplayNames(displayNames, remainingCount);
 

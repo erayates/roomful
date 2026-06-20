@@ -41,7 +41,7 @@ Changelog model:
 6. Maintainers merge the release PR.
 7. Maintainers push tag matching `v*`.
 8. Tag triggers `.github/workflows/release.yml`.
-9. Release workflow validates, publishes to npm via Changesets, and publishes the relay Docker image to Docker Hub.
+9. Release workflow validates, publishes to npm via Changesets, publishes the relay Docker image to Docker Hub, and creates a GitHub Release after both publishes succeed.
 
 ## Pre-Release and Stable Strategy
 
@@ -83,10 +83,16 @@ Release secrets:
 - [ ] `DOCKERHUB_USERNAME` configured
 - [ ] `DOCKERHUB_TOKEN` configured
 - [ ] Release tag (`v*`) pushed from intended commit
+- [ ] GitHub Release created from the release tag after npm and Docker publishing succeed
+- [ ] Public release verified with `pnpm release:verify-public -- --tag v<release>`
+- [ ] npm weekly downloads baseline recorded with `pnpm release:downloads-baseline`
+- [ ] Launch announcements posted from [Launch Kit](launch-kit.md)
 
 ## Related Docs
 
 - [Changelog](../../CHANGELOG.md)
 - [Execution plan](execution-plan.md)
 - [Development setup](development-setup.md)
+- [Launch kit](launch-kit.md)
+- [Release completion audit](release-completion-audit.md)
 - [Docs index](../README.md)

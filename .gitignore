@@ -2,6 +2,9 @@ node_modules/
 .pnpm-store/
 .turbo/
 .tmp/
+.smoke/
+**/.smoke-pack-test/
+**/.tmp/
 
 **/dist/
 **/coverage/

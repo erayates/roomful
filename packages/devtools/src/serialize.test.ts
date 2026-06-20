@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { serializeDevtoolsValue } from './serialize';
+import { serializeDevtoolsValue } from './serialize.js';
 
 describe('serializeDevtoolsValue', () => {
   it('serializes nested plain objects into JSON-safe values', () => {

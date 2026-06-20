@@ -186,9 +186,7 @@ export class RoomYjsController<
     });
   };
 
-  public constructor(
-    private readonly context: RoomYjsControllerContext<TPresence>,
-  ) {
+  public constructor(private readonly context: RoomYjsControllerContext<TPresence>) {
     this.localAwarenessState = mergePeerIdentity(this.context.getSelfPeer(), null);
 
     this.doc.on('update', this.handleDocumentUpdate);

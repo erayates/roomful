@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FlockJS Collaborative Editor Example</title>
+  </head>
+  <body>
+    <main class="example-shell">
+      <section class="example-panel">
+        <p class="eyebrow">Collaborative editor</p>
+        <h1>Sync a Y.Text document and awareness signals.</h1>
+        <div class="controls">
+          <label>
+            Room ID
+            <input id="room-id" value="collaborative-editor-room" />
+          </label>
+          <label>
+            Name
+            <input id="name" value="Editor peer" />
+          </label>
+          <label>
+            Color
+            <input id="color" type="color" value="#3050b8" />
+          </label>
+          <button id="connect" type="button">Connect</button>
+        </div>
+        <p id="status" class="status">idle</p>
+      </section>
+
+      <section class="example-panel">
+        <label class="editor-label">
+          Shared document
+          <textarea id="editor" rows="14" spellcheck="false"></textarea>
+        </label>
+      </section>
+
+      <section class="example-panel">
+        <h2>Collaborators</h2>
+        <ul id="peers" class="peer-list"></ul>
+        <h2>Awareness</h2>
+        <ul id="awareness" class="peer-list"></ul>
+      </section>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

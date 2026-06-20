@@ -3,13 +3,19 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "main": "dist/index.js",
-  "types": "src/index.ts",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "lint": "eslint src --max-warnings 0",
+    "dev": "vite",
+    "build": "tsc -p tsconfig.json --noEmit && vite build",
+    "preview": "vite preview",
+    "lint": "eslint src vite.config.ts --max-warnings 0",
     "test": "vitest run --config ../../vitest.config.ts --passWithNoTests",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "clean": "rimraf dist coverage"
+  },
+  "dependencies": {
+    "@flockjs/core": "workspace:*"
+  },
+  "devDependencies": {
+    "vite": "^7.3.1"
   }
 }

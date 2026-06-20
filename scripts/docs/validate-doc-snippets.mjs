@@ -36,7 +36,9 @@ async function validateDocSnippets() {
     tscConfigPath,
     JSON.stringify(
       {
-        extends: toPosixPath(path.relative(snippetsRoot, path.join(repoRoot, 'tsconfig.base.json'))),
+        extends: toPosixPath(
+          path.relative(snippetsRoot, path.join(repoRoot, 'tsconfig.base.json')),
+        ),
         compilerOptions: {
           jsx: 'react-jsx',
           jsxImportSource: 'react',
@@ -74,7 +76,10 @@ function createShim(code) {
     lines.push('declare const unsubscribe: () => void;');
   }
 
-  if (/\bgetRelayToken\b/u.test(code) && !/\b(?:const|let|var|function)\s+getRelayToken\b/u.test(code)) {
+  if (
+    /\bgetRelayToken\b/u.test(code) &&
+    !/\b(?:const|let|var|function)\s+getRelayToken\b/u.test(code)
+  ) {
     lines.push('declare function getRelayToken(): Promise<string>;');
   }
 

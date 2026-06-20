@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "baseUrl": ".",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "paths": {
+      "@flockjs/core": [
+        "../../../packages/core/dist/index.d.ts",
+        "./node_modules/@flockjs/core/dist/index.d.ts"
+      ],
+      "@flockjs/react": [
+        "../../../packages/react/dist/index.d.ts",
+        "./node_modules/@flockjs/react/dist/index.d.ts"
+      ]
+    },
+    "strict": true,
+    "skipLibCheck": true,
+    "types": ["vite/client"]
+  },
+  "include": ["src"]
+}

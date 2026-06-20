@@ -26,9 +26,12 @@ const serializationOptions: DevtoolsSerializationOptions = {
 };
 expectType<DevtoolsSerializationOptions>(serializationOptions);
 
-const serialized = serializeDevtoolsValue({
-  nested: ['value', 1, null],
-}, serializationOptions);
+const serialized = serializeDevtoolsValue(
+  {
+    nested: ['value', 1, null],
+  },
+  serializationOptions,
+);
 expectType<DevtoolsSerializedValue>(serialized);
 
 const diff = diffSerializedState(

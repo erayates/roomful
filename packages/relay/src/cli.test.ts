@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+
 import { describe, expect, it, vi } from 'vitest';
 
 import { resolveRelayCliOptions, runRelayCli } from './cli.js';
@@ -42,6 +44,23 @@ function createFakeProcess(
     processLike,
     signalHandlers,
   };
+}
+
+function readExpectedRelayPackageVersion(): string {
+  const packageJson: unknown = JSON.parse(
+    readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
+  );
+
+  if (
+    typeof packageJson !== 'object' ||
+    packageJson === null ||
+    !('version' in packageJson) ||
+    typeof packageJson.version !== 'string'
+  ) {
+    throw new Error('Expected relay package.json to contain a string version.');
+  }
+
+  return packageJson.version;
 }
 
 describe('relay cli', () => {
@@ -159,6 +178,23 @@ describe('relay cli', () => {
     expect(createServer).not.toHaveBeenCalled();
     expect(processLike.stdout.write).toHaveBeenCalledWith(
       expect.stringContaining('Usage: flockjs-relay [options]'),
+    );
+  });
+
+  it('prints the package version without starting the relay', async () => {
+    const createServer = vi.fn();
+    const { processLike } = createFakeProcess({}, ['node', 'flockjs-relay', '--version']);
+
+    await expect(
+      runRelayCli({
+        createServer,
+        process: processLike,
+      }),
+    ).resolves.toBe(0);
+
+    expect(createServer).not.toHaveBeenCalled();
+    expect(processLike.stdout.write).toHaveBeenCalledWith(
+      `flockjs-relay ${readExpectedRelayPackageVersion()}\n`,
     );
   });
 

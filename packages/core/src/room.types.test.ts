@@ -35,8 +35,9 @@ describe('Room generics', () => {
     expectTypeOf(room.peers).toEqualTypeOf<Array<Partial<PresenceShape> & { id: string }>>();
     expectTypeOf(presence.getSelf().role).toEqualTypeOf<'editor' | 'viewer' | undefined>();
     expectTypeOf(cursors.getPositions()[0]?.tool).toEqualTypeOf<'pen' | 'eraser' | undefined>();
-    expectTypeOf(cursors.getPositions()[0]?.metadata)
-      .toEqualTypeOf<{ pressure: number } | undefined>();
+    expectTypeOf(cursors.getPositions()[0]?.metadata).toEqualTypeOf<
+      { pressure: number } | undefined
+    >();
     expectTypeOf(ydoc.clientID).toEqualTypeOf<number>();
     expectTypeOf(provider.synced).toEqualTypeOf<boolean>();
     const snapshot = await diagnostics;

@@ -56,16 +56,18 @@ describe('room encryption', () => {
   });
 
   it('rejects empty passphrases', async () => {
-    await expect(resolveRoomEncryption('room-passphrase-empty', { passphrase: '' })).rejects.toMatchObject(
-      {
-        code: 'ENCRYPTION_ERROR',
-        message: 'Encryption passphrase must not be empty.',
-      },
-    );
+    await expect(
+      resolveRoomEncryption('room-passphrase-empty', { passphrase: '' }),
+    ).rejects.toMatchObject({
+      code: 'ENCRYPTION_ERROR',
+      message: 'Encryption passphrase must not be empty.',
+    });
   });
 
   it('derives compatible keys for the same room and passphrase', async () => {
-    const first = await resolveRoomEncryption('room-derived', { passphrase: 'correct horse battery staple' });
+    const first = await resolveRoomEncryption('room-derived', {
+      passphrase: 'correct horse battery staple',
+    });
     const second = await resolveRoomEncryption('room-derived', {
       passphrase: 'correct horse battery staple',
     });
@@ -102,11 +104,11 @@ describe('room encryption', () => {
         return index === 0 ? value ^ 0xff : value;
       }),
     };
-    await expect(decryptWirePayload(tamperedCiphertext, header, resolved!.key)).rejects.toMatchObject(
-      {
-        code: 'DECRYPTION_ERROR',
-      },
-    );
+    await expect(
+      decryptWirePayload(tamperedCiphertext, header, resolved!.key),
+    ).rejects.toMatchObject({
+      code: 'DECRYPTION_ERROR',
+    });
 
     await expect(
       decryptWirePayload(

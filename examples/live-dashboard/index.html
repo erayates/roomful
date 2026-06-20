@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FlockJS Live Dashboard Example</title>
+  </head>
+  <body>
+    <main class="example-shell">
+      <section class="example-panel hero">
+        <p class="eyebrow">Live dashboard</p>
+        <h1>Share metrics and alerts across active operators.</h1>
+        <div class="controls">
+          <label>
+            Room ID
+            <input id="room-id" value="live-dashboard-room" />
+          </label>
+          <label>
+            Name
+            <input id="name" value="Dashboard peer" />
+          </label>
+          <button id="connect" type="button">Connect</button>
+        </div>
+        <p id="status" class="status">idle</p>
+      </section>
+
+      <section class="metric-grid" aria-label="Shared metrics">
+        <article class="metric-card">
+          <span>Requests</span>
+          <strong id="requests">0</strong>
+          <button id="add-request" type="button">Add request</button>
+        </article>
+        <article class="metric-card">
+          <span>Errors</span>
+          <strong id="errors">0</strong>
+          <button id="add-error" type="button">Add error</button>
+        </article>
+        <article class="metric-card">
+          <span>Latency</span>
+          <strong id="latency">0 ms</strong>
+          <button id="sample-latency" type="button">Sample latency</button>
+        </article>
+      </section>
+
+      <section class="example-panel">
+        <h2>Peers</h2>
+        <ul id="peers" class="list"></ul>
+      </section>
+
+      <section class="example-panel">
+        <h2>Alerts</h2>
+        <div class="controls">
+          <input id="alert-input" value="Investigating elevated latency" />
+          <button id="send-alert" type="button">Send alert</button>
+        </div>
+        <ol id="alerts" class="list"></ol>
+      </section>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

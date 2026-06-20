@@ -3,15 +3,8 @@ import { type ReactElement, useEffect, useState } from 'react';
 
 import { resolveDemoRuntimeConfig } from './demo-config';
 import { DemoExperience } from './demo-experience';
-import {
-  createDemoIdentity,
-  readStoredIdentity,
-  writeStoredIdentity,
-} from './demo-identity';
-import {
-  getMillisecondsUntilNextUtcMidnight,
-  resolveDemoRoomSelection,
-} from './demo-room';
+import { createDemoIdentity, readStoredIdentity, writeStoredIdentity } from './demo-identity';
+import { getMillisecondsUntilNextUtcMidnight, resolveDemoRoomSelection } from './demo-room';
 import type { DemoIdentity, DemoPresence, DemoRuntimeConfig } from './demo-types';
 
 function readInitialIdentity(): DemoIdentity {
@@ -68,9 +61,12 @@ export function App(): ReactElement {
       return undefined;
     }
 
-    const timeoutId = window.setTimeout(() => {
-      setRoomSelection(resolveDemoRoomSelection({}, new Date()));
-    }, getMillisecondsUntilNextUtcMidnight(new Date()) + 100);
+    const timeoutId = window.setTimeout(
+      () => {
+        setRoomSelection(resolveDemoRoomSelection({}, new Date()));
+      },
+      getMillisecondsUntilNextUtcMidnight(new Date()) + 100,
+    );
 
     return () => {
       window.clearTimeout(timeoutId);

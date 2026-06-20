@@ -1,0 +1,21 @@
+{
+  "name": "flockjs-smoke-svelte-app",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "validate": "svelte-check --tsconfig ./tsconfig.json && vite build"
+  },
+  "dependencies": {
+    "@flockjs/core": "workspace:*",
+    "@flockjs/svelte": "workspace:*",
+    "svelte": "^5.55.4",
+    "y-protocols": "^1.0.7",
+    "yjs": "^13.6.29"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^6.2.4",
+    "svelte-check": "^4.4.6",
+    "typescript": "^5.8.2",
+    "vite": "^7.3.1"
+  }
+}

@@ -142,10 +142,12 @@ function assertK6Available(k6Bin) {
     const errorMessage = result.error instanceof Error ? result.error.message : '';
     const stderr = (result.stderr ?? '').trim();
     const detail = stderr || errorMessage;
+    const hint =
+      'Install k6 and make it available on PATH, or pass --k6-bin <path> / set K6_BIN to an executable k6 binary.';
     throw new Error(
       detail.length > 0
-        ? `Unable to execute k6 via "${k6Bin}": ${detail}`
-        : `Unable to execute k6 via "${k6Bin}".`,
+        ? `Unable to execute k6 via "${k6Bin}": ${detail}\n${hint}`
+        : `Unable to execute k6 via "${k6Bin}".\n${hint}`,
     );
   }
 }
@@ -188,7 +190,9 @@ async function startRelayCluster(config, options, resultsDir) {
           HOST: options.host,
           PORT: '0',
           RELAY_INSTANCE_ID: `relay-${index + 1}`,
-          ...(config.requiresRedis && options.redisUrl ? { FLOCK_REDIS_URL: options.redisUrl } : {}),
+          ...(config.requiresRedis && options.redisUrl
+            ? { FLOCK_REDIS_URL: options.redisUrl }
+            : {}),
         },
         stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
       });
@@ -228,7 +232,9 @@ async function startRelayCluster(config, options, resultsDir) {
 
         const onExit = (code) => {
           child.off('message', onMessage);
-          reject(new Error(`Relay instance ${index + 1} exited before readiness with code ${code}.`));
+          reject(
+            new Error(`Relay instance ${index + 1} exited before readiness with code ${code}.`),
+          );
         };
 
         child.on('message', onMessage);
@@ -320,7 +326,9 @@ async function stopRelayCluster(instances) {
 }
 
 async function sampleClusterMemory(instances, samples, memoryLogPath) {
-  const snapshotMessages = await Promise.all(instances.map((instance) => requestSnapshot(instance)));
+  const snapshotMessages = await Promise.all(
+    instances.map((instance) => requestSnapshot(instance)),
+  );
   const lines = [];
 
   for (const message of snapshotMessages) {
@@ -374,12 +382,19 @@ function readMetricValue(summary, metricName, propertyName) {
     return undefined;
   }
 
-  const values = summary.metrics[metricName].values;
-  if (!isObject(values) || typeof values[propertyName] !== 'number') {
-    return undefined;
+  const metric = summary.metrics[metricName];
+  const values = isObject(metric.values) ? metric.values : metric;
+  const normalizedPropertyName = propertyName === 'rate' ? 'value' : propertyName;
+
+  if (typeof values[propertyName] === 'number') {
+    return values[propertyName];
   }
 
-  return values[propertyName];
+  if (typeof values[normalizedPropertyName] === 'number') {
+    return values[normalizedPropertyName];
+  }
+
+  return undefined;
 }
 
 function renderAcceptance(config, k6Summary, memorySummary) {
@@ -388,12 +403,33 @@ function renderAcceptance(config, k6Summary, memorySummary) {
   const joinErrorRate = readMetricValue(k6Summary, 'relay_join_errors', 'rate') ?? 0;
   const deliveryErrorRate = readMetricValue(k6Summary, 'relay_delivery_errors', 'rate') ?? 0;
 
-  const items = [];
+  const items = [
+    {
+      label: 'Relay connection error rate < 1%',
+      passed: connectErrorRate < 0.01,
+      detail: `${connectErrorRate.toFixed(4)} rate`,
+    },
+    {
+      label: 'Relay join error rate < 1%',
+      passed: joinErrorRate < 0.01,
+      detail: `${joinErrorRate.toFixed(4)} rate`,
+    },
+    {
+      label: 'Relay delivery error rate < 1%',
+      passed: deliveryErrorRate < 0.01,
+      detail: `${deliveryErrorRate.toFixed(4)} rate`,
+    },
+  ];
+
   if (config.name === 'steady-100') {
     items.push({
       label: '100 concurrent peers in one room: median latency < 50ms',
-      passed: typeof latencyMedian === 'number' && latencyMedian < (config.latencyThresholdMs ?? 50),
-      detail: typeof latencyMedian === 'number' ? `${latencyMedian.toFixed(2)}ms median` : 'No latency samples',
+      passed:
+        typeof latencyMedian === 'number' && latencyMedian < (config.latencyThresholdMs ?? 50),
+      detail:
+        typeof latencyMedian === 'number'
+          ? `${latencyMedian.toFixed(2)}ms median`
+          : 'No latency samples',
     });
   }
 
@@ -523,10 +559,7 @@ async function main() {
     await sampleClusterMemory(instances, samples, memoryLogPath);
 
     const k6Summary = JSON.parse(await readFile(k6Result.summaryPath, 'utf8'));
-    const memorySummary = summarizeRelayMemorySamples(
-      samples,
-      args.memoryGrowthLimitMb ?? 64,
-    );
+    const memorySummary = summarizeRelayMemorySamples(samples, args.memoryGrowthLimitMb ?? 64);
     const acceptance = renderAcceptance(config, k6Summary, memorySummary);
     const report = renderReport(runId, config, relayUrls, k6Summary, memorySummary, acceptance);
 
@@ -536,8 +569,21 @@ async function main() {
       JSON.stringify(memorySummary, null, 2),
     );
 
+    const failedAcceptance = acceptance.filter((item) => {
+      return !item.passed;
+    });
+    if (failedAcceptance.length > 0) {
+      throw new Error(
+        `Relay load acceptance failed: ${failedAcceptance
+          .map((item) => `${item.label} (${item.detail})`)
+          .join('; ')}. See ${path.join(resultsDir, 'report.md')}.`,
+      );
+    }
+
     if (k6Result.code !== 0) {
-      throw new Error(`k6 exited with code ${k6Result.code}. See ${path.join(resultsDir, 'report.md')}.`);
+      throw new Error(
+        `k6 exited with code ${k6Result.code}. See ${path.join(resultsDir, 'report.md')}.`,
+      );
     }
   } finally {
     if (memoryTimer !== null) {

@@ -24,16 +24,16 @@ function App() {
 
 ## Hooks
 
-| Hook                        | Returns                   | Purpose                        |
-| --------------------------- | ------------------------- | ------------------------------ |
-| `useRoom()`                 | `Room`                    | access low-level room instance |
-| `usePresence()`             | `{ self, others, all }`   | reactive participant data      |
-| `useCursors()`              | `{ ref, cursors, mount, unmount }` | cursor tracking/rendering |
-| `useSharedState(key, opts)` | `[value, setValue]`       | synchronized state             |
-| `useAwareness()`            | `{ set, others }`         | ephemeral peer context         |
-| `useEvent(name, handler)`   | `emit` function           | subscribe and emit             |
-| `usePeers()`                | `Peer[]`                  | connected peers                |
-| `useConnectionStatus()`     | `RoomStatus`              | current room status            |
+| Hook                        | Returns                            | Purpose                        |
+| --------------------------- | ---------------------------------- | ------------------------------ |
+| `useRoom()`                 | `Room`                             | access low-level room instance |
+| `usePresence()`             | `{ self, others, all }`            | reactive participant data      |
+| `useCursors()`              | `{ ref, cursors, mount, unmount }` | cursor tracking/rendering      |
+| `useSharedState(key, opts)` | `[value, setValue]`                | synchronized state             |
+| `useAwareness()`            | `{ set, others }`                  | ephemeral peer context         |
+| `useEvent(name, handler)`   | `emit` function                    | subscribe and emit             |
+| `usePeers()`                | `Peer[]`                           | connected peers                |
+| `useConnectionStatus()`     | `RoomStatus`                       | current room status            |
 
 `useSharedState(key, opts)` intentionally mirrors React `useState`: it returns a `[value, setValue]` tuple, and `setValue` accepts either the next value or an updater function.
 

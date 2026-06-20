@@ -1,0 +1,17 @@
+{
+  "name": "flockjs-smoke-core-vanilla",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "validate": "tsc --noEmit && vite build"
+  },
+  "dependencies": {
+    "@flockjs/core": "workspace:*",
+    "y-protocols": "^1.0.7",
+    "yjs": "^13.6.29"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.2",
+    "vite": "^7.3.1"
+  }
+}

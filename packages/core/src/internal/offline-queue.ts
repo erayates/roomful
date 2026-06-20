@@ -198,11 +198,7 @@ export function projectOfflineStateSnapshot(
       continue;
     }
 
-    const nextSnapshot = applyOfflineStateMutation(
-      projectedSnapshot,
-      entry.mutation,
-      initialValue,
-    );
+    const nextSnapshot = applyOfflineStateMutation(projectedSnapshot, entry.mutation, initialValue);
     if (!nextSnapshot) {
       continue;
     }

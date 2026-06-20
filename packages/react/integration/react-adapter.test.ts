@@ -185,7 +185,9 @@ test.describe('React adapter Playwright integration', () => {
       .poll(async () => {
         return page.evaluate(() => {
           const snapshot = window.__flockjsReactIntegration.getSnapshot('alpha');
-          return snapshot.boardAttached && snapshot.status === 'connected' ? snapshot.peerCount : -1;
+          return snapshot.boardAttached && snapshot.status === 'connected'
+            ? snapshot.peerCount
+            : -1;
         });
       })
       .toBe(1);

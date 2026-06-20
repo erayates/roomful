@@ -124,19 +124,6 @@ function readStateRoot(doc: Y.Doc): Y.Map<unknown> {
   return doc.getMap(CRDT_STATE_ROOT_NAME);
 }
 
-function ensureInitialState<T>(doc: Y.Doc, initialValue: T): void {
-  const root = readStateRoot(doc);
-  if (root.has(CRDT_STATE_KEY)) {
-    return;
-  }
-
-  doc.transact(() => {
-    if (!root.has(CRDT_STATE_KEY)) {
-      root.set(CRDT_STATE_KEY, createSharedValue(initialValue));
-    }
-  });
-}
-
 function readStateValue<T>(doc: Y.Doc, initialValue: T): T {
   const root = readStateRoot(doc);
   const value = root.get(CRDT_STATE_KEY);
@@ -197,7 +184,6 @@ export function createCrdtStateEngine<T>(
   context: CrdtStateEngineContext<T>,
 ): StateEngine<T> {
   const now = context.now ?? Date.now;
-  ensureInitialState(context.doc, context.getInitialValue());
 
   const subscribers = new Set<(value: T, meta: StateChangeMeta) => void>();
   const root = readStateRoot(context.doc);

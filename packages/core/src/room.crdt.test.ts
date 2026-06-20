@@ -169,6 +169,75 @@ describe('Room CRDT/Yjs', () => {
     await roomB.disconnect();
   });
 
+  it('syncs existing CRDT-backed state to late joiners without initial value conflicts', async () => {
+    const initialCanvasState = {
+      version: 1,
+      strokes: [] as Array<{
+        id: string;
+        points: Array<{ x: number; y: number }>;
+      }>,
+    };
+    const roomA = createRoom('room-crdt-state-late-joiner', {
+      transport: 'broadcast',
+    });
+    const roomB = createRoom('room-crdt-state-late-joiner', {
+      transport: 'broadcast',
+    });
+
+    const stateA = roomA.useState({
+      initialValue: initialCanvasState,
+      strategy: 'crdt',
+    });
+    const stateB = roomB.useState({
+      initialValue: initialCanvasState,
+      strategy: 'crdt',
+    });
+
+    await roomA.connect();
+    await roomB.connect();
+    await waitFor(() => roomA.peerCount === 1 && roomB.peerCount === 1);
+    await waitFor(() => roomA.getYProvider().synced && roomB.getYProvider().synced);
+
+    stateA.set({
+      version: 1,
+      strokes: [
+        {
+          id: 'stroke-a',
+          points: [
+            { x: 10, y: 20 },
+            { x: 20, y: 30 },
+          ],
+        },
+      ],
+    });
+    await waitFor(() => stateB.get().strokes.length === 1);
+
+    const lateRoom = createRoom('room-crdt-state-late-joiner', {
+      transport: 'broadcast',
+    });
+    const lateState = lateRoom.useState({
+      initialValue: initialCanvasState,
+      strategy: 'crdt',
+    });
+
+    await lateRoom.connect();
+    await waitFor(() => lateRoom.getYProvider().synced && lateState.get().strokes.length === 1);
+
+    expect(lateState.get().strokes).toEqual([
+      {
+        id: 'stroke-a',
+        points: [
+          { x: 10, y: 20 },
+          { x: 20, y: 30 },
+        ],
+      },
+    ]);
+
+    await lateRoom.disconnect();
+    await roomA.disconnect();
+    await roomB.disconnect();
+  });
+
   it('syncs Y.Text, Y.Array, Y.Map, and Y.XmlFragment changes across 3 peers and late joiners', async () => {
     const roomA = createRoom('room-crdt-doc', {
       transport: 'broadcast',
@@ -276,11 +345,7 @@ describe('Room CRDT/Yjs', () => {
     expect(Date.now() - lateJoinStartedAt).toBeLessThan(2_000);
 
     expect(lateDoc.getText('content').toJSON().split('').sort()).toEqual(['A', 'B', 'C']);
-    expect(lateDoc.getArray('items').toArray().slice().sort()).toEqual([
-      'alpha',
-      'beta',
-      'gamma',
-    ]);
+    expect(lateDoc.getArray('items').toArray().slice().sort()).toEqual(['alpha', 'beta', 'gamma']);
     expect(lateDoc.getMap('meta').toJSON()).toEqual({ a: 1, b: 2, c: 3 });
     expect(readXmlParagraphs(lateDoc.getXmlFragment('prosemirror'))).toEqual([
       '<paragraph>Alpha</paragraph>',

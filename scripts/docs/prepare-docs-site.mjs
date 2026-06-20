@@ -308,9 +308,7 @@ function extractDescription(markdown) {
     }
 
     descriptionParts.push(
-      trimmed
-        .replace(/<(https?:\/\/[^>]+)>/gu, '$1')
-        .replace(/\[([^\]]+)\]\(([^)]+)\)/gu, '$1'),
+      trimmed.replace(/<(https?:\/\/[^>]+)>/gu, '$1').replace(/\[([^\]]+)\]\(([^)]+)\)/gu, '$1'),
     );
     if (descriptionParts.join(' ').length > 160) {
       break;
@@ -321,40 +319,43 @@ function extractDescription(markdown) {
 }
 
 function rewriteMarkdownLinks(markdown, sourceRelativePath, targetRelativePath) {
-  return markdown.replace(/\[([^\]]+)\]\(([^)\s]+)([^)]*)\)/gu, (fullMatch, text, rawTarget, suffix) => {
-    if (
-      rawTarget.startsWith('#') ||
-      rawTarget.startsWith('http://') ||
-      rawTarget.startsWith('https://') ||
-      rawTarget.startsWith('mailto:')
-    ) {
-      return fullMatch;
-    }
+  return markdown.replace(
+    /\[([^\]]+)\]\(([^)\s]+)([^)]*)\)/gu,
+    (fullMatch, text, rawTarget, suffix) => {
+      if (
+        rawTarget.startsWith('#') ||
+        rawTarget.startsWith('http://') ||
+        rawTarget.startsWith('https://') ||
+        rawTarget.startsWith('mailto:')
+      ) {
+        return fullMatch;
+      }
 
-    const [targetPath, hash = ''] = rawTarget.split('#');
-    if (!targetPath || !/\.(md|mdx)$/u.test(targetPath)) {
-      return fullMatch;
-    }
+      const [targetPath, hash = ''] = rawTarget.split('#');
+      if (!targetPath || !/\.(md|mdx)$/u.test(targetPath)) {
+        return fullMatch;
+      }
 
-    const resolvedSourcePath = path.posix.normalize(
-      path.posix.join(path.posix.dirname(sourceRelativePath), targetPath),
-    );
-
-    if (resolvedSourcePath.startsWith('../')) {
-      const repoRelativePath = path.posix.normalize(
-        path.posix.join(path.posix.dirname(`docs/${sourceRelativePath}`), targetPath),
+      const resolvedSourcePath = path.posix.normalize(
+        path.posix.join(path.posix.dirname(sourceRelativePath), targetPath),
       );
-      const githubUrl = `${githubRepositoryUrl}/blob/main/${repoRelativePath}`;
-      return `[${text}](${githubUrl}${hash ? `#${hash}` : ''}${suffix})`;
-    }
 
-    const docsTargetPath = mapDocsSourceToTarget(resolvedSourcePath);
-    const routePath = toRoutePath(docsTargetPath);
-    const currentRoute = toRoutePath(targetRelativePath);
-    const relativeRoute = toPosixPath(path.posix.relative(currentRoute, routePath)) || './';
+      if (resolvedSourcePath.startsWith('../')) {
+        const repoRelativePath = path.posix.normalize(
+          path.posix.join(path.posix.dirname(`docs/${sourceRelativePath}`), targetPath),
+        );
+        const githubUrl = `${githubRepositoryUrl}/blob/main/${repoRelativePath}`;
+        return `[${text}](${githubUrl}${hash ? `#${hash}` : ''}${suffix})`;
+      }
 
-    return `[${text}](${relativeRoute}${hash ? `#${hash}` : ''}${suffix})`;
-  });
+      const docsTargetPath = mapDocsSourceToTarget(resolvedSourcePath);
+      const routePath = toRoutePath(docsTargetPath);
+      const currentRoute = toRoutePath(targetRelativePath);
+      const relativeRoute = toPosixPath(path.posix.relative(currentRoute, routePath)) || './';
+
+      return `[${text}](${relativeRoute}${hash ? `#${hash}` : ''}${suffix})`;
+    },
+  );
 }
 
 function mapDocsSourceToTarget(relativeSourcePath) {

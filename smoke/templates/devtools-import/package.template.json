@@ -1,0 +1,15 @@
+{
+  "name": "flockjs-smoke-devtools-import",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "validate": "tsc -p tsconfig.json && node dist/index.js"
+  },
+  "dependencies": {
+    "@flockjs/devtools": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.24",
+    "typescript": "^5.8.2"
+  }
+}

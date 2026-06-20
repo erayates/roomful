@@ -66,11 +66,7 @@ vi.mock('@flockjs/core', async () => {
   };
 });
 
-import type {
-  AwarenessStoreValue,
-  EventChannelValue,
-  PresenceStoreValue,
-} from './index';
+import type { AwarenessStoreValue, EventChannelValue, PresenceStoreValue } from './index';
 import { flock } from './index';
 
 type RoomEventPayload = RoomEventMap<PresenceData>[RoomEventName];
@@ -94,9 +90,7 @@ type TestCursorEngine = CursorEngine<CursorData> & {
   getPositions: ReturnType<typeof vi.fn<() => CursorPosition<CursorData>[]>>;
   mount: ReturnType<typeof vi.fn<(element: HTMLElement) => void>>;
   render: ReturnType<typeof vi.fn<() => void>>;
-  setPosition: ReturnType<
-    typeof vi.fn<(position: Partial<CursorPosition<CursorData>>) => void>
-  >;
+  setPosition: ReturnType<typeof vi.fn<(position: Partial<CursorPosition<CursorData>>) => void>>;
   subscriberCount(): number;
   subscribe: ReturnType<typeof vi.fn<(cb: CursorSubscriber) => () => void>>;
   unmount: ReturnType<typeof vi.fn<() => void>>;
@@ -106,9 +100,7 @@ type TestAwarenessEngine = AwarenessEngine & {
   emit(peers: AwarenessState[]): void;
   set: ReturnType<typeof vi.fn<(value: Record<string, unknown>) => void>>;
   setFocus: ReturnType<typeof vi.fn<(elementId: string | null) => void>>;
-  setSelection: ReturnType<
-    typeof vi.fn<(selection: AwarenessState['selection'] | null) => void>
-  >;
+  setSelection: ReturnType<typeof vi.fn<(selection: AwarenessState['selection'] | null) => void>>;
   setTyping: ReturnType<typeof vi.fn<(isTyping: boolean) => void>>;
   subscriberCount(): number;
   subscribe: ReturnType<typeof vi.fn<(cb: AwarenessSubscriber) => () => void>>;
@@ -135,7 +127,10 @@ type TestRoom = Room<PresenceData> & {
   connect: ReturnType<typeof vi.fn<() => Promise<void>>>;
   cursorEngine: TestCursorEngine;
   disconnect: ReturnType<typeof vi.fn<() => Promise<void>>>;
-  emit: <TEvent extends RoomEventName>(event: TEvent, payload: RoomEventMap<PresenceData>[TEvent]) => void;
+  emit: <TEvent extends RoomEventName>(
+    event: TEvent,
+    payload: RoomEventMap<PresenceData>[TEvent],
+  ) => void;
   eventEngine: TestEventEngine;
   listenerCount(event: RoomEventName): number;
   presenceEngine: TestPresenceEngine;
@@ -170,10 +165,7 @@ function createCursor(
   };
 }
 
-function createAwareness(
-  peerId: string,
-  overrides: Partial<AwarenessState> = {},
-): AwarenessState {
+function createAwareness(peerId: string, overrides: Partial<AwarenessState> = {}): AwarenessState {
   return {
     peerId,
     ...overrides,
@@ -339,9 +331,7 @@ function createMockAwarenessEngine(peers: AwarenessState[] = []): TestAwarenessE
   return engine;
 }
 
-function createMockCursorEngine(
-  positions: CursorPosition<CursorData>[] = [],
-): TestCursorEngine {
+function createMockCursorEngine(positions: CursorPosition<CursorData>[] = []): TestCursorEngine {
   const subscribers = new Set<CursorSubscriber>();
   let currentPositions = positions;
 
@@ -477,10 +467,7 @@ function createMockRoom(
     disconnect: vi.fn(async () => {
       currentStatus = 'disconnected';
     }),
-    emit<TEvent extends RoomEventName>(
-      event: TEvent,
-      payload: RoomEventMap<PresenceData>[TEvent],
-    ) {
+    emit<TEvent extends RoomEventName>(event: TEvent, payload: RoomEventMap<PresenceData>[TEvent]) {
       switch (event) {
         case 'connected':
           currentStatus = 'connected';
@@ -1096,12 +1083,9 @@ describe('flock', () => {
       });
     }).toThrow('already bound to key');
     expect(() => {
-      adapter.state.shared(
-        'counter',
-        {
-          count: 1,
-        },
-      );
+      adapter.state.shared('counter', {
+        count: 1,
+      });
     }).toThrow('different initialValue');
 
     unsubscribe();
@@ -1199,7 +1183,11 @@ describe('flock', () => {
     expectTypeOf(get(adapter.cursors)[0]?.tool).toEqualTypeOf<'pen' | 'eraser' | undefined>();
     expectTypeOf(votes).toMatchTypeOf<Writable<{ no: number; yes: number }>>();
     expectTypeOf(setVotes).toEqualTypeOf<
-      (nextValue: { no: number; yes: number } | ((current: { no: number; yes: number }) => { no: number; yes: number })) => void
+      (
+        nextValue:
+          | { no: number; yes: number }
+          | ((current: { no: number; yes: number }) => { no: number; yes: number }),
+      ) => void
     >();
     expectTypeOf(get(reaction)?.payload.emoji).toEqualTypeOf<string | undefined>();
     expectTypeOf(adapter.cursors.mount).toEqualTypeOf<Action<HTMLElement, undefined>>();

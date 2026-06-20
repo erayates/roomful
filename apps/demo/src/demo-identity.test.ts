@@ -38,11 +38,11 @@ describe('demo-identity', () => {
   });
 
   it('updates the name without changing the color', () => {
-    expect(updateIdentityName({ color: '#ff6b35', name: 'Bright Canary 10' }, '  Nora Signal ')).toEqual(
-      {
-        color: '#ff6b35',
-        name: 'Nora Signal',
-      },
-    );
+    expect(
+      updateIdentityName({ color: '#ff6b35', name: 'Bright Canary 10' }, '  Nora Signal '),
+    ).toEqual({
+      color: '#ff6b35',
+      name: 'Nora Signal',
+    });
   });
 });

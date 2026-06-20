@@ -1,4 +1,4 @@
-import { DEVTOOLS_BRIDGE_VERSION } from './constants';
+import { DEVTOOLS_BRIDGE_VERSION } from './constants.js';
 import type {
   DevtoolsEventLogEntry,
   DevtoolsPeerSnapshot,
@@ -12,7 +12,7 @@ import type {
   DevtoolsStateSnapshot,
   DevtoolsStateStrategy,
   DevtoolsTransportKind,
-} from './types';
+} from './types.js';
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;

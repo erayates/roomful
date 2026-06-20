@@ -84,9 +84,7 @@ type TestCursorEngine = CursorEngine<CursorData> & {
   mount: ReturnType<typeof vi.fn<(element: HTMLElement) => void>>;
   unmount: ReturnType<typeof vi.fn<() => void>>;
   getPositions: ReturnType<typeof vi.fn<() => CursorPosition<CursorData>[]>>;
-  setPosition: ReturnType<
-    typeof vi.fn<(position: Partial<CursorPosition<CursorData>>) => void>
-  >;
+  setPosition: ReturnType<typeof vi.fn<(position: Partial<CursorPosition<CursorData>>) => void>>;
 };
 
 type TestAwarenessEngine = AwarenessEngine & {
@@ -95,9 +93,7 @@ type TestAwarenessEngine = AwarenessEngine & {
   subscribe: ReturnType<typeof vi.fn<(cb: AwarenessSubscriber) => () => void>>;
   set: ReturnType<typeof vi.fn<(value: Record<string, unknown>) => void>>;
   setFocus: ReturnType<typeof vi.fn<(elementId: string | null) => void>>;
-  setSelection: ReturnType<
-    typeof vi.fn<(selection: AwarenessState['selection'] | null) => void>
-  >;
+  setSelection: ReturnType<typeof vi.fn<(selection: AwarenessState['selection'] | null) => void>>;
   setTyping: ReturnType<typeof vi.fn<(isTyping: boolean) => void>>;
 };
 
@@ -162,10 +158,7 @@ function createCursor(
   };
 }
 
-function createAwareness(
-  peerId: string,
-  overrides: Partial<AwarenessState> = {},
-): AwarenessState {
+function createAwareness(peerId: string, overrides: Partial<AwarenessState> = {}): AwarenessState {
   return {
     peerId,
     ...overrides,
@@ -221,9 +214,7 @@ function createMockPresenceEngine(
   return engine;
 }
 
-function createMockAwarenessEngine(
-  peers: AwarenessState[] = [],
-): TestAwarenessEngine {
+function createMockAwarenessEngine(peers: AwarenessState[] = []): TestAwarenessEngine {
   const subscribers = new Set<AwarenessSubscriber>();
   let currentPeers = peers;
 
@@ -257,9 +248,7 @@ function createMockAwarenessEngine(
   return engine;
 }
 
-function createMockCursorEngine(
-  positions: CursorPosition<CursorData>[] = [],
-): TestCursorEngine {
+function createMockCursorEngine(positions: CursorPosition<CursorData>[] = []): TestCursorEngine {
   const subscribers = new Set<CursorSubscriber>();
   let currentPositions = positions;
 
@@ -1657,7 +1646,10 @@ describe('useEvent', () => {
     let useUpdatedHandler = false;
 
     function EventConsumer(): null {
-      const emitMessage = useEvent<{ text: string }>('message', useUpdatedHandler ? secondHandler : firstHandler);
+      const emitMessage = useEvent<{ text: string }>(
+        'message',
+        useUpdatedHandler ? secondHandler : firstHandler,
+      );
       emitters.push(emitMessage);
       return null;
     }
@@ -2148,14 +2140,12 @@ describe('useSharedState', () => {
         stateEngine,
       },
     );
-    let observedValue:
-      | {
-          count: number;
-          nested: {
-            enabled: boolean;
-          };
-        }
-      | null = null;
+    let observedValue: {
+      count: number;
+      nested: {
+        enabled: boolean;
+      };
+    } | null = null;
     let observedSetValue: Dispatch<
       SetStateAction<{
         count: number;
@@ -2164,8 +2154,9 @@ describe('useSharedState', () => {
         };
       }>
     > | null = null;
-    const setterReferences: Array<Dispatch<SetStateAction<{ count: number; nested: { enabled: boolean } }>>> =
-      [];
+    const setterReferences: Array<
+      Dispatch<SetStateAction<{ count: number; nested: { enabled: boolean } }>>
+    > = [];
 
     function SharedStateConsumer(): null {
       const [value, setValue] = useSharedState('shared-count', {

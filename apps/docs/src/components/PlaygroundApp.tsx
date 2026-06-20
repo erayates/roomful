@@ -57,12 +57,7 @@ function getRuntimeWindow(): Window | null {
 }
 
 function isTransportMode(value: string): value is TransportMode {
-  return (
-    value === 'auto' ||
-    value === 'broadcast' ||
-    value === 'webrtc' ||
-    value === 'websocket'
-  );
+  return value === 'auto' || value === 'broadcast' || value === 'webrtc' || value === 'websocket';
 }
 
 function appendLog(entries: LogEntry[], message: string): LogEntry[] {

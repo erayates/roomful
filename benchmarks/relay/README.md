@@ -8,6 +8,12 @@ This suite runs reproducible relay load tests with `k6` and writes artifacts int
 - `pnpm --filter @flockjs/relay build`
 - Redis available for Redis-backed scenarios
 
+If `k6` is not on `PATH`, set an explicit binary path for local validation:
+
+```bash
+K6_BIN=/absolute/path/to/k6 pnpm --filter @flockjs/relay benchmark:load:steady
+```
+
 ## Scenarios
 
 - `steady-100`: 100 concurrent peers in one room on a single relay, with a `<50ms` median message-latency target

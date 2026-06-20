@@ -70,9 +70,7 @@ export function resolvePeerDisplayName<TPresence extends PresenceData>(
   return name === '' ? peer.id : name;
 }
 
-export function resolvePeerInitials<TPresence extends PresenceData>(
-  peer: Peer<TPresence>,
-): string {
+export function resolvePeerInitials<TPresence extends PresenceData>(peer: Peer<TPresence>): string {
   const displayName = resolvePeerDisplayName(peer);
   const words = displayName
     .split(/\s+/)
@@ -105,9 +103,7 @@ export function resolvePeerAvatar<TPresence extends PresenceData>(
   return value === '' ? null : value;
 }
 
-export function resolvePeerColor<TPresence extends PresenceData>(
-  peer: Peer<TPresence>,
-): string {
+export function resolvePeerColor<TPresence extends PresenceData>(peer: Peer<TPresence>): string {
   if (typeof peer.color === 'string' && peer.color.trim() !== '') {
     return peer.color;
   }

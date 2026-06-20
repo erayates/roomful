@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FlockJS Multiplayer Game Example</title>
+  </head>
+  <body>
+    <main class="example-shell">
+      <section class="example-panel">
+        <p class="eyebrow">Multiplayer game</p>
+        <h1>Move a shared player marker around the board.</h1>
+        <div class="controls">
+          <label>
+            Room ID
+            <input id="room-id" value="multiplayer-game-room" />
+          </label>
+          <label>
+            Name
+            <input id="name" value="Player" />
+          </label>
+          <label>
+            Color
+            <input id="color" type="color" value="#d35400" />
+          </label>
+          <button id="connect" type="button">Connect</button>
+          <button id="disconnect" type="button">Disconnect</button>
+        </div>
+        <p id="status" class="status">idle</p>
+      </section>
+
+      <section id="board" class="board" aria-label="Shared game board"></section>
+
+      <section class="example-panel controls-panel">
+        <button id="up" type="button">Up</button>
+        <button id="left" type="button">Left</button>
+        <button id="right" type="button">Right</button>
+        <button id="down" type="button">Down</button>
+      </section>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

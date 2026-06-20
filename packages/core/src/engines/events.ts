@@ -11,10 +11,7 @@ interface EventEngineContext<TPresence extends PresenceData> {
     toPeerId: string | undefined,
     loopback: boolean,
   ): void;
-  onEvent<TPayload>(
-    name: string,
-    cb: EventCallback<TPresence, TPayload>,
-  ): Unsubscribe;
+  onEvent<TPayload>(name: string, cb: EventCallback<TPresence, TPayload>): Unsubscribe;
   offEvent<TPayload>(name: string, cb: EventCallback<TPresence, TPayload>): void;
 }
 

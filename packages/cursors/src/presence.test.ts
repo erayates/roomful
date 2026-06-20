@@ -52,9 +52,7 @@ function createPeer(id: string, overrides: Partial<Peer<PresenceData>> = {}): Pe
   };
 }
 
-function renderPresenceBar(
-  props: Partial<PresenceBarProps> = {},
-): ReturnType<typeof render> {
+function renderPresenceBar(props: Partial<PresenceBarProps> = {}): ReturnType<typeof render> {
   return render(
     createElement(PresenceBar, {
       ...props,
@@ -170,9 +168,7 @@ describe('PresenceBar', () => {
   it('animates peers entering and leaving', async () => {
     vi.useFakeTimers();
 
-    setPeers([
-      createPeer('self', { name: 'Ada Lovelace' }),
-    ]);
+    setPeers([createPeer('self', { name: 'Ada Lovelace' })]);
 
     const { container, rerender } = renderPresenceBar({
       onUserClick: vi.fn(),
@@ -190,9 +186,9 @@ describe('PresenceBar', () => {
     );
 
     expect(
-      container.querySelector('[data-flockjs-presence-peer="peer-b"]')?.getAttribute(
-        'data-flockjs-presence-phase',
-      ),
+      container
+        .querySelector('[data-flockjs-presence-peer="peer-b"]')
+        ?.getAttribute('data-flockjs-presence-phase'),
     ).toBe('entering');
 
     await act(async () => {
@@ -200,14 +196,12 @@ describe('PresenceBar', () => {
     });
 
     expect(
-      container.querySelector('[data-flockjs-presence-peer="peer-b"]')?.getAttribute(
-        'data-flockjs-presence-phase',
-      ),
+      container
+        .querySelector('[data-flockjs-presence-peer="peer-b"]')
+        ?.getAttribute('data-flockjs-presence-phase'),
     ).toBe('entered');
 
-    setPeers([
-      createPeer('self', { name: 'Ada Lovelace' }),
-    ]);
+    setPeers([createPeer('self', { name: 'Ada Lovelace' })]);
 
     rerender(
       createElement(PresenceBar, {
@@ -216,9 +210,9 @@ describe('PresenceBar', () => {
     );
 
     expect(
-      container.querySelector('[data-flockjs-presence-peer="peer-b"]')?.getAttribute(
-        'data-flockjs-presence-phase',
-      ),
+      container
+        .querySelector('[data-flockjs-presence-peer="peer-b"]')
+        ?.getAttribute('data-flockjs-presence-phase'),
     ).toBe('exiting');
 
     await act(async () => {

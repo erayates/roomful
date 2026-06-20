@@ -33,7 +33,7 @@ function ensureContainer(id) {
 
 function readTextContent(testId) {
   const node = document.querySelector(`[data-testid="${testId}"]`);
-  return node instanceof HTMLElement ? node.textContent ?? '' : '';
+  return node instanceof HTMLElement ? (node.textContent ?? '') : '';
 }
 
 function getCursorLabels(appId) {
@@ -80,7 +80,11 @@ function AppContents({ appId }) {
       'data-testid': `app-${appId}`,
     },
     createElement('span', { 'data-testid': `status-${appId}` }, status),
-    createElement('span', { 'data-testid': `peer-count-${appId}` }, String(peerState.others.length)),
+    createElement(
+      'span',
+      { 'data-testid': `peer-count-${appId}` },
+      String(peerState.others.length),
+    ),
     createElement(
       'span',
       { 'data-testid': `peers-${appId}` },
@@ -91,7 +95,11 @@ function AppContents({ appId }) {
         .join(','),
     ),
     createElement('span', { 'data-testid': `shared-count-${appId}` }, String(sharedValue.count)),
-    createElement('span', { 'data-testid': `render-count-${appId}` }, String(renderCountRef.current)),
+    createElement(
+      'span',
+      { 'data-testid': `render-count-${appId}` },
+      String(renderCountRef.current),
+    ),
     createElement(
       'button',
       {

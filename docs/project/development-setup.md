@@ -30,6 +30,7 @@ pnpm typecheck
 pnpm typecheck:root
 pnpm typecheck:all
 pnpm verify:package-types
+pnpm smoke:publish
 pnpm changeset
 pnpm version-packages
 pnpm release:status
@@ -90,12 +91,15 @@ FLOCK_REDIS_URL=redis://127.0.0.1:6379/0 pnpm --filter @flockjs/relay start
 - PR workflow: `.github/workflows/ci.yml`
 - Release workflow: `.github/workflows/release.yml`
 - PR validation matrix: Node `18`, `20`
-- Validation order: install -> lint -> typecheck -> test -> build -> test:types -> verify:package-types
+- Validation order: install -> lint -> format -> typecheck -> test -> docs snippets -> build -> test:types -> verify:package-types -> publish smoke
 - Release trigger: push tag matching `v*`
+- Release output: npm packages, relay Docker image, and generated GitHub Release
 
 Required GitHub secrets for release:
 
 - `NPM_TOKEN` (required)
+- `DOCKERHUB_USERNAME` (required)
+- `DOCKERHUB_TOKEN` (required)
 - `TURBO_TEAM` (optional, for remote cache)
 - `TURBO_TOKEN` (optional, for remote cache)
 
@@ -116,7 +120,8 @@ Use `--no-verify` only for emergency situations.
 - If coverage output is missing, confirm tests are under `packages/*/src/**/*.test.ts` and rerun `pnpm test`.
 - If declaration-only tests fail, rebuild workspace packages before rerunning `pnpm test:types`.
 - If packaged declaration verification fails, run `pnpm build` and then `pnpm verify:package-types` to inspect the reported package.
-- If releases fail before publish, confirm `NPM_TOKEN` is configured in repository secrets.
+- If packed consumer smoke tests fail, run `pnpm build` and then `pnpm smoke:publish` to reproduce the install/build failure in `.smoke/workdirs`.
+- If releases fail before publish, confirm `NPM_TOKEN`, `DOCKERHUB_USERNAME`, and `DOCKERHUB_TOKEN` are configured in repository secrets.
 - If WebRTC peers do not connect, verify `relayUrl` points to a reachable `@flockjs/relay` instance and check browser console ICE errors.
 - Same-origin BroadcastChannel fallback only occurs during the initial WebRTC connect attempt when signaling is unavailable.
 
@@ -128,4 +133,5 @@ Use `--no-verify` only for emergency situations.
 - [WebRTC validation checklist](webrtc-validation.md)
 - [Labeling and triage](labeling-and-triage.md)
 - [Release process](release-process.md)
+- [Publish readiness roadmap](publish-readiness-roadmap.md)
 - [Docs index](../README.md)

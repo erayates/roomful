@@ -229,13 +229,19 @@ async function buildBrowserArtifacts(version) {
     await copyPackagedDist(distDirectory, targetDirectory);
 
     const manifest = createExtensionManifest(browser, version);
-    await writeFile(path.join(targetDirectory, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
+    await writeFile(
+      path.join(targetDirectory, 'manifest.json'),
+      `${JSON.stringify(manifest, null, 2)}\n`,
+    );
 
     const temporaryArchiveFileName = `flockjs-devtools-${browser}.zip`;
     const temporaryArchivePath = path.join(targetDirectory, temporaryArchiveFileName);
     const archivePath = path.join(browserArtifactsDirectory, `flockjs-devtools-${browser}.zip`);
     await rm(temporaryArchivePath, { force: true, recursive: false });
-    if (!(await fileExists(targetDirectory)) || !zipDirectory(targetDirectory, temporaryArchiveFileName)) {
+    if (
+      !(await fileExists(targetDirectory)) ||
+      !zipDirectory(targetDirectory, temporaryArchiveFileName)
+    ) {
       console.error(`Failed to package the ${browser} DevTools artifact.`);
       process.exitCode = 1;
       continue;

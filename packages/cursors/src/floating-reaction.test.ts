@@ -39,9 +39,7 @@ describe('FloatingReaction', () => {
     expect(element).not.toBeNull();
     expect((element as HTMLElement).style.left).toBe('25%');
     expect((element as HTMLElement).style.top).toBe('75%');
-    expect((element as HTMLElement).style.animation).toContain(
-      'flockjs-floating-reaction-float',
-    );
+    expect((element as HTMLElement).style.animation).toContain('flockjs-floating-reaction-float');
     expect((element as HTMLElement).style.pointerEvents).toBe('none');
     expect((element as HTMLElement).style.animationDelay).toBe('0ms');
     expect(element?.textContent).toBe('F');

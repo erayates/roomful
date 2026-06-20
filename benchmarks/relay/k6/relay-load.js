@@ -148,10 +148,10 @@ function createThresholds() {
 export const options = {
   scenarios: {
     relay: {
-      executor: 'constant-vus',
-      gracefulStop: '15s',
+      executor: 'per-vu-iterations',
+      iterations: 1,
+      maxDuration: `${parseDurationToMilliseconds(duration) + 15_000}ms`,
       vus,
-      duration,
     },
   },
   summaryTrendStats: ['avg', 'med', 'p(90)', 'p(95)', 'max'],

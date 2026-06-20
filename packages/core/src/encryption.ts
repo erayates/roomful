@@ -154,15 +154,10 @@ export async function resolveRoomEncryption(
   }
 
   if (options.passphrase.length === 0) {
-    throw createFlockError(
-      'ENCRYPTION_ERROR',
-      'Encryption passphrase must not be empty.',
-      false,
-      {
-        source: 'room-encryption',
-        kind: 'empty-passphrase',
-      },
-    );
+    throw createFlockError('ENCRYPTION_ERROR', 'Encryption passphrase must not be empty.', false, {
+      source: 'room-encryption',
+      kind: 'empty-passphrase',
+    });
   }
 
   const passphraseKey = await webCrypto.subtle.importKey(

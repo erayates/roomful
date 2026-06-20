@@ -48,7 +48,8 @@ class TrackingBroadcastChannel {
   private closed = false;
 
   public constructor(public readonly name: string) {
-    const channels = TrackingBroadcastChannel.channels.get(name) ?? new Set<TrackingBroadcastChannel>();
+    const channels =
+      TrackingBroadcastChannel.channels.get(name) ?? new Set<TrackingBroadcastChannel>();
     channels.add(this);
     TrackingBroadcastChannel.channels.set(name, channels);
   }
