@@ -27,7 +27,7 @@ async function getVisibleVersionSelect(page: Page, testInfo: TestInfo) {
     return page.locator('.mobile-preferences [data-version-switcher]').first();
   }
 
-  return page.locator('.flock-toolbar-controls [data-version-switcher]').first();
+  return page.locator('.cahoots-toolbar-controls [data-version-switcher]').first();
 }
 
 test('docs home exposes navigation, search, theme, and version controls', async ({
@@ -47,7 +47,7 @@ test('docs home exposes navigation, search, theme, and version controls', async 
   await expect(page.locator('starlight-theme-select select:visible').first()).toBeVisible();
   await closeMobileMenuIfNeeded(page, testInfo);
 
-  await page.getByRole('link', { name: 'Install FlockJS' }).click();
+  await page.getByRole('link', { name: 'Install Cahoots' }).click();
   await expect(page).toHaveURL(/\/getting-started\/installation\/$/);
   await expect(page.getByRole('heading', { level: 1, name: /Installation/i })).toBeVisible();
 });
@@ -82,7 +82,7 @@ test('playground and api reference pages render', async ({ page }) => {
   await page.goto('/api/');
   await expect(page.getByRole('heading', { level: 1, name: /API Reference/i })).toBeVisible();
   await expect(
-    page.getByRole('main').getByRole('link', { name: '@flockjs/core', exact: true }),
+    page.getByRole('main').getByRole('link', { name: '@cahoots/core', exact: true }),
   ).toBeVisible();
 });
 

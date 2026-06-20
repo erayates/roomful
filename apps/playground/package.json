@@ -1,5 +1,5 @@
 {
-  "name": "@flockjs/app-playground",
+  "name": "@cahoots/app-playground",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -13,7 +13,7 @@
     "clean": "rimraf dist coverage"
   },
   "dependencies": {
-    "@flockjs/core": "workspace:*"
+    "@cahoots/core": "workspace:*"
   },
   "devDependencies": {
     "vite": "^7.3.1"

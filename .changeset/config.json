@@ -8,12 +8,12 @@
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
   "ignore": [
-    "@flockjs/app-demo",
-    "@flockjs/app-docs",
-    "@flockjs/app-playground",
-    "@flockjs/example-collaborative-editor",
-    "@flockjs/example-live-dashboard",
-    "@flockjs/example-multiplayer-game",
-    "@flockjs/example-shared-canvas"
+    "@cahoots/app-demo",
+    "@cahoots/app-docs",
+    "@cahoots/app-playground",
+    "@cahoots/example-collaborative-editor",
+    "@cahoots/example-live-dashboard",
+    "@cahoots/example-multiplayer-game",
+    "@cahoots/example-shared-canvas"
   ]
 }

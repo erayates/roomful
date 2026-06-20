@@ -1,8 +1,8 @@
-# UI Components (`@flockjs/cursors`)
+# UI Components (`@cahoots/cursors`)
 
 Audience: users.
 
-Storybook: <https://erayates.github.io/flockjs/storybook/>
+Storybook: <https://erayates.github.io/cahoots/storybook/>
 
 ## Component Catalog
 
@@ -20,12 +20,12 @@ Storybook: <https://erayates.github.io/flockjs/storybook/>
 ## Example: `PresenceBar`
 
 ```tsx
-import { PresenceBar } from '@flockjs/cursors';
-import { FlockProvider } from '@flockjs/react';
+import { PresenceBar } from '@cahoots/cursors';
+import { CahootsProvider } from '@cahoots/react';
 
 export function HeaderPresence() {
   return (
-    <FlockProvider
+    <CahootsProvider
       roomId="presence-demo"
       presence={{ avatar: '/avatars/ada.png', color: '#4F46E5', name: 'Ada Lovelace' }}
       transport="broadcast"
@@ -36,7 +36,7 @@ export function HeaderPresence() {
         size="md"
         onUserClick={(user) => console.log(user.id)}
       />
-    </FlockProvider>
+    </CahootsProvider>
   );
 }
 ```
@@ -55,14 +55,14 @@ export function HeaderPresence() {
 ## Example: `PresenceAvatars`
 
 ```tsx
-import { PresenceAvatars } from '@flockjs/cursors';
-import { FlockProvider } from '@flockjs/react';
+import { PresenceAvatars } from '@cahoots/cursors';
+import { CahootsProvider } from '@cahoots/react';
 
 export function CompactPresence() {
   return (
-    <FlockProvider roomId="presence-demo" presence={{ color: '#0F766E', name: 'Grace Hopper' }}>
+    <CahootsProvider roomId="presence-demo" presence={{ color: '#0F766E', name: 'Grace Hopper' }}>
       <PresenceAvatars maxVisible={3} onUserClick={(user) => console.log(user.name)} />
-    </FlockProvider>
+    </CahootsProvider>
   );
 }
 ```
@@ -80,7 +80,7 @@ export function CompactPresence() {
 ## Example: `TypingIndicator`
 
 ```tsx
-import { TypingIndicator } from '@flockjs/cursors';
+import { TypingIndicator } from '@cahoots/cursors';
 
 export function ComposerFooter({ peers }) {
   return <TypingIndicator peers={peers} ariaLabel="Users currently typing" />;
@@ -99,7 +99,7 @@ export function ComposerFooter({ peers }) {
 ## Example: `LiveIndicator`
 
 ```tsx
-import { LiveIndicator } from '@flockjs/cursors';
+import { LiveIndicator } from '@cahoots/cursors';
 
 export function LivePresenceBadge() {
   return <LiveIndicator color="#f97316" size={12} ariaLabel="Live editing hotspot" />;
@@ -119,7 +119,7 @@ export function LivePresenceBadge() {
 ## Example: `CollaborationBadge`
 
 ```tsx
-import { CollaborationBadge } from '@flockjs/cursors';
+import { CollaborationBadge } from '@cahoots/cursors';
 
 export function FieldBadge({ peer }) {
   return (
@@ -143,7 +143,7 @@ export function FieldBadge({ peer }) {
 ## Example: `PeerCursor`
 
 ```tsx
-import { PeerCursor } from '@flockjs/cursors';
+import { PeerCursor } from '@cahoots/cursors';
 
 {
   cursors.map((cursor) => (
@@ -176,7 +176,7 @@ import { PeerCursor } from '@flockjs/cursors';
 ## Example: `SelectionHighlight`
 
 ```tsx
-import { SelectionHighlight } from '@flockjs/cursors';
+import { SelectionHighlight } from '@cahoots/cursors';
 
 export function RemoteSelection({ peer }) {
   return (
@@ -200,7 +200,7 @@ export function RemoteSelection({ peer }) {
 ## Example: `FloatingReaction`
 
 ```tsx
-import { FloatingReaction } from '@flockjs/cursors';
+import { FloatingReaction } from '@cahoots/cursors';
 
 export function ReactionBurst() {
   return (

@@ -10,8 +10,8 @@ export default defineConfig({
   root: fixtureDir,
   resolve: {
     alias: {
-      '@flockjs/core': path.resolve(repoRoot, 'packages/core/src/index.ts'),
-      '@flockjs/react-local': path.resolve(repoRoot, 'packages/react/src/index.ts'),
+      '@cahoots/core': path.resolve(repoRoot, 'packages/core/src/index.ts'),
+      '@cahoots/react-local': path.resolve(repoRoot, 'packages/react/src/index.ts'),
     },
   },
   server: {

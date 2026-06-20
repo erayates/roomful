@@ -252,7 +252,7 @@ function createTransportFrame(message: {
   return {
     type: 'transport',
     message: {
-      source: 'flockjs',
+      source: 'cahoots',
       protocolVersion: 2,
       codec: 'json',
       roomId: message.roomId,
@@ -582,7 +582,7 @@ describe(
       expect(targetedAtB).toMatchObject({
         type: 'transport',
         message: {
-          source: 'flockjs',
+          source: 'cahoots',
           version: 1,
           signal: {
             type: 'event',
@@ -642,7 +642,7 @@ describe(
       expect(broadcastAtB).toMatchObject({
         type: 'transport',
         message: {
-          source: 'flockjs',
+          source: 'cahoots',
           version: 1,
           signal: {
             type: 'hello',
@@ -654,7 +654,7 @@ describe(
       expect(broadcastAtC).toMatchObject({
         type: 'transport',
         message: {
-          source: 'flockjs',
+          source: 'cahoots',
           version: 1,
           signal: {
             type: 'hello',
@@ -715,7 +715,7 @@ describe(
       expect(targetedAtB).toMatchObject({
         type: 'transport',
         message: {
-          source: 'flockjs',
+          source: 'cahoots',
           version: 1,
           signal: {
             type: 'encrypted',
@@ -1704,7 +1704,7 @@ describe(
         encode({
           type: 'transport',
           message: {
-            source: 'flockjs',
+            source: 'cahoots',
             protocolVersion: 2,
             codec: 'msgpack',
             roomId: 'room-msgpack-forward',
@@ -1742,7 +1742,7 @@ describe(
       expect(JSON.parse(toUtf8(receivedAtC.data))).toMatchObject({
         type: 'transport',
         message: {
-          source: 'flockjs',
+          source: 'cahoots',
           version: 1,
           signal: {
             type: 'event',

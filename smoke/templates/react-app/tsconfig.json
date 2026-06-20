@@ -7,13 +7,13 @@
     "baseUrl": ".",
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "paths": {
-      "@flockjs/core": [
+      "@cahoots/core": [
         "../../../packages/core/dist/index.d.ts",
-        "./node_modules/@flockjs/core/dist/index.d.ts"
+        "./node_modules/@cahoots/core/dist/index.d.ts"
       ],
-      "@flockjs/react": [
+      "@cahoots/react": [
         "../../../packages/react/dist/index.d.ts",
-        "./node_modules/@flockjs/react/dist/index.d.ts"
+        "./node_modules/@cahoots/react/dist/index.d.ts"
       ]
     },
     "strict": true,

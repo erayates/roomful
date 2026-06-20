@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { createFlockError } from '../flock-error';
+import { createCahootsError } from '../cahoots-error';
 import type { TransportAdapter, TransportSignal } from './transport';
 import { createWebRTCFallbackTransportAdapter } from './webrtc-fallback';
 
@@ -74,7 +74,7 @@ function createSignalingError(
     | 'server-rejected',
   serverCode?: string,
 ): Error {
-  return createFlockError('NETWORK_ERROR', `signaling-${kind}`, false, {
+  return createCahootsError('NETWORK_ERROR', `signaling-${kind}`, false, {
     source: 'webrtc-signaling',
     kind,
     ...(serverCode === undefined ? {} : { serverCode }),

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import type { Peer, PresenceData } from '@flockjs/core';
+import type { Peer, PresenceData } from '@cahoots/core';
 import { cleanup, render } from '@testing-library/react';
 import { createElement } from 'react';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -45,12 +45,12 @@ describe('CollaborationBadge', () => {
       ),
     );
 
-    const badge = container.querySelector('[data-flockjs-collaboration-badge="true"]');
+    const badge = container.querySelector('[data-cahoots-collaboration-badge="true"]');
 
     expect(badge).not.toBeNull();
     expect(badge?.getAttribute('aria-label')).toBe('Bob Stone is editing');
-    expect(badge?.getAttribute('data-flockjs-collaboration-badge-peer')).toBe('peer-b');
-    expect(badge?.getAttribute('data-flockjs-collaboration-badge-color')).toBe('#2244cc');
+    expect(badge?.getAttribute('data-cahoots-collaboration-badge-peer')).toBe('peer-b');
+    expect(badge?.getAttribute('data-cahoots-collaboration-badge-color')).toBe('#2244cc');
     expect((badge as HTMLElement).style.position).toBe('absolute');
     expect((badge as HTMLElement).style.top).toBe('12px');
     expect((badge as HTMLElement).style.left).toBe('24px');
@@ -75,7 +75,7 @@ describe('CollaborationBadge', () => {
       ),
     );
 
-    const badge = container.querySelector('[data-flockjs-collaboration-badge="true"]');
+    const badge = container.querySelector('[data-cahoots-collaboration-badge="true"]');
 
     expect((badge as HTMLElement).style.top).toBe('0px');
     expect((badge as HTMLElement).style.right).toBe('0px');
@@ -83,6 +83,6 @@ describe('CollaborationBadge', () => {
 
     unmount();
 
-    expect(container.querySelector('[data-flockjs-collaboration-badge="true"]')).toBeNull();
+    expect(container.querySelector('[data-cahoots-collaboration-badge="true"]')).toBeNull();
   });
 });

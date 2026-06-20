@@ -11,7 +11,7 @@ import type {
 } from './relay-coordinator.js';
 import { isRelayJoinProtocol } from './relay-protocol-guards.js';
 
-const REDIS_NAMESPACE = 'flock:relay:v1';
+const REDIS_NAMESPACE = 'cahoots:relay:v1';
 
 const JOIN_ROOM_SCRIPT = `
 local peersKey = KEYS[1]

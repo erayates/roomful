@@ -1,5 +1,5 @@
 {
-  "name": "@flockjs/svelte",
+  "name": "@cahoots/svelte",
   "version": "1.0.0",
   "private": false,
   "type": "module",
@@ -30,7 +30,7 @@
     "test:watch": "vitest --config ../../vitest.package.config.ts"
   },
   "dependencies": {
-    "@flockjs/core": "workspace:*"
+    "@cahoots/core": "workspace:*"
   },
   "devDependencies": {
     "jsdom": "^26.1.0",

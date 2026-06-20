@@ -150,7 +150,7 @@ describe('BroadcastTransportAdapter', () => {
     const outbound = MockBroadcastChannel.getLastPostedPayload();
     expect(typeof outbound).toBe('string');
     expect(JSON.parse(outbound as string)).toEqual({
-      source: 'flockjs',
+      source: 'cahoots',
       version: 1,
       signal: {
         type: 'hello',
@@ -195,9 +195,9 @@ describe('BroadcastTransportAdapter', () => {
       },
     };
     MockBroadcastChannel.emitRaw(
-      'flockjs:room-deserialize',
+      'cahoots:room-deserialize',
       JSON.stringify({
-        source: 'flockjs',
+        source: 'cahoots',
         protocolVersion: 2,
         codec: 'json',
         roomId: signal.roomId,
@@ -221,7 +221,7 @@ describe('BroadcastTransportAdapter', () => {
     adapter.onMessage(onMessage);
     await adapter.connect();
 
-    MockBroadcastChannel.emitRaw('flockjs:room-invalid-json', '{"source":"flockjs",');
+    MockBroadcastChannel.emitRaw('cahoots:room-invalid-json', '{"source":"cahoots",');
     await Promise.resolve();
 
     expect(onMessage).not.toHaveBeenCalled();
@@ -235,9 +235,9 @@ describe('BroadcastTransportAdapter', () => {
     await adapter.connect();
 
     MockBroadcastChannel.emitRaw(
-      'flockjs:room-invalid-shape',
+      'cahoots:room-invalid-shape',
       JSON.stringify({
-        source: 'flockjs',
+        source: 'cahoots',
         version: 1,
         signal: {
           roomId: 'room-invalid-shape',
@@ -260,16 +260,16 @@ describe('BroadcastTransportAdapter', () => {
 
     await adapter.connect();
 
-    MockBroadcastChannel.emitRaw('flockjs:room-invalid-log', '{"source":"flockjs",');
+    MockBroadcastChannel.emitRaw('cahoots:room-invalid-log', '{"source":"cahoots",');
     await Promise.resolve();
 
     expect(warnSpy).toHaveBeenCalledWith(
-      '[FlockJS] transport:protocol: Malformed protocol frame rejected',
+      '[Cahoots] transport:protocol: Malformed protocol frame rejected',
       expect.objectContaining({
         category: 'transport',
         component: 'transport:protocol',
         message: 'Malformed protocol frame rejected',
-        payload: '{"source":"flockjs",',
+        payload: '{"source":"cahoots",',
         reason: 'Malformed peer transport message.',
         roomId: 'room-invalid-log',
         timestamp: expect.any(Number),
@@ -285,10 +285,10 @@ describe('BroadcastTransportAdapter', () => {
 
     await adapter.connect();
     await adapter.connect();
-    expect(MockBroadcastChannel.getChannelCount('flockjs:room-idempotent')).toBe(1);
+    expect(MockBroadcastChannel.getChannelCount('cahoots:room-idempotent')).toBe(1);
 
     await adapter.disconnect();
     await adapter.disconnect();
-    expect(MockBroadcastChannel.getChannelCount('flockjs:room-idempotent')).toBe(0);
+    expect(MockBroadcastChannel.getChannelCount('cahoots:room-idempotent')).toBe(0);
   });
 });

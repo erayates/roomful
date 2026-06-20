@@ -1,15 +1,15 @@
-# React Adapter (`@flockjs/react`)
+# React Adapter (`@cahoots/react`)
 
 Audience: users.
 
 ## Provider
 
 ```tsx
-import { FlockProvider } from '@flockjs/react';
+import { CahootsProvider } from '@cahoots/react';
 
 function App() {
   return (
-    <FlockProvider
+    <CahootsProvider
       roomId="my-room"
       transport="auto"
       presence={{ name: 'Alice', color: '#4F46E5' }}
@@ -17,7 +17,7 @@ function App() {
       onError={(error) => console.error(error)}
     >
       <Workspace />
-    </FlockProvider>
+    </CahootsProvider>
   );
 }
 ```
@@ -40,7 +40,7 @@ function App() {
 ## Example
 
 ```tsx
-import { useCursors, useSharedState } from '@flockjs/react';
+import { useCursors, useSharedState } from '@cahoots/react';
 
 function PollWidget() {
   const { ref, cursors } = useCursors<{ tool: 'pen' | 'eraser' }>();

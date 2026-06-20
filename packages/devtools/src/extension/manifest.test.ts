@@ -15,7 +15,7 @@ describe('createExtensionManifest', () => {
         128: 'icons/icon-128.png',
       },
       manifest_version: 3,
-      name: 'FlockJS DevTools',
+      name: 'Cahoots DevTools',
       version: '1.2.3',
     });
     expect('browser_specific_settings' in manifest).toBe(false);
@@ -27,7 +27,7 @@ describe('createExtensionManifest', () => {
     expect(manifest).toMatchObject({
       browser_specific_settings: {
         gecko: {
-          id: 'devtools@flockjs.dev',
+          id: 'devtools@cahoots.dev',
         },
       },
       data_collection_permissions: {

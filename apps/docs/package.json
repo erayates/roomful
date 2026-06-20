@@ -1,5 +1,5 @@
 {
-  "name": "@flockjs/app-docs",
+  "name": "@cahoots/app-docs",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -13,7 +13,7 @@
     "clean": "rimraf dist .astro"
   },
   "dependencies": {
-    "@flockjs/core": "workspace:*"
+    "@cahoots/core": "workspace:*"
   },
   "devDependencies": {
     "@astrojs/check": "0.9.4",

@@ -1,10 +1,10 @@
 import { createApp } from 'vue';
 
 import App from './App.vue';
-import { FlockPlugin } from '@flockjs/vue';
+import { CahootsPlugin } from '@cahoots/vue';
 
 createApp(App)
-  .use(FlockPlugin, {
+  .use(CahootsPlugin, {
     presence: {
       color: '#42b883',
       name: 'Vue Smoke',

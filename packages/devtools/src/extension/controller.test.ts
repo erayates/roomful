@@ -170,7 +170,7 @@ describe('createDevtoolsPanelController', () => {
     expect(screen.getByText('SDK not detected')).toBeTruthy();
     expect(
       screen.getByText(
-        'Expose window.__flockjs_devtools__ from the inspected page to populate the FlockJS panel.',
+        'Expose window.__cahoots_devtools__ from the inspected page to populate the Cahoots panel.',
       ),
     ).toBeTruthy();
 

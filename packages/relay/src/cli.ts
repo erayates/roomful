@@ -6,7 +6,7 @@ import { parseArgs } from 'node:util';
 
 import { createRelayServer, type RelayServer } from './server.js';
 
-const RELAY_CLI_HELP = `Usage: flockjs-relay [options]
+const RELAY_CLI_HELP = `Usage: cahoots-relay [options]
 
 Options:
   --port <number>             Port to listen on (default: 8787)
@@ -17,13 +17,13 @@ Options:
   --help                      Show this help message
 
 Environment:
-  PORT (or FLOCK_PORT)
+  PORT (or CAHOOTS_PORT)
   HOST
   MAX_CONNECTIONS
-  FLOCK_MAX_ROOM_SIZE
-  FLOCK_CORS_ORIGIN
-  FLOCK_AUTH_SECRET
-  FLOCK_REDIS_URL
+  CAHOOTS_MAX_ROOM_SIZE
+  CAHOOTS_CORS_ORIGIN
+  CAHOOTS_AUTH_SECRET
+  CAHOOTS_REDIS_URL
 `;
 
 interface RelayCliStdStream {
@@ -54,7 +54,7 @@ interface RelayCliRuntime {
 
 function parsePositiveIntegerOption(
   value: string | undefined,
-  name: 'PORT' | 'MAX_CONNECTIONS' | 'FLOCK_MAX_ROOM_SIZE' | '--port' | '--max-connections',
+  name: 'PORT' | 'MAX_CONNECTIONS' | 'CAHOOTS_MAX_ROOM_SIZE' | '--port' | '--max-connections',
 ): number | { error: string } | undefined {
   if (value === undefined) {
     return undefined;
@@ -78,7 +78,7 @@ function parsePositiveIntegerOption(
 
 function parseRedisUrlOption(
   value: string | undefined,
-  name: 'FLOCK_REDIS_URL' | '--redis-url',
+  name: 'CAHOOTS_REDIS_URL' | '--redis-url',
 ): string | { error: string } | undefined {
   if (value === undefined) {
     return undefined;
@@ -234,7 +234,7 @@ export function resolveRelayCliOptions(
 
   if (parsedArgs.version) {
     return {
-      versionText: `flockjs-relay ${readRelayPackageVersion()}\n`,
+      versionText: `cahoots-relay ${readRelayPackageVersion()}\n`,
     };
   }
 
@@ -243,7 +243,7 @@ export function resolveRelayCliOptions(
     return portFlag;
   }
 
-  const portEnv = parsePositiveIntegerOption(env.FLOCK_PORT ?? env.PORT, 'PORT');
+  const portEnv = parsePositiveIntegerOption(env.CAHOOTS_PORT ?? env.PORT, 'PORT');
   if (typeof portEnv === 'object') {
     return portEnv;
   }
@@ -266,19 +266,22 @@ export function resolveRelayCliOptions(
     return redisUrlFlag;
   }
 
-  const redisUrlEnv = parseRedisUrlOption(env.FLOCK_REDIS_URL, 'FLOCK_REDIS_URL');
+  const redisUrlEnv = parseRedisUrlOption(env.CAHOOTS_REDIS_URL, 'CAHOOTS_REDIS_URL');
   if (typeof redisUrlEnv === 'object') {
     return redisUrlEnv;
   }
 
-  const maxRoomSizeEnv = parsePositiveIntegerOption(env.FLOCK_MAX_ROOM_SIZE, 'FLOCK_MAX_ROOM_SIZE');
+  const maxRoomSizeEnv = parsePositiveIntegerOption(
+    env.CAHOOTS_MAX_ROOM_SIZE,
+    'CAHOOTS_MAX_ROOM_SIZE',
+  );
   if (typeof maxRoomSizeEnv === 'object') {
     return maxRoomSizeEnv;
   }
 
   const host = parsedArgs.host ?? env.HOST;
-  const corsOrigin = readNonEmptyEnv(env.FLOCK_CORS_ORIGIN);
-  const authSecret = readNonEmptyEnv(env.FLOCK_AUTH_SECRET);
+  const corsOrigin = readNonEmptyEnv(env.CAHOOTS_CORS_ORIGIN);
+  const authSecret = readNonEmptyEnv(env.CAHOOTS_AUTH_SECRET);
   const resolvedPort = portFlag ?? portEnv ?? 8787;
   const resolvedMaxConnections = maxConnectionsFlag ?? maxConnectionsEnv;
   const resolvedRedisUrl = redisUrlFlag ?? redisUrlEnv;

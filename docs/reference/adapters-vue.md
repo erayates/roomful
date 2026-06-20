@@ -1,4 +1,4 @@
-# Vue Adapter (`@flockjs/vue`)
+# Vue Adapter (`@cahoots/vue`)
 
 Audience: users.
 
@@ -6,12 +6,12 @@ Audience: users.
 
 ```ts
 import { createApp } from 'vue';
-import { FlockPlugin } from '@flockjs/vue';
+import { CahootsPlugin } from '@cahoots/vue';
 import App from './App.vue';
 
 const app = createApp(App);
 
-app.use(FlockPlugin, {
+app.use(CahootsPlugin, {
   roomId: 'my-room',
   presence: { name: 'Alice', color: '#4F46E5' },
   transport: 'auto',
@@ -24,7 +24,7 @@ app.mount('#app');
 
 ```vue
 <script setup lang="ts">
-import { usePresence, useCursors, useSharedState, useEvent } from '@flockjs/vue';
+import { usePresence, useCursors, useSharedState, useEvent } from '@cahoots/vue';
 
 const { self, others } = usePresence();
 const { ref: boardRef, cursors } = useCursors();
@@ -53,11 +53,11 @@ const emitReaction = useEvent('reaction', (data, from) => {
 - All reactive state is exposed as Vue refs, so template auto-unwrapping works without `.value`.
 - `useSharedState()` returns a tuple of `[stateRef, setState]`.
 - `useEvent()` returns a stable `emit(payload)` function.
-- `v-flock-cursors` is registered globally by `FlockPlugin` as shorthand for cursor mounting:
+- `v-cahoots-cursors` is registered globally by `CahootsPlugin` as shorthand for cursor mounting:
 
 ```vue
 <template>
-  <div v-flock-cursors="{ throttleMs: 16 }" />
+  <div v-cahoots-cursors="{ throttleMs: 16 }" />
 </template>
 ```
 

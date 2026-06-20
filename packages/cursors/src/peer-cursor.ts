@@ -113,9 +113,9 @@ export function PeerCursor(props: PeerCursorProps): ReactElement {
     'div',
     {
       'aria-hidden': 'true',
-      'data-flockjs-peer-cursor': 'true',
-      'data-flockjs-peer-cursor-color': resolvedColor,
-      'data-flockjs-peer-cursor-style': style,
+      'data-cahoots-peer-cursor': 'true',
+      'data-cahoots-peer-cursor-color': resolvedColor,
+      'data-cahoots-peer-cursor-style': style,
       style: createRootStyle(x, y, style),
     },
     createElement(
@@ -133,8 +133,8 @@ export function PeerCursor(props: PeerCursorProps): ReactElement {
       createElement(
         'span',
         {
-          'data-flockjs-peer-cursor-label': 'true',
-          'data-flockjs-peer-cursor-label-color': resolvedColor,
+          'data-cahoots-peer-cursor-label': 'true',
+          'data-cahoots-peer-cursor-label-color': resolvedColor,
           style: createLabelStyle(resolvedColor, isLabelVisible),
         },
         name,

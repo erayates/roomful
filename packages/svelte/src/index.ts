@@ -15,8 +15,8 @@ import type {
   StateEngine,
   StateOptions,
   Unsubscribe,
-} from '@flockjs/core';
-import { createRoom, FlockError } from '@flockjs/core';
+} from '@cahoots/core';
+import { CahootsError,createRoom } from '@cahoots/core';
 import { onDestroy, onMount } from 'svelte';
 import type { Action } from 'svelte/action';
 import type {
@@ -374,7 +374,7 @@ export interface StateNamespace {
  * @typeParam TPresence - The room presence shape.
  * @typeParam TCursor - The custom cursor payload shape.
  */
-export interface FlockAdapter<
+export interface CahootsAdapter<
   TPresence extends PresenceData = PresenceData,
   TCursor extends CursorData = CursorData,
 > {
@@ -434,10 +434,10 @@ export interface FlockAdapter<
  * @param options - Optional room configuration.
  * @returns The Svelte adapter.
  */
-export function flock<
+export function cahoots<
   TPresence extends PresenceData = PresenceData,
   TCursor extends CursorData = CursorData,
->(roomId: string, options: RoomOptions<TPresence> = {}): FlockAdapter<TPresence, TCursor> {
+>(roomId: string, options: RoomOptions<TPresence> = {}): CahootsAdapter<TPresence, TCursor> {
   const room = createRoom(roomId, options);
   const presenceEngine = room.usePresence();
   const cursorEngine = room.useCursors<TCursor>();
@@ -463,7 +463,7 @@ export function flock<
       return;
     }
 
-    throw new FlockError('INVALID_STATE', `Cannot call ${methodName}() after destroy().`, false);
+    throw new CahootsError('INVALID_STATE', `Cannot call ${methodName}() after destroy().`, false);
   };
 
   const presenceStore = createValueStore(
@@ -825,7 +825,7 @@ export function flock<
 
         const currentTuple = sharedStateController.tuple;
         if (!currentTuple) {
-          throw new FlockError('INVALID_STATE', 'Shared state tuple was not initialized.', false);
+          throw new CahootsError('INVALID_STATE', 'Shared state tuple was not initialized.', false);
         }
 
         // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
@@ -1110,7 +1110,7 @@ function assertCompatibleSharedStateBinding<T>(
   options: StateOptions<T>,
 ): void {
   if (binding.key !== key) {
-    throw new FlockError(
+    throw new CahootsError(
       'INVALID_STATE',
       `state.shared() is already bound to key "${binding.key}" for this adapter.`,
       false,
@@ -1123,7 +1123,7 @@ function assertCompatibleSharedStateBinding<T>(
 
   const normalizedStrategy = normalizeSharedStateStrategy(options.strategy, binding.strategy);
   if (binding.strategy !== normalizedStrategy) {
-    throw new FlockError(
+    throw new CahootsError(
       'INVALID_STATE',
       `state.shared("${key}") is already configured with strategy "${binding.strategy}".`,
       false,
@@ -1135,7 +1135,7 @@ function assertCompatibleSharedStateBinding<T>(
   }
 
   if (!areStructuredValuesEqual(binding.initialValue, options.initialValue)) {
-    throw new FlockError(
+    throw new CahootsError(
       'INVALID_STATE',
       `state.shared("${key}") received a different initialValue for the same adapter.`,
       false,
@@ -1152,7 +1152,7 @@ function assertCompatibleSharedStateBinding<T>(
   }
 
   if (requestedPersist && binding.strategy !== 'lww') {
-    throw new FlockError(
+    throw new CahootsError(
       'INVALID_STATE',
       'State persistence is only supported for the "lww" strategy.',
       false,
@@ -1163,7 +1163,7 @@ function assertCompatibleSharedStateBinding<T>(
     );
   }
 
-  throw new FlockError(
+  throw new CahootsError(
     'INVALID_STATE',
     `state.shared("${key}") persistence is already enabled for this adapter.`,
     false,
@@ -1183,7 +1183,7 @@ function normalizeSharedStateStrategy(
     return normalized;
   }
 
-  throw new FlockError(
+  throw new CahootsError(
     'INVALID_STATE',
     `State strategy "${normalized}" is not implemented in this runtime. Use "lww" or "crdt".`,
     false,

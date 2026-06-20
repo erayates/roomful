@@ -180,7 +180,7 @@ interface PageHarnessApi {
 
 declare global {
   interface Window {
-    __flockjsIntegration: PageHarnessApi;
+    __cahootsIntegration: PageHarnessApi;
   }
 }
 
@@ -222,9 +222,9 @@ function createRoomId(testInfo: TestInfo, suffix: string): string {
 
 async function getHarness(page: Page): Promise<void> {
   await page.goto('/');
-  await expect(page.locator('#app')).toHaveText('FlockJS integration fixture');
+  await expect(page.locator('#app')).toHaveText('Cahoots integration fixture');
   await page.waitForFunction(() => {
-    return typeof window.__flockjsIntegration !== 'undefined';
+    return typeof window.__cahootsIntegration !== 'undefined';
   });
 }
 
@@ -235,7 +235,7 @@ async function initializeHarnessPage(
   const page = await context.newPage();
   await getHarness(page);
   await page.evaluate(async (value) => {
-    await window.__flockjsIntegration.initRoom(value);
+    await window.__cahootsIntegration.initRoom(value);
   }, config);
   return new IntegrationPage(page);
 }
@@ -245,20 +245,20 @@ class IntegrationPage {
 
   public async connect(): Promise<void> {
     await this.page.evaluate(async () => {
-      await window.__flockjsIntegration.connect();
+      await window.__cahootsIntegration.connect();
     });
   }
 
   public async disconnect(): Promise<void> {
     await this.page.evaluate(async () => {
-      await window.__flockjsIntegration.disconnect();
+      await window.__cahootsIntegration.disconnect();
     });
   }
 
   public async emit(name: string, payload: unknown): Promise<void> {
     await this.page.evaluate(
       (value) => {
-        window.__flockjsIntegration.emit(value);
+        window.__cahootsIntegration.emit(value);
       },
       { name, payload },
     );
@@ -267,7 +267,7 @@ class IntegrationPage {
   public async emitTo(peerId: string, name: string, payload: unknown): Promise<void> {
     await this.page.evaluate(
       (value) => {
-        window.__flockjsIntegration.emitTo(value);
+        window.__cahootsIntegration.emitTo(value);
       },
       { peerId, name, payload },
     );
@@ -275,7 +275,7 @@ class IntegrationPage {
 
   public async getSnapshot(): Promise<HarnessSnapshot> {
     return this.page.evaluate(() => {
-      return window.__flockjsIntegration.getSnapshot();
+      return window.__cahootsIntegration.getSnapshot();
     });
   }
 
@@ -285,31 +285,31 @@ class IntegrationPage {
     renderOptions?: Record<string, unknown>;
   }): Promise<void> {
     await this.page.evaluate((value) => {
-      window.__flockjsIntegration.mountCursors(value);
+      window.__cahootsIntegration.mountCursors(value);
     }, config);
   }
 
   public async mountPresence(): Promise<void> {
     await this.page.evaluate(() => {
-      window.__flockjsIntegration.mountPresence();
+      window.__cahootsIntegration.mountPresence();
     });
   }
 
   public async unmountCursors(): Promise<void> {
     await this.page.evaluate(() => {
-      window.__flockjsIntegration.unmountCursors();
+      window.__cahootsIntegration.unmountCursors();
     });
   }
 
   public async mountState(config?: { options?: Record<string, unknown> }): Promise<void> {
     await this.page.evaluate((value) => {
-      window.__flockjsIntegration.mountState(value);
+      window.__cahootsIntegration.mountState(value);
     }, config);
   }
 
   public async mountAwareness(): Promise<void> {
     await this.page.evaluate(() => {
-      window.__flockjsIntegration.mountAwareness();
+      window.__cahootsIntegration.mountAwareness();
     });
   }
 
@@ -319,7 +319,7 @@ class IntegrationPage {
     mapKeys?: string[];
   }): Promise<void> {
     await this.page.evaluate((value) => {
-      window.__flockjsIntegration.mountYjs(value);
+      window.__cahootsIntegration.mountYjs(value);
     }, config);
   }
 
@@ -329,61 +329,61 @@ class IntegrationPage {
     kind?: 'mouse' | 'touchstart' | 'touchmove';
   }): Promise<void> {
     await this.page.evaluate((value) => {
-      window.__flockjsIntegration.dispatchCursorMove(value);
+      window.__cahootsIntegration.dispatchCursorMove(value);
     }, input);
   }
 
   public async updatePresence(value: Record<string, unknown>): Promise<void> {
     await this.page.evaluate((nextValue) => {
-      window.__flockjsIntegration.updatePresence(nextValue);
+      window.__cahootsIntegration.updatePresence(nextValue);
     }, value);
   }
 
   public async replacePresence(value: Record<string, unknown>): Promise<void> {
     await this.page.evaluate((nextValue) => {
-      window.__flockjsIntegration.replacePresence(nextValue);
+      window.__cahootsIntegration.replacePresence(nextValue);
     }, value);
   }
 
   public async setState(value: unknown): Promise<void> {
     await this.page.evaluate((nextValue) => {
-      window.__flockjsIntegration.setState(nextValue);
+      window.__cahootsIntegration.setState(nextValue);
     }, value);
   }
 
   public async patchState(value: unknown): Promise<void> {
     await this.page.evaluate((nextValue) => {
-      window.__flockjsIntegration.patchState(nextValue);
+      window.__cahootsIntegration.patchState(nextValue);
     }, value);
   }
 
   public async undoState(): Promise<void> {
     await this.page.evaluate(() => {
-      window.__flockjsIntegration.undoState();
+      window.__cahootsIntegration.undoState();
     });
   }
 
   public async resetState(): Promise<void> {
     await this.page.evaluate(() => {
-      window.__flockjsIntegration.resetState();
+      window.__cahootsIntegration.resetState();
     });
   }
 
   public async setAwareness(value: Record<string, unknown>): Promise<void> {
     await this.page.evaluate((nextValue) => {
-      window.__flockjsIntegration.setAwareness(nextValue);
+      window.__cahootsIntegration.setAwareness(nextValue);
     }, value);
   }
 
   public async setTyping(isTyping: boolean): Promise<void> {
     await this.page.evaluate((nextValue) => {
-      window.__flockjsIntegration.setTyping(nextValue);
+      window.__cahootsIntegration.setTyping(nextValue);
     }, isTyping);
   }
 
   public async setFocus(elementId: string | null): Promise<void> {
     await this.page.evaluate((nextValue) => {
-      window.__flockjsIntegration.setFocus(nextValue);
+      window.__cahootsIntegration.setFocus(nextValue);
     }, elementId);
   }
 
@@ -391,14 +391,14 @@ class IntegrationPage {
     selection: { elementId: string; from: number; to: number } | null,
   ): Promise<void> {
     await this.page.evaluate((nextValue) => {
-      window.__flockjsIntegration.setSelection(nextValue);
+      window.__cahootsIntegration.setSelection(nextValue);
     }, selection);
   }
 
   public async insertYText(key: string, index: number, text: string): Promise<void> {
     await this.page.evaluate(
       (value) => {
-        window.__flockjsIntegration.insertYText(value);
+        window.__cahootsIntegration.insertYText(value);
       },
       { key, index, text },
     );
@@ -407,7 +407,7 @@ class IntegrationPage {
   public async pushYArray(key: string, values: unknown[]): Promise<void> {
     await this.page.evaluate(
       (value) => {
-        window.__flockjsIntegration.pushYArray(value);
+        window.__cahootsIntegration.pushYArray(value);
       },
       { key, values },
     );
@@ -416,7 +416,7 @@ class IntegrationPage {
   public async setYMapValue(key: string, entryKey: string, value: unknown): Promise<void> {
     await this.page.evaluate(
       (payload) => {
-        window.__flockjsIntegration.setYMapValue(payload);
+        window.__cahootsIntegration.setYMapValue(payload);
       },
       { key, entryKey, value },
     );
@@ -424,49 +424,49 @@ class IntegrationPage {
 
   public async getCursorState(): Promise<CursorHarnessState> {
     return this.page.evaluate(() => {
-      return window.__flockjsIntegration.getCursorState();
+      return window.__cahootsIntegration.getCursorState();
     });
   }
 
   public async getPresenceSnapshot(): Promise<PresenceHarnessState> {
     return this.page.evaluate(() => {
-      return window.__flockjsIntegration.getPresenceSnapshot();
+      return window.__cahootsIntegration.getPresenceSnapshot();
     });
   }
 
   public async getStateSnapshot(): Promise<StateHarnessState> {
     return this.page.evaluate(() => {
-      return window.__flockjsIntegration.getStateSnapshot();
+      return window.__cahootsIntegration.getStateSnapshot();
     });
   }
 
   public async getAwarenessSnapshot(): Promise<AwarenessHarnessState> {
     return this.page.evaluate(() => {
-      return window.__flockjsIntegration.getAwarenessSnapshot();
+      return window.__cahootsIntegration.getAwarenessSnapshot();
     });
   }
 
   public async getYjsSnapshot(): Promise<YjsHarnessState> {
     return this.page.evaluate(() => {
-      return window.__flockjsIntegration.getYjsSnapshot();
+      return window.__cahootsIntegration.getYjsSnapshot();
     });
   }
 
   public async getEvents(): Promise<HarnessEventRecord[]> {
     return this.page.evaluate(() => {
-      return window.__flockjsIntegration.getEvents();
+      return window.__cahootsIntegration.getEvents();
     });
   }
 
   public async setTimeOverride(timestamp: number): Promise<void> {
     await this.page.evaluate((value) => {
-      window.__flockjsIntegration.setTimeOverride(value);
+      window.__cahootsIntegration.setTimeOverride(value);
     }, timestamp);
   }
 
   public async clearTimeOverride(): Promise<void> {
     await this.page.evaluate(() => {
-      window.__flockjsIntegration.clearTimeOverride();
+      window.__cahootsIntegration.clearTimeOverride();
     });
   }
 
@@ -477,7 +477,7 @@ class IntegrationPage {
   ): Promise<HarnessEventRecord | null> {
     return this.page.evaluate(
       (value) => {
-        return window.__flockjsIntegration.waitForEvent(value);
+        return window.__cahootsIntegration.waitForEvent(value);
       },
       { kind, name, timeoutMs },
     );

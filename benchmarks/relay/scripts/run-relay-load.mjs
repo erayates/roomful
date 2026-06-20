@@ -69,7 +69,7 @@ function parseArguments(argv) {
     memoryGrowthLimitMb: undefined,
     messageIntervalMs: undefined,
     payloadBytes: undefined,
-    redisUrl: process.env.FLOCK_REDIS_URL,
+    redisUrl: process.env.CAHOOTS_REDIS_URL,
     resultsDir: undefined,
     roomCount: undefined,
     scenarioName: 'steady-100',
@@ -191,7 +191,7 @@ async function startRelayCluster(config, options, resultsDir) {
           PORT: '0',
           RELAY_INSTANCE_ID: `relay-${index + 1}`,
           ...(config.requiresRedis && options.redisUrl
-            ? { FLOCK_REDIS_URL: options.redisUrl }
+            ? { CAHOOTS_REDIS_URL: options.redisUrl }
             : {}),
         },
         stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
@@ -521,7 +521,7 @@ async function main() {
   });
 
   if (config.requiresRedis && (!args.redisUrl || args.redisUrl.length === 0)) {
-    throw new TypeError(`Scenario "${config.name}" requires --redis-url or FLOCK_REDIS_URL.`);
+    throw new TypeError(`Scenario "${config.name}" requires --redis-url or CAHOOTS_REDIS_URL.`);
   }
 
   assertK6Available(args.k6Bin);

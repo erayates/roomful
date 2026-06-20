@@ -1,5 +1,5 @@
-import type { Peer, PresenceData } from '@flockjs/core';
-import { usePresence } from '@flockjs/react';
+import type { Peer, PresenceData } from '@cahoots/core';
+import { usePresence } from '@cahoots/react';
 import { createElement, type CSSProperties, type ReactElement } from 'react';
 
 import { useAnimatedPresencePeers } from './presence-animated-list';
@@ -39,7 +39,7 @@ export function PresenceBar<TPresence extends PresenceData = PresenceData>(
   return createElement(
     'div',
     {
-      'data-flockjs-presence-bar': 'true',
+      'data-cahoots-presence-bar': 'true',
       style: createRootStyle(sizeTokens),
     },
     ...animatedPeers.map((item) => {
@@ -49,7 +49,7 @@ export function PresenceBar<TPresence extends PresenceData = PresenceData>(
       ? createElement(
           'span',
           {
-            'data-flockjs-presence-overflow': 'true',
+            'data-cahoots-presence-overflow': 'true',
             style: createOverflowChipStyle(sizeTokens),
             title: createPeerListTitle(hiddenPeers),
           },
@@ -69,8 +69,8 @@ function renderPeerChip<TPresence extends PresenceData>(
   const displayName = resolvePeerDisplayName(peer);
   const commonProps = {
     'aria-label': displayName,
-    'data-flockjs-presence-peer': peer.id,
-    'data-flockjs-presence-phase': phase,
+    'data-cahoots-presence-peer': peer.id,
+    'data-cahoots-presence-phase': phase,
     style: createPeerChipStyle(sizeTokens, phase, showNames, onUserClick !== undefined),
     title: displayName,
   };

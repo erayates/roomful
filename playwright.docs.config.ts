@@ -34,7 +34,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'pnpm --filter @flockjs/app-docs exec astro preview --host 127.0.0.1 --port 4322',
+    command: 'pnpm --filter @cahoots/app-docs exec astro preview --host 127.0.0.1 --port 4322',
     port: 4322,
     reuseExistingServer: !process.env.CI,
     timeout: 60_000,

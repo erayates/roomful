@@ -9,7 +9,7 @@ import {
   type RelayJwtPayload,
   type RelayServer,
   type RelayServerOptions,
-} from '@flockjs/relay';
+} from '@cahoots/relay';
 
 const authHandler: RelayAuthHandler = async (peerId, roomId, token) => {
   expectType<string>(peerId);

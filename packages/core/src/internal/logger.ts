@@ -117,7 +117,7 @@ export function createStructuredLogger(config: StructuredLoggerConfig): Structur
       message,
     };
 
-    log(`[FlockJS] ${component}: ${message}`, payload);
+    log(`[Cahoots] ${component}: ${message}`, payload);
   };
 
   return {

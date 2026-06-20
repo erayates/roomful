@@ -6,7 +6,7 @@ import {
   isDevtoolsRoomSummary,
   serializeDevtoolsValue,
   type DevtoolsRoomSummary,
-} from '@flockjs/devtools';
+} from '@cahoots/devtools';
 
 const summary: DevtoolsRoomSummary = {
   hasSimulatedPeer: false,

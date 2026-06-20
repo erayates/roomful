@@ -1,11 +1,11 @@
 import {
-  FlockProvider,
+  CahootsProvider,
   useAwareness,
   useConnectionStatus,
   usePresence,
   useRoom,
   useSharedState,
-} from '@flockjs/react';
+} from '@cahoots/react';
 import type { ReactElement } from 'react';
 
 type SmokePresence = {
@@ -42,11 +42,11 @@ function SmokePanel(): ReactElement {
 
 export function App(): ReactElement {
   return (
-    <FlockProvider
+    <CahootsProvider
       presence={{ color: '#4f46e5', name: 'React Smoke' }}
       roomId="publish-smoke-react"
     >
       <SmokePanel />
-    </FlockProvider>
+    </CahootsProvider>
   );
 }

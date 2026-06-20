@@ -9,7 +9,7 @@ const workspaceRoot = resolve(appRoot, '../..');
 export default defineConfig({
   resolve: {
     alias: {
-      '@flockjs/core': resolve(workspaceRoot, 'packages/core/src/index.ts'),
+      '@cahoots/core': resolve(workspaceRoot, 'packages/core/src/index.ts'),
     },
   },
   server: {

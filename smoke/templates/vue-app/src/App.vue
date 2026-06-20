@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useAwareness, usePresence, useSharedState } from '@flockjs/vue';
+import { useAwareness, usePresence, useSharedState } from '@cahoots/vue';
 
 type SmokePresence = {
   color: string;

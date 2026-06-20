@@ -28,7 +28,7 @@ interface DevtoolsDiffOptions {
   maxEntries?: number;
 }
 
-export const DEVTOOLS_BRIDGE_GLOBAL = '__flockjs_devtools__';
+export const DEVTOOLS_BRIDGE_GLOBAL = '__cahoots_devtools__';
 export const DEVTOOLS_BRIDGE_VERSION = 1;
 export const DEVTOOLS_MAX_EVENT_LOG_ENTRIES = 100;
 

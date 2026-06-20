@@ -17,8 +17,8 @@ From repo root:
 
 ```bash
 pnpm install
-pnpm --filter @flockjs/relay build
-pnpm --filter @flockjs/relay start
+pnpm --filter @cahoots/relay build
+pnpm --filter @cahoots/relay start
 ```
 
 Default address: `ws://127.0.0.1:8787`.
@@ -26,7 +26,7 @@ Default address: `ws://127.0.0.1:8787`.
 Optional relay env overrides:
 
 ```bash
-HOST=0.0.0.0 PORT=8787 MAX_CONNECTIONS=1000 pnpm --filter @flockjs/relay start
+HOST=0.0.0.0 PORT=8787 MAX_CONNECTIONS=1000 pnpm --filter @cahoots/relay start
 curl http://127.0.0.1:8787/health
 ```
 
@@ -50,7 +50,7 @@ const room = createRoom('validation-room-1', {
     iceGatherTimeoutMs: 5000,
     dataChannel: {
       ordered: true,
-      protocol: 'flockjs-v1',
+      protocol: 'cahoots-v1',
       // no maxRetransmits => reliable default
     },
   },

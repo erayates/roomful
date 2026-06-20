@@ -1,5 +1,5 @@
 name: Bug Report
-description: Report a reproducible defect in FlockJS
+description: Report a reproducible defect in Cahoots
 labels: [bug, triage]
 body:
   - type: markdown
@@ -12,7 +12,7 @@ body:
     attributes:
       label: Affected package
       description: Which package is affected?
-      placeholder: '@flockjs/core'
+      placeholder: '@cahoots/core'
     validations:
       required: true
 

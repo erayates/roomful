@@ -1,4 +1,4 @@
-import { createFlockError } from '../flock-error';
+import { createCahootsError } from '../cahoots-error';
 import {
   assertSupportedStateStrategy,
   cloneStateValue,
@@ -80,7 +80,7 @@ export function createStateEngine<T>(
   assertSupportedStateStrategy(options.strategy);
 
   if (options.strategy === 'custom' && typeof options.merge !== 'function') {
-    throw createFlockError(
+    throw createCahootsError(
       'INVALID_STATE',
       'State strategy "custom" requires a "merge" function. Provide a merge(a, b) => T function in StateOptions.',
       false,

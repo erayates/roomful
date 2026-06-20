@@ -1,5 +1,5 @@
 {
-  "name": "@flockjs/cursors",
+  "name": "@cahoots/cursors",
   "version": "1.0.0",
   "private": false,
   "type": "module",
@@ -32,8 +32,8 @@
     "test:watch": "vitest --config ../../vitest.package.config.ts"
   },
   "dependencies": {
-    "@flockjs/core": "workspace:*",
-    "@flockjs/react": "workspace:*"
+    "@cahoots/core": "workspace:*",
+    "@cahoots/react": "workspace:*"
   },
   "devDependencies": {
     "@storybook/addon-docs": "^10.2.17",

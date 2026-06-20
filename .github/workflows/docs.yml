@@ -48,10 +48,10 @@ jobs:
         run: pnpm docs:snippets
 
       - name: Build docs site
-        run: pnpm --filter @flockjs/app-docs build
+        run: pnpm --filter @cahoots/app-docs build
 
       - name: Build cursors Storybook
-        run: pnpm --filter @flockjs/cursors build-storybook
+        run: pnpm --filter @cahoots/cursors build-storybook
 
       - name: Bundle Storybook into the docs site
         run: |

@@ -1,5 +1,5 @@
 {
-  "name": "@flockjs/example-collaborative-editor",
+  "name": "@cahoots/example-collaborative-editor",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -11,7 +11,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@flockjs/core": "workspace:*"
+    "@cahoots/core": "workspace:*"
   },
   "devDependencies": {
     "vite": "^7.3.1"

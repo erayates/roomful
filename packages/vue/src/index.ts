@@ -12,8 +12,8 @@ import type {
   RoomOptions,
   StateEngine,
   StateOptions,
-} from '@flockjs/core';
-import { createRoom, FlockError } from '@flockjs/core';
+} from '@cahoots/core';
+import { CahootsError,createRoom } from '@cahoots/core';
 import type { Directive, InjectionKey, ObjectDirective, Plugin, ShallowRef } from 'vue';
 import { getCurrentInstance, inject, markRaw, shallowRef, watch } from 'vue';
 
@@ -22,7 +22,7 @@ import { getCurrentInstance, inject, markRaw, shallowRef, watch } from 'vue';
  *
  * @typeParam TPresence - The room presence shape inferred from `presence`.
  */
-export interface FlockPluginOptions<
+export interface CahootsPluginOptions<
   TPresence extends PresenceData = PresenceData,
 > extends RoomOptions<TPresence> {
   /**
@@ -149,11 +149,11 @@ export type SharedStateUpdater<T> = T | ((previous: T) => T);
 export type SharedStateSetter<T> = (nextValue: SharedStateUpdater<T>) => void;
 
 /**
- * Vue directive type used by `v-flock-cursors`.
+ * Vue directive type used by `v-cahoots-cursors`.
  */
-export type FlockCursorsDirective = Directive<HTMLElement, CursorOptions | undefined>;
+export type CahootsCursorsDirective = Directive<HTMLElement, CursorOptions | undefined>;
 
-interface FlockPluginContext {
+interface CahootsPluginContext {
   room: ShallowRef<Room<PresenceData>>;
 }
 
@@ -202,30 +202,30 @@ type EventHandlerRef<TPayload, TPresence extends PresenceData> = {
   bivarianceHack(payload: TPayload, from: Peer<TPresence>): void;
 }['bivarianceHack'];
 
-const FLOCK_CONTEXT_KEY: InjectionKey<FlockPluginContext> = Symbol('FlockPluginContext');
+const CAHOOTS_CONTEXT_KEY: InjectionKey<CahootsPluginContext> = Symbol('CahootsPluginContext');
 const sharedStateBindings = new WeakMap<Room<PresenceData>, SharedStateBinding>();
 
 /**
- * Installs the FlockJS Vue plugin and cursor directive.
+ * Installs the Cahoots Vue plugin and cursor directive.
  */
-export const FlockPlugin: Plugin<FlockPluginOptions<PresenceData>> = {
+export const CahootsPlugin: Plugin<CahootsPluginOptions<PresenceData>> = {
   install(app, rawOptions) {
-    if (!isFlockPluginOptions(rawOptions)) {
-      throw new FlockError(
+    if (!isCahootsPluginOptions(rawOptions)) {
+      throw new CahootsError(
         'INVALID_STATE',
-        'FlockPlugin requires app.use(FlockPlugin, { roomId, ...options }).',
+        'CahootsPlugin requires app.use(CahootsPlugin, { roomId, ...options }).',
         false,
       );
     }
 
     const room = markRaw(createRoom(rawOptions.roomId, createRoomOptions(rawOptions)));
-    const context: FlockPluginContext = {
+    const context: CahootsPluginContext = {
       room: shallowRef(room),
     };
     const directiveStates = new Map<HTMLElement, MountedCursorDirectiveState>();
 
-    app.provide(FLOCK_CONTEXT_KEY, context);
-    app.directive('flock-cursors', createFlockCursorsDirective(context, directiveStates));
+    app.provide(CAHOOTS_CONTEXT_KEY, context);
+    app.directive('cahoots-cursors', createCahootsCursorsDirective(context, directiveStates));
 
     void room.connect().catch(() => {
       return undefined;
@@ -271,7 +271,7 @@ export const FlockPlugin: Plugin<FlockPluginOptions<PresenceData>> = {
 export function usePresence<
   TPresence extends PresenceData = PresenceData,
 >(): UsePresenceResult<TPresence> {
-  const context = useFlockContext('usePresence');
+  const context = useCahootsContext('usePresence');
   const initialRoom = requireTypedRoom<TPresence>(context.room.value, 'usePresence');
   const cacheRef: { current: PresenceSnapshotCache<TPresence> | null } = {
     current: null,
@@ -341,7 +341,7 @@ export function useCursors<
   TCursor extends CursorData = CursorData,
   TPresence extends PresenceData = PresenceData,
 >(options?: CursorOptions): UseCursorsResult<TCursor> {
-  const context = useFlockContext('useCursors');
+  const context = useCahootsContext('useCursors');
   const initialRoom = requireTypedRoom<TPresence>(context.room.value, 'useCursors');
   const initialEngine = initialRoom.useCursors<TCursor>(options);
   const cacheRef: { current: CursorSnapshotCache<TPresence, TCursor> | null } = {
@@ -451,7 +451,7 @@ export function useSharedState<T, TPresence extends PresenceData = PresenceData>
   key: string,
   options: StateOptions<T>,
 ): readonly [ReadonlyRef<T>, SharedStateSetter<T>] {
-  const context = useFlockContext('useSharedState');
+  const context = useCahootsContext('useSharedState');
   const initialRoom = requireTypedRoom<TPresence>(context.room.value, 'useSharedState');
   const initialState = bindSharedState(initialRoom, key, options);
   const cacheRef: { current: SharedStateSnapshotCache<TPresence, T> | null } = {
@@ -513,7 +513,7 @@ export function useSharedState<T, TPresence extends PresenceData = PresenceData>
  * @returns Remote awareness state and local awareness mutators.
  */
 export function useAwareness<TPresence extends PresenceData = PresenceData>(): UseAwarenessResult {
-  const context = useFlockContext('useAwareness');
+  const context = useCahootsContext('useAwareness');
   const initialRoom = requireTypedRoom<TPresence>(context.room.value, 'useAwareness');
   const cacheRef: { current: AwarenessSnapshotCache<TPresence> | null } = {
     current: null,
@@ -587,7 +587,7 @@ export function useEvent<TPayload = unknown, TPresence extends PresenceData = Pr
   name: string,
   handler: EventHandlerRef<TPayload, TPresence>,
 ): (payload: TPayload) => void {
-  const context = useFlockContext('useEvent');
+  const context = useCahootsContext('useEvent');
   const handlerRef = shallowRef<EventHandlerRef<unknown, TPresence>>(handler);
 
   watch(
@@ -612,20 +612,20 @@ export function useEvent<TPayload = unknown, TPresence extends PresenceData = Pr
   };
 }
 
-function useFlockContext(composableName: string): FlockPluginContext {
+function useCahootsContext(composableName: string): CahootsPluginContext {
   if (getCurrentInstance() === null) {
-    throw new FlockError(
+    throw new CahootsError(
       'INVALID_STATE',
-      `${composableName}() must be called from setup() after app.use(FlockPlugin, options).`,
+      `${composableName}() must be called from setup() after app.use(CahootsPlugin, options).`,
       false,
     );
   }
 
-  const context = inject(FLOCK_CONTEXT_KEY, null);
+  const context = inject(CAHOOTS_CONTEXT_KEY, null);
   if (context === null) {
-    throw new FlockError(
+    throw new CahootsError(
       'INVALID_STATE',
-      `${composableName}() requires app.use(FlockPlugin, options).`,
+      `${composableName}() requires app.use(CahootsPlugin, options).`,
       false,
     );
   }
@@ -638,9 +638,9 @@ function requireTypedRoom<TPresence extends PresenceData>(
   composableName: string,
 ): Room<TPresence> {
   if (!isRoom<TPresence>(value)) {
-    throw new FlockError(
+    throw new CahootsError(
       'INVALID_STATE',
-      `${composableName}() requires app.use(FlockPlugin, options).`,
+      `${composableName}() requires app.use(CahootsPlugin, options).`,
       false,
     );
   }
@@ -649,7 +649,7 @@ function requireTypedRoom<TPresence extends PresenceData>(
 }
 
 function createRoomOptions<TPresence extends PresenceData>(
-  options: FlockPluginOptions<TPresence>,
+  options: CahootsPluginOptions<TPresence>,
 ): RoomOptions<TPresence> {
   const roomOptions: RoomOptions<TPresence> = {};
 
@@ -696,8 +696,8 @@ function createRoomOptions<TPresence extends PresenceData>(
   return roomOptions;
 }
 
-function createFlockCursorsDirective(
-  context: FlockPluginContext,
+function createCahootsCursorsDirective(
+  context: CahootsPluginContext,
   states: Map<HTMLElement, MountedCursorDirectiveState>,
 ): ObjectDirective<HTMLElement, CursorOptions | undefined> {
   return {
@@ -725,12 +725,12 @@ function createFlockCursorsDirective(
 }
 
 function bindCursorDirectiveElement(
-  context: FlockPluginContext,
+  context: CahootsPluginContext,
   states: Map<HTMLElement, MountedCursorDirectiveState>,
   element: HTMLElement,
   options: CursorOptions | undefined,
 ): void {
-  const room = requireTypedRoom<PresenceData>(context.room.value, 'v-flock-cursors');
+  const room = requireTypedRoom<PresenceData>(context.room.value, 'v-cahoots-cursors');
   const engine = room.useCursors(options);
   engine.mount(element);
   states.set(element, {
@@ -947,7 +947,7 @@ function assertCompatibleSharedStateBinding<T>(
   options: StateOptions<T>,
 ): void {
   if (binding.key !== key) {
-    throw new FlockError(
+    throw new CahootsError(
       'INVALID_STATE',
       `useSharedState() is already bound to key "${binding.key}" for this room.`,
       false,
@@ -960,7 +960,7 @@ function assertCompatibleSharedStateBinding<T>(
 
   const normalizedStrategy = normalizeSharedStateStrategy(options.strategy, binding.strategy);
   if (binding.strategy !== normalizedStrategy) {
-    throw new FlockError(
+    throw new CahootsError(
       'INVALID_STATE',
       `useSharedState("${key}") is already configured with strategy "${binding.strategy}".`,
       false,
@@ -972,7 +972,7 @@ function assertCompatibleSharedStateBinding<T>(
   }
 
   if (!areStructuredValuesEqual(binding.initialValue, options.initialValue)) {
-    throw new FlockError(
+    throw new CahootsError(
       'INVALID_STATE',
       `useSharedState("${key}") received a different initialValue for the same room.`,
       false,
@@ -989,7 +989,7 @@ function assertCompatibleSharedStateBinding<T>(
   }
 
   if (requestedPersist && binding.strategy !== 'lww') {
-    throw new FlockError(
+    throw new CahootsError(
       'INVALID_STATE',
       'State persistence is only supported for the "lww" strategy.',
       false,
@@ -1000,7 +1000,7 @@ function assertCompatibleSharedStateBinding<T>(
     );
   }
 
-  throw new FlockError(
+  throw new CahootsError(
     'INVALID_STATE',
     `useSharedState("${key}") persistence is already enabled for this room.`,
     false,
@@ -1020,7 +1020,7 @@ function normalizeSharedStateStrategy(
     return normalized;
   }
 
-  throw new FlockError(
+  throw new CahootsError(
     'INVALID_STATE',
     `State strategy "${normalized}" is not implemented in this runtime. Use "lww" or "crdt".`,
     false,
@@ -1273,7 +1273,7 @@ function isStateUpdater<T>(value: SharedStateUpdater<T>): value is (previous: T)
   return typeof value === 'function';
 }
 
-function isFlockPluginOptions(value: unknown): value is FlockPluginOptions<PresenceData> {
+function isCahootsPluginOptions(value: unknown): value is CahootsPluginOptions<PresenceData> {
   return isObjectLike(value) && typeof Reflect.get(value, 'roomId') === 'string';
 }
 
@@ -1307,6 +1307,6 @@ function hasFunction(value: object, key: string): boolean {
 
 declare module 'vue' {
   interface GlobalDirectives {
-    vFlockCursors: FlockCursorsDirective;
+    vCahootsCursors: CahootsCursorsDirective;
   }
 }

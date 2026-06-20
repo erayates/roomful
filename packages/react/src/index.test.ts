@@ -17,8 +17,8 @@ import type {
   RoomStatus,
   StateChangeMeta,
   StateEngine,
-} from '@flockjs/core';
-import { FlockError } from '@flockjs/core';
+} from '@cahoots/core';
+import { CahootsError } from '@cahoots/core';
 import type { Dispatch, ReactNode, SetStateAction } from 'react';
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -31,8 +31,8 @@ const { createRoomMock } = vi.hoisted(() => {
   };
 });
 
-vi.mock('@flockjs/core', async () => {
-  const actual = await vi.importActual<typeof import('@flockjs/core')>('@flockjs/core');
+vi.mock('@cahoots/core', async () => {
+  const actual = await vi.importActual<typeof import('@cahoots/core')>('@cahoots/core');
 
   return {
     ...actual,
@@ -42,8 +42,8 @@ vi.mock('@flockjs/core', async () => {
 
 import type { UseAwarenessResult, UseCursorsResult, UsePresenceResult } from './index';
 import {
+  CahootsProvider,
   createReactHealth,
-  FlockProvider,
   useAwareness,
   useConnectionStatus,
   useCursors,
@@ -602,11 +602,11 @@ afterEach(() => {
 describe('createReactHealth', () => {
   it('returns expected React health metadata including core dependency', () => {
     expect(createReactHealth()).toEqual({
-      packageName: '@flockjs/react',
+      packageName: '@cahoots/react',
       status: 'ok',
       dependencies: {
         core: {
-          packageName: '@flockjs/core',
+          packageName: '@cahoots/core',
           status: 'ok',
         },
       },
@@ -614,7 +614,7 @@ describe('createReactHealth', () => {
   });
 });
 
-describe('FlockProvider', () => {
+describe('CahootsProvider', () => {
   it('creates a room during render, connects on mount, and exposes it via useRoom()', async () => {
     const room = createMockRoom('provider-room', {
       transport: 'broadcast',
@@ -628,7 +628,7 @@ describe('FlockProvider', () => {
 
     const harness = await renderElement(
       createElement(
-        FlockProvider,
+        CahootsProvider,
         {
           roomId: 'provider-room',
           transport: 'broadcast',
@@ -647,7 +647,7 @@ describe('FlockProvider', () => {
   it('disconnects the room cleanly on unmount', async () => {
     const room = createMockRoom('disconnect-room');
     const harness = await renderElement(
-      createElement(FlockProvider, { roomId: 'disconnect-room' }),
+      createElement(CahootsProvider, { roomId: 'disconnect-room' }),
     );
 
     await harness.unmount();
@@ -661,14 +661,14 @@ describe('FlockProvider', () => {
     const onDisconnect = vi.fn();
     const onError = vi.fn();
     const harness = await renderElement(
-      createElement(FlockProvider, {
+      createElement(CahootsProvider, {
         roomId: 'callback-room',
         onConnect,
         onDisconnect,
         onError,
       }),
     );
-    const error = new FlockError('NETWORK_ERROR', 'boom', true);
+    const error = new CahootsError('NETWORK_ERROR', 'boom', true);
 
     room.emit('connected', undefined);
     room.emit('disconnected', { reason: 'manual' });
@@ -692,7 +692,7 @@ describe('FlockProvider', () => {
     const initialOnConnect = vi.fn();
     const updatedOnConnect = vi.fn();
     const harness = await renderElement(
-      createElement(FlockProvider, {
+      createElement(CahootsProvider, {
         roomId: 'stable-room',
         transport: 'broadcast',
         presence: {
@@ -704,7 +704,7 @@ describe('FlockProvider', () => {
     );
 
     await harness.rerender(
-      createElement(FlockProvider, {
+      createElement(CahootsProvider, {
         roomId: 'stable-room',
         transport: 'broadcast',
         presence: {
@@ -729,9 +729,9 @@ describe('FlockProvider', () => {
   it('recreates the room when the roomId changes', async () => {
     const firstRoom = createMockRoom('room-a');
     const secondRoom = createMockRoom('room-b');
-    const harness = await renderElement(createElement(FlockProvider, { roomId: 'room-a' }));
+    const harness = await renderElement(createElement(CahootsProvider, { roomId: 'room-a' }));
 
-    await harness.rerender(createElement(FlockProvider, { roomId: 'room-b' }));
+    await harness.rerender(createElement(CahootsProvider, { roomId: 'room-b' }));
 
     expect(createRoomMock).toHaveBeenCalledTimes(2);
     expect(firstRoom.connect).toHaveBeenCalledTimes(1);
@@ -757,7 +757,7 @@ describe('FlockProvider', () => {
       },
     });
     const harness = await renderElement(
-      createElement(FlockProvider, {
+      createElement(CahootsProvider, {
         roomId: 'option-room',
         transport: 'broadcast',
         debug: {
@@ -767,7 +767,7 @@ describe('FlockProvider', () => {
     );
 
     await harness.rerender(
-      createElement(FlockProvider, {
+      createElement(CahootsProvider, {
         roomId: 'option-room',
         transport: 'websocket',
         debug: {
@@ -791,10 +791,10 @@ describe('FlockProvider', () => {
 
     expect(() => {
       renderToString(createElement(MissingProviderConsumer));
-    }).toThrowError(FlockError);
+    }).toThrowError(CahootsError);
     expect(() => {
       renderToString(createElement(MissingProviderConsumer));
-    }).toThrow('FlockProvider');
+    }).toThrow('CahootsProvider');
   });
 });
 
@@ -820,7 +820,7 @@ describe('usePresence', () => {
 
     const harness = await renderElement(
       createElement(
-        FlockProvider,
+        CahootsProvider,
         {
           roomId: 'presence-room',
         },
@@ -863,7 +863,7 @@ describe('usePresence', () => {
 
     const harness = await renderElement(
       createElement(
-        FlockProvider,
+        CahootsProvider,
         {
           roomId: 'presence-reactivity',
         },
@@ -929,7 +929,7 @@ describe('usePresence', () => {
 
     const harness = await renderElement(
       createElement(
-        FlockProvider,
+        CahootsProvider,
         {
           roomId: 'presence-equality',
         },
@@ -989,7 +989,7 @@ describe('usePresence', () => {
 
     const harness = await renderElement(
       createElement(
-        FlockProvider,
+        CahootsProvider,
         {
           roomId: 'presence-stable-slices',
         },
@@ -1049,7 +1049,7 @@ describe('usePresence', () => {
 
     const harness = await renderElement(
       createElement(
-        FlockProvider,
+        CahootsProvider,
         {
           roomId: 'presence-room-a',
         },
@@ -1059,7 +1059,7 @@ describe('usePresence', () => {
 
     await harness.rerender(
       createElement(
-        FlockProvider,
+        CahootsProvider,
         {
           roomId: 'presence-room-b',
         },
@@ -1101,10 +1101,10 @@ describe('usePresence', () => {
 
     expect(() => {
       renderToString(createElement(MissingProviderConsumer));
-    }).toThrowError(FlockError);
+    }).toThrowError(CahootsError);
     expect(() => {
       renderToString(createElement(MissingProviderConsumer));
-    }).toThrow('FlockProvider');
+    }).toThrow('CahootsProvider');
   });
 });
 
@@ -1140,7 +1140,7 @@ describe('useAwareness', () => {
 
     const harness = await renderElement(
       createElement(
-        FlockProvider,
+        CahootsProvider,
         {
           roomId: 'awareness-room',
         },
@@ -1206,7 +1206,7 @@ describe('useAwareness', () => {
 
     const harness = await renderElement(
       createElement(
-        FlockProvider,
+        CahootsProvider,
         {
           roomId: 'awareness-reactivity',
         },
@@ -1304,7 +1304,7 @@ describe('useAwareness', () => {
 
     const harness = await renderElement(
       createElement(
-        FlockProvider,
+        CahootsProvider,
         {
           roomId: 'awareness-room-a',
         },
@@ -1314,7 +1314,7 @@ describe('useAwareness', () => {
 
     await harness.rerender(
       createElement(
-        FlockProvider,
+        CahootsProvider,
         {
           roomId: 'awareness-room-b',
         },
@@ -1397,7 +1397,7 @@ describe('usePeers', () => {
 
     const harness = await renderElement(
       createElement(
-        FlockProvider,
+        CahootsProvider,
         {
           roomId: 'peers-room',
         },
@@ -1443,7 +1443,7 @@ describe('usePeers', () => {
 
     const harness = await renderElement(
       createElement(
-        FlockProvider,
+        CahootsProvider,
         {
           roomId: 'peers-equality',
         },
@@ -1521,7 +1521,7 @@ describe('usePeers', () => {
 
     const harness = await renderElement(
       createElement(
-        FlockProvider,
+        CahootsProvider,
         {
           roomId: 'peers-room-a',
         },
@@ -1531,7 +1531,7 @@ describe('usePeers', () => {
 
     await harness.rerender(
       createElement(
-        FlockProvider,
+        CahootsProvider,
         {
           roomId: 'peers-room-b',
         },
@@ -1589,7 +1589,7 @@ describe('useConnectionStatus', () => {
 
     const harness = await renderElement(
       createElement(
-        FlockProvider,
+        CahootsProvider,
         {
           roomId: 'connection-status-room',
         },
@@ -1611,7 +1611,7 @@ describe('useConnectionStatus', () => {
       });
     });
     await act(async () => {
-      room.emit('error', new FlockError('NETWORK_ERROR', 'boom', true));
+      room.emit('error', new CahootsError('NETWORK_ERROR', 'boom', true));
     });
 
     expect(statuses).toContain('idle');
@@ -1656,7 +1656,7 @@ describe('useEvent', () => {
 
     const harness = await renderElement(
       createElement(
-        FlockProvider,
+        CahootsProvider,
         {
           roomId: 'event-room',
         },
@@ -1684,7 +1684,7 @@ describe('useEvent', () => {
     useUpdatedHandler = true;
     await harness.rerender(
       createElement(
-        FlockProvider,
+        CahootsProvider,
         {
           roomId: 'event-room',
         },
@@ -1764,7 +1764,7 @@ describe('useEvent', () => {
 
     const harness = await renderElement(
       createElement(
-        FlockProvider,
+        CahootsProvider,
         {
           roomId: 'event-room-a',
         },
@@ -1774,7 +1774,7 @@ describe('useEvent', () => {
 
     await harness.rerender(
       createElement(
-        FlockProvider,
+        CahootsProvider,
         {
           roomId: 'event-room-b',
         },
@@ -1859,7 +1859,7 @@ describe('useCursors', () => {
 
     const harness = await renderElement(
       createElement(
-        FlockProvider,
+        CahootsProvider,
         {
           roomId: 'cursor-room',
         },
@@ -1919,7 +1919,7 @@ describe('useCursors', () => {
 
     const harness = await renderElement(
       createElement(
-        FlockProvider,
+        CahootsProvider,
         {
           roomId: 'cursor-reactivity',
         },
@@ -1990,7 +1990,7 @@ describe('useCursors', () => {
 
     const harness = await renderElement(
       createElement(
-        FlockProvider,
+        CahootsProvider,
         {
           roomId: 'cursor-stability',
         },
@@ -2000,7 +2000,7 @@ describe('useCursors', () => {
 
     await harness.rerender(
       createElement(
-        FlockProvider,
+        CahootsProvider,
         {
           roomId: 'cursor-stability',
         },
@@ -2053,7 +2053,7 @@ describe('useCursors', () => {
 
     const harness = await renderElement(
       createElement(
-        FlockProvider,
+        CahootsProvider,
         {
           roomId: 'cursor-room-a',
         },
@@ -2064,7 +2064,7 @@ describe('useCursors', () => {
 
     await harness.rerender(
       createElement(
-        FlockProvider,
+        CahootsProvider,
         {
           roomId: 'cursor-room-b',
         },
@@ -2118,10 +2118,10 @@ describe('useCursors', () => {
 
     expect(() => {
       renderToString(createElement(MissingProviderConsumer));
-    }).toThrowError(FlockError);
+    }).toThrowError(CahootsError);
     expect(() => {
       renderToString(createElement(MissingProviderConsumer));
-    }).toThrow('FlockProvider');
+    }).toThrow('CahootsProvider');
   });
 });
 
@@ -2178,7 +2178,7 @@ describe('useSharedState', () => {
 
     const harness = await renderElement(
       createElement(
-        FlockProvider,
+        CahootsProvider,
         {
           roomId: 'shared-state-room',
         },
@@ -2252,7 +2252,7 @@ describe('useSharedState', () => {
 
     await harness.rerender(
       createElement(
-        FlockProvider,
+        CahootsProvider,
         {
           roomId: 'shared-state-room',
         },
@@ -2313,7 +2313,7 @@ describe('useSharedState', () => {
 
     const harness = await renderElement(
       createElement(
-        FlockProvider,
+        CahootsProvider,
         {
           roomId: 'shared-state-reactivity',
         },
@@ -2400,7 +2400,7 @@ describe('useSharedState', () => {
 
     const harness = await renderElement(
       createElement(
-        FlockProvider,
+        CahootsProvider,
         {
           roomId: 'shared-state-stability',
         },
@@ -2410,7 +2410,7 @@ describe('useSharedState', () => {
 
     await harness.rerender(
       createElement(
-        FlockProvider,
+        CahootsProvider,
         {
           roomId: 'shared-state-stability',
         },
@@ -2466,7 +2466,7 @@ describe('useSharedState', () => {
 
     const harness = await renderElement(
       createElement(
-        FlockProvider,
+        CahootsProvider,
         {
           roomId: 'shared-state-multi',
         },
@@ -2513,7 +2513,7 @@ describe('useSharedState', () => {
     try {
       renderToString(
         createElement(
-          FlockProvider,
+          CahootsProvider,
           {
             roomId: 'shared-state-key-mismatch',
           },
@@ -2525,7 +2525,7 @@ describe('useSharedState', () => {
       thrownError = error;
     }
 
-    expect(thrownError).toBeInstanceOf(FlockError);
+    expect(thrownError).toBeInstanceOf(CahootsError);
     expect((thrownError as Error).message).toContain('already bound to key');
   });
 
@@ -2554,7 +2554,7 @@ describe('useSharedState', () => {
     expect(() => {
       renderToString(
         createElement(
-          FlockProvider,
+          CahootsProvider,
           {
             roomId: 'shared-state-option-mismatch',
           },
@@ -2589,7 +2589,7 @@ describe('useSharedState', () => {
     expect(() => {
       renderToString(
         createElement(
-          FlockProvider,
+          CahootsProvider,
           {
             roomId: 'shared-state-persist-mismatch',
           },
@@ -2633,7 +2633,7 @@ describe('useSharedState', () => {
 
     const harness = await renderElement(
       createElement(
-        FlockProvider,
+        CahootsProvider,
         {
           roomId: 'shared-state-persist-upgrade',
         },
@@ -2643,7 +2643,7 @@ describe('useSharedState', () => {
 
     await harness.rerender(
       createElement(
-        FlockProvider,
+        CahootsProvider,
         {
           roomId: 'shared-state-persist-upgrade',
         },
@@ -2695,7 +2695,7 @@ describe('useSharedState', () => {
 
     const harness = await renderElement(
       createElement(
-        FlockProvider,
+        CahootsProvider,
         {
           roomId: 'shared-state-room-a',
         },
@@ -2705,7 +2705,7 @@ describe('useSharedState', () => {
 
     await harness.rerender(
       createElement(
-        FlockProvider,
+        CahootsProvider,
         {
           roomId: 'shared-state-room-b',
         },
@@ -2786,9 +2786,9 @@ describe('useSharedState', () => {
 
     expect(() => {
       renderToString(createElement(MissingProviderConsumer));
-    }).toThrowError(FlockError);
+    }).toThrowError(CahootsError);
     expect(() => {
       renderToString(createElement(MissingProviderConsumer));
-    }).toThrow('FlockProvider');
+    }).toThrow('CahootsProvider');
   });
 });

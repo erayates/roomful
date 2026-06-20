@@ -1,6 +1,6 @@
-# Contributing to FlockJS
+# Contributing to Cahoots
 
-Thanks for contributing to FlockJS.
+Thanks for contributing to Cahoots.
 
 This guide defines the expected workflow for code, docs, and community contributions.
 
@@ -12,7 +12,7 @@ This guide defines the expected workflow for code, docs, and community contribut
 
 ## Repository
 
-- Canonical repo: <https://github.com/erayates/flockjs>
+- Canonical repo: <https://github.com/erayates/cahoots>
 - Default branch: `main`
 
 ## Contribution Types
@@ -43,8 +43,8 @@ All contribution types are welcome:
 ### Complete Development Setup Flow
 
 ```bash
-git clone https://github.com/erayates/flockjs.git
-cd flockjs
+git clone https://github.com/erayates/cahoots.git
+cd cahoots
 pnpm install
 ```
 
@@ -174,7 +174,7 @@ Core package target:
 
 ## Versioning and Releases
 
-FlockJS uses Changesets with independent package versioning.
+Cahoots uses Changesets with independent package versioning.
 
 Contributor expectations:
 
@@ -216,7 +216,7 @@ When updating docs:
 
 Use the bug report template:
 
-- <https://github.com/erayates/flockjs/issues/new/choose>
+- <https://github.com/erayates/cahoots/issues/new/choose>
 
 Include:
 

@@ -32,8 +32,8 @@ describe('PeerCursor', () => {
 
     expect(root).not.toBeNull();
     expect(root?.getAttribute('aria-hidden')).toBe('true');
-    expect(root?.getAttribute('data-flockjs-peer-cursor-style')).toBe('arrow');
-    expect(root?.getAttribute('data-flockjs-peer-cursor-color')).toBe('#123456');
+    expect(root?.getAttribute('data-cahoots-peer-cursor-style')).toBe('arrow');
+    expect(root?.getAttribute('data-cahoots-peer-cursor-color')).toBe('#123456');
     expect((root as HTMLElement).style.position).toBe('absolute');
     expect((root as HTMLElement).style.left).toBe('25%');
     expect((root as HTMLElement).style.top).toBe('75%');
@@ -50,17 +50,17 @@ describe('PeerCursor', () => {
   ] as const)('renders the %s marker SVG variant', (style, expectedStyle) => {
     const { container } = render(createElement(PeerCursor, createProps({ style })));
 
-    const marker = container.querySelector('[data-flockjs-peer-cursor-marker="true"]');
+    const marker = container.querySelector('[data-cahoots-peer-cursor-marker="true"]');
     expect(marker).not.toBeNull();
     expect(marker?.tagName.toLowerCase()).toBe('svg');
-    expect(marker?.getAttribute('data-flockjs-peer-cursor-marker-style')).toBe(expectedStyle);
+    expect(marker?.getAttribute('data-cahoots-peer-cursor-marker-style')).toBe(expectedStyle);
   });
 
   it('waits 3 seconds after becoming idle before fading the label', async () => {
     vi.useFakeTimers();
 
     const { container, rerender } = render(createElement(PeerCursor, createProps()));
-    const label = container.querySelector('[data-flockjs-peer-cursor-label="true"]');
+    const label = container.querySelector('[data-cahoots-peer-cursor-label="true"]');
     expect((label as HTMLElement).style.opacity).toBe('1');
 
     rerender(createElement(PeerCursor, createProps({ idle: true })));
@@ -85,7 +85,7 @@ describe('PeerCursor', () => {
       await vi.advanceTimersByTimeAsync(3_000);
     });
 
-    const label = container.querySelector('[data-flockjs-peer-cursor-label="true"]');
+    const label = container.querySelector('[data-cahoots-peer-cursor-label="true"]');
     expect((label as HTMLElement).style.opacity).toBe('0');
 
     rerender(createElement(PeerCursor, createProps({ idle: false })));
@@ -96,9 +96,9 @@ describe('PeerCursor', () => {
   it('updates marker and label colors inline', () => {
     const { container } = render(createElement(PeerCursor, createProps()));
     const root = container.firstElementChild;
-    const label = container.querySelector('[data-flockjs-peer-cursor-label="true"]');
+    const label = container.querySelector('[data-cahoots-peer-cursor-label="true"]');
 
-    expect(root?.getAttribute('data-flockjs-peer-cursor-color')).toBe('#123456');
-    expect(label?.getAttribute('data-flockjs-peer-cursor-label-color')).toBe('#123456');
+    expect(root?.getAttribute('data-cahoots-peer-cursor-color')).toBe('#123456');
+    expect(label?.getAttribute('data-cahoots-peer-cursor-label-color')).toBe('#123456');
   });
 });

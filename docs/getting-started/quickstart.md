@@ -2,18 +2,18 @@
 
 Audience: users.
 
-This walkthrough shows the intended first integration flow for FlockJS.
+This walkthrough shows the intended first integration flow for Cahoots.
 
 ## 1) Install Core
 
 ```bash
-npm install @flockjs/core
+npm install @cahoots/core
 ```
 
 ## 2) Create and Connect a Room
 
 ```ts
-import { createRoom } from '@flockjs/core';
+import { createRoom } from '@cahoots/core';
 
 const room = createRoom('my-first-room', {
   transport: 'auto',
@@ -89,13 +89,13 @@ window.addEventListener('beforeunload', () => {
 ## React Quickstart (Planned Adapter API)
 
 ```tsx
-import { FlockProvider, usePresence } from '@flockjs/react';
+import { CahootsProvider, usePresence } from '@cahoots/react';
 
 function App() {
   return (
-    <FlockProvider roomId="my-first-room" presence={{ name: 'Alice', color: '#4F46E5' }}>
+    <CahootsProvider roomId="my-first-room" presence={{ name: 'Alice', color: '#4F46E5' }}>
       <RoomPanel />
-    </FlockProvider>
+    </CahootsProvider>
   );
 }
 

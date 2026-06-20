@@ -1,12 +1,18 @@
-import { FlockError } from './flock-error';
+import { CahootsError } from './cahoots-error';
 import { createRoom } from './room';
 
 export { createRoom };
-export { FlockError };
+export { CahootsError };
 export type {
   AwarenessEngine,
   AwarenessSelection,
   AwarenessState,
+  CahootsErrorCode,
+  CahootsYjsProvider,
+  CahootsYjsProviderEventHandler,
+  CahootsYjsProviderEventMap,
+  CahootsYjsProviderEventName,
+  CahootsYjsProviderStatus,
   CursorBasePosition,
   CursorData,
   CursorEngine,
@@ -17,12 +23,6 @@ export type {
   EncryptionOptions,
   EventEngine,
   EventOptions,
-  FlockErrorCode,
-  FlockYjsProvider,
-  FlockYjsProviderEventHandler,
-  FlockYjsProviderEventMap,
-  FlockYjsProviderEventName,
-  FlockYjsProviderStatus,
   Peer,
   PresenceData,
   PresenceEngine,
@@ -54,13 +54,13 @@ export type {
 } from './types';
 
 /**
- * Reports package-level health metadata for `@flockjs/core`.
+ * Reports package-level health metadata for `@cahoots/core`.
  */
 export interface CoreHealth {
   /**
    * Identifies the package.
    */
-  packageName: '@flockjs/core';
+  packageName: '@cahoots/core';
 
   /**
    * Reports the package health state.
@@ -69,13 +69,13 @@ export interface CoreHealth {
 }
 
 /**
- * Returns package-level health metadata for `@flockjs/core`.
+ * Returns package-level health metadata for `@cahoots/core`.
  *
  * @returns The static core package health payload.
  */
 export function createCoreHealth(): CoreHealth {
   return {
-    packageName: '@flockjs/core',
+    packageName: '@cahoots/core',
     status: 'ok',
   };
 }

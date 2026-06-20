@@ -18,8 +18,8 @@ COPY packages/relay/README.md packages/relay/README.md
 COPY packages/relay/tsconfig.json packages/relay/tsconfig.json
 COPY packages/relay/src packages/relay/src
 
-RUN pnpm --filter @flockjs/relay build
-RUN pnpm --filter @flockjs/relay deploy --prod --legacy /app
+RUN pnpm --filter @cahoots/relay build
+RUN pnpm --filter @cahoots/relay deploy --prod --legacy /app
 
 FROM node:20-alpine AS runner
 
@@ -29,11 +29,11 @@ ENV NODE_ENV=production
 ENV HOST=0.0.0.0
 ENV PORT=8787
 
-RUN addgroup -S flockjs && adduser -S flockjs -G flockjs
+RUN addgroup -S cahoots && adduser -S cahoots -G cahoots
 
-COPY --from=build --chown=flockjs:flockjs /app/ ./
+COPY --from=build --chown=cahoots:cahoots /app/ ./
 
-USER flockjs
+USER cahoots
 
 EXPOSE 8787
 

@@ -10,11 +10,11 @@ import { TypedEventEmitter } from '../event-emitter';
 import type { CrdtAwarenessWirePayload, CrdtSyncWirePayload } from '../protocol/peer-message';
 import type {
   AwarenessState,
-  FlockYjsProvider,
-  FlockYjsProviderEventHandler,
-  FlockYjsProviderEventMap,
-  FlockYjsProviderEventName,
-  FlockYjsProviderStatus,
+  CahootsYjsProvider,
+  CahootsYjsProviderEventHandler,
+  CahootsYjsProviderEventMap,
+  CahootsYjsProviderEventName,
+  CahootsYjsProviderStatus,
   Peer,
   PresenceData,
 } from '../types';
@@ -119,16 +119,16 @@ function readAwarenessState(value: unknown, fallbackPeerId?: string): AwarenessS
 
 export class RoomYjsController<
   TPresence extends PresenceData = PresenceData,
-> implements FlockYjsProvider {
+> implements CahootsYjsProvider {
   public readonly doc = new Y.Doc();
 
   public readonly awareness = new Awareness(this.doc);
 
-  private readonly providerEvents = new TypedEventEmitter<FlockYjsProviderEventMap>();
+  private readonly providerEvents = new TypedEventEmitter<CahootsYjsProviderEventMap>();
 
   private readonly pendingSyncPeers = new Set<string>();
 
-  private connectionStatus: FlockYjsProviderStatus = 'disconnected';
+  private connectionStatus: CahootsYjsProviderStatus = 'disconnected';
 
   private syncedState = false;
 
@@ -198,7 +198,7 @@ export class RoomYjsController<
     return this.syncedState;
   }
 
-  public get status(): FlockYjsProviderStatus {
+  public get status(): CahootsYjsProviderStatus {
     return this.connectionStatus;
   }
 
@@ -215,16 +215,16 @@ export class RoomYjsController<
     await this.disconnect();
   }
 
-  public on<TEvent extends FlockYjsProviderEventName>(
+  public on<TEvent extends CahootsYjsProviderEventName>(
     event: TEvent,
-    cb: FlockYjsProviderEventHandler<TEvent>,
+    cb: CahootsYjsProviderEventHandler<TEvent>,
   ): () => void {
     return this.providerEvents.on(event, cb);
   }
 
-  public off<TEvent extends FlockYjsProviderEventName>(
+  public off<TEvent extends CahootsYjsProviderEventName>(
     event: TEvent,
-    cb: FlockYjsProviderEventHandler<TEvent>,
+    cb: CahootsYjsProviderEventHandler<TEvent>,
   ): void {
     this.providerEvents.off(event, cb);
   }
@@ -407,7 +407,7 @@ export class RoomYjsController<
     return clientIds;
   }
 
-  private setStatus(status: FlockYjsProviderStatus): void {
+  private setStatus(status: CahootsYjsProviderStatus): void {
     if (this.connectionStatus === status) {
       return;
     }

@@ -5,7 +5,7 @@ import { expect, test } from '@playwright/test';
 
 import { createRelayServer, type RelayServer } from '../../../packages/relay/src/index';
 
-const DEMO_IDENTITY_STORAGE_KEY = 'flockjs-demo-identity';
+const DEMO_IDENTITY_STORAGE_KEY = 'cahoots-demo-identity';
 
 async function reserveRelayPort(): Promise<number> {
   return new Promise((resolve, reject) => {
@@ -172,7 +172,7 @@ test.describe('live demo app', () => {
     await moveCursor(pageA);
 
     await expect(pageB.getByTestId('stroke-count-value')).toHaveText('1');
-    await expect(pageB.locator('[data-flockjs-peer-cursor-label="true"]')).toContainText([
+    await expect(pageB.locator('[data-cahoots-peer-cursor-label="true"]')).toContainText([
       'Ada Orbit',
     ]);
 

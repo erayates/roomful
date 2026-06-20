@@ -232,7 +232,7 @@ try {
   await ensureCoreBuildExists();
 } catch {
   process.stderr.write(
-    'Missing packages/core/dist/index.js. Run `pnpm --filter @flockjs/core build` before `pnpm test:integration`.\n',
+    'Missing packages/core/dist/index.js. Run `pnpm --filter @cahoots/core build` before `pnpm test:integration`.\n',
   );
   process.exit(1);
 }

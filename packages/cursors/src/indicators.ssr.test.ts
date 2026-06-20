@@ -1,6 +1,6 @@
 // @vitest-environment node
 
-import type { Peer, PresenceData } from '@flockjs/core';
+import type { Peer, PresenceData } from '@cahoots/core';
 import { createElement } from 'react';
 import { renderToString } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
@@ -34,9 +34,9 @@ describe('Indicator components SSR', () => {
       }),
     );
 
-    expect(typingHtml).toContain('data-flockjs-typing-indicator="true"');
+    expect(typingHtml).toContain('data-cahoots-typing-indicator="true"');
     expect(typingHtml).toContain('Ada Lovelace and Bob Stone are typing');
-    expect(liveHtml).toContain('data-flockjs-live-indicator="true"');
+    expect(liveHtml).toContain('data-cahoots-live-indicator="true"');
     expect(liveHtml).toContain('aria-label="Live activity"');
   });
 });

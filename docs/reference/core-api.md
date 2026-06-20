@@ -47,7 +47,7 @@ Transport support in the current baseline:
 - `auto` chooses BroadcastChannel when available, even if `relayUrl` is configured.
 - `webrtc` uses `relayUrl` for SDP/ICE signaling and falls back to BroadcastChannel during initial connect when signaling is unavailable and same-origin broadcast is available.
 - `webrtc` still fails hard when `relayUrl` is missing, `RTCPeerConnection` is unavailable, or the relay rejects the join/auth request.
-- `websocket` uses `relayUrl` and `@flockjs/relay` for generic room message relay.
+- `websocket` uses `relayUrl` and `@cahoots/relay` for generic room message relay.
 - `websocket.fallbackTransport: 'polling'` enables connect-time fallback to relay HTTP polling when the initial WebSocket attempt is blocked or unavailable.
 - Once polling fallback activates, automatic reconnect stays on polling for that room instance until you call `disconnect()`. A later manual `connect()` retries WebSocket first.
 - Polling fallback does not add a public `transport: 'polling'` mode and does not change `auto` selection order.
@@ -65,7 +65,7 @@ Transport support in the current baseline:
 - Default ICE gather timeout: `5000ms` (override with `webrtc.iceGatherTimeoutMs`).
 - DataChannel default: ordered and reliable delivery (`ordered: true`, no `maxRetransmits` set).
 - `maxPeers` is a hard cap for WebRTC mesh peer-connection context creation. When unset, it defaults to `15` for the WebRTC transport; the relay and broadcast transports stay unlimited unless `maxPeers` is set.
-- BroadcastChannel transport uses a serialized JSON envelope (`source: "flockjs"`, `version: 1`).
+- BroadcastChannel transport uses a serialized JSON envelope (`source: "cahoots"`, `version: 1`).
 - Peer transport messages are schema-validated before room delivery.
 - WebRTC data channels and relay websocket transport negotiate a peer protocol version and codec on connect.
 - Binary-capable transports upgrade to MessagePack after negotiation when both peers support it; JSON remains the compatibility fallback.
@@ -75,7 +75,7 @@ Transport support in the current baseline:
 - Automatic reconnect begins retrying within `500ms` of an unexpected transport disconnect and uses exponential backoff with internal jitter.
 - In browser environments, room lifecycle automatically handles `beforeunload` and `pagehide` to trigger disconnect and propagate peer leave.
 - `debug: true` enables all debug categories; object form keeps per-category booleans for `transport`, `state`, `presence`, `events`, and `performance`.
-- Debug output is emitted through `console.info`, `console.warn`, and `console.error` as `[FlockJS] ${component}: ${message}` with a structured payload that always includes `timestamp`, `roomId`, `category`, `component`, and `message`.
+- Debug output is emitted through `console.info`, `console.warn`, and `console.error` as `[Cahoots] ${component}: ${message}` with a structured payload that always includes `timestamp`, `roomId`, `category`, `component`, and `message`.
 - `info` logs are suppressed when `NODE_ENV === 'production'`; `warn` and `error` still emit.
 
 ## `Room` Contract
@@ -100,7 +100,7 @@ interface Room<TPresence extends Record<string, unknown> = Record<string, unknow
   useAwareness(): AwarenessEngine;
   useEvents(options?: EventOptions): EventEngine<TPresence>;
   getYDoc(): YDoc;
-  getYProvider(): FlockYjsProvider;
+  getYProvider(): CahootsYjsProvider;
 
   on<T extends RoomEventName>(event: T, cb: RoomEventHandler<TPresence, T>): Unsubscribe;
   off<T extends RoomEventName>(event: T, cb: RoomEventHandler<TPresence, T>): void;
@@ -129,7 +129,7 @@ const provider = room.getYProvider();
 Yjs notes:
 
 - `getYDoc()` returns the room-scoped shared `Y.Doc` instance.
-- `getYProvider()` returns the room-scoped `FlockYjsProvider` instance with `doc`, `awareness`, `status`, and `synced`.
+- `getYProvider()` returns the room-scoped `CahootsYjsProvider` instance with `doc`, `awareness`, `status`, and `synced`.
 - New peers bootstrap document state via Yjs state-vector exchange and receive the current document snapshot during initial sync.
 - CRDT updates stay as `Uint8Array` in-process and use the negotiated peer protocol codec on the wire, with JSON-safe array fallback where binary transport is unavailable.
 - For `y-prosemirror`-style editors, use `room.getYDoc().getXmlFragment('prosemirror')` and `room.getYProvider().awareness`.
@@ -176,7 +176,7 @@ Offline queue semantics:
 ## Minimal Flow
 
 ```ts
-import { createRoom } from '@flockjs/core';
+import { createRoom } from '@cahoots/core';
 
 const room = createRoom('doc-abc123', {
   transport: 'webrtc',
@@ -186,7 +186,7 @@ const room = createRoom('doc-abc123', {
   relayAuth: async () => 'signed-token',
   webrtc: {
     iceGatherTimeoutMs: 5000,
-    dataChannel: { ordered: true, protocol: 'flockjs-v1' },
+    dataChannel: { ordered: true, protocol: 'cahoots-v1' },
   },
   reconnect: { maxAttempts: 5, backoffMs: 1000 },
 });

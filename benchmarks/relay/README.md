@@ -5,13 +5,13 @@ This suite runs reproducible relay load tests with `k6` and writes artifacts int
 ## Prerequisites
 
 - `k6` installed and available on `PATH`, or pass `--k6-bin`
-- `pnpm --filter @flockjs/relay build`
+- `pnpm --filter @cahoots/relay build`
 - Redis available for Redis-backed scenarios
 
 If `k6` is not on `PATH`, set an explicit binary path for local validation:
 
 ```bash
-K6_BIN=/absolute/path/to/k6 pnpm --filter @flockjs/relay benchmark:load:steady
+K6_BIN=/absolute/path/to/k6 pnpm --filter @cahoots/relay benchmark:load:steady
 ```
 
 ## Scenarios
@@ -25,9 +25,9 @@ The scenario durations include a short warmup period before broadcast traffic be
 ## Commands
 
 ```bash
-pnpm --filter @flockjs/relay benchmark:load:steady
-pnpm --filter @flockjs/relay benchmark:load:scale -- --redis-url redis://127.0.0.1:6379/0
-pnpm --filter @flockjs/relay benchmark:load:soak -- --redis-url redis://127.0.0.1:6379/0
+pnpm --filter @cahoots/relay benchmark:load:steady
+pnpm --filter @cahoots/relay benchmark:load:scale -- --redis-url redis://127.0.0.1:6379/0
+pnpm --filter @cahoots/relay benchmark:load:soak -- --redis-url redis://127.0.0.1:6379/0
 ```
 
 Each run starts the required relay instances automatically, captures per-process RSS and heap samples every 10 seconds, runs the `k6` scenario, and writes:
@@ -43,9 +43,9 @@ Each run starts the required relay instances automatically, captures per-process
 Sweep concurrency upward from the 500-peer baseline until either `k6` thresholds fail or the generated `report.md` shows non-zero error rates:
 
 ```bash
-pnpm --filter @flockjs/relay benchmark:load:scale -- --redis-url redis://127.0.0.1:6379/0 --vus 600
-pnpm --filter @flockjs/relay benchmark:load:scale -- --redis-url redis://127.0.0.1:6379/0 --vus 700
-pnpm --filter @flockjs/relay benchmark:load:scale -- --redis-url redis://127.0.0.1:6379/0 --vus 800
+pnpm --filter @cahoots/relay benchmark:load:scale -- --redis-url redis://127.0.0.1:6379/0 --vus 600
+pnpm --filter @cahoots/relay benchmark:load:scale -- --redis-url redis://127.0.0.1:6379/0 --vus 700
+pnpm --filter @cahoots/relay benchmark:load:scale -- --redis-url redis://127.0.0.1:6379/0 --vus 800
 ```
 
 Adjust `--rooms`, `--message-interval-ms`, `--payload-bytes`, or `--duration` to probe different operating envelopes while keeping the same relay harness.

@@ -2,9 +2,9 @@
 
 Audience: contributors.
 
-FlockJS engineering conventions are defined in:
+Cahoots engineering conventions are defined in:
 
-- [FlockJS Code Quality Guidelines](flockjs-code-quality-guidelines.md)
+- [Cahoots Code Quality Guidelines](cahoots-code-quality-guidelines.md)
 
 This guideline is the canonical source for:
 

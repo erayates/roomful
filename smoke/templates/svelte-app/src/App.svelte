@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { flock } from '@flockjs/svelte';
+  import { cahoots } from '@cahoots/svelte';
 
-  const adapter = flock<{ color: string; name: string }>('publish-smoke-svelte', {
+  const adapter = cahoots<{ color: string; name: string }>('publish-smoke-svelte', {
     presence: {
       color: '#ff3e00',
       name: 'Svelte Smoke',

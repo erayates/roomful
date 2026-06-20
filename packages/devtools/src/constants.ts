@@ -1,7 +1,7 @@
 /**
  * Names the global key used to expose the devtools bridge on `window`.
  */
-export const DEVTOOLS_BRIDGE_GLOBAL = '__flockjs_devtools__';
+export const DEVTOOLS_BRIDGE_GLOBAL = '__cahoots_devtools__';
 
 /**
  * Stores the current devtools bridge protocol version.

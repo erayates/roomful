@@ -1,7 +1,7 @@
-import { createFlockError } from '../flock-error';
+import { createCahootsError } from '../cahoots-error';
 import { env } from '../internal/env';
 import { normalizeMaxPeers } from '../internal/max-peers';
-import type { FlockError, RelayAuthToken } from '../types';
+import type { CahootsError, RelayAuthToken } from '../types';
 import { appendRelayAuthTokenToUrl } from './relay-url';
 import {
   parseSignalingServerMessage,
@@ -136,7 +136,7 @@ function resolveWebSocketFactory(factory?: WebSocketFactory): WebSocketFactory {
   }
 
   if (!env.hasWebSocket) {
-    throw createFlockError(
+    throw createCahootsError(
       'NETWORK_ERROR',
       'WebSocket is required for WebRTC signaling but is not available in this runtime.',
       false,
@@ -164,13 +164,13 @@ async function resolveRelayAuthToken(
   return token;
 }
 
-function toSignalingError(message: string, cause?: unknown): FlockError {
+function toSignalingError(message: string, cause?: unknown): CahootsError {
   const failure = readWebRTCSignalingFailure(cause);
   if (failure?.serverCode === 'ROOM_FULL') {
-    return createFlockError('ROOM_FULL', message, true, cause);
+    return createCahootsError('ROOM_FULL', message, true, cause);
   }
 
-  return createFlockError('NETWORK_ERROR', message, false, cause);
+  return createCahootsError('NETWORK_ERROR', message, false, cause);
 }
 
 function isOpen(socket: WebSocketLike): boolean {
@@ -326,7 +326,7 @@ export class WebRTCSignalingClient {
         return undefined;
       };
 
-      const finish = (result: string[] | FlockError): void => {
+      const finish = (result: string[] | CahootsError): void => {
         if (settled) {
           return;
         }

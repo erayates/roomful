@@ -2,11 +2,11 @@
 
 ## Summary
 
-Live DevTools diagnostics for FlockJS rooms, peers, state, and event traffic.
+Live DevTools diagnostics for Cahoots rooms, peers, state, and event traffic.
 
 ## Description
 
-FlockJS DevTools adds a panel to Firefox DevTools for inspecting active FlockJS rooms on the current page.
+Cahoots DevTools adds a panel to Firefox DevTools for inspecting active Cahoots rooms on the current page.
 
 The panel shows:
 

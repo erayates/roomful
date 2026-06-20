@@ -6,7 +6,7 @@ This section documents the **intended API contract** for the pre-`v1.0` phase.
 
 ## Contract Scope
 
-- Package namespace: `@flockjs/*`
+- Package namespace: `@cahoots/*`
 - Source of truth for documented signatures: this `reference/` section
 - Stability: contract may evolve before `v1.0`
 

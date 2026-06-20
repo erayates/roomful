@@ -33,7 +33,7 @@ async function main() {
   const instanceId = process.env.RELAY_INSTANCE_ID ?? `relay-${process.pid}`;
   const port = readPositiveInteger(process.env.PORT, 'PORT');
   const host = process.env.HOST ?? '127.0.0.1';
-  const redisUrl = process.env.FLOCK_REDIS_URL;
+  const redisUrl = process.env.CAHOOTS_REDIS_URL;
 
   const server = createRelayServer({
     port,

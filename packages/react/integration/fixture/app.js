@@ -1,12 +1,12 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import {
-  FlockProvider,
+  CahootsProvider,
   useConnectionStatus,
   useCursors,
   usePresence,
   useSharedState,
-} from '@flockjs/react-local';
+} from '@cahoots/react-local';
 
 const { createElement, useRef } = React;
 
@@ -150,7 +150,7 @@ function AppContents({ appId }) {
 
 function App({ appId, roomId, color, name }) {
   return createElement(
-    FlockProvider,
+    CahootsProvider,
     {
       roomId,
       transport: 'broadcast',
@@ -163,7 +163,7 @@ function App({ appId, roomId, color, name }) {
   );
 }
 
-window.__flockjsReactIntegration = {
+window.__cahootsReactIntegration = {
   mountApp(config) {
     const container = ensureContainer(config.id);
     const root = createRoot(container);

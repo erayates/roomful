@@ -1,7 +1,7 @@
-import { createFlockError } from '../flock-error';
+import { createCahootsError } from '../cahoots-error';
 import { env } from '../internal/env';
 import { createStructuredLogger } from '../internal/logger';
-import type { FlockError, PresenceData, RoomOptions } from '../types';
+import type { CahootsError, PresenceData, RoomOptions } from '../types';
 import { createBroadcastTransportAdapter, isBroadcastChannelAvailable } from './broadcast';
 import { createInMemoryTransportAdapter } from './in-memory';
 import type { TransportAdapter } from './transport';
@@ -35,8 +35,8 @@ export function shouldSelectWebSocketTransport<TPresence extends PresenceData>(
   return hasRelayUrl(options);
 }
 
-function createWebRTCTransportError(error: unknown): FlockError {
-  return createFlockError(
+function createWebRTCTransportError(error: unknown): CahootsError {
+  return createCahootsError(
     'NETWORK_ERROR',
     error instanceof Error ? error.message : 'Failed to initialize WebRTC transport.',
     false,

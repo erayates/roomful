@@ -459,15 +459,15 @@ describe('createCursorEngine', () => {
 
     expect(board.children).toHaveLength(1);
     expect(overlayRoot.style.zIndex).toBe('42');
-    expect(cursorNode.getAttribute('data-flockjs-cursor-style')).toBe('default');
+    expect(cursorNode.getAttribute('data-cahoots-cursor-style')).toBe('default');
     expect(cursorNode.style.position).toBe('absolute');
     expect(cursorNode.style.left).toBe('25%');
     expect(cursorNode.style.top).toBe('75%');
     expect(cursorNode.style.transition).toContain('left');
     expect(cursorNode.getAttribute('data-idle')).toBe('false');
     expect(marker.tagName).toBe('svg');
-    expect(marker.getAttribute('data-flockjs-cursor-marker-style')).toBe('default');
-    expect(marker.getAttribute('data-flockjs-cursor-marker-color')).toBe('#111111');
+    expect(marker.getAttribute('data-cahoots-cursor-marker-style')).toBe('default');
+    expect(marker.getAttribute('data-cahoots-cursor-marker-color')).toBe('#111111');
     expect(marker.children[0]?.tagName).toBe('path');
     expect(label.textContent).toBe('Alice');
     expect(label.style.backgroundColor).toBe('#111111');
@@ -507,10 +507,10 @@ describe('createCursorEngine', () => {
     let cursorNode = getCursorNode(board);
     let marker = getMarker(cursorNode);
     let label = getLabel(cursorNode);
-    expect(cursorNode.getAttribute('data-flockjs-cursor-style')).toBe('dot');
+    expect(cursorNode.getAttribute('data-cahoots-cursor-style')).toBe('dot');
     expect(marker.tagName).toBe('span');
-    expect(marker.getAttribute('data-flockjs-cursor-marker-style')).toBe('dot');
-    expect(marker.getAttribute('data-flockjs-cursor-marker-color')).toBe('#111111');
+    expect(marker.getAttribute('data-cahoots-cursor-marker-style')).toBe('dot');
+    expect(marker.getAttribute('data-cahoots-cursor-marker-color')).toBe('#111111');
     expect(label.style.display).toBe('none');
     expect(context.subscribe).toHaveBeenCalledTimes(1);
 
@@ -523,9 +523,9 @@ describe('createCursorEngine', () => {
     marker = getMarker(cursorNode);
     label = getLabel(cursorNode);
     expect(board.children).toHaveLength(1);
-    expect(cursorNode.getAttribute('data-flockjs-cursor-style')).toBe('pointer');
+    expect(cursorNode.getAttribute('data-cahoots-cursor-style')).toBe('pointer');
     expect(marker.tagName).toBe('div');
-    expect(marker.getAttribute('data-flockjs-cursor-marker-style')).toBe('pointer');
+    expect(marker.getAttribute('data-cahoots-cursor-marker-style')).toBe('pointer');
     expect(label.style.display).toBe('inline-flex');
     expect(label.textContent).toBe('Alice');
 
@@ -535,9 +535,9 @@ describe('createCursorEngine', () => {
 
     cursorNode = getCursorNode(board);
     marker = getMarker(cursorNode);
-    expect(cursorNode.getAttribute('data-flockjs-cursor-style')).toBe('default');
+    expect(cursorNode.getAttribute('data-cahoots-cursor-style')).toBe('default');
     expect(marker.tagName).toBe('svg');
-    expect(marker.getAttribute('data-flockjs-cursor-marker-style')).toBe('default');
+    expect(marker.getAttribute('data-cahoots-cursor-marker-style')).toBe('default');
 
     engine.unmount();
     expect(unsubscribe).toHaveBeenCalledTimes(1);
@@ -575,7 +575,7 @@ describe('createCursorEngine', () => {
     let cursorNode = getCursorNode(board);
     let marker = getMarker(cursorNode);
     let label = getLabel(cursorNode);
-    expect(marker.getAttribute('data-flockjs-cursor-marker-color')).toBe('#111827');
+    expect(marker.getAttribute('data-cahoots-cursor-marker-color')).toBe('#111827');
     expect(label.style.backgroundColor).toBe('#111827');
 
     engine.render({
@@ -586,7 +586,7 @@ describe('createCursorEngine', () => {
     cursorNode = getCursorNode(board);
     marker = getMarker(cursorNode);
     label = getLabel(cursorNode);
-    expect(marker.getAttribute('data-flockjs-cursor-marker-color')).toBe('#111827');
+    expect(marker.getAttribute('data-cahoots-cursor-marker-color')).toBe('#111827');
     expect(label.style.backgroundColor).toBe('#111827');
 
     engine.render({
@@ -597,7 +597,7 @@ describe('createCursorEngine', () => {
     cursorNode = getCursorNode(board);
     marker = getMarker(cursorNode);
     label = getLabel(cursorNode);
-    expect(marker.getAttribute('data-flockjs-cursor-marker-color')).toBe('#111827');
+    expect(marker.getAttribute('data-cahoots-cursor-marker-color')).toBe('#111827');
     expect(label.style.backgroundColor).toBe('#111827');
   });
 

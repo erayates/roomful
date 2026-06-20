@@ -1,4 +1,4 @@
-import type { Peer, PresenceData } from '@flockjs/core';
+import type { Peer, PresenceData } from '@cahoots/core';
 
 import type { PresenceSize, PresenceSizeTokens } from './presence-types';
 

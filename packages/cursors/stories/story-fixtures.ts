@@ -1,4 +1,4 @@
-import type { Peer, PresenceData } from '@flockjs/core';
+import type { Peer, PresenceData } from '@cahoots/core';
 
 export type StoryPresence = PresenceData & {
   avatar?: string;

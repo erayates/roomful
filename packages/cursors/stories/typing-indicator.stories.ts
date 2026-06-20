@@ -11,7 +11,7 @@ interface TypingIndicatorStoryArgs {
 }
 
 const meta = {
-  title: '@flockjs/cursors/TypingIndicator',
+  title: '@cahoots/cursors/TypingIndicator',
   tags: ['autodocs'],
   args: {
     ariaLabel: 'People currently typing',

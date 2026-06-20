@@ -1,6 +1,6 @@
 // @vitest-environment node
 
-import type { Peer, PresenceData } from '@flockjs/core';
+import type { Peer, PresenceData } from '@cahoots/core';
 import { createElement } from 'react';
 import { renderToString } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
@@ -34,7 +34,7 @@ const { usePresenceMock } = vi.hoisted(() => {
   };
 });
 
-vi.mock('@flockjs/react', () => {
+vi.mock('@cahoots/react', () => {
   return {
     usePresence: usePresenceMock,
   };
@@ -55,9 +55,9 @@ describe('Presence components SSR', () => {
       }),
     );
 
-    expect(barHtml).toContain('data-flockjs-presence-bar="true"');
+    expect(barHtml).toContain('data-cahoots-presence-bar="true"');
     expect(barHtml).toContain('Ada Lovelace');
-    expect(avatarsHtml).toContain('data-flockjs-presence-avatars="true"');
+    expect(avatarsHtml).toContain('data-cahoots-presence-avatars="true"');
     expect(avatarsHtml).toContain('+1');
   });
 });

@@ -1,6 +1,6 @@
 import type { DemoIdentity } from './demo-types';
 
-export const DEMO_IDENTITY_STORAGE_KEY = 'flockjs-demo-identity';
+export const DEMO_IDENTITY_STORAGE_KEY = 'cahoots-demo-identity';
 
 const ADJECTIVES = ['Bright', 'Neon', 'Signal', 'Solar', 'Velvet', 'Wild', 'Electric', 'Quartz'];
 const NOUNS = ['Canary', 'Comet', 'Fox', 'Harbor', 'Nova', 'Otter', 'Pulse', 'Raven'];

@@ -1,4 +1,4 @@
-import { createFlockError, FlockError } from '../flock-error';
+import { CahootsError,createCahootsError } from '../cahoots-error';
 import { env } from '../internal/env';
 import { isObject, readString } from '../internal/guards';
 import { createStructuredLogger, type StructuredLogger } from '../internal/logger';
@@ -56,19 +56,19 @@ interface PollingJoinResponse {
   peers: WebSocketRelayPeerDescriptor[];
 }
 
-function createPollingTransportError(message: string, cause?: unknown): FlockError {
-  return createFlockError('NETWORK_ERROR', message, false, cause);
+function createPollingTransportError(message: string, cause?: unknown): CahootsError {
+  return createCahootsError('NETWORK_ERROR', message, false, cause);
 }
 
-function createRelayMessageError(message: string, serverCode: string): FlockError {
+function createRelayMessageError(message: string, serverCode: string): CahootsError {
   if (serverCode === 'ROOM_FULL') {
-    return createFlockError('ROOM_FULL', message, true, {
+    return createCahootsError('ROOM_FULL', message, true, {
       source: 'polling-relay',
       serverCode,
     });
   }
 
-  return createFlockError(
+  return createCahootsError(
     serverCode === 'AUTH_FAILED' ? 'AUTH_FAILED' : 'NETWORK_ERROR',
     message,
     false,
@@ -142,7 +142,7 @@ function parseJsonPayload(payload: string): unknown | null {
 async function readRelayResponseError(
   response: FetchResponseLike,
   fallbackMessage: string,
-): Promise<FlockError> {
+): Promise<CahootsError> {
   const payload = await readResponsePayload(response);
   if (typeof payload === 'string') {
     const parsed = parseJsonPayload(payload);
@@ -201,8 +201,8 @@ function resolveEventResponseMessage(
   return parseWebSocketRelayServerMessage(payload, options);
 }
 
-function toPollingTransportError(error: unknown, fallbackMessage: string): FlockError {
-  if (error instanceof FlockError) {
+function toPollingTransportError(error: unknown, fallbackMessage: string): CahootsError {
+  if (error instanceof CahootsError) {
     return error;
   }
 
@@ -424,9 +424,9 @@ export class PollingTransportAdapter<
           return;
         }
 
-        const flockError = toPollingTransportError(error, 'Polling relay event request failed.');
-        this.emitErrorSignal(flockError);
-        this.handleTransportFailure(flockError.message);
+        const cahootsError = toPollingTransportError(error, 'Polling relay event request failed.');
+        this.emitErrorSignal(cahootsError);
+        this.handleTransportFailure(cahootsError.message);
         return;
       }
     }
@@ -458,12 +458,12 @@ export class PollingTransportAdapter<
       return;
     }
 
-    const flockError = await readRelayResponseError(
+    const cahootsError = await readRelayResponseError(
       response,
       'Polling relay rejected a transport frame.',
     );
-    this.emitErrorSignal(flockError);
-    this.handleTransportFailure(flockError.message);
+    this.emitErrorSignal(cahootsError);
+    this.handleTransportFailure(cahootsError.message);
   }
 
   private handleServerMessage(message: WebSocketRelayServerMessage): void {
@@ -596,7 +596,7 @@ export class PollingTransportAdapter<
     }
   }
 
-  private emitErrorSignal(error: FlockError): void {
+  private emitErrorSignal(error: CahootsError): void {
     this.emitTransportSignal({
       type: 'transport:error',
       roomId: this.roomId,

@@ -5,7 +5,7 @@ import { LiveIndicator, type LiveIndicatorProps } from '../src';
 import { StoryGrid, StorySurface } from './story-layout';
 
 const meta = {
-  title: '@flockjs/cursors/LiveIndicator',
+  title: '@cahoots/cursors/LiveIndicator',
   component: LiveIndicator,
   tags: ['autodocs'],
   args: {

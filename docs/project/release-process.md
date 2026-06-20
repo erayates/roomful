@@ -11,7 +11,7 @@ Audience: contributors and maintainers.
 ## Versioning Model
 
 - Semantic Versioning intent (`major.minor.patch`)
-- Independent versions per publishable package (`@flockjs/*`)
+- Independent versions per publishable package (`@cahoots/*`)
 - Pre-`v1.0` may ship frequent minor-level API adjustments
 - Breaking changes must be explicitly called out in PRs and changelog
 
@@ -24,7 +24,7 @@ Changesets is the canonical versioning tool:
 Changelog model:
 
 - Root `CHANGELOG.md` is project-level narrative.
-- `pnpm version-packages` auto-generates package `CHANGELOG.md` files for bumped `@flockjs/*` packages.
+- `pnpm version-packages` auto-generates package `CHANGELOG.md` files for bumped `@cahoots/*` packages.
 
 ## Publish Scope
 

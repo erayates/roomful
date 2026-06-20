@@ -1,7 +1,7 @@
 import './styles.css';
 
-import type { Peer, PresenceData, Room, StateEngine, Unsubscribe } from '@flockjs/core';
-import { createRoom } from '@flockjs/core';
+import type { Peer, PresenceData, Room, StateEngine, Unsubscribe } from '@cahoots/core';
+import { createRoom } from '@cahoots/core';
 
 interface CanvasPresence extends PresenceData {
   color?: string;

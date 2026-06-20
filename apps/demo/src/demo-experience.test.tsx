@@ -12,7 +12,7 @@ const useCursorsMock = vi.fn();
 const useSharedStateMock = vi.fn();
 const useEventMock = vi.fn();
 
-vi.mock('@flockjs/react', () => {
+vi.mock('@cahoots/react', () => {
   return {
     useConnectionStatus: () => useConnectionStatusMock(),
     useCursors: () => useCursorsMock(),
@@ -22,7 +22,7 @@ vi.mock('@flockjs/react', () => {
   };
 });
 
-vi.mock('@flockjs/cursors', () => {
+vi.mock('@cahoots/cursors', () => {
   return {
     LiveIndicator: () => <div data-testid="live-indicator" />,
     PeerCursor: (props: { name: string }) => <div data-testid="peer-cursor">{props.name}</div>,
@@ -111,7 +111,7 @@ describe('DemoExperience', () => {
   it('renders presence, stroke count, status, and remote cursors', () => {
     render(
       <DemoExperience
-        canonicalBaseUrl="https://demo.flockjs.dev"
+        canonicalBaseUrl="https://demo.cahoots.dev"
         identity={{ color: '#ff6b35', name: 'Ada Orbit' }}
         onIdentityChange={vi.fn()}
         roomLabel="2026-03-11 UTC"
@@ -131,7 +131,7 @@ describe('DemoExperience', () => {
 
     render(
       <DemoExperience
-        canonicalBaseUrl="https://demo.flockjs.dev"
+        canonicalBaseUrl="https://demo.cahoots.dev"
         identity={{ color: '#ff6b35', name: 'Ada Orbit' }}
         onIdentityChange={onIdentityChange}
         roomLabel="2026-03-11 UTC"

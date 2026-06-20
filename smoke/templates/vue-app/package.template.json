@@ -1,13 +1,13 @@
 {
-  "name": "flockjs-smoke-vue-app",
+  "name": "cahoots-smoke-vue-app",
   "private": true,
   "type": "module",
   "scripts": {
     "validate": "vue-tsc --noEmit && vite build"
   },
   "dependencies": {
-    "@flockjs/core": "workspace:*",
-    "@flockjs/vue": "workspace:*",
+    "@cahoots/core": "workspace:*",
+    "@cahoots/vue": "workspace:*",
     "vue": "3.5.29",
     "y-protocols": "^1.0.7",
     "yjs": "^13.6.29"

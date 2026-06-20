@@ -1,4 +1,4 @@
-import type { Peer } from '@flockjs/core';
+import type { Peer } from '@cahoots/core';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { createElement, type CSSProperties } from 'react';
 
@@ -13,7 +13,7 @@ interface CollaborationBadgeStoryArgs {
 }
 
 const meta = {
-  title: '@flockjs/cursors/CollaborationBadge',
+  title: '@cahoots/cursors/CollaborationBadge',
   tags: ['autodocs'],
   args: {
     color: '#7c3aed',

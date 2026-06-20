@@ -16,15 +16,15 @@ import type {
   RoomOptions,
   StateChangeMeta,
   StateEngine,
-} from '@flockjs/core';
-import { FlockError } from '@flockjs/core';
+} from '@cahoots/core';
+import { CahootsError } from '@cahoots/core';
 import { mount } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, nextTick, watchEffect } from 'vue';
 
 import type { UseAwarenessResult, UseCursorsResult, UsePresenceResult } from './index';
 import {
-  FlockPlugin,
+  CahootsPlugin,
   useAwareness,
   useCursors,
   useEvent,
@@ -38,8 +38,8 @@ const { createRoomMock } = vi.hoisted(() => {
   };
 });
 
-vi.mock('@flockjs/core', async () => {
-  const actual = await vi.importActual<typeof import('@flockjs/core')>('@flockjs/core');
+vi.mock('@cahoots/core', async () => {
+  const actual = await vi.importActual<typeof import('@cahoots/core')>('@cahoots/core');
 
   return {
     ...actual,
@@ -508,7 +508,7 @@ afterEach(() => {
   document.body.innerHTML = '';
 });
 
-describe('FlockPlugin', () => {
+describe('CahootsPlugin', () => {
   it('creates one room, connects immediately, registers the directive, and disconnects on unmount', async () => {
     const cursorEngine = createMockCursorEngine();
     const room = createMockRoom(
@@ -526,14 +526,14 @@ describe('FlockPlugin', () => {
 
     const wrapper = mount(
       defineComponent({
-        template: '<div id="board" v-flock-cursors></div>',
+        template: '<div id="board" v-cahoots-cursors></div>',
       }),
       {
         attachTo: document.body,
         global: {
           plugins: [
             [
-              FlockPlugin,
+              CahootsPlugin,
               {
                 roomId: 'plugin-room',
                 transport: 'broadcast',
@@ -585,7 +585,7 @@ describe('usePresence', () => {
       }),
       {
         global: {
-          plugins: [[FlockPlugin, { roomId: 'presence-room' }]],
+          plugins: [[CahootsPlugin, { roomId: 'presence-room' }]],
         },
       },
     );
@@ -647,7 +647,7 @@ describe('usePresence', () => {
       }),
       {
         global: {
-          plugins: [[FlockPlugin, { roomId: 'presence-equality' }]],
+          plugins: [[CahootsPlugin, { roomId: 'presence-equality' }]],
         },
       },
     );
@@ -681,7 +681,7 @@ describe('usePresence', () => {
   });
 });
 
-describe('useCursors and v-flock-cursors', () => {
+describe('useCursors and v-cahoots-cursors', () => {
   it('tracks a template ref, mounts automatically, and exposes reactive cursors', async () => {
     const remoteCursor = createCursor('cursor-peer', {
       tool: 'pen',
@@ -711,7 +711,7 @@ describe('useCursors and v-flock-cursors', () => {
       {
         attachTo: document.body,
         global: {
-          plugins: [[FlockPlugin, { roomId: 'cursor-room' }]],
+          plugins: [[CahootsPlugin, { roomId: 'cursor-room' }]],
         },
       },
     );
@@ -763,12 +763,12 @@ describe('useCursors and v-flock-cursors', () => {
             },
           };
         },
-        template: '<div id="directive-board" v-flock-cursors="options"></div>',
+        template: '<div id="directive-board" v-cahoots-cursors="options"></div>',
       }),
       {
         attachTo: document.body,
         global: {
-          plugins: [[FlockPlugin, { roomId: 'directive-room' }]],
+          plugins: [[CahootsPlugin, { roomId: 'directive-room' }]],
         },
       },
     );
@@ -825,7 +825,7 @@ describe('useSharedState', () => {
       }),
       {
         global: {
-          plugins: [[FlockPlugin, { roomId: 'shared-state-room' }]],
+          plugins: [[CahootsPlugin, { roomId: 'shared-state-room' }]],
         },
       },
     );
@@ -883,7 +883,7 @@ describe('useSharedState', () => {
         }),
         {
           global: {
-            plugins: [[FlockPlugin, { roomId: 'shared-state-mismatch' }]],
+            plugins: [[CahootsPlugin, { roomId: 'shared-state-mismatch' }]],
           },
         },
       );
@@ -926,7 +926,7 @@ describe('useAwareness', () => {
       }),
       {
         global: {
-          plugins: [[FlockPlugin, { roomId: 'awareness-room' }]],
+          plugins: [[CahootsPlugin, { roomId: 'awareness-room' }]],
         },
       },
     );
@@ -994,7 +994,7 @@ describe('useEvent', () => {
       }),
       {
         global: {
-          plugins: [[FlockPlugin, { roomId: 'event-room' }]],
+          plugins: [[CahootsPlugin, { roomId: 'event-room' }]],
         },
       },
     );
@@ -1062,7 +1062,7 @@ describe('Options API support', () => {
       }),
       {
         global: {
-          plugins: [[FlockPlugin, { roomId: 'options-room' }]],
+          plugins: [[CahootsPlugin, { roomId: 'options-room' }]],
         },
       },
     );
@@ -1085,7 +1085,7 @@ describe('error handling', () => {
           template: '<div />',
         }),
       );
-    }).toThrowError(FlockError);
+    }).toThrowError(CahootsError);
     expect(() => {
       mount(
         defineComponent({
@@ -1096,6 +1096,6 @@ describe('error handling', () => {
           template: '<div />',
         }),
       );
-    }).toThrow('FlockPlugin');
+    }).toThrow('CahootsPlugin');
   });
 });

@@ -1,4 +1,4 @@
-import { createFlockError } from '../flock-error';
+import { createCahootsError } from '../cahoots-error';
 import type { StateChangeMeta, StateOptions } from '../types';
 
 export const STATE_HISTORY_LIMIT = 20;
@@ -192,7 +192,7 @@ export function assertSupportedStateStrategy(
     return 'custom';
   }
 
-  throw createFlockError(
+  throw createCahootsError(
     'INVALID_STATE',
     'State strategy "crdt" requires the Yjs-based engine. Use room.useState() with strategy: "crdt" from the Room class.',
     false,

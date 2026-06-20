@@ -6,13 +6,13 @@
 
 Use GitHub Discussions for design questions, integration help, and open-ended guidance:
 
-- <https://github.com/erayates/flockjs/discussions>
+- <https://github.com/erayates/cahoots/discussions>
 
 ### 2) Confirmed Bugs
 
 Use GitHub Issues for reproducible defects:
 
-- <https://github.com/erayates/flockjs/issues>
+- <https://github.com/erayates/cahoots/issues>
 
 Please use issue templates and include complete reproduction context.
 
@@ -20,7 +20,7 @@ Please use issue templates and include complete reproduction context.
 
 Use private vulnerability reporting only:
 
-- <https://github.com/erayates/flockjs/security>
+- <https://github.com/erayates/cahoots/security>
 
 ## Triage Expectations
 

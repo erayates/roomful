@@ -2,10 +2,10 @@
 
 Audience: contributors.
 
-This is the planned monorepo structure for FlockJS.
+This is the planned monorepo structure for Cahoots.
 
 ```text
-flockjs/
+cahoots/
 ├── packages/
 │   ├── core/         # Transport, room lifecycle, engines
 │   ├── react/        # React provider and hooks

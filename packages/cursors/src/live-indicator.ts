@@ -30,20 +30,20 @@ export function LiveIndicator(props: LiveIndicatorProps): ReactElement {
       'span',
       {
         'aria-label': ariaLabel,
-        'data-flockjs-live-indicator': 'true',
+        'data-cahoots-live-indicator': 'true',
         key: 'indicator',
         role: 'img',
         style: createRootStyle(size),
       },
       createElement('span', {
         'aria-hidden': 'true',
-        'data-flockjs-live-indicator-pulse': 'true',
+        'data-cahoots-live-indicator-pulse': 'true',
         key: 'pulse',
         style: createPulseStyle(color),
       }),
       createElement('span', {
         'aria-hidden': 'true',
-        'data-flockjs-live-indicator-core': 'true',
+        'data-cahoots-live-indicator-core': 'true',
         key: 'core',
         style: createCoreStyle(color),
       }),

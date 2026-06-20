@@ -1,4 +1,4 @@
-import { createCoreHealth, createRoom } from '@flockjs/core';
+import { createCoreHealth, createRoom } from '@cahoots/core';
 
 const room = createRoom('publish-smoke-core', {
   presence: {

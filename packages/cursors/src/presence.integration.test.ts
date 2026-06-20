@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
-import type { PresenceData } from '@flockjs/core';
-import { FlockProvider } from '@flockjs/react';
+import type { PresenceData } from '@cahoots/core';
+import { CahootsProvider } from '@cahoots/react';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import { createElement, type ReactElement } from 'react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -131,7 +131,7 @@ function renderProviders(roomId: string, includeSecondProvider: boolean): ReactE
     'div',
     null,
     createElement(
-      FlockProvider<TestPresence>,
+      CahootsProvider<TestPresence>,
       {
         roomId,
         transport: 'broadcast',
@@ -141,7 +141,7 @@ function renderProviders(roomId: string, includeSecondProvider: boolean): ReactE
     ),
     includeSecondProvider
       ? createElement(
-          FlockProvider<TestPresence>,
+          CahootsProvider<TestPresence>,
           {
             roomId,
             transport: 'broadcast',
@@ -174,7 +174,7 @@ afterEach(() => {
 });
 
 describe('Presence components integration', () => {
-  it('updates when peers join and leave through FlockProvider presence', async () => {
+  it('updates when peers join and leave through CahootsProvider presence', async () => {
     const roomId = nextRoomId('presence-components');
     const view = render(renderProviders(roomId, false));
 

@@ -7,8 +7,8 @@ import type {
   Room,
   StateEngine,
   Unsubscribe,
-} from '@flockjs/core';
-import { createRoom } from '@flockjs/core';
+} from '@cahoots/core';
+import { createRoom } from '@cahoots/core';
 
 interface DashboardPresence extends PresenceData {
   name?: string;

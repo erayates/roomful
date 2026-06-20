@@ -4,23 +4,23 @@ Audience: users and contributors.
 
 ## DevTools Extension
 
-`@flockjs/devtools` now ships a browser DevTools extension bundle for Chrome and Firefox.
+`@cahoots/devtools` now ships a browser DevTools extension bundle for Chrome and Firefox.
 
 Build the extension artifacts:
 
 ```bash
-pnpm --filter @flockjs/devtools build
+pnpm --filter @cahoots/devtools build
 ```
 
 Output artifacts land in `packages/devtools/dist/browser/`:
 
 - `chrome/` unpacked Chrome extension
 - `firefox/` temporary Firefox extension
-- `flockjs-devtools-chrome.zip` store-ready Chrome archive
-- `flockjs-devtools-firefox.zip` store-ready Firefox archive
+- `cahoots-devtools-chrome.zip` store-ready Chrome archive
+- `cahoots-devtools-firefox.zip` store-ready Firefox archive
 - `listings/` store listing copy and manual QA notes
 
-The panel reads page diagnostics from the bridge injected by the core SDK at `window.__flockjs_devtools__`.
+The panel reads page diagnostics from the bridge injected by the core SDK at `window.__cahoots_devtools__`.
 
 ## Debug Configuration
 
@@ -38,7 +38,7 @@ const room = createRoom('my-room', {
 - `events`
 - `performance`
 
-Logs are console-backed and emitted as `console.info`, `console.warn`, or `console.error` with a `[FlockJS]` prefix plus a structured payload. Every payload includes:
+Logs are console-backed and emitted as `console.info`, `console.warn`, or `console.error` with a `[Cahoots]` prefix plus a structured payload. Every payload includes:
 
 - `timestamp`
 - `roomId`

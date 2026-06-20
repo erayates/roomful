@@ -79,7 +79,7 @@ jobs:
       - name: Verify relay CLI version
         shell: bash
         run: |
-          expected="flockjs-relay $(node -p "require('./packages/relay/package.json').version")"
+          expected="cahoots-relay $(node -p "require('./packages/relay/package.json').version")"
           actual="$(node packages/relay/dist/cli.js --version)"
           if [ "${actual}" != "${expected}" ]; then
             echo "Expected relay CLI version '${expected}', got '${actual}'."
@@ -155,7 +155,7 @@ jobs:
         id: docker-meta
         uses: docker/metadata-action@v5
         with:
-          images: flockjs/relay
+          images: cahoots/relay
           tags: |
             type=raw,value=latest,enable=${{ !contains(github.ref_name, '-') }}
             type=semver,pattern={{version}},value=${{ github.ref_name }}

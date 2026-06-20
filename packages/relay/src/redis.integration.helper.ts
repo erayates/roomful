@@ -589,7 +589,7 @@ export function registerRedisIntegrationTests(): void {
       send(clientA, {
         type: 'transport',
         message: {
-          source: 'flockjs',
+          source: 'cahoots',
           protocolVersion: 2,
           codec: 'json',
           roomId: 'room-redis-routing',
@@ -617,7 +617,7 @@ export function registerRedisIntegrationTests(): void {
       ).resolves.toMatchObject({
         type: 'transport',
         message: {
-          source: 'flockjs',
+          source: 'cahoots',
           version: 1,
           signal: {
             type: 'event',

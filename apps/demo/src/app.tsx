@@ -1,4 +1,4 @@
-import { FlockProvider } from '@flockjs/react';
+import { CahootsProvider } from '@cahoots/react';
 import { type ReactElement, useEffect, useState } from 'react';
 
 import { resolveDemoRuntimeConfig } from './demo-config';
@@ -74,7 +74,7 @@ export function App(): ReactElement {
   }, [roomSelection.roomId, runtimeConfig.dayOverride, runtimeConfig.roomOverride]);
 
   return (
-    <FlockProvider<DemoPresence>
+    <CahootsProvider<DemoPresence>
       key={roomSelection.roomId}
       presence={providerPresence}
       reconnect={{ backoffMs: 500, backoffMultiplier: 1.6, maxAttempts: 8, maxBackoffMs: 4_000 }}
@@ -89,6 +89,6 @@ export function App(): ReactElement {
         onIdentityChange={setIdentity}
         roomLabel={resolveRoomLabel(roomSelection.roomKey, runtimeConfig.roomOverride)}
       />
-    </FlockProvider>
+    </CahootsProvider>
   );
 }

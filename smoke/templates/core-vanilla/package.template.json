@@ -1,12 +1,12 @@
 {
-  "name": "flockjs-smoke-core-vanilla",
+  "name": "cahoots-smoke-core-vanilla",
   "private": true,
   "type": "module",
   "scripts": {
     "validate": "tsc --noEmit && vite build"
   },
   "dependencies": {
-    "@flockjs/core": "workspace:*",
+    "@cahoots/core": "workspace:*",
     "y-protocols": "^1.0.7",
     "yjs": "^13.6.29"
   },

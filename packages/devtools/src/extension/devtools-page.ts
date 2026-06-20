@@ -6,7 +6,7 @@ export async function bootDevtoolsPanel(): Promise<void> {
     return;
   }
 
-  await createDevtoolsPanel(devtoolsApi, 'FlockJS', 'icons/icon-32.png', 'extension/panel.html');
+  await createDevtoolsPanel(devtoolsApi, 'Cahoots', 'icons/icon-32.png', 'extension/panel.html');
 }
 
 void bootDevtoolsPanel();

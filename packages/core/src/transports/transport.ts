@@ -4,7 +4,7 @@ import type {
   PeerWireMessage,
   PeerWireMessageType,
 } from '../protocol/peer-message';
-import type { FlockError, Unsubscribe } from '../types';
+import type { CahootsError, Unsubscribe } from '../types';
 
 export type TransportKind = 'broadcast' | 'in-memory' | 'webrtc' | 'websocket' | 'polling';
 
@@ -16,7 +16,7 @@ export interface TransportErrorSignal {
   roomId: string;
   fromPeerId: string;
   payload: {
-    error: FlockError;
+    error: CahootsError;
   };
 }
 

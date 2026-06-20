@@ -1,7 +1,7 @@
 import { createElement, type ReactElement } from 'react';
 
-export const LIVE_INDICATOR_PULSE_ANIMATION_NAME = 'flockjsLiveIndicatorPulse';
-export const TYPING_DOT_PULSE_ANIMATION_NAME = 'flockjsTypingDotPulse';
+export const LIVE_INDICATOR_PULSE_ANIMATION_NAME = 'cahootsLiveIndicatorPulse';
+export const TYPING_DOT_PULSE_ANIMATION_NAME = 'cahootsTypingDotPulse';
 
 const INDICATOR_KEYFRAMES = `
 @keyframes ${LIVE_INDICATOR_PULSE_ANIMATION_NAME} {
@@ -38,7 +38,7 @@ export function IndicatorStyleSheet(): ReactElement {
   return createElement(
     'style',
     {
-      'data-flockjs-indicator-styles': 'true',
+      'data-cahoots-indicator-styles': 'true',
     },
     INDICATOR_KEYFRAMES,
   );

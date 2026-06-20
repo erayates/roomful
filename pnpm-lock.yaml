@@ -74,13 +74,13 @@ importers:
 
   apps/demo:
     dependencies:
-      '@flockjs/core':
+      '@cahoots/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@flockjs/cursors':
+      '@cahoots/cursors':
         specifier: workspace:*
         version: link:../../packages/cursors
-      '@flockjs/react':
+      '@cahoots/react':
         specifier: workspace:*
         version: link:../../packages/react
       react:
@@ -114,7 +114,7 @@ importers:
 
   apps/docs:
     dependencies:
-      '@flockjs/core':
+      '@cahoots/core':
         specifier: workspace:*
         version: link:../../packages/core
     devDependencies:
@@ -157,7 +157,7 @@ importers:
 
   apps/playground:
     dependencies:
-      '@flockjs/core':
+      '@cahoots/core':
         specifier: workspace:*
         version: link:../../packages/core
     devDependencies:
@@ -167,7 +167,7 @@ importers:
 
   examples/collaborative-editor:
     dependencies:
-      '@flockjs/core':
+      '@cahoots/core':
         specifier: workspace:*
         version: link:../../packages/core
     devDependencies:
@@ -177,7 +177,7 @@ importers:
 
   examples/live-dashboard:
     dependencies:
-      '@flockjs/core':
+      '@cahoots/core':
         specifier: workspace:*
         version: link:../../packages/core
     devDependencies:
@@ -187,7 +187,7 @@ importers:
 
   examples/multiplayer-game:
     dependencies:
-      '@flockjs/core':
+      '@cahoots/core':
         specifier: workspace:*
         version: link:../../packages/core
     devDependencies:
@@ -197,7 +197,7 @@ importers:
 
   examples/shared-canvas:
     dependencies:
-      '@flockjs/core':
+      '@cahoots/core':
         specifier: workspace:*
         version: link:../../packages/core
     devDependencies:
@@ -207,7 +207,7 @@ importers:
 
   packages/core:
     devDependencies:
-      '@flockjs/devtools':
+      '@cahoots/devtools':
         specifier: workspace:*
         version: link:../devtools
       y-protocols:
@@ -219,10 +219,10 @@ importers:
 
   packages/cursors:
     dependencies:
-      '@flockjs/core':
+      '@cahoots/core':
         specifier: workspace:*
         version: link:../core
-      '@flockjs/react':
+      '@cahoots/react':
         specifier: workspace:*
         version: link:../react
     devDependencies:
@@ -261,7 +261,7 @@ importers:
 
   packages/react:
     dependencies:
-      '@flockjs/core':
+      '@cahoots/core':
         specifier: workspace:*
         version: link:../core
     devDependencies:
@@ -308,7 +308,7 @@ importers:
 
   packages/svelte:
     dependencies:
-      '@flockjs/core':
+      '@cahoots/core':
         specifier: workspace:*
         version: link:../core
     devDependencies:
@@ -321,7 +321,7 @@ importers:
 
   packages/vue:
     dependencies:
-      '@flockjs/core':
+      '@cahoots/core':
         specifier: workspace:*
         version: link:../core
     devDependencies:

@@ -1,4 +1,4 @@
-import { createFlockError } from '../flock-error';
+import { createCahootsError } from '../cahoots-error';
 
 export type WindowEventTarget = Pick<Window, 'addEventListener' | 'removeEventListener'>;
 
@@ -92,7 +92,7 @@ export function createRuntimePeerId(): string {
   }
 
   if (!runtimeCrypto || typeof runtimeCrypto.getRandomValues !== 'function') {
-    throw createFlockError(
+    throw createCahootsError(
       'NETWORK_ERROR',
       'Secure random peer ID generation is unavailable in this runtime.',
       false,
@@ -109,7 +109,7 @@ export function createRuntimePeerId(): string {
   const versionByte = bytes[6];
   const variantByte = bytes[8];
   if (versionByte === undefined || variantByte === undefined) {
-    throw createFlockError(
+    throw createCahootsError(
       'NETWORK_ERROR',
       'Secure random peer ID generation produced invalid byte output.',
       false,

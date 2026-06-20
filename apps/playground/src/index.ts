@@ -10,8 +10,8 @@ import type {
   StateEngine,
   TransportMode,
   Unsubscribe,
-} from '@flockjs/core';
-import { createRoom } from '@flockjs/core';
+} from '@cahoots/core';
+import { createRoom } from '@cahoots/core';
 
 interface PlaygroundPresence extends PresenceData {
   color?: string;
@@ -41,7 +41,7 @@ const defaultFormState: PlaygroundFormState = {
   color: '#007f68',
   name: 'Visitor',
   relayUrl: 'ws://localhost:8787',
-  roomId: 'flockjs-playground',
+  roomId: 'cahoots-playground',
   transport: 'broadcast',
 };
 

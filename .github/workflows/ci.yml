@@ -63,10 +63,10 @@ jobs:
         run: pnpm test
 
       - name: Engine coverage gate
-        run: pnpm --filter @flockjs/core run test:engines:coverage
+        run: pnpm --filter @cahoots/core run test:engines:coverage
 
       - name: Test demo app
-        run: pnpm --filter @flockjs/app-demo test
+        run: pnpm --filter @cahoots/app-demo test
 
       - name: Validate docs snippets
         run: pnpm docs:snippets
@@ -81,7 +81,7 @@ jobs:
         run: pnpm verify:package-types
 
       - name: Build cursors Storybook
-        run: pnpm --filter @flockjs/cursors build-storybook
+        run: pnpm --filter @cahoots/cursors build-storybook
 
   browser-integration:
     name: Browser Integration (Node 20)
@@ -204,7 +204,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build relay package
-        run: pnpm --filter @flockjs/relay build
+        run: pnpm --filter @cahoots/relay build
 
       - name: Verify relay package contents
         working-directory: packages/relay
@@ -217,13 +217,13 @@ jobs:
         run: npm pack
 
       - name: Install relay CLI from tarball
-        run: npm install -g ./packages/relay/flockjs-relay-*.tgz
+        run: npm install -g ./packages/relay/cahoots-relay-*.tgz
 
       - name: Smoke test relay CLI
         shell: bash
         run: |
           set -euo pipefail
-          flockjs-relay --port 8790 --host 127.0.0.1 &
+          cahoots-relay --port 8790 --host 127.0.0.1 &
           RELAY_PID=$!
           trap 'kill ${RELAY_PID}' EXIT
           for _ in $(seq 1 20); do
@@ -239,22 +239,22 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          expected="flockjs-relay $(node -p "require('./packages/relay/package.json').version")"
-          actual="$(flockjs-relay --version)"
+          expected="cahoots-relay $(node -p "require('./packages/relay/package.json').version")"
+          actual="$(cahoots-relay --version)"
           if [ "${actual}" != "${expected}" ]; then
             echo "Expected relay CLI version '${expected}', got '${actual}'."
             exit 1
           fi
 
       - name: Build relay Docker image
-        run: docker build -t flockjs-relay:test .
+        run: docker build -t cahoots-relay:test .
 
       - name: Smoke test relay Docker image
         shell: bash
         run: |
           set -euo pipefail
-          docker run -d --name flockjs-relay-test -p 8791:8787 flockjs-relay:test
-          trap 'docker rm -f flockjs-relay-test' EXIT
+          docker run -d --name cahoots-relay-test -p 8791:8787 cahoots-relay:test
+          trap 'docker rm -f cahoots-relay-test' EXIT
           for _ in $(seq 1 20); do
             if curl --fail --silent http://127.0.0.1:8791/health > /dev/null; then
               exit 0
@@ -276,7 +276,7 @@ jobs:
         run: |
           set -euo pipefail
           docker compose -f docker-compose.prod.yml config > compose.prod.rendered.yml
-          grep -q "image: flockjs/relay:latest" compose.prod.rendered.yml
+          grep -q "image: cahoots/relay:latest" compose.prod.rendered.yml
           if grep -q "build:" compose.prod.rendered.yml; then
             echo "Production compose config unexpectedly contains a build section."
             exit 1

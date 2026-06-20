@@ -1,12 +1,12 @@
-# FlockJS Documentation
+# Cahoots Documentation
 
 Audience: users and contributors.
 
-This directory is the canonical Markdown documentation hub for FlockJS.
+This directory is the canonical Markdown documentation hub for Cahoots.
 
 ## Current State
 
-FlockJS is approaching v1.0 release. All major features are implemented and tested across 7 packages. API contracts are stable.
+Cahoots is approaching v1.0 release. All major features are implemented and tested across 7 packages. API contracts are stable.
 
 ## Getting Started
 
@@ -42,7 +42,7 @@ FlockJS is approaching v1.0 release. All major features are implemented and test
 - [Repository structure](project/repository-structure.md)
 - [Development setup](project/development-setup.md)
 - [Code conventions](project/code-conventions.md)
-- [FlockJS code quality guidelines](project/flockjs-code-quality-guidelines.md)
+- [Cahoots code quality guidelines](project/cahoots-code-quality-guidelines.md)
 - [WebRTC validation](project/webrtc-validation.md)
 - [Execution plan](project/execution-plan.md)
 - [Labeling and triage](project/labeling-and-triage.md)

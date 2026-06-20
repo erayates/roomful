@@ -43,21 +43,21 @@ function createSection(title: string, description: string, children: Node[]): HT
   return createElement(
     'section',
     {
-      className: 'flock-section',
+      className: 'cahoots-section',
     },
     [
       createElement(
         'header',
         {
-          className: 'flock-section__header',
+          className: 'cahoots-section__header',
         },
         [
           createElement('h2', {
-            className: 'flock-section__title',
+            className: 'cahoots-section__title',
             text: title,
           }),
           createElement('p', {
-            className: 'flock-section__description',
+            className: 'cahoots-section__description',
             text: description,
           }),
         ],
@@ -71,15 +71,15 @@ function createMetaCard(label: string, value: string): HTMLElement {
   return createElement(
     'article',
     {
-      className: 'flock-card flock-card--metric',
+      className: 'cahoots-card cahoots-card--metric',
     },
     [
       createElement('span', {
-        className: 'flock-card__label',
+        className: 'cahoots-card__label',
         text: label,
       }),
       createElement('strong', {
-        className: 'flock-card__value',
+        className: 'cahoots-card__value',
         text: value,
       }),
     ],
@@ -95,7 +95,7 @@ function createOverviewSection(state: DevtoolsPanelState): HTMLElement {
     createElement(
       'div',
       {
-        className: 'flock-grid flock-grid--metrics',
+        className: 'cahoots-grid cahoots-grid--metrics',
       },
       [
         createMetaCard('Status', selectedRoom ? formatStatus(selectedRoom.status) : 'n/a'),
@@ -107,7 +107,7 @@ function createOverviewSection(state: DevtoolsPanelState): HTMLElement {
     createElement(
       'div',
       {
-        className: 'flock-grid flock-grid--details',
+        className: 'cahoots-grid cahoots-grid--details',
       },
       [
         createMetaCard('Room ID', selectedRoom?.roomId ?? 'n/a'),
@@ -138,27 +138,27 @@ function createPeerCard(
   return createElement(
     'article',
     {
-      className: 'flock-card flock-peer-card',
+      className: 'cahoots-card cahoots-peer-card',
     },
     [
       createElement(
         'header',
         {
-          className: 'flock-peer-card__header',
+          className: 'cahoots-peer-card__header',
         },
         [
           createElement(
             'div',
             {
-              className: 'flock-peer-card__identity',
+              className: 'cahoots-peer-card__identity',
             },
             [
               createElement('strong', {
-                className: 'flock-peer-card__name',
+                className: 'cahoots-peer-card__name',
                 text: getPeerLabel(peer.presence, peer.id),
               }),
               createElement('span', {
-                className: 'flock-peer-card__meta',
+                className: 'cahoots-peer-card__meta',
                 text: peer.id,
               }),
             ],
@@ -166,7 +166,7 @@ function createPeerCard(
           createElement(
             'div',
             {
-              className: 'flock-badge-row',
+              className: 'cahoots-badge-row',
             },
             badges,
           ),
@@ -175,7 +175,7 @@ function createPeerCard(
       createElement(
         'dl',
         {
-          className: 'flock-definition-list',
+          className: 'cahoots-definition-list',
         },
         presenceEntries.flatMap(([key, value]) => {
           return [
@@ -200,14 +200,14 @@ function createPeersSection(state: DevtoolsPanelState): HTMLElement {
       ? createElement(
           'div',
           {
-            className: 'flock-grid flock-grid--peers',
+            className: 'cahoots-grid cahoots-grid--peers',
           },
           peers.map((peer) => {
             return createPeerCard(peer);
           }),
         )
       : createElement('p', {
-          className: 'flock-empty-copy',
+          className: 'cahoots-empty-copy',
           text: 'No peer data is available for the selected room.',
         }),
   ]);
@@ -216,7 +216,7 @@ function createPeersSection(state: DevtoolsPanelState): HTMLElement {
 function createDiffList(state: DevtoolsStateSnapshot): HTMLElement {
   if (state.diff.length === 0) {
     return createElement('p', {
-      className: 'flock-empty-copy',
+      className: 'cahoots-empty-copy',
       text: 'No state changes recorded yet.',
     });
   }
@@ -224,7 +224,7 @@ function createDiffList(state: DevtoolsStateSnapshot): HTMLElement {
   return createElement(
     'ul',
     {
-      className: 'flock-list flock-list--diff',
+      className: 'cahoots-list cahoots-list--diff',
     },
     state.diff.map((entry) => {
       return createElement(
@@ -233,13 +233,13 @@ function createDiffList(state: DevtoolsStateSnapshot): HTMLElement {
           attributes: {
             'data-diff-kind': entry.kind,
           },
-          className: 'flock-diff-entry',
+          className: 'cahoots-diff-entry',
         },
         [
           createElement(
             'div',
             {
-              className: 'flock-diff-entry__header',
+              className: 'cahoots-diff-entry__header',
             },
             [
               createElement('strong', {
@@ -249,7 +249,7 @@ function createDiffList(state: DevtoolsStateSnapshot): HTMLElement {
             ],
           ),
           createElement('p', {
-            className: 'flock-diff-entry__values',
+            className: 'cahoots-diff-entry__values',
             text: `${formatSerializedValue(entry.previous)} \u2192 ${formatSerializedValue(entry.next)}`,
           }),
         ],
@@ -287,15 +287,15 @@ function renderStateNode(
       'div',
       {
         attributes,
-        className: 'flock-state-row',
+        className: 'cahoots-state-row',
       },
       [
         createElement('span', {
-          className: 'flock-state-row__key',
+          className: 'cahoots-state-row__key',
           text: label,
         }),
         createElement('code', {
-          className: 'flock-state-row__value',
+          className: 'cahoots-state-row__value',
           text: formatSerializedValue(value),
         }),
       ],
@@ -306,7 +306,7 @@ function renderStateNode(
     'details',
     {
       attributes,
-      className: 'flock-state-branch',
+      className: 'cahoots-state-branch',
     },
     [],
   );
@@ -317,15 +317,15 @@ function renderStateNode(
     createElement(
       'summary',
       {
-        className: 'flock-state-branch__summary',
+        className: 'cahoots-state-branch__summary',
       },
       [
         createElement('span', {
-          className: 'flock-state-branch__key',
+          className: 'cahoots-state-branch__key',
           text: label,
         }),
         createElement('span', {
-          className: 'flock-state-branch__type',
+          className: 'cahoots-state-branch__type',
           text: typeLabel,
         }),
         diffKind ? createBadge(diffKind, diffKind) : null,
@@ -351,7 +351,7 @@ function renderStateNode(
     createElement(
       'div',
       {
-        className: 'flock-state-branch__children',
+        className: 'cahoots-state-branch__children',
       },
       childNodes,
     ),
@@ -368,19 +368,19 @@ function createStateSection(state: DevtoolsPanelState): HTMLElement {
       ? createElement(
           'div',
           {
-            className: 'flock-grid flock-grid--state',
+            className: 'cahoots-grid cahoots-grid--state',
           },
           [
             createElement(
               'div',
               {
-                className: 'flock-card flock-state-card',
+                className: 'cahoots-card cahoots-state-card',
               },
               [
                 createElement(
                   'div',
                   {
-                    className: 'flock-inline-metrics',
+                    className: 'cahoots-inline-metrics',
                   },
                   [
                     createMetaCard('Strategy', stateSnapshot.strategy ?? 'n/a'),
@@ -400,14 +400,14 @@ function createStateSection(state: DevtoolsPanelState): HTMLElement {
             createElement(
               'div',
               {
-                className: 'flock-card flock-state-card',
+                className: 'cahoots-card cahoots-state-card',
               },
               [createDiffList(stateSnapshot)],
             ),
           ],
         )
       : createElement('p', {
-          className: 'flock-empty-copy',
+          className: 'cahoots-empty-copy',
           text: 'The selected room has not configured shared state.',
         }),
   ]);
@@ -419,26 +419,26 @@ function createEventCard(
   return createElement(
     'article',
     {
-      className: 'flock-card flock-event-card',
+      className: 'cahoots-card cahoots-event-card',
     },
     [
       createElement(
         'div',
         {
-          className: 'flock-event-card__header',
+          className: 'cahoots-event-card__header',
         },
         [
           createElement(
             'div',
             {
-              className: 'flock-event-card__identity',
+              className: 'cahoots-event-card__identity',
             },
             [
               createElement('strong', {
                 text: event.name,
               }),
               createElement('span', {
-                className: 'flock-event-card__meta',
+                className: 'cahoots-event-card__meta',
                 text: `${event.direction} \u2022 ${formatTimestamp(event.timestamp)}`,
               }),
             ],
@@ -449,7 +449,7 @@ function createEventCard(
       createElement(
         'dl',
         {
-          className: 'flock-definition-list',
+          className: 'cahoots-definition-list',
         },
         [
           createElement('dt', {
@@ -490,14 +490,14 @@ function createEventsSection(state: DevtoolsPanelState): HTMLElement {
       ? createElement(
           'div',
           {
-            className: 'flock-grid flock-grid--events',
+            className: 'cahoots-grid cahoots-grid--events',
           },
           events.map((event) => {
             return createEventCard(event);
           }),
         )
       : createElement('p', {
-          className: 'flock-empty-copy',
+          className: 'cahoots-empty-copy',
           text: 'No custom events have been recorded yet.',
         }),
   ]);
@@ -507,7 +507,7 @@ function createControls(state: DevtoolsPanelState, actions: DevtoolsPanelActions
   const controls = createElement(
     'div',
     {
-      className: 'flock-controls',
+      className: 'cahoots-controls',
     },
     [],
   );
@@ -520,7 +520,7 @@ function createControls(state: DevtoolsPanelState, actions: DevtoolsPanelActions
           'aria-label': 'Select room',
           'data-testid': 'room-selector',
         },
-        className: 'flock-select',
+        className: 'cahoots-select',
       },
       state.rooms.map((room) => {
         const option = createElement(
@@ -546,11 +546,11 @@ function createControls(state: DevtoolsPanelState, actions: DevtoolsPanelActions
       createElement(
         'label',
         {
-          className: 'flock-control',
+          className: 'cahoots-control',
         },
         [
           createElement('span', {
-            className: 'flock-control__label',
+            className: 'cahoots-control__label',
             text: 'Room',
           }),
           selector,
@@ -565,7 +565,7 @@ function createControls(state: DevtoolsPanelState, actions: DevtoolsPanelActions
       attributes: {
         type: 'button',
       },
-      className: 'flock-button flock-button--secondary',
+      className: 'cahoots-button cahoots-button--secondary',
       text: 'Refresh',
     },
     [],
@@ -580,7 +580,7 @@ function createControls(state: DevtoolsPanelState, actions: DevtoolsPanelActions
       attributes: {
         type: 'button',
       },
-      className: 'flock-button',
+      className: 'cahoots-button',
       text: state.snapshot?.hasSimulatedPeer ? 'Remove Simulated Peer' : 'Inject Simulated Peer',
     },
     [],
@@ -594,7 +594,7 @@ function createControls(state: DevtoolsPanelState, actions: DevtoolsPanelActions
     createElement(
       'div',
       {
-        className: 'flock-control-row',
+        className: 'cahoots-control-row',
       },
       [refreshButton, simulatedPeerButton],
     ),
@@ -607,15 +607,15 @@ function createCallout(title: string, message: string): HTMLElement {
   return createElement(
     'section',
     {
-      className: 'flock-callout',
+      className: 'cahoots-callout',
     },
     [
       createElement('h2', {
-        className: 'flock-callout__title',
+        className: 'cahoots-callout__title',
         text: title,
       }),
       createElement('p', {
-        className: 'flock-callout__body',
+        className: 'cahoots-callout__body',
         text: message,
       }),
     ],
@@ -625,7 +625,7 @@ function createCallout(title: string, message: string): HTMLElement {
 function renderReadyState(state: DevtoolsPanelState, actions: DevtoolsPanelActions): HTMLElement[] {
   if (state.rooms.length === 0) {
     return [
-      createCallout('No active rooms', 'Create and connect a FlockJS room to inspect live data.'),
+      createCallout('No active rooms', 'Create and connect a Cahoots room to inspect live data.'),
     ];
   }
 
@@ -647,47 +647,47 @@ export function renderDevtoolsPanel(
   const container = createElement(
     'main',
     {
-      className: 'flock-panel',
+      className: 'cahoots-panel',
     },
     [
       createElement(
         'header',
         {
-          className: 'flock-panel__hero',
+          className: 'cahoots-panel__hero',
         },
         [
           createElement(
             'div',
             {
-              className: 'flock-panel__hero-copy',
+              className: 'cahoots-panel__hero-copy',
             },
             [
               createElement('p', {
-                className: 'flock-panel__eyebrow',
-                text: 'FlockJS DevTools',
+                className: 'cahoots-panel__eyebrow',
+                text: 'Cahoots DevTools',
               }),
               createElement('h1', {
-                className: 'flock-panel__title',
+                className: 'cahoots-panel__title',
                 text: 'Realtime room diagnostics for peers, state, and events.',
               }),
               createElement('p', {
-                className: 'flock-panel__subtitle',
+                className: 'cahoots-panel__subtitle',
                 text:
                   state.status === 'ready' && selectedRoom
                     ? `${selectedRoom.roomId} \u2022 ${formatTransport(selectedRoom.transport)}`
-                    : 'Bridge your inspected page through window.__flockjs_devtools__ to activate live inspection.',
+                    : 'Bridge your inspected page through window.__cahoots_devtools__ to activate live inspection.',
               }),
             ],
           ),
           createElement(
             'div',
             {
-              className: 'flock-panel__hero-meta',
+              className: 'cahoots-panel__hero-meta',
             },
             [
               createBadge(state.status, state.status),
               createElement('span', {
-                className: 'flock-panel__timestamp',
+                className: 'cahoots-panel__timestamp',
                 text: `Updated ${formatTimestamp(state.lastUpdatedAt)}`,
               }),
             ],
@@ -699,14 +699,14 @@ export function renderDevtoolsPanel(
         ? [
             createCallout(
               'Connecting',
-              'Waiting for the inspected page to expose the FlockJS bridge.',
+              'Waiting for the inspected page to expose the Cahoots bridge.',
             ),
           ]
         : state.status === 'missing'
           ? [
               createCallout(
                 'SDK not detected',
-                'Expose window.__flockjs_devtools__ from the inspected page to populate the FlockJS panel.',
+                'Expose window.__cahoots_devtools__ from the inspected page to populate the Cahoots panel.',
               ),
             ]
           : state.status === 'version-mismatch'

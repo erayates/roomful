@@ -163,7 +163,7 @@ export type PeerWireMessage =
   | CrdtAwarenessWireMessage;
 
 interface LegacyPeerTransportEnvelope {
-  source: 'flockjs';
+  source: 'cahoots';
   version: 1;
   signal: {
     type: PeerWireMessageType;
@@ -175,7 +175,7 @@ interface LegacyPeerTransportEnvelope {
 }
 
 interface ModernPeerTransportEnvelope<TType extends PeerWireMessageType = PeerWireMessageType> {
-  source: 'flockjs';
+  source: 'cahoots';
   protocolVersion: 2;
   codec: PeerProtocolCodec;
   roomId: string;
@@ -208,7 +208,7 @@ interface BinaryCarrierOptions extends ParseEnvelopeOptions {
   carrier: 'msgpack';
 }
 
-const MODERN_SOURCE = 'flockjs';
+const MODERN_SOURCE = 'cahoots';
 const LEGACY_VERSION = 1;
 const MODERN_VERSION = 2;
 const JSON_CODEC = 'json';
@@ -1194,7 +1194,7 @@ export function serializePeerWireEnvelopeObject(
 ): PeerTransportEnvelope {
   if (session.version === 1 || session.legacy) {
     return {
-      source: 'flockjs',
+      source: 'cahoots',
       version: 1,
       signal: {
         type: message.type,
@@ -1209,7 +1209,7 @@ export function serializePeerWireEnvelopeObject(
   }
 
   return {
-    source: 'flockjs',
+    source: 'cahoots',
     protocolVersion: 2,
     codec: session.codec,
     roomId: message.roomId,

@@ -1,20 +1,20 @@
-# @flockjs/svelte
+# @cahoots/svelte
 
-Svelte bindings for [FlockJS](https://github.com/erayates/flockjs) — Svelte-native stores and actions for real-time collaboration.
+Svelte bindings for [Cahoots](https://github.com/erayates/cahoots) — Svelte-native stores and actions for real-time collaboration.
 
 ## Install
 
 ```bash
-npm install @flockjs/core @flockjs/svelte
+npm install @cahoots/core @cahoots/svelte
 ```
 
 ## Usage
 
 ```svelte
 <script>
-  import { flock } from '@flockjs/svelte';
+  import { cahoots } from '@cahoots/svelte';
 
-  const { presence, cursors, state } = flock('my-room', {
+  const { presence, cursors, state } = cahoots('my-room', {
     presence: { name: 'Alice', color: '#4F46E5' },
   });
 
@@ -29,11 +29,11 @@ npm install @flockjs/core @flockjs/svelte
 </div>
 ```
 
-`flock()` returns `{ presence, cursors, state, events, awareness }` as Svelte stores.
+`cahoots()` returns `{ presence, cursors, state, events, awareness }` as Svelte stores.
 
 ## Documentation
 
-See the [FlockJS repository](https://github.com/erayates/flockjs) for the full API reference.
+See the [Cahoots repository](https://github.com/erayates/cahoots) for the full API reference.
 
 ## License
 

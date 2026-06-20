@@ -5,25 +5,25 @@ Audience: users.
 ## WebRTC with Relay Signaling (Available Baseline)
 
 ```ts
-import { createRoom } from '@flockjs/core';
+import { createRoom } from '@cahoots/core';
 
 const room = createRoom('doc-room', {
   transport: 'webrtc',
   relayUrl: 'ws://localhost:8787',
   relayAuth: async () => {
-    const res = await fetch('/api/flock-token');
+    const res = await fetch('/api/cahoots-token');
     const body = await res.json();
     return body.token;
   },
   stunUrls: ['stun:stun.l.google.com:19302'],
   webrtc: {
     iceGatherTimeoutMs: 5000,
-    dataChannel: { ordered: true, protocol: 'flockjs-v1' },
+    dataChannel: { ordered: true, protocol: 'cahoots-v1' },
   },
 });
 ```
 
-When `relayAuth` is configured, FlockJS appends the resolved token to the relay WebSocket URL as `?token=...` and keeps the join payload token-free.
+When `relayAuth` is configured, Cahoots appends the resolved token to the relay WebSocket URL as `?token=...` and keeps the join payload token-free.
 
 ## End-to-End Encryption
 
@@ -46,15 +46,15 @@ Security notes:
 - Relay servers only see routing metadata plus ciphertext and cannot inspect decrypted application payloads.
 - Wrong keys or tampered payloads fail gracefully with `DECRYPTION_ERROR`.
 
-## Relay Signaling Server (`@flockjs/relay`)
+## Relay Signaling Server (`@cahoots/relay`)
 
 ```ts
-import { createRelayServer, verifyJWT } from '@flockjs/relay';
+import { createRelayServer, verifyJWT } from '@cahoots/relay';
 
 const relay = createRelayServer({
   port: 8787,
   maxConnections: 1000,
-  redisUrl: process.env.FLOCK_REDIS_URL,
+  redisUrl: process.env.CAHOOTS_REDIS_URL,
 }).auth(async (peerId, roomId, token) => {
   const claims = verifyJWT(token, process.env.RELAY_JWT_SECRET ?? '');
   if (claims.roomId !== roomId) {
@@ -68,15 +68,15 @@ await relay.start();
 CLI startup:
 
 ```bash
-flockjs-relay --host 0.0.0.0 --port 8787 --max-connections 1000
+cahoots-relay --host 0.0.0.0 --port 8787 --max-connections 1000
 curl http://127.0.0.1:8787/health
 ```
 
 Horizontal scaling with Redis:
 
 ```bash
-FLOCK_REDIS_URL=redis://127.0.0.1:6379/0 \
-flockjs-relay --host 0.0.0.0 --port 8787 --max-connections 1000
+CAHOOTS_REDIS_URL=redis://127.0.0.1:6379/0 \
+cahoots-relay --host 0.0.0.0 --port 8787 --max-connections 1000
 ```
 
 The relay package is the self-hostable baseline for both:
@@ -88,12 +88,12 @@ The relay package is the self-hostable baseline for both:
 Relay runtime defaults and knobs:
 
 - `HOST`: default `127.0.0.1`
-- `PORT` (or `FLOCK_PORT`): default `8787`; `FLOCK_PORT` takes precedence over `PORT`
+- `PORT` (or `CAHOOTS_PORT`): default `8787`; `CAHOOTS_PORT` takes precedence over `PORT`
 - `MAX_CONNECTIONS`: optional global concurrent WebSocket cap per relay instance
-- `FLOCK_MAX_ROOM_SIZE`: optional hard per-room peer cap
-- `FLOCK_CORS_ORIGIN`: optional allowed browser origin; adds CORS headers on HTTP responses and rejects WebSocket upgrades from other origins (use `*` to allow any origin)
-- `FLOCK_AUTH_SECRET`: enables built-in HS256 JWT authorization; peers must present a valid token signed with this secret
-- `FLOCK_REDIS_URL`: optional Redis connection string; when set, relay room coordination switches to multi-instance mode automatically
+- `CAHOOTS_MAX_ROOM_SIZE`: optional hard per-room peer cap
+- `CAHOOTS_CORS_ORIGIN`: optional allowed browser origin; adds CORS headers on HTTP responses and rejects WebSocket upgrades from other origins (use `*` to allow any origin)
+- `CAHOOTS_AUTH_SECRET`: enables built-in HS256 JWT authorization; peers must present a valid token signed with this secret
+- `CAHOOTS_REDIS_URL`: optional Redis connection string; when set, relay room coordination switches to multi-instance mode automatically
 - relay auth is disabled by default; unconfigured relays remain open
 - when auth is enabled, clients must connect with a single non-empty `token` query param
 - invalid upgrade-stage tokens are rejected with HTTP `401`
@@ -103,8 +103,8 @@ Relay runtime defaults and knobs:
 Docker runtime:
 
 ```bash
-docker pull flockjs/relay:latest
-docker run --rm -p 8787:8787 -e HOST=0.0.0.0 flockjs/relay:latest
+docker pull cahoots/relay:latest
+docker run --rm -p 8787:8787 -e HOST=0.0.0.0 cahoots/relay:latest
 ```
 
 Redis-backed relay behavior:
@@ -164,14 +164,14 @@ Behavior:
 
 ## CRDT with Yjs
 
-FlockJS ships a room-scoped Yjs document and provider:
+Cahoots ships a room-scoped Yjs document and provider:
 
-- install `yjs` and `y-protocols` alongside `@flockjs/core`
-- `@flockjs/core` exposes them as peer dependencies because CRDT support is an advanced integration surface
+- install `yjs` and `y-protocols` alongside `@cahoots/core`
+- `@cahoots/core` exposes them as peer dependencies because CRDT support is an advanced integration surface
 
 - `room.getYDoc()` returns the shared `Y.Doc`
 - `room.getYProvider()` returns the shared provider with `doc`, `awareness`, `status`, and `synced`
-- new peers bootstrap document state via Yjs state-vector exchange on the existing FlockJS transport
+- new peers bootstrap document state via Yjs state-vector exchange on the existing Cahoots transport
 - CRDT wire payloads stay binary in-process and use the negotiated transport codec, with JSON-safe array fallback when needed
 
 Use this for collaborative editors and other conflict-free shared structures:

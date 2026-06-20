@@ -2,10 +2,10 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 const DEFAULT_OWNER = 'erayates';
-const DEFAULT_REPO = 'flockjs';
-const DEFAULT_DOCS_URL = 'https://docs.flockjs.dev';
-const DEFAULT_DEMO_URL = 'https://demo.flockjs.dev';
-const DEFAULT_DOCKER_REPOSITORY = 'flockjs/relay';
+const DEFAULT_REPO = 'cahoots';
+const DEFAULT_DOCS_URL = 'https://docs.cahoots.dev';
+const DEFAULT_DEMO_URL = 'https://demo.cahoots.dev';
+const DEFAULT_DOCKER_REPOSITORY = 'cahoots/relay';
 
 function readArgs(argv) {
   const args = {
@@ -66,14 +66,14 @@ function getPublicPackages() {
         private: manifest.private === true,
       };
     })
-    .filter((manifest) => manifest.name?.startsWith('@flockjs/') && !manifest.private)
+    .filter((manifest) => manifest.name?.startsWith('@cahoots/') && !manifest.private)
     .sort((left, right) => left.name.localeCompare(right.name));
 }
 
 function releaseTagFromPackages(packages) {
-  const core = packages.find((packageInfo) => packageInfo.name === '@flockjs/core');
+  const core = packages.find((packageInfo) => packageInfo.name === '@cahoots/core');
   if (!core) {
-    throw new Error('Cannot infer release tag because @flockjs/core was not found.');
+    throw new Error('Cannot infer release tag because @cahoots/core was not found.');
   }
   return `v${core.version}`;
 }
@@ -83,7 +83,7 @@ async function checkUrl(label, url) {
     const response = await fetch(url, {
       headers: {
         accept: 'text/html,application/json;q=0.9,*/*;q=0.8',
-        'user-agent': 'flockjs-public-release-verifier',
+        'user-agent': 'cahoots-public-release-verifier',
       },
       redirect: 'follow',
     });
@@ -109,7 +109,7 @@ async function checkNpmPackage(packageInfo) {
     const response = await fetch(registryUrl, {
       headers: {
         accept: 'application/json',
-        'user-agent': 'flockjs-public-release-verifier',
+        'user-agent': 'cahoots-public-release-verifier',
       },
     });
     if (!response.ok) {
@@ -159,10 +159,10 @@ async function main() {
   const args = readArgs(process.argv.slice(2));
   const packages = getPublicPackages();
   const tag = args.tag ?? releaseTagFromPackages(packages);
-  const relayPackage = packages.find((packageInfo) => packageInfo.name === '@flockjs/relay');
+  const relayPackage = packages.find((packageInfo) => packageInfo.name === '@cahoots/relay');
 
   if (!relayPackage) {
-    throw new Error('Cannot verify Docker image because @flockjs/relay was not found.');
+    throw new Error('Cannot verify Docker image because @cahoots/relay was not found.');
   }
 
   const checks = [

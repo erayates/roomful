@@ -76,10 +76,10 @@ describe('browser api helpers', () => {
     const devtoolsApi = createDevtoolsApi(callbackPanelsCreate);
 
     await expect(
-      createDevtoolsPanel(devtoolsApi, 'FlockJS', 'icons/icon-32.png', 'extension/panel.html'),
+      createDevtoolsPanel(devtoolsApi, 'Cahoots', 'icons/icon-32.png', 'extension/panel.html'),
     ).resolves.toBeUndefined();
     expect(callbackPanelsCreate).toHaveBeenCalledWith(
-      'FlockJS',
+      'Cahoots',
       'icons/icon-32.png',
       'extension/panel.html',
       expect.any(Function),
@@ -93,7 +93,7 @@ describe('browser api helpers', () => {
     const devtoolsApi = createDevtoolsApi(promisePanelsCreate);
 
     await expect(
-      createDevtoolsPanel(devtoolsApi, 'FlockJS', 'icons/icon-32.png', 'extension/panel.html'),
+      createDevtoolsPanel(devtoolsApi, 'Cahoots', 'icons/icon-32.png', 'extension/panel.html'),
     ).resolves.toBeUndefined();
     expect(promisePanelsCreate).toHaveBeenCalled();
   });

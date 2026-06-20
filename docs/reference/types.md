@@ -27,7 +27,7 @@ export interface Peer {
 
 export type PeerWithPresence<TPresence extends Record<string, unknown>> = Peer & Partial<TPresence>;
 
-export interface FlockError extends Error {
+export interface CahootsError extends Error {
   code:
     | 'ROOM_FULL'
     | 'AUTH_FAILED'
@@ -40,34 +40,34 @@ export interface FlockError extends Error {
 
 export type Unsubscribe = () => void;
 
-export type FlockYjsProviderStatus = 'connected' | 'disconnected';
+export type CahootsYjsProviderStatus = 'connected' | 'disconnected';
 
-export interface FlockYjsProviderEventMap {
+export interface CahootsYjsProviderEventMap {
   status: {
-    status: FlockYjsProviderStatus;
+    status: CahootsYjsProviderStatus;
   };
   sync: {
     synced: boolean;
   };
 }
 
-export interface FlockYjsProvider {
+export interface CahootsYjsProvider {
   readonly doc: YDoc;
   readonly awareness: YjsAwareness;
   readonly synced: boolean;
-  readonly status: FlockYjsProviderStatus;
+  readonly status: CahootsYjsProviderStatus;
 
   connect(): Promise<void>;
   disconnect(): Promise<void>;
   destroy(): Promise<void>;
 
-  on<T extends keyof FlockYjsProviderEventMap>(
+  on<T extends keyof CahootsYjsProviderEventMap>(
     event: T,
-    cb: (payload: FlockYjsProviderEventMap[T]) => void,
+    cb: (payload: CahootsYjsProviderEventMap[T]) => void,
   ): Unsubscribe;
-  off<T extends keyof FlockYjsProviderEventMap>(
+  off<T extends keyof CahootsYjsProviderEventMap>(
     event: T,
-    cb: (payload: FlockYjsProviderEventMap[T]) => void,
+    cb: (payload: CahootsYjsProviderEventMap[T]) => void,
   ): void;
 }
 
@@ -118,7 +118,7 @@ export interface RoomEventMap<TPresence extends PresenceData = PresenceData> {
   online: void;
   disconnected: { reason?: string };
   reconnecting: { attempt: number };
-  error: FlockError;
+  error: CahootsError;
   'peer:join': Peer<TPresence>;
   'peer:leave': Peer<TPresence>;
   'peer:update': Peer<TPresence>;
@@ -154,14 +154,14 @@ Diagnostics note:
 
 Transport baseline note:
 
-- `RoomStatus`, `Peer`, and `FlockError` are now implemented in the core runtime.
+- `RoomStatus`, `Peer`, and `CahootsError` are now implemented in the core runtime.
 - `Peer.id` is a UUID v4 generated from Web Crypto.
 - Broadcast-based peer discovery is available via `transport: 'auto' | 'broadcast'`.
 - WebRTC mesh transport is available via `transport: 'webrtc'` with relay signaling, plus connect-time BroadcastChannel fallback when signaling is unavailable on the same origin.
 - `relayUrl` remains the canonical signaling URL for real WebRTC negotiation.
 - Relay-backed room messaging is available via `transport: 'websocket'`.
 - Optional end-to-end encryption is available through `encryption: { key }` or `encryption: { passphrase }`.
-- `FlockError.code` is one of six values: `ROOM_FULL` (room is at capacity), `AUTH_FAILED` (relay rejected the join/auth request), `NETWORK_ERROR` (transport/connectivity failure), `ENCRYPTION_ERROR` (encryption setup or configuration failed, such as a bad key/passphrase or missing WebCrypto), `DECRYPTION_ERROR` (a peer message failed to decrypt, for example with the wrong key), and `INVALID_STATE` (an invalid state operation, such as a failed CRDT persist or an unsupported strategy).
+- `CahootsError.code` is one of six values: `ROOM_FULL` (room is at capacity), `AUTH_FAILED` (relay rejected the join/auth request), `NETWORK_ERROR` (transport/connectivity failure), `ENCRYPTION_ERROR` (encryption setup or configuration failed, such as a bad key/passphrase or missing WebCrypto), `DECRYPTION_ERROR` (a peer message failed to decrypt, for example with the wrong key), and `INVALID_STATE` (an invalid state operation, such as a failed CRDT persist or an unsupported strategy).
 - `DECRYPTION_ERROR` is emitted when an encrypted payload cannot be authenticated or decrypted with the local room key.
 - `transport: 'auto'` selects `broadcast`, then `webrtc`, then `websocket`, and finally `in-memory` when no browser-capable transport is available.
 - The internal peer wire protocol is versioned and codec-negotiated per peer; public room/event types stay unchanged.
@@ -177,7 +177,7 @@ Transport baseline note:
 
 Yjs baseline note:
 
-- `FlockYjsProvider` is implemented in `@flockjs/core`.
+- `CahootsYjsProvider` is implemented in `@cahoots/core`.
 - `doc` exposes the shared `Y.Doc` used by `room.getYDoc()`.
 - `awareness` exposes the shared Yjs awareness instance used by editor bindings and room awareness sync.
 - `synced` flips to `true` when the provider finishes its pending peer sync handshake for the current connection.

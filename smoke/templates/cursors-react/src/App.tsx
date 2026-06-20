@@ -7,8 +7,8 @@ import {
   PresenceBar,
   SelectionHighlight,
   TypingIndicator,
-} from '@flockjs/cursors';
-import { FlockProvider, usePresence } from '@flockjs/react';
+} from '@cahoots/cursors';
+import { CahootsProvider, usePresence } from '@cahoots/react';
 
 type SmokePresence = {
   color: string;
@@ -46,11 +46,11 @@ function CursorSurface() {
 
 export function App() {
   return (
-    <FlockProvider
+    <CahootsProvider
       presence={{ color: '#0ea5e9', name: 'Cursor Smoke' }}
       roomId="publish-smoke-cursors"
     >
       <CursorSurface />
-    </FlockProvider>
+    </CahootsProvider>
   );
 }

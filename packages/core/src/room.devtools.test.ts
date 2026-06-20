@@ -2,7 +2,7 @@ import {
   DEVTOOLS_BRIDGE_GLOBAL,
   DEVTOOLS_BRIDGE_VERSION,
   type DevtoolsBridge,
-} from '@flockjs/devtools';
+} from '@cahoots/devtools';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { createRoom } from './index';
@@ -33,7 +33,7 @@ class MockWindowForDevtools {
 
 declare global {
   interface Window {
-    __flockjs_devtools__?: DevtoolsBridge;
+    __cahoots_devtools__?: DevtoolsBridge;
   }
 }
 
@@ -55,7 +55,7 @@ const waitFor = async (condition: () => boolean, timeoutMs = 1_500): Promise<voi
 };
 
 function getBridge(): DevtoolsBridge {
-  const bridge = globalThis.window?.__flockjs_devtools__;
+  const bridge = globalThis.window?.__cahoots_devtools__;
   if (!bridge) {
     throw new Error('Expected devtools bridge to be installed.');
   }

@@ -1,17 +1,17 @@
-# @flockjs/cursors
+# @cahoots/cursors
 
-Prebuilt collaboration UI components for FlockJS.
+Prebuilt collaboration UI components for Cahoots.
 
 ## Install
 
 ```bash
-npm install @flockjs/cursors
+npm install @cahoots/cursors
 ```
 
 ## Storybook
 
-- Public Storybook: <https://erayates.github.io/flockjs/storybook/>
-- Full component reference: <https://github.com/erayates/flockjs/blob/main/docs/reference/ui-components.md>
+- Public Storybook: <https://erayates.github.io/cahoots/storybook/>
+- Full component reference: <https://github.com/erayates/cahoots/blob/main/docs/reference/ui-components.md>
 
 ## Components
 
@@ -29,7 +29,7 @@ npm install @flockjs/cursors
 ## Usage
 
 ```ts
-import { PeerCursor, PresenceBar, TypingIndicator } from '@flockjs/cursors';
+import { PeerCursor, PresenceBar, TypingIndicator } from '@cahoots/cursors';
 ```
 
-Use Storybook for interactive prop exploration and visual regression checks. Use the reference doc for detailed behavior notes and integration examples with `@flockjs/react`.
+Use Storybook for interactive prop exploration and visual regression checks. Use the reference doc for detailed behavior notes and integration examples with `@cahoots/react`.

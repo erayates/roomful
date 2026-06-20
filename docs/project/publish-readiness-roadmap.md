@@ -1,6 +1,6 @@
 # Publish Readiness Roadmap
 
-Audience: maintainers preparing FlockJS for npm distribution.
+Audience: maintainers preparing Cahoots for npm distribution.
 
 ## Goal
 
@@ -107,13 +107,13 @@ pnpm smoke:publish -- core-vanilla react-app
 
 | Package             | Consumer target   | Primary proof                                   |
 | ------------------- | ----------------- | ----------------------------------------------- |
-| `@flockjs/core`     | `core-vanilla`    | Vite build + typecheck against packed tarball   |
-| `@flockjs/react`    | `react-app`       | React consumer build against packed tarballs    |
-| `@flockjs/vue`      | `vue-app`         | Vue consumer build against packed tarballs      |
-| `@flockjs/svelte`   | `svelte-app`      | Svelte consumer build against packed tarballs   |
-| `@flockjs/cursors`  | `cursors-react`   | React UI consumer build against packed tarballs |
-| `@flockjs/devtools` | `devtools-import` | Typecheck + runtime import smoke                |
-| `@flockjs/relay`    | CI relay job      | Tarball install, CLI health check, Docker smoke |
+| `@cahoots/core`     | `core-vanilla`    | Vite build + typecheck against packed tarball   |
+| `@cahoots/react`    | `react-app`       | React consumer build against packed tarballs    |
+| `@cahoots/vue`      | `vue-app`         | Vue consumer build against packed tarballs      |
+| `@cahoots/svelte`   | `svelte-app`      | Svelte consumer build against packed tarballs   |
+| `@cahoots/cursors`  | `cursors-react`   | React UI consumer build against packed tarballs |
+| `@cahoots/devtools` | `devtools-import` | Typecheck + runtime import smoke                |
+| `@cahoots/relay`    | CI relay job      | Tarball install, CLI health check, Docker smoke |
 
 ## Manual Signoff Items
 

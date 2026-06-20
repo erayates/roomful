@@ -5,7 +5,7 @@ import { PeerCursor, type PeerCursorProps } from '../src';
 import { StoryGrid, StorySurface } from './story-layout';
 
 const meta = {
-  title: '@flockjs/cursors/PeerCursor',
+  title: '@cahoots/cursors/PeerCursor',
   component: PeerCursor,
   tags: ['autodocs'],
   args: {

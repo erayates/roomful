@@ -1,7 +1,7 @@
 import './styles.css';
 
-import type { PresenceData, Room, StateEngine, Unsubscribe } from '@flockjs/core';
-import { createRoom } from '@flockjs/core';
+import type { PresenceData, Room, StateEngine, Unsubscribe } from '@cahoots/core';
+import { createRoom } from '@cahoots/core';
 
 interface GamePresence extends PresenceData {
   color?: string;

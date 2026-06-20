@@ -3,12 +3,12 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: flockjs/relay:local
+    image: cahoots/relay:local
     environment:
       HOST: 0.0.0.0
       PORT: ${PORT:-8787}
       MAX_CONNECTIONS: ${MAX_CONNECTIONS:-1000}
-      FLOCK_REDIS_URL: ${FLOCK_REDIS_URL:-}
+      CAHOOTS_REDIS_URL: ${CAHOOTS_REDIS_URL:-}
     ports:
       - '${PORT:-8787}:${PORT:-8787}'
     restart: unless-stopped

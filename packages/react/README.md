@@ -1,23 +1,23 @@
-# @flockjs/react
+# @cahoots/react
 
-React bindings for [FlockJS](https://github.com/erayates/flockjs) — a provider plus idiomatic hooks for real-time presence, cursors, shared state, awareness, and events.
+React bindings for [Cahoots](https://github.com/erayates/cahoots) — a provider plus idiomatic hooks for real-time presence, cursors, shared state, awareness, and events.
 
 ## Install
 
 ```bash
-npm install @flockjs/core @flockjs/react
+npm install @cahoots/core @cahoots/react
 ```
 
 ## Usage
 
 ```tsx
-import { FlockProvider, usePresence, useSharedState } from '@flockjs/react';
+import { CahootsProvider, usePresence, useSharedState } from '@cahoots/react';
 
 function App() {
   return (
-    <FlockProvider roomId="my-room" presence={{ name: 'Alice' }}>
+    <CahootsProvider roomId="my-room" presence={{ name: 'Alice' }}>
       <Room />
-    </FlockProvider>
+    </CahootsProvider>
   );
 }
 
@@ -36,7 +36,7 @@ Hooks: `useRoom`, `usePresence`, `useCursors`, `useSharedState`, `useAwareness`,
 
 ## Documentation
 
-See the [FlockJS repository](https://github.com/erayates/flockjs) for the full API reference.
+See the [Cahoots repository](https://github.com/erayates/cahoots) for the full API reference.
 
 ## License
 

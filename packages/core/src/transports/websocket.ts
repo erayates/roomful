@@ -1,9 +1,9 @@
-import { createFlockError } from '../flock-error';
+import { createCahootsError } from '../cahoots-error';
 import { env } from '../internal/env';
 import { createStructuredLogger, type StructuredLogger } from '../internal/logger';
 import { normalizeMaxPeers } from '../internal/max-peers';
 import type { PeerProtocolCapabilities, PeerProtocolSession } from '../protocol/peer-message';
-import type { FlockError, PresenceData, RelayAuthToken, RoomOptions } from '../types';
+import type { CahootsError, PresenceData, RelayAuthToken, RoomOptions } from '../types';
 import { appendRelayAuthTokenToUrl } from './relay-url';
 import {
   type RoomTransportSignal,
@@ -163,18 +163,18 @@ function resolveWebSocketFactory(factory?: WebSocketFactory): WebSocketFactory {
   };
 }
 
-function createWebSocketTransportError(message: string, cause?: unknown): FlockError {
-  return createFlockError('NETWORK_ERROR', message, false, cause);
+function createWebSocketTransportError(message: string, cause?: unknown): CahootsError {
+  return createCahootsError('NETWORK_ERROR', message, false, cause);
 }
 
-function createRelayMessageError(message: string, serverCode: string): FlockError {
+function createRelayMessageError(message: string, serverCode: string): CahootsError {
   if (serverCode === 'ROOM_FULL') {
-    return createFlockError('ROOM_FULL', message, true, {
+    return createCahootsError('ROOM_FULL', message, true, {
       ...createWebSocketTransportFailure('server-rejected', serverCode),
     });
   }
 
-  return createFlockError(
+  return createCahootsError(
     serverCode === 'AUTH_FAILED' ? 'AUTH_FAILED' : 'NETWORK_ERROR',
     message,
     false,
@@ -375,7 +375,7 @@ export class WebSocketTransportAdapter<
         socket.removeEventListener('close', onClose);
       };
 
-      const fail = (error: FlockError): void => {
+      const fail = (error: CahootsError): void => {
         if (settled) {
           return;
         }
@@ -602,7 +602,7 @@ export class WebSocketTransportAdapter<
     }
   }
 
-  private emitErrorSignal(error: FlockError): void {
+  private emitErrorSignal(error: CahootsError): void {
     this.emitTransportSignal({
       type: 'transport:error',
       roomId: this.roomId,

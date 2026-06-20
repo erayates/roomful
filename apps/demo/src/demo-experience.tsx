@@ -1,12 +1,12 @@
-import type { RoomStatus } from '@flockjs/core';
-import { LiveIndicator, PeerCursor, PresenceBar } from '@flockjs/cursors';
+import type { RoomStatus } from '@cahoots/core';
+import { LiveIndicator, PeerCursor, PresenceBar } from '@cahoots/cursors';
 import {
   useConnectionStatus,
   useCursors,
   useEvent,
   usePresence,
   useSharedState,
-} from '@flockjs/react';
+} from '@cahoots/react';
 import {
   type FormEvent,
   type PointerEvent,
@@ -513,9 +513,9 @@ export function DemoExperience(props: DemoExperienceProps): ReactElement {
         <div className="hero-panel__copy">
           <div className="hero-panel__eyebrow">
             <LiveIndicator ariaLabel="Realtime room active" color={identity.color} size={14} />
-            <span>Realtime by FlockJS</span>
+            <span>Realtime by Cahoots</span>
           </div>
-          <h1>See FlockJS feel alive in under five seconds.</h1>
+          <h1>See Cahoots feel alive in under five seconds.</h1>
           <p>
             Open the canvas, start drawing, and watch presence, cursors, and shared state converge
             instantly across every visitor.
@@ -593,7 +593,7 @@ export function DemoExperience(props: DemoExperienceProps): ReactElement {
           <div className="sidebar-card">
             <h2>Why this demo exists</h2>
             <p>
-              This room uses FlockJS presence, cursor sync, custom events, and CRDT-backed shared
+              This room uses Cahoots presence, cursor sync, custom events, and CRDT-backed shared
               state together in one public experience.
             </p>
           </div>

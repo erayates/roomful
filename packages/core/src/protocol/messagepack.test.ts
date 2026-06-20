@@ -55,7 +55,7 @@ describe('messagepack', () => {
 
   it('produces smaller payloads than JSON for representative fixtures', () => {
     const helloFixture = {
-      source: 'flockjs',
+      source: 'cahoots',
       protocolVersion: 2,
       codec: 'msgpack',
       roomId: 'room-size',

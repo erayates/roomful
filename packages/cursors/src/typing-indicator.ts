@@ -1,4 +1,4 @@
-import type { Peer, PresenceData } from '@flockjs/core';
+import type { Peer, PresenceData } from '@cahoots/core';
 import { createElement, type CSSProperties, Fragment, type ReactElement } from 'react';
 
 import { IndicatorStyleSheet, TYPING_DOT_PULSE_ANIMATION_NAME } from './indicator-styles';
@@ -34,7 +34,7 @@ export function TypingIndicator<TPresence extends PresenceData = PresenceData>(
       {
         'aria-label': ariaLabel,
         'aria-live': 'polite',
-        'data-flockjs-typing-indicator': 'true',
+        'data-cahoots-typing-indicator': 'true',
         key: 'indicator',
         role: 'status',
         style: createRootStyle(),
@@ -65,7 +65,7 @@ function createTypingDots<TPresence extends PresenceData>(
 ): ReactElement[] {
   return [0, 1, 2].map((index) => {
     return createElement('span', {
-      'data-flockjs-typing-dot': 'true',
+      'data-cahoots-typing-dot': 'true',
       key: `${peers[0]?.id ?? 'typing'}-${index}`,
       style: createDotStyle(index),
     });

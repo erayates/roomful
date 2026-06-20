@@ -9,7 +9,7 @@ const devtoolsSourcePath = fileURLToPath(new URL('../devtools/src/index.ts', imp
 export default mergeConfig(baseConfig, {
   resolve: {
     alias: {
-      '@flockjs/devtools': devtoolsSourcePath,
+      '@cahoots/devtools': devtoolsSourcePath,
     },
   },
   test: {

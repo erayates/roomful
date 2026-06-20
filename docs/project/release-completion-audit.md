@@ -1,14 +1,14 @@
 # Release Completion Audit
 
-Audience: maintainers deciding whether FlockJS is release-complete.
+Audience: maintainers deciding whether Cahoots is release-complete.
 
-This audit maps the launch requirements from `FlockJS-Issues-Sprints.pdf`, especially EP-09 #054 through #057, to current proof commands and release evidence.
+This audit maps the launch requirements from `Cahoots-Issues-Sprints.pdf`, especially EP-09 #054 through #057, to current proof commands and release evidence.
 
 ## Completion State
 
-FlockJS is locally release-ready at the initial `v1.0.0` release, but not publicly release-complete.
+Cahoots is locally release-ready at the initial `v1.0.0` release, but not publicly release-complete.
 
-All seven public packages (`@flockjs/core`, `cursors`, `devtools`, `react`, `relay`, `svelte`, `vue`) are pinned to `1.0.0` with clean initial-release changelogs. Local source, package, relay, docs, demo, benchmark, and smoke-test evidence is green. The remaining incomplete items require authenticated external publishing or deployed public services.
+All seven public packages (`@cahoots/core`, `cursors`, `devtools`, `react`, `relay`, `svelte`, `vue`) are pinned to `1.0.0` with clean initial-release changelogs. Local source, package, relay, docs, demo, benchmark, and smoke-test evidence is green. The remaining incomplete items require authenticated external publishing or deployed public services.
 
 ## PDF Launch Requirements
 
@@ -17,7 +17,7 @@ All seven public packages (`@flockjs/core`, `cursors`, `devtools`, `react`, `rel
 | Docs site built with getting started, API reference, playground, community links, dark mode, search, versioned docs, and mobile layout | `pnpm test:docs`, `pnpm docs:snippets`, docs workflow and `apps/docs` sources                          | Locally ready; public URL still must load                        |
 | Demo app with shared canvas, live cursors, presence, mobile touch, cleanup, and social sharing                                         | `pnpm test:integration:demo`, demo workflow and `apps/demo` tests                                      | Locally ready; public URL still must load                        |
 | End-to-end tests cover presence, cursors, state, awareness, events, reconnection, and real browsers                                    | `pnpm test:integration`, `pnpm test:integration:react`, `pnpm test:integration:demo`, `pnpm test:docs` | Locally verified                                                 |
-| Packages published to npm under `@flockjs`                                                                                             | `pnpm release:verify-public -- --tag v<release>`                                                       | Not complete until npm registry checks pass                      |
+| Packages published to npm under `@cahoots`                                                                                             | `pnpm release:verify-public -- --tag v<release>`                                                       | Not complete until npm registry checks pass                      |
 | GitHub Release tagged with changelog                                                                                                   | `pnpm release:verify-public -- --tag v<release>`                                                       | Not complete until GitHub Release API check passes               |
 | Relay Docker image published                                                                                                           | `pnpm release:verify-public -- --tag v<release>`                                                       | Not complete until Docker Hub tag check passes                   |
 | Show HN, blog, social, and Discord launch tasks complete                                                                               | [Launch kit](launch-kit.md)                                                                            | Prepared, not posted                                             |
@@ -47,10 +47,10 @@ pnpm test:docs
 Relay release proof:
 
 ```bash
-pnpm --filter @flockjs/relay build
-pnpm --filter @flockjs/relay test
+pnpm --filter @cahoots/relay build
+pnpm --filter @cahoots/relay test
 node packages/relay/dist/cli.js --version
-docker build -t flockjs-relay:test .
+docker build -t cahoots-relay:test .
 ```
 
 ## Public Release Proof Commands
@@ -64,11 +64,11 @@ pnpm release:downloads-baseline
 
 `release:verify-public` checks:
 
-- npm registry entries for every public `@flockjs/*` package at the current package versions
+- npm registry entries for every public `@cahoots/*` package at the current package versions
 - GitHub Release for the release tag
-- Docker Hub tag for `flockjs/relay`
-- `https://docs.flockjs.dev`
-- `https://demo.flockjs.dev`
+- Docker Hub tag for `cahoots/relay`
+- `https://docs.cahoots.dev`
+- `https://demo.cahoots.dev`
 
 ## Current External Blockers
 
@@ -80,9 +80,9 @@ The current machine is missing required release credentials:
 
 The latest public verifier run for `v1.0.0` fails on all public release surfaces:
 
-- npm `@flockjs/*` registry checks return `404` (all seven packages at `1.0.0`)
+- npm `@cahoots/*` registry checks return `404` (all seven packages at `1.0.0`)
 - GitHub Release `v1.0.0` returns `404`
-- Docker Hub `flockjs/relay:1.0.0` returns `404`
+- Docker Hub `cahoots/relay:1.0.0` returns `404`
 - docs and demo public URLs do not load from this environment
 
 ## Final Release Sequence

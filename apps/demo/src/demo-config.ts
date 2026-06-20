@@ -1,8 +1,8 @@
 import { readDemoRoomOverrides } from './demo-room';
 import type { DemoRuntimeConfig } from './demo-types';
 
-const DEFAULT_CANONICAL_BASE_URL = 'https://demo.flockjs.dev';
-const DEFAULT_PUBLIC_RELAY_URL = 'wss://relay.flockjs.dev';
+const DEFAULT_CANONICAL_BASE_URL = 'https://demo.cahoots.dev';
+const DEFAULT_PUBLIC_RELAY_URL = 'wss://relay.cahoots.dev';
 const DEFAULT_LOCAL_RELAY_URL = 'ws://127.0.0.1:8787';
 
 interface LocationLike {
@@ -58,7 +58,7 @@ export function resolveDemoRuntimeConfig(locationLike: LocationLike): DemoRuntim
   const roomOverrides = readDemoRoomOverrides(searchParams);
   const relayUrl =
     normalizeRelayUrl(searchParams.get('relay') ?? undefined) ??
-    normalizeRelayUrl(import.meta.env.VITE_FLOCK_RELAY_URL) ??
+    normalizeRelayUrl(import.meta.env.VITE_CAHOOTS_RELAY_URL) ??
     (isLocalHostname(locationLike.hostname) ? DEFAULT_LOCAL_RELAY_URL : DEFAULT_PUBLIC_RELAY_URL);
   const canonicalBaseUrl =
     normalizeBaseUrl(import.meta.env.VITE_DEMO_BASE_URL) ?? DEFAULT_CANONICAL_BASE_URL;

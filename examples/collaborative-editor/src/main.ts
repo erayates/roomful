@@ -1,7 +1,7 @@
 import './styles.css';
 
-import type { AwarenessState, Peer, PresenceData, Room, Unsubscribe } from '@flockjs/core';
-import { createRoom } from '@flockjs/core';
+import type { AwarenessState, Peer, PresenceData, Room, Unsubscribe } from '@cahoots/core';
+import { createRoom } from '@cahoots/core';
 
 interface EditorPresence extends PresenceData {
   color?: string;

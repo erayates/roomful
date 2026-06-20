@@ -1,5 +1,5 @@
-import type { Peer, PresenceData } from '@flockjs/core';
-import { usePresence } from '@flockjs/react';
+import type { Peer, PresenceData } from '@cahoots/core';
+import { usePresence } from '@cahoots/react';
 import { createElement, type CSSProperties, type ReactElement } from 'react';
 
 import { useAnimatedPresencePeers } from './presence-animated-list';
@@ -38,7 +38,7 @@ export function PresenceAvatars<TPresence extends PresenceData = PresenceData>(
   return createElement(
     'div',
     {
-      'data-flockjs-presence-avatars': 'true',
+      'data-cahoots-presence-avatars': 'true',
       style: createRootStyle(),
     },
     ...animatedPeers.map((item, index) => {
@@ -48,7 +48,7 @@ export function PresenceAvatars<TPresence extends PresenceData = PresenceData>(
       ? createElement(
           'span',
           {
-            'data-flockjs-presence-overflow': 'true',
+            'data-cahoots-presence-overflow': 'true',
             style: createOverflowBadgeStyle(sizeTokens, animatedPeers.length > 0),
             title: createPeerListTitle(hiddenPeers),
           },
@@ -68,8 +68,8 @@ function renderAvatarItem<TPresence extends PresenceData>(
   const displayName = resolvePeerDisplayName(peer);
   const commonProps = {
     'aria-label': displayName,
-    'data-flockjs-presence-peer': peer.id,
-    'data-flockjs-presence-phase': phase,
+    'data-cahoots-presence-peer': peer.id,
+    'data-cahoots-presence-phase': phase,
     style: createAvatarItemStyle(sizeTokens, phase, index > 0, onUserClick !== undefined, index),
     title: displayName,
   };
