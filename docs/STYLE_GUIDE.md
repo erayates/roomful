@@ -4,7 +4,7 @@ Audience: contributors.
 
 ## Purpose
 
-Ensure FlockJS docs are consistent, accurate, and easy to maintain.
+Ensure Roomful docs are consistent, accurate, and easy to maintain.
 
 ## Core Rules
 
@@ -44,7 +44,7 @@ Every page must include an explicit `Audience:` line near the top.
 
 - Use numbered lists for workflows.
 - Separate policy from implementation details.
-- Keep repository links canonical to `erayates/flockjs`.
+- Keep repository links canonical to `erayates/roomful`.
 
 ## Related Docs
 

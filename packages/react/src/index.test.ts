@@ -17,8 +17,8 @@ import type {
   RoomStatus,
   StateChangeMeta,
   StateEngine,
-} from '@flockjs/core';
-import { FlockError } from '@flockjs/core';
+} from '@roomful/core';
+import { RoomfulError } from '@roomful/core';
 import type { Dispatch, ReactNode, SetStateAction } from 'react';
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -31,8 +31,8 @@ const { createRoomMock } = vi.hoisted(() => {
   };
 });
 
-vi.mock('@flockjs/core', async () => {
-  const actual = await vi.importActual<typeof import('@flockjs/core')>('@flockjs/core');
+vi.mock('@roomful/core', async () => {
+  const actual = await vi.importActual<typeof import('@roomful/core')>('@roomful/core');
 
   return {
     ...actual,
@@ -43,7 +43,7 @@ vi.mock('@flockjs/core', async () => {
 import type { UseAwarenessResult, UseCursorsResult, UsePresenceResult } from './index';
 import {
   createReactHealth,
-  FlockProvider,
+  RoomfulProvider,
   useAwareness,
   useConnectionStatus,
   useCursors,
@@ -602,11 +602,11 @@ afterEach(() => {
 describe('createReactHealth', () => {
   it('returns expected React health metadata including core dependency', () => {
     expect(createReactHealth()).toEqual({
-      packageName: '@flockjs/react',
+      packageName: '@roomful/react',
       status: 'ok',
       dependencies: {
         core: {
-          packageName: '@flockjs/core',
+          packageName: '@roomful/core',
           status: 'ok',
         },
       },
@@ -614,7 +614,7 @@ describe('createReactHealth', () => {
   });
 });
 
-describe('FlockProvider', () => {
+describe('RoomfulProvider', () => {
   it('creates a room during render, connects on mount, and exposes it via useRoom()', async () => {
     const room = createMockRoom('provider-room', {
       transport: 'broadcast',
@@ -628,7 +628,7 @@ describe('FlockProvider', () => {
 
     const harness = await renderElement(
       createElement(
-        FlockProvider,
+        RoomfulProvider,
         {
           roomId: 'provider-room',
           transport: 'broadcast',
@@ -647,7 +647,7 @@ describe('FlockProvider', () => {
   it('disconnects the room cleanly on unmount', async () => {
     const room = createMockRoom('disconnect-room');
     const harness = await renderElement(
-      createElement(FlockProvider, { roomId: 'disconnect-room' }),
+      createElement(RoomfulProvider, { roomId: 'disconnect-room' }),
     );
 
     await harness.unmount();
@@ -661,14 +661,14 @@ describe('FlockProvider', () => {
     const onDisconnect = vi.fn();
     const onError = vi.fn();
     const harness = await renderElement(
-      createElement(FlockProvider, {
+      createElement(RoomfulProvider, {
         roomId: 'callback-room',
         onConnect,
         onDisconnect,
         onError,
       }),
     );
-    const error = new FlockError('NETWORK_ERROR', 'boom', true);
+    const error = new RoomfulError('NETWORK_ERROR', 'boom', true);
 
     room.emit('connected', undefined);
     room.emit('disconnected', { reason: 'manual' });
@@ -692,7 +692,7 @@ describe('FlockProvider', () => {
     const initialOnConnect = vi.fn();
     const updatedOnConnect = vi.fn();
     const harness = await renderElement(
-      createElement(FlockProvider, {
+      createElement(RoomfulProvider, {
         roomId: 'stable-room',
         transport: 'broadcast',
         presence: {
@@ -704,7 +704,7 @@ describe('FlockProvider', () => {
     );
 
     await harness.rerender(
-      createElement(FlockProvider, {
+      createElement(RoomfulProvider, {
         roomId: 'stable-room',
         transport: 'broadcast',
         presence: {
@@ -729,9 +729,9 @@ describe('FlockProvider', () => {
   it('recreates the room when the roomId changes', async () => {
     const firstRoom = createMockRoom('room-a');
     const secondRoom = createMockRoom('room-b');
-    const harness = await renderElement(createElement(FlockProvider, { roomId: 'room-a' }));
+    const harness = await renderElement(createElement(RoomfulProvider, { roomId: 'room-a' }));
 
-    await harness.rerender(createElement(FlockProvider, { roomId: 'room-b' }));
+    await harness.rerender(createElement(RoomfulProvider, { roomId: 'room-b' }));
 
     expect(createRoomMock).toHaveBeenCalledTimes(2);
     expect(firstRoom.connect).toHaveBeenCalledTimes(1);
@@ -757,7 +757,7 @@ describe('FlockProvider', () => {
       },
     });
     const harness = await renderElement(
-      createElement(FlockProvider, {
+      createElement(RoomfulProvider, {
         roomId: 'option-room',
         transport: 'broadcast',
         debug: {
@@ -767,7 +767,7 @@ describe('FlockProvider', () => {
     );
 
     await harness.rerender(
-      createElement(FlockProvider, {
+      createElement(RoomfulProvider, {
         roomId: 'option-room',
         transport: 'websocket',
         debug: {
@@ -791,10 +791,10 @@ describe('FlockProvider', () => {
 
     expect(() => {
       renderToString(createElement(MissingProviderConsumer));
-    }).toThrowError(FlockError);
+    }).toThrowError(RoomfulError);
     expect(() => {
       renderToString(createElement(MissingProviderConsumer));
-    }).toThrow('FlockProvider');
+    }).toThrow('RoomfulProvider');
   });
 });
 
@@ -820,7 +820,7 @@ describe('usePresence', () => {
 
     const harness = await renderElement(
       createElement(
-        FlockProvider,
+        RoomfulProvider,
         {
           roomId: 'presence-room',
         },
@@ -863,7 +863,7 @@ describe('usePresence', () => {
 
     const harness = await renderElement(
       createElement(
-        FlockProvider,
+        RoomfulProvider,
         {
           roomId: 'presence-reactivity',
         },
@@ -929,7 +929,7 @@ describe('usePresence', () => {
 
     const harness = await renderElement(
       createElement(
-        FlockProvider,
+        RoomfulProvider,
         {
           roomId: 'presence-equality',
         },
@@ -989,7 +989,7 @@ describe('usePresence', () => {
 
     const harness = await renderElement(
       createElement(
-        FlockProvider,
+        RoomfulProvider,
         {
           roomId: 'presence-stable-slices',
         },
@@ -1049,7 +1049,7 @@ describe('usePresence', () => {
 
     const harness = await renderElement(
       createElement(
-        FlockProvider,
+        RoomfulProvider,
         {
           roomId: 'presence-room-a',
         },
@@ -1059,7 +1059,7 @@ describe('usePresence', () => {
 
     await harness.rerender(
       createElement(
-        FlockProvider,
+        RoomfulProvider,
         {
           roomId: 'presence-room-b',
         },
@@ -1101,10 +1101,10 @@ describe('usePresence', () => {
 
     expect(() => {
       renderToString(createElement(MissingProviderConsumer));
-    }).toThrowError(FlockError);
+    }).toThrowError(RoomfulError);
     expect(() => {
       renderToString(createElement(MissingProviderConsumer));
-    }).toThrow('FlockProvider');
+    }).toThrow('RoomfulProvider');
   });
 });
 
@@ -1140,7 +1140,7 @@ describe('useAwareness', () => {
 
     const harness = await renderElement(
       createElement(
-        FlockProvider,
+        RoomfulProvider,
         {
           roomId: 'awareness-room',
         },
@@ -1206,7 +1206,7 @@ describe('useAwareness', () => {
 
     const harness = await renderElement(
       createElement(
-        FlockProvider,
+        RoomfulProvider,
         {
           roomId: 'awareness-reactivity',
         },
@@ -1304,7 +1304,7 @@ describe('useAwareness', () => {
 
     const harness = await renderElement(
       createElement(
-        FlockProvider,
+        RoomfulProvider,
         {
           roomId: 'awareness-room-a',
         },
@@ -1314,7 +1314,7 @@ describe('useAwareness', () => {
 
     await harness.rerender(
       createElement(
-        FlockProvider,
+        RoomfulProvider,
         {
           roomId: 'awareness-room-b',
         },
@@ -1397,7 +1397,7 @@ describe('usePeers', () => {
 
     const harness = await renderElement(
       createElement(
-        FlockProvider,
+        RoomfulProvider,
         {
           roomId: 'peers-room',
         },
@@ -1443,7 +1443,7 @@ describe('usePeers', () => {
 
     const harness = await renderElement(
       createElement(
-        FlockProvider,
+        RoomfulProvider,
         {
           roomId: 'peers-equality',
         },
@@ -1521,7 +1521,7 @@ describe('usePeers', () => {
 
     const harness = await renderElement(
       createElement(
-        FlockProvider,
+        RoomfulProvider,
         {
           roomId: 'peers-room-a',
         },
@@ -1531,7 +1531,7 @@ describe('usePeers', () => {
 
     await harness.rerender(
       createElement(
-        FlockProvider,
+        RoomfulProvider,
         {
           roomId: 'peers-room-b',
         },
@@ -1589,7 +1589,7 @@ describe('useConnectionStatus', () => {
 
     const harness = await renderElement(
       createElement(
-        FlockProvider,
+        RoomfulProvider,
         {
           roomId: 'connection-status-room',
         },
@@ -1611,7 +1611,7 @@ describe('useConnectionStatus', () => {
       });
     });
     await act(async () => {
-      room.emit('error', new FlockError('NETWORK_ERROR', 'boom', true));
+      room.emit('error', new RoomfulError('NETWORK_ERROR', 'boom', true));
     });
 
     expect(statuses).toContain('idle');
@@ -1656,7 +1656,7 @@ describe('useEvent', () => {
 
     const harness = await renderElement(
       createElement(
-        FlockProvider,
+        RoomfulProvider,
         {
           roomId: 'event-room',
         },
@@ -1684,7 +1684,7 @@ describe('useEvent', () => {
     useUpdatedHandler = true;
     await harness.rerender(
       createElement(
-        FlockProvider,
+        RoomfulProvider,
         {
           roomId: 'event-room',
         },
@@ -1764,7 +1764,7 @@ describe('useEvent', () => {
 
     const harness = await renderElement(
       createElement(
-        FlockProvider,
+        RoomfulProvider,
         {
           roomId: 'event-room-a',
         },
@@ -1774,7 +1774,7 @@ describe('useEvent', () => {
 
     await harness.rerender(
       createElement(
-        FlockProvider,
+        RoomfulProvider,
         {
           roomId: 'event-room-b',
         },
@@ -1859,7 +1859,7 @@ describe('useCursors', () => {
 
     const harness = await renderElement(
       createElement(
-        FlockProvider,
+        RoomfulProvider,
         {
           roomId: 'cursor-room',
         },
@@ -1919,7 +1919,7 @@ describe('useCursors', () => {
 
     const harness = await renderElement(
       createElement(
-        FlockProvider,
+        RoomfulProvider,
         {
           roomId: 'cursor-reactivity',
         },
@@ -1990,7 +1990,7 @@ describe('useCursors', () => {
 
     const harness = await renderElement(
       createElement(
-        FlockProvider,
+        RoomfulProvider,
         {
           roomId: 'cursor-stability',
         },
@@ -2000,7 +2000,7 @@ describe('useCursors', () => {
 
     await harness.rerender(
       createElement(
-        FlockProvider,
+        RoomfulProvider,
         {
           roomId: 'cursor-stability',
         },
@@ -2053,7 +2053,7 @@ describe('useCursors', () => {
 
     const harness = await renderElement(
       createElement(
-        FlockProvider,
+        RoomfulProvider,
         {
           roomId: 'cursor-room-a',
         },
@@ -2064,7 +2064,7 @@ describe('useCursors', () => {
 
     await harness.rerender(
       createElement(
-        FlockProvider,
+        RoomfulProvider,
         {
           roomId: 'cursor-room-b',
         },
@@ -2118,10 +2118,10 @@ describe('useCursors', () => {
 
     expect(() => {
       renderToString(createElement(MissingProviderConsumer));
-    }).toThrowError(FlockError);
+    }).toThrowError(RoomfulError);
     expect(() => {
       renderToString(createElement(MissingProviderConsumer));
-    }).toThrow('FlockProvider');
+    }).toThrow('RoomfulProvider');
   });
 });
 
@@ -2178,7 +2178,7 @@ describe('useSharedState', () => {
 
     const harness = await renderElement(
       createElement(
-        FlockProvider,
+        RoomfulProvider,
         {
           roomId: 'shared-state-room',
         },
@@ -2252,7 +2252,7 @@ describe('useSharedState', () => {
 
     await harness.rerender(
       createElement(
-        FlockProvider,
+        RoomfulProvider,
         {
           roomId: 'shared-state-room',
         },
@@ -2313,7 +2313,7 @@ describe('useSharedState', () => {
 
     const harness = await renderElement(
       createElement(
-        FlockProvider,
+        RoomfulProvider,
         {
           roomId: 'shared-state-reactivity',
         },
@@ -2400,7 +2400,7 @@ describe('useSharedState', () => {
 
     const harness = await renderElement(
       createElement(
-        FlockProvider,
+        RoomfulProvider,
         {
           roomId: 'shared-state-stability',
         },
@@ -2410,7 +2410,7 @@ describe('useSharedState', () => {
 
     await harness.rerender(
       createElement(
-        FlockProvider,
+        RoomfulProvider,
         {
           roomId: 'shared-state-stability',
         },
@@ -2466,7 +2466,7 @@ describe('useSharedState', () => {
 
     const harness = await renderElement(
       createElement(
-        FlockProvider,
+        RoomfulProvider,
         {
           roomId: 'shared-state-multi',
         },
@@ -2513,7 +2513,7 @@ describe('useSharedState', () => {
     try {
       renderToString(
         createElement(
-          FlockProvider,
+          RoomfulProvider,
           {
             roomId: 'shared-state-key-mismatch',
           },
@@ -2525,7 +2525,7 @@ describe('useSharedState', () => {
       thrownError = error;
     }
 
-    expect(thrownError).toBeInstanceOf(FlockError);
+    expect(thrownError).toBeInstanceOf(RoomfulError);
     expect((thrownError as Error).message).toContain('already bound to key');
   });
 
@@ -2554,7 +2554,7 @@ describe('useSharedState', () => {
     expect(() => {
       renderToString(
         createElement(
-          FlockProvider,
+          RoomfulProvider,
           {
             roomId: 'shared-state-option-mismatch',
           },
@@ -2589,7 +2589,7 @@ describe('useSharedState', () => {
     expect(() => {
       renderToString(
         createElement(
-          FlockProvider,
+          RoomfulProvider,
           {
             roomId: 'shared-state-persist-mismatch',
           },
@@ -2633,7 +2633,7 @@ describe('useSharedState', () => {
 
     const harness = await renderElement(
       createElement(
-        FlockProvider,
+        RoomfulProvider,
         {
           roomId: 'shared-state-persist-upgrade',
         },
@@ -2643,7 +2643,7 @@ describe('useSharedState', () => {
 
     await harness.rerender(
       createElement(
-        FlockProvider,
+        RoomfulProvider,
         {
           roomId: 'shared-state-persist-upgrade',
         },
@@ -2695,7 +2695,7 @@ describe('useSharedState', () => {
 
     const harness = await renderElement(
       createElement(
-        FlockProvider,
+        RoomfulProvider,
         {
           roomId: 'shared-state-room-a',
         },
@@ -2705,7 +2705,7 @@ describe('useSharedState', () => {
 
     await harness.rerender(
       createElement(
-        FlockProvider,
+        RoomfulProvider,
         {
           roomId: 'shared-state-room-b',
         },
@@ -2786,9 +2786,9 @@ describe('useSharedState', () => {
 
     expect(() => {
       renderToString(createElement(MissingProviderConsumer));
-    }).toThrowError(FlockError);
+    }).toThrowError(RoomfulError);
     expect(() => {
       renderToString(createElement(MissingProviderConsumer));
-    }).toThrow('FlockProvider');
+    }).toThrow('RoomfulProvider');
   });
 });

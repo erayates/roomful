@@ -11,10 +11,10 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      '@flockjs/core': resolve(workspaceRoot, 'packages/core/src/index.ts'),
-      '@flockjs/cursors': resolve(workspaceRoot, 'packages/cursors/src/index.ts'),
-      '@flockjs/devtools': resolve(workspaceRoot, 'packages/devtools/src/index.ts'),
-      '@flockjs/react': resolve(workspaceRoot, 'packages/react/src/index.ts'),
+      '@roomful/core': resolve(workspaceRoot, 'packages/core/src/index.ts'),
+      '@roomful/cursors': resolve(workspaceRoot, 'packages/cursors/src/index.ts'),
+      '@roomful/devtools': resolve(workspaceRoot, 'packages/devtools/src/index.ts'),
+      '@roomful/react': resolve(workspaceRoot, 'packages/react/src/index.ts'),
     },
     dedupe: ['react', 'react-dom'],
   },

@@ -73,8 +73,8 @@ export function renderPeerCursorMarker(style: PeerCursorStyle, color: string): R
     'svg',
     {
       'aria-hidden': 'true',
-      'data-flockjs-peer-cursor-marker': 'true',
-      'data-flockjs-peer-cursor-marker-style': style,
+      'data-roomful-peer-cursor-marker': 'true',
+      'data-roomful-peer-cursor-marker-style': style,
       fill: 'none',
       height: String(definition.height),
       style: {

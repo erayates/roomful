@@ -138,7 +138,7 @@ describe('createInspectedPageBridgeClient', () => {
       snapshot: createSnapshot(summary),
     });
 
-    expect(invocations[0]?.expression).toContain('__flockjs_devtools__');
+    expect(invocations[0]?.expression).toContain('__roomful_devtools__');
     expect(invocations[1]?.expression).toContain(summary.instanceId);
   });
 

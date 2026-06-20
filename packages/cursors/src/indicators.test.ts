@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import type { Peer, PresenceData } from '@flockjs/core';
+import type { Peer, PresenceData } from '@roomful/core';
 import { cleanup, render, screen } from '@testing-library/react';
 import { createElement } from 'react';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -29,7 +29,7 @@ describe('TypingIndicator', () => {
       }),
     );
 
-    expect(container.querySelector('[data-flockjs-typing-indicator="true"]')).toBeNull();
+    expect(container.querySelector('[data-roomful-typing-indicator="true"]')).toBeNull();
   });
 
   it('shows up to three peer names and summarizes the remaining count', () => {
@@ -59,12 +59,12 @@ describe('TypingIndicator', () => {
     );
 
     const root = screen.getByRole('status');
-    const dots = Array.from(container.querySelectorAll('[data-flockjs-typing-dot="true"]'));
+    const dots = Array.from(container.querySelectorAll('[data-roomful-typing-dot="true"]'));
 
     expect(root.getAttribute('aria-label')).toBe('Teammates are composing a response');
     expect(root.getAttribute('aria-live')).toBe('polite');
     expect(dots).toHaveLength(3);
-    expect(dots[0]?.getAttribute('style')).toContain('animation: flockjsTypingDotPulse');
+    expect(dots[0]?.getAttribute('style')).toContain('animation: roomfulTypingDotPulse');
     expect(dots[1]?.getAttribute('style')).toContain('animation-delay: 0.2s');
     expect(dots[2]?.getAttribute('style')).toContain('animation-delay: 0.4s');
   });
@@ -81,13 +81,13 @@ describe('LiveIndicator', () => {
     );
 
     const root = screen.getByRole('img', { name: 'Live presence hotspot' });
-    const core = container.querySelector('[data-flockjs-live-indicator-core="true"]');
-    const pulse = container.querySelector('[data-flockjs-live-indicator-pulse="true"]');
+    const core = container.querySelector('[data-roomful-live-indicator-core="true"]');
+    const pulse = container.querySelector('[data-roomful-live-indicator-pulse="true"]');
 
-    expect(root.getAttribute('data-flockjs-live-indicator')).toBe('true');
+    expect(root.getAttribute('data-roomful-live-indicator')).toBe('true');
     expect(root.getAttribute('style')).toContain('width: 14px');
     expect(root.getAttribute('style')).toContain('height: 14px');
     expect(core?.getAttribute('style')).toContain('background-color: rgb(239, 68, 68)');
-    expect(pulse?.getAttribute('style')).toContain('animation: flockjsLiveIndicatorPulse');
+    expect(pulse?.getAttribute('style')).toContain('animation: roomfulLiveIndicatorPulse');
   });
 });

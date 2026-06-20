@@ -8,7 +8,7 @@ const docsSourceRoot = path.join(repoRoot, 'docs');
 const docsAppRoot = path.join(repoRoot, 'apps', 'docs');
 const docsContentRoot = path.join(docsAppRoot, 'src', 'content', 'docs');
 const templatesRoot = path.join(docsAppRoot, 'templates');
-const githubRepositoryUrl = 'https://github.com/erayates/flockjs';
+const githubRepositoryUrl = 'https://github.com/erayates/roomful';
 const archivedVersionSlug = 'v1-0';
 
 const narrativeOrder = {
@@ -35,7 +35,7 @@ const narrativeOrder = {
   'project/repository-structure': 1,
   'project/development-setup': 2,
   'project/code-conventions': 3,
-  'project/flockjs-code-quality-guidelines': 4,
+  'project/roomful-code-quality-guidelines': 4,
   'project/webrtc-validation': 5,
   'project/release-process': 6,
   'project/labeling-and-triage': 7,
@@ -46,49 +46,49 @@ const narrativeOrder = {
 const apiPackages = [
   {
     slug: 'core',
-    packageName: '@flockjs/core',
+    packageName: '@roomful/core',
     entryPoint: 'packages/core/src/index.ts',
     order: 2,
     tsconfig: 'packages/core/tsconfig.json',
   },
   {
     slug: 'react',
-    packageName: '@flockjs/react',
+    packageName: '@roomful/react',
     entryPoint: 'packages/react/src/index.ts',
     order: 3,
     tsconfig: 'packages/react/tsconfig.json',
   },
   {
     slug: 'vue',
-    packageName: '@flockjs/vue',
+    packageName: '@roomful/vue',
     entryPoint: 'packages/vue/src/index.ts',
     order: 4,
     tsconfig: 'packages/vue/tsconfig.json',
   },
   {
     slug: 'svelte',
-    packageName: '@flockjs/svelte',
+    packageName: '@roomful/svelte',
     entryPoint: 'packages/svelte/src/index.ts',
     order: 5,
     tsconfig: 'packages/svelte/tsconfig.json',
   },
   {
     slug: 'cursors',
-    packageName: '@flockjs/cursors',
+    packageName: '@roomful/cursors',
     entryPoint: 'packages/cursors/src/index.ts',
     order: 6,
     tsconfig: 'packages/cursors/tsconfig.json',
   },
   {
     slug: 'relay',
-    packageName: '@flockjs/relay',
+    packageName: '@roomful/relay',
     entryPoint: 'packages/relay/src/index.ts',
     order: 7,
     tsconfig: 'packages/relay/tsconfig.json',
   },
   {
     slug: 'devtools',
-    packageName: '@flockjs/devtools',
+    packageName: '@roomful/devtools',
     entryPoint: 'packages/devtools/src/index.ts',
     order: 8,
     tsconfig: 'packages/devtools/tsconfig.json',

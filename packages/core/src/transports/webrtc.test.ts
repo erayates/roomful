@@ -277,7 +277,7 @@ describe('WebRTCTransportAdapter', () => {
       },
     ]);
     expect(signalingClient.options.joinTimeoutMs).toBe(5_000);
-    expect(dataChannel.label).toBe('flockjs-v1');
+    expect(dataChannel.label).toBe('roomful-v1');
     expect(dataChannel.options.ordered).toBe(true);
     expect(dataChannel.options.maxRetransmits).toBeUndefined();
 
@@ -316,7 +316,7 @@ describe('WebRTCTransportAdapter', () => {
 
     const hello = parseEnvelope(dataChannel.sent[0] as string);
     expect(hello).toMatchObject({
-      source: 'flockjs',
+      source: 'roomful',
       version: 1,
       signal: {
         type: 'hello',
@@ -433,7 +433,7 @@ describe('WebRTCTransportAdapter', () => {
 
     dataChannelB.receive(
       JSON.stringify({
-        source: 'flockjs',
+        source: 'roomful',
         version: 1,
         signal: inboundSignal,
       }),

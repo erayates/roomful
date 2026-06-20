@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { FlockError } from './flock-error';
+import type { RoomfulError } from './roomful-error';
 import type { TransportAdapter, TransportSignal } from './transports/transport';
 import { getTransportProtocolCapabilities } from './transports/transport.protocol';
 import type { Room } from './types';
@@ -257,7 +257,7 @@ describe('Room diagnostics', () => {
     const protocol = getTransportProtocolCapabilities('webrtc');
 
     await room.connect();
-    const encryptionError = new Promise<FlockError>((resolve) => {
+    const encryptionError = new Promise<RoomfulError>((resolve) => {
       const unsubscribe = room.on('error', (error) => {
         if (error.code === 'ENCRYPTION_ERROR') {
           unsubscribe();
@@ -322,7 +322,7 @@ describe('Room diagnostics', () => {
       fromPeerId: 'peer-b',
       timestamp: 2,
       payload: {
-        name: '__flockjs:diag:pong__',
+        name: '__roomful:diag:pong__',
         payload: {
           sentAt: Date.now() - 12,
         },

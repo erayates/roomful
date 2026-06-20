@@ -10,8 +10,8 @@ import type {
   StateEngine,
   TransportMode,
   Unsubscribe,
-} from '@flockjs/core';
-import { createRoom } from '@flockjs/core';
+} from '@roomful/core';
+import { createRoom } from '@roomful/core';
 import type { ReactElement } from 'react';
 import { startTransition, useEffect, useRef, useState } from 'react';
 
@@ -40,7 +40,7 @@ interface LogEntry {
 }
 
 const defaultFormState: FormState = {
-  roomId: 'flockjs-playground',
+  roomId: 'roomful-playground',
   name: 'Visitor',
   color: '#0f766e',
   relayUrl: 'ws://localhost:8787',
@@ -230,7 +230,7 @@ export function PlaygroundApp(): ReactElement {
 
   const broadcastMessage = (): void => {
     eventsRef.current?.emit('playground:log', {
-      message: `${form.name} says hello from docs.flockjs.dev.`,
+      message: `${form.name} says hello from docs.roomful.dev.`,
     });
   };
 

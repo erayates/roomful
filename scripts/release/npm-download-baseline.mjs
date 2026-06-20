@@ -45,7 +45,7 @@ function getPublicPackages() {
         private: manifest.private === true,
       };
     })
-    .filter((manifest) => manifest.name?.startsWith('@flockjs/') && !manifest.private)
+    .filter((manifest) => manifest.name?.startsWith('@roomful/') && !manifest.private)
     .sort((left, right) => left.name.localeCompare(right.name));
 }
 
@@ -55,7 +55,7 @@ async function fetchDownloadPoint(packageName, range) {
   const response = await fetch(url, {
     headers: {
       accept: 'application/json',
-      'user-agent': 'flockjs-release-baseline',
+      'user-agent': 'roomful-release-baseline',
     },
   });
 

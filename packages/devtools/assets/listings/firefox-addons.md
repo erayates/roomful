@@ -2,11 +2,11 @@
 
 ## Summary
 
-Live DevTools diagnostics for FlockJS rooms, peers, state, and event traffic.
+Live DevTools diagnostics for Roomful rooms, peers, state, and event traffic.
 
 ## Description
 
-FlockJS DevTools adds a panel to Firefox DevTools for inspecting active FlockJS rooms on the current page.
+Roomful DevTools adds a panel to Firefox DevTools for inspecting active Roomful rooms on the current page.
 
 The panel shows:
 

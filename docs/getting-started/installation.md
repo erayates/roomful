@@ -22,24 +22,24 @@ Install only what you need.
 
 ```bash
 # Core SDK (required)
-npm install @flockjs/core
+npm install @roomful/core
 
 # CRDT / Yjs support (required only when using strategy: 'crdt' or Yjs APIs)
 npm install yjs y-protocols
 
 # Framework adapters (optional)
-npm install @flockjs/react
-npm install @flockjs/vue
-npm install @flockjs/svelte
+npm install @roomful/react
+npm install @roomful/vue
+npm install @roomful/svelte
 
 # Prebuilt collaboration UI (optional)
-npm install @flockjs/cursors
+npm install @roomful/cursors
 
 # Self-hosted relay server (optional)
-npm install @flockjs/relay
+npm install @roomful/relay
 
 # Relay CLI (optional)
-npm install -g @flockjs/relay
+npm install -g @roomful/relay
 ```
 
 ## Environment Constraints
@@ -50,7 +50,7 @@ npm install -g @flockjs/relay
 
 ## CRDT Dependency Note
 
-- `@flockjs/core` declares `yjs` and `y-protocols` as peer dependencies.
+- `@roomful/core` declares `yjs` and `y-protocols` as peer dependencies.
 - Install them when you use `room.getYDoc()`, `room.getYProvider()`, or `useState({ strategy: 'crdt' })`.
 - If you only use `lww` or `custom` state strategies, no extra CRDT packages are needed beyond the base install.
 

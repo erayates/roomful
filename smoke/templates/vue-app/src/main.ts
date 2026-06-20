@@ -1,10 +1,10 @@
 import { createApp } from 'vue';
 
 import App from './App.vue';
-import { FlockPlugin } from '@flockjs/vue';
+import { RoomfulPlugin } from '@roomful/vue';
 
 createApp(App)
-  .use(FlockPlugin, {
+  .use(RoomfulPlugin, {
     presence: {
       color: '#42b883',
       name: 'Vue Smoke',

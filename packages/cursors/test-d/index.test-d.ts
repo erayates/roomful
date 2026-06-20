@@ -21,7 +21,7 @@ import {
   TypingIndicator,
   type TypingIndicatorProps,
 } from '..';
-import type { Peer } from '@flockjs/core';
+import type { Peer } from '@roomful/core';
 
 const peer = {
   id: 'peer-1',

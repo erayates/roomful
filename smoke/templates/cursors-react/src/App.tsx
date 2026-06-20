@@ -7,8 +7,8 @@ import {
   PresenceBar,
   SelectionHighlight,
   TypingIndicator,
-} from '@flockjs/cursors';
-import { FlockProvider, usePresence } from '@flockjs/react';
+} from '@roomful/cursors';
+import { RoomfulProvider, usePresence } from '@roomful/react';
 
 type SmokePresence = {
   color: string;
@@ -46,11 +46,11 @@ function CursorSurface() {
 
 export function App() {
   return (
-    <FlockProvider
+    <RoomfulProvider
       presence={{ color: '#0ea5e9', name: 'Cursor Smoke' }}
       roomId="publish-smoke-cursors"
     >
       <CursorSurface />
-    </FlockProvider>
+    </RoomfulProvider>
   );
 }

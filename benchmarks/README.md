@@ -5,7 +5,7 @@ Relay-specific performance utilities live with the package code so they can reus
 ## Redis Latency Benchmark
 
 ```bash
-FLOCK_REDIS_URL=redis://127.0.0.1:6379/0 pnpm --filter @flockjs/relay benchmark:redis
+ROOMFUL_REDIS_URL=redis://127.0.0.1:6379/0 pnpm --filter @roomful/relay benchmark:redis
 ```
 
 The benchmark compares:
@@ -27,9 +27,9 @@ The larger relay load harness lives under `benchmarks/relay/` and is designed ar
 Entrypoints:
 
 ```bash
-pnpm --filter @flockjs/relay benchmark:load:steady
-pnpm --filter @flockjs/relay benchmark:load:scale -- --redis-url redis://127.0.0.1:6379/0
-pnpm --filter @flockjs/relay benchmark:load:soak -- --redis-url redis://127.0.0.1:6379/0
+pnpm --filter @roomful/relay benchmark:load:steady
+pnpm --filter @roomful/relay benchmark:load:scale -- --redis-url redis://127.0.0.1:6379/0
+pnpm --filter @roomful/relay benchmark:load:soak -- --redis-url redis://127.0.0.1:6379/0
 ```
 
 Detailed setup, overrides, and output files are documented in [`benchmarks/relay/README.md`](relay/README.md).

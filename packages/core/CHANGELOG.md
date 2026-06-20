@@ -1,10 +1,10 @@
-# @flockjs/core
+# @roomful/core
 
 ## 1.0.0
 
 ### Major Changes
 
-Initial public release of `@flockjs/core`, the framework-agnostic TypeScript core for FlockJS collaboration.
+Initial public release of `@roomful/core`, the framework-agnostic TypeScript core for Roomful collaboration.
 
 - Room lifecycle and peer registry with deterministic join/leave ordering.
 - Collaboration engines: presence, live cursors, shared state, awareness, and typed events.
@@ -12,5 +12,5 @@ Initial public release of `@flockjs/core`, the framework-agnostic TypeScript cor
 - Transports: BroadcastChannel, in-memory, polling, WebSocket relay, and WebRTC.
 - Optional AES-GCM end-to-end encryption.
 - Offline mutation queueing and reconnection behavior.
-- `FlockError` runtime error class and boundary-safe (`unknown`) event payloads.
+- `RoomfulError` runtime error class and boundary-safe (`unknown`) event payloads.
 - Browser DevTools bridge for inspecting peers, events, and state diffs.

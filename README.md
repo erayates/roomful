@@ -1,21 +1,21 @@
-# FlockJS
+# Roomful
 
 Real-time collaboration primitives for the web.
 
-FlockJS is an open-source, framework-agnostic SDK designed to help frontend teams add multiplayer collaboration features without building custom realtime infrastructure from scratch.
+Roomful is an open-source, framework-agnostic SDK designed to help frontend teams add multiplayer collaboration features without building custom realtime infrastructure from scratch.
 
 ## Project Status
 
-FlockJS is in release-candidate validation. All major features are implemented and tested across 7 public packages.
+Roomful is in release-candidate validation. All major features are implemented and tested across 7 public packages.
 
 - API contracts are stable and implemented.
 - All framework adapters (React, Vue, Svelte) provide full presence, cursors, state, awareness, and events APIs.
 - The relay server supports WebSocket, polling, JWT auth, and Redis coordination.
 - Release automation validates packages, consumer smoke apps, relay Docker images, and generated GitHub Releases before promotion.
 
-## Why FlockJS
+## Why Roomful
 
-Building collaboration features usually requires you to stitch together transport, peer lifecycle, presence state, conflict resolution, and reconnection behavior. FlockJS focuses on delivering these as composable primitives:
+Building collaboration features usually requires you to stitch together transport, peer lifecycle, presence state, conflict resolution, and reconnection behavior. Roomful focuses on delivering these as composable primitives:
 
 - `room` lifecycle and peer registry
 - `presence` for who is online and what they are doing
@@ -45,14 +45,14 @@ CRDT note: `strategy: 'crdt'`, `room.getYDoc()`, and `room.getYProvider()` requi
 ## Quick Start
 
 ```bash
-npm install @flockjs/core
+npm install @roomful/core
 
 # Add these only if you use CRDT/Yjs features
 npm install yjs y-protocols
 ```
 
 ```ts
-import { createRoom } from '@flockjs/core';
+import { createRoom } from '@roomful/core';
 
 const room = createRoom('my-first-room', {
   transport: 'auto',
@@ -75,22 +75,22 @@ window.addEventListener('beforeunload', () => {
 
 | Package             | Purpose                                 | Status    |
 | ------------------- | --------------------------------------- | --------- |
-| `@flockjs/core`     | room, transports, collaboration engines | Available |
-| `@flockjs/react`    | React provider/hooks                    | Available |
-| `@flockjs/vue`      | Vue plugin/composables                  | Available |
-| `@flockjs/svelte`   | Svelte store/action integration         | Available |
-| `@flockjs/cursors`  | prebuilt collaboration UI components    | Available |
-| `@flockjs/relay`    | self-hosted relay server                | Available |
-| `@flockjs/devtools` | debugging and diagnostics tooling       | Available |
+| `@roomful/core`     | room, transports, collaboration engines | Available |
+| `@roomful/react`    | React provider/hooks                    | Available |
+| `@roomful/vue`      | Vue plugin/composables                  | Available |
+| `@roomful/svelte`   | Svelte store/action integration         | Available |
+| `@roomful/cursors`  | prebuilt collaboration UI components    | Available |
+| `@roomful/relay`    | self-hosted relay server                | Available |
+| `@roomful/devtools` | debugging and diagnostics tooling       | Available |
 
 ## Documentation
 
-- [Documentation site](https://docs.flockjs.dev)
+- [Documentation site](https://docs.roomful.dev)
 - [Documentation index](docs/README.md)
 - [Installation](docs/getting-started/installation.md)
 - [Quickstart](docs/getting-started/quickstart.md)
 - [Core API reference](docs/reference/core-api.md)
-- [Code quality guidelines](docs/project/flockjs-code-quality-guidelines.md)
+- [Code quality guidelines](docs/project/roomful-code-quality-guidelines.md)
 - [Contributing guide](CONTRIBUTING.md)
 - [Roadmap](ROADMAP.md)
 
@@ -99,24 +99,24 @@ window.addEventListener('beforeunload', () => {
 Install the relay as a global CLI:
 
 ```bash
-npm install -g @flockjs/relay
-flockjs-relay --port 8080
+npm install -g @roomful/relay
+roomful-relay --port 8080
 ```
 
 Relay runtime environment variables:
 
-| Variable          | Default     | Description                                                              |
-| ----------------- | ----------- | ------------------------------------------------------------------------ |
-| `PORT`            | `8787`      | TCP port the relay listens on                                            |
-| `HOST`            | `127.0.0.1` | Interface the relay binds to. Docker examples override this to `0.0.0.0` |
-| `MAX_CONNECTIONS` | unset       | Optional concurrent WebSocket connection cap                             |
-| `FLOCK_REDIS_URL` | unset       | Optional Redis URL used to coordinate multiple relay instances           |
+| Variable            | Default     | Description                                                              |
+| ------------------- | ----------- | ------------------------------------------------------------------------ |
+| `PORT`              | `8787`      | TCP port the relay listens on                                            |
+| `HOST`              | `127.0.0.1` | Interface the relay binds to. Docker examples override this to `0.0.0.0` |
+| `MAX_CONNECTIONS`   | unset       | Optional concurrent WebSocket connection cap                             |
+| `ROOMFUL_REDIS_URL` | unset       | Optional Redis URL used to coordinate multiple relay instances           |
 
 Docker image:
 
 ```bash
-docker pull flockjs/relay:latest
-docker run --rm -p 8787:8787 -e HOST=0.0.0.0 flockjs/relay:latest
+docker pull roomful/relay:latest
+docker run --rm -p 8787:8787 -e HOST=0.0.0.0 roomful/relay:latest
 ```
 
 Compose examples:
@@ -126,7 +126,7 @@ Compose examples:
 docker compose up --build
 
 # Local build with Redis coordination
-FLOCK_REDIS_URL=redis://redis:6379/0 docker compose --profile redis up --build
+ROOMFUL_REDIS_URL=redis://redis:6379/0 docker compose --profile redis up --build
 
 # Production image
 docker compose -f docker-compose.prod.yml up -d
@@ -180,14 +180,14 @@ CI/CD baseline for EP-01 `#005`:
 - PR validation runs on every PR to `main`.
 - Validation runs on Node `18` and `20`.
 - Pipeline order: install -> lint -> typecheck -> test -> build.
-- Release workflow triggers on `v*` tags, publishes `@flockjs/*` via Changesets, and publishes `flockjs/relay` to Docker Hub.
+- Release workflow triggers on `v*` tags, publishes `@roomful/*` via Changesets, and publishes `roomful/relay` to Docker Hub.
 - Release workflow creates a GitHub Release after npm and Docker publishing succeed.
 - Changesets release PR workflow (`.github/workflows/changesets-release-pr.yml`) runs on pushes to `main`.
 - Release workflow requires `NPM_TOKEN`, `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`, and optionally uses `TURBO_TEAM` / `TURBO_TOKEN`.
 
 ### Workspace Layout
 
-- `packages/*`: core SDK and adapters (`@flockjs/*`)
+- `packages/*`: core SDK and adapters (`@roomful/*`)
 - `apps/*`: internal applications
 - `examples/*`: runnable collaboration examples for canvas, editor, dashboards, and multiplayer flows
 - `benchmarks/`: relay load and scaling benchmarks with report generation
@@ -207,8 +207,8 @@ Details: [Execution plan](docs/project/execution-plan.md)
 
 ## Community and Contribution
 
-- File bugs: <https://github.com/erayates/flockjs/issues>
-- Start discussions: <https://github.com/erayates/flockjs/discussions>
+- File bugs: <https://github.com/erayates/roomful/issues>
+- Start discussions: <https://github.com/erayates/roomful/discussions>
 - Contribute: [CONTRIBUTING.md](CONTRIBUTING.md)
 - Community conduct: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
 

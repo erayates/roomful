@@ -1,9 +1,9 @@
-import { createFlockError } from '../flock-error';
 import { env } from '../internal/env';
 import { createStructuredLogger, type StructuredLogger } from '../internal/logger';
 import { normalizeMaxPeers } from '../internal/max-peers';
 import type { PeerProtocolCapabilities, PeerProtocolSession } from '../protocol/peer-message';
-import type { FlockError, PresenceData, RelayAuthToken, RoomOptions } from '../types';
+import { createRoomfulError } from '../roomful-error';
+import type { PresenceData, RelayAuthToken, RoomfulError, RoomOptions } from '../types';
 import { appendRelayAuthTokenToUrl } from './relay-url';
 import {
   type RoomTransportSignal,
@@ -163,18 +163,18 @@ function resolveWebSocketFactory(factory?: WebSocketFactory): WebSocketFactory {
   };
 }
 
-function createWebSocketTransportError(message: string, cause?: unknown): FlockError {
-  return createFlockError('NETWORK_ERROR', message, false, cause);
+function createWebSocketTransportError(message: string, cause?: unknown): RoomfulError {
+  return createRoomfulError('NETWORK_ERROR', message, false, cause);
 }
 
-function createRelayMessageError(message: string, serverCode: string): FlockError {
+function createRelayMessageError(message: string, serverCode: string): RoomfulError {
   if (serverCode === 'ROOM_FULL') {
-    return createFlockError('ROOM_FULL', message, true, {
+    return createRoomfulError('ROOM_FULL', message, true, {
       ...createWebSocketTransportFailure('server-rejected', serverCode),
     });
   }
 
-  return createFlockError(
+  return createRoomfulError(
     serverCode === 'AUTH_FAILED' ? 'AUTH_FAILED' : 'NETWORK_ERROR',
     message,
     false,
@@ -375,7 +375,7 @@ export class WebSocketTransportAdapter<
         socket.removeEventListener('close', onClose);
       };
 
-      const fail = (error: FlockError): void => {
+      const fail = (error: RoomfulError): void => {
         if (settled) {
           return;
         }
@@ -602,7 +602,7 @@ export class WebSocketTransportAdapter<
     }
   }
 
-  private emitErrorSignal(error: FlockError): void {
+  private emitErrorSignal(error: RoomfulError): void {
     this.emitTransportSignal({
       type: 'transport:error',
       roomId: this.roomId,

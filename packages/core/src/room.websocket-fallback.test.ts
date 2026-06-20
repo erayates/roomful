@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { createFlockError } from './flock-error';
+import { createRoomfulError } from './roomful-error';
 import type { TransportAdapter, TransportSignal } from './transports/transport';
 import type { Room } from './types';
 
@@ -101,7 +101,7 @@ describe('Room websocket polling fallback', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0.5);
 
     const failingWebSocket = new MockTransportAdapter('websocket', async () => {
-      throw createFlockError('NETWORK_ERROR', 'blocked', false, {
+      throw createRoomfulError('NETWORK_ERROR', 'blocked', false, {
         source: 'websocket-relay',
         kind: 'connect-failed',
       });
@@ -151,7 +151,7 @@ describe('Room websocket polling fallback', () => {
 
   it('resets sticky polling fallback after manual disconnect', async () => {
     const failingWebSocket = new MockTransportAdapter('websocket', async () => {
-      throw createFlockError('NETWORK_ERROR', 'blocked', false, {
+      throw createRoomfulError('NETWORK_ERROR', 'blocked', false, {
         source: 'websocket-relay',
         kind: 'connect-failed',
       });

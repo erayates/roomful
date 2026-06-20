@@ -1,5 +1,5 @@
-import { createFlockError } from './flock-error';
 import { env } from './internal/env';
+import { createRoomfulError } from './roomful-error';
 import type { EncryptionOptions } from './types';
 
 const AES_GCM_ALGORITHM = 'AES-GCM';
@@ -38,7 +38,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function getCryptoOrThrow(): Crypto {
   const webCrypto = env.crypto;
   if (!webCrypto || typeof webCrypto.subtle === 'undefined') {
-    throw createFlockError(
+    throw createRoomfulError(
       'ENCRYPTION_ERROR',
       'Web Crypto API encryption support is unavailable in this runtime.',
       false,
@@ -56,7 +56,7 @@ function assertValidEncryptionKey(key: CryptoKey): void {
   const algorithm = isRecord(key.algorithm) ? key.algorithm : null;
   const algorithmName = typeof algorithm?.name === 'string' ? algorithm.name : undefined;
   if (key.type !== 'secret' || algorithmName !== AES_GCM_ALGORITHM) {
-    throw createFlockError(
+    throw createRoomfulError(
       'ENCRYPTION_ERROR',
       'Encryption key must be a secret AES-GCM CryptoKey.',
       false,
@@ -68,7 +68,7 @@ function assertValidEncryptionKey(key: CryptoKey): void {
   }
 
   if (!key.usages.includes('encrypt') || !key.usages.includes('decrypt')) {
-    throw createFlockError(
+    throw createRoomfulError(
       'ENCRYPTION_ERROR',
       'Encryption key must allow both encrypt and decrypt usages.',
       false,
@@ -94,7 +94,7 @@ function toArrayBuffer(value: BinaryLike): ArrayBuffer {
 }
 
 function buildPassphraseSalt(roomId: string): ArrayBuffer {
-  return toArrayBuffer(copyTextBytes(`flockjs:e2e:v1:${roomId}`));
+  return toArrayBuffer(copyTextBytes(`roomful:e2e:v1:${roomId}`));
 }
 
 function buildAdditionalAuthenticatedData(header: EncryptionEnvelopeHeader): ArrayBuffer {
@@ -142,7 +142,7 @@ export async function resolveRoomEncryption(
   }
 
   if (!('passphrase' in options) || typeof options.passphrase !== 'string') {
-    throw createFlockError(
+    throw createRoomfulError(
       'ENCRYPTION_ERROR',
       'Encryption requires either a CryptoKey or passphrase.',
       false,
@@ -154,10 +154,15 @@ export async function resolveRoomEncryption(
   }
 
   if (options.passphrase.length === 0) {
-    throw createFlockError('ENCRYPTION_ERROR', 'Encryption passphrase must not be empty.', false, {
-      source: 'room-encryption',
-      kind: 'empty-passphrase',
-    });
+    throw createRoomfulError(
+      'ENCRYPTION_ERROR',
+      'Encryption passphrase must not be empty.',
+      false,
+      {
+        source: 'room-encryption',
+        kind: 'empty-passphrase',
+      },
+    );
   }
 
   const passphraseKey = await webCrypto.subtle.importKey(
@@ -243,7 +248,7 @@ export async function decryptWirePayload(
 
     return new Uint8Array(plaintext);
   } catch (error) {
-    throw createFlockError(
+    throw createRoomfulError(
       'DECRYPTION_ERROR',
       `Failed to decrypt message from ${header.fromPeerId}.`,
       true,

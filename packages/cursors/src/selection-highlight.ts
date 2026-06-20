@@ -1,4 +1,4 @@
-import type { PresenceData } from '@flockjs/core';
+import type { PresenceData } from '@roomful/core';
 import { useEffect, useId } from 'react';
 
 import { resolvePeerColor } from './presence-utils';
@@ -50,7 +50,7 @@ export function SelectionHighlight<TPresence extends PresenceData = PresenceData
 ): null {
   const { peer, selection } = props;
   const reactId = useId();
-  const highlightName = sanitizeHighlightName(`flockjs-selection-${peer.id}-${reactId}`);
+  const highlightName = sanitizeHighlightName(`roomful-selection-${peer.id}-${reactId}`);
   const resolvedColor = resolvePeerColor(peer);
 
   useEffect(() => {
@@ -214,8 +214,8 @@ function applyCustomHighlight(
   }
 
   const styleElement = doc.createElement('style');
-  styleElement.setAttribute('data-flockjs-selection-highlight-style', highlightName);
-  styleElement.setAttribute('data-flockjs-selection-highlight-style-peer', peerId);
+  styleElement.setAttribute('data-roomful-selection-highlight-style', highlightName);
+  styleElement.setAttribute('data-roomful-selection-highlight-style-peer', peerId);
   styleElement.textContent = createHighlightRule(highlightName, colors);
 
   try {
@@ -343,8 +343,8 @@ function wrapTextNodeSegment(
   }
 
   const wrapper = selectedNode.ownerDocument.createElement('span');
-  wrapper.setAttribute('data-flockjs-selection-highlight', 'true');
-  wrapper.setAttribute('data-flockjs-selection-highlight-peer', peerId);
+  wrapper.setAttribute('data-roomful-selection-highlight', 'true');
+  wrapper.setAttribute('data-roomful-selection-highlight-peer', peerId);
   applySpanHighlightStyle(wrapper, colors);
 
   parent.insertBefore(wrapper, selectedNode);

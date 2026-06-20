@@ -15,13 +15,13 @@ import type {
   RoomStatus,
   StateChangeMeta,
   StateEngine,
-} from '@flockjs/core';
+} from '@roomful/core';
 import { createElement } from 'react';
 import { renderToString } from 'react-dom/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
-  FlockProvider,
+  RoomfulProvider,
   useAwareness,
   type UseAwarenessResult,
   useConnectionStatus,
@@ -40,8 +40,8 @@ const { createRoomMock } = vi.hoisted(() => {
   };
 });
 
-vi.mock('@flockjs/core', async () => {
-  const actual = await vi.importActual<typeof import('@flockjs/core')>('@flockjs/core');
+vi.mock('@roomful/core', async () => {
+  const actual = await vi.importActual<typeof import('@roomful/core')>('@roomful/core');
 
   return {
     ...actual,
@@ -368,7 +368,7 @@ beforeEach(() => {
   createRoomMock.mockReset();
 });
 
-describe('FlockProvider SSR', () => {
+describe('RoomfulProvider SSR', () => {
   it('renders on the server without connecting and still exposes the room to descendants', () => {
     const room = createMockRoom('server-room', {
       transport: 'broadcast',
@@ -382,7 +382,7 @@ describe('FlockProvider SSR', () => {
 
     const html = renderToString(
       createElement(
-        FlockProvider,
+        RoomfulProvider,
         {
           roomId: 'server-room',
           transport: 'broadcast',
@@ -419,7 +419,7 @@ describe('FlockProvider SSR', () => {
 
     const html = renderToString(
       createElement(
-        FlockProvider,
+        RoomfulProvider,
         {
           roomId: 'server-presence-room',
         },
@@ -462,7 +462,7 @@ describe('FlockProvider SSR', () => {
 
     const html = renderToString(
       createElement(
-        FlockProvider,
+        RoomfulProvider,
         {
           roomId: 'server-cursor-room',
         },
@@ -522,7 +522,7 @@ describe('FlockProvider SSR', () => {
 
     const html = renderToString(
       createElement(
-        FlockProvider,
+        RoomfulProvider,
         {
           roomId: 'server-shared-state-room',
         },
@@ -569,7 +569,7 @@ describe('FlockProvider SSR', () => {
 
     const html = renderToString(
       createElement(
-        FlockProvider,
+        RoomfulProvider,
         {
           roomId: 'server-awareness-room',
         },
@@ -614,7 +614,7 @@ describe('FlockProvider SSR', () => {
 
     const html = renderToString(
       createElement(
-        FlockProvider,
+        RoomfulProvider,
         {
           roomId: 'server-peers-room',
         },
@@ -641,7 +641,7 @@ describe('FlockProvider SSR', () => {
 
     const html = renderToString(
       createElement(
-        FlockProvider,
+        RoomfulProvider,
         {
           roomId: 'server-status-room',
         },
@@ -673,7 +673,7 @@ describe('FlockProvider SSR', () => {
 
     const html = renderToString(
       createElement(
-        FlockProvider,
+        RoomfulProvider,
         {
           roomId: 'server-event-room',
         },

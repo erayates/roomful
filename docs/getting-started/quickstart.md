@@ -2,18 +2,18 @@
 
 Audience: users.
 
-This walkthrough shows the intended first integration flow for FlockJS.
+This walkthrough shows the intended first integration flow for Roomful.
 
 ## 1) Install Core
 
 ```bash
-npm install @flockjs/core
+npm install @roomful/core
 ```
 
 ## 2) Create and Connect a Room
 
 ```ts
-import { createRoom } from '@flockjs/core';
+import { createRoom } from '@roomful/core';
 
 const room = createRoom('my-first-room', {
   transport: 'auto',
@@ -89,13 +89,13 @@ window.addEventListener('beforeunload', () => {
 ## React Quickstart (Planned Adapter API)
 
 ```tsx
-import { FlockProvider, usePresence } from '@flockjs/react';
+import { RoomfulProvider, usePresence } from '@roomful/react';
 
 function App() {
   return (
-    <FlockProvider roomId="my-first-room" presence={{ name: 'Alice', color: '#4F46E5' }}>
+    <RoomfulProvider roomId="my-first-room" presence={{ name: 'Alice', color: '#4F46E5' }}>
       <RoomPanel />
-    </FlockProvider>
+    </RoomfulProvider>
   );
 }
 

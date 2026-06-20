@@ -2,7 +2,7 @@ import { env } from './env';
 import { isObject, readNumber, readRecord, readString } from './guards';
 import { cloneStateSnapshot, parseStateSnapshot, type StateSnapshot } from './state';
 
-const STATE_PERSISTENCE_PREFIX = 'flockjs';
+const STATE_PERSISTENCE_PREFIX = 'roomful';
 const STATE_PERSISTENCE_KEY = 'state';
 const STATE_PERSISTENCE_VERSION = 1;
 

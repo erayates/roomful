@@ -7,13 +7,13 @@
     "baseUrl": ".",
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "paths": {
-      "@flockjs/core": [
+      "@roomful/core": [
         "../../../packages/core/dist/index.d.ts",
-        "./node_modules/@flockjs/core/dist/index.d.ts"
+        "./node_modules/@roomful/core/dist/index.d.ts"
       ],
-      "@flockjs/react": [
+      "@roomful/react": [
         "../../../packages/react/dist/index.d.ts",
-        "./node_modules/@flockjs/react/dist/index.d.ts"
+        "./node_modules/@roomful/react/dist/index.d.ts"
       ]
     },
     "strict": true,

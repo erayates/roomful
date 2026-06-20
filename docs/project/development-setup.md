@@ -11,8 +11,8 @@ Audience: contributors.
 ## Clone and Install
 
 ```bash
-git clone https://github.com/erayates/flockjs.git
-cd flockjs
+git clone https://github.com/erayates/roomful.git
+cd roomful
 pnpm install
 ```
 
@@ -53,24 +53,24 @@ and Playwright WebKit. WebKit is used as the Safari-equivalent coverage target i
 scenario is skipped automatically when the underlying WebKit runtime does not expose
 `RTCPeerConnection`.
 
-Run the self-hostable `@flockjs/relay` signaling server locally for WebRTC validation:
+Run the self-hostable `@roomful/relay` signaling server locally for WebRTC validation:
 
 ```bash
-pnpm --filter @flockjs/relay build
-pnpm --filter @flockjs/relay start
+pnpm --filter @roomful/relay build
+pnpm --filter @roomful/relay start
 ```
 
 Optional relay env overrides:
 
 ```bash
-HOST=0.0.0.0 PORT=8787 MAX_CONNECTIONS=1000 pnpm --filter @flockjs/relay start
+HOST=0.0.0.0 PORT=8787 MAX_CONNECTIONS=1000 pnpm --filter @roomful/relay start
 curl http://127.0.0.1:8787/health
 ```
 
 Optional multi-instance relay mode:
 
 ```bash
-FLOCK_REDIS_URL=redis://127.0.0.1:6379/0 pnpm --filter @flockjs/relay start
+ROOMFUL_REDIS_URL=redis://127.0.0.1:6379/0 pnpm --filter @roomful/relay start
 ```
 
 ## Working Norms
@@ -122,7 +122,7 @@ Use `--no-verify` only for emergency situations.
 - If packaged declaration verification fails, run `pnpm build` and then `pnpm verify:package-types` to inspect the reported package.
 - If packed consumer smoke tests fail, run `pnpm build` and then `pnpm smoke:publish` to reproduce the install/build failure in `.smoke/workdirs`.
 - If releases fail before publish, confirm `NPM_TOKEN`, `DOCKERHUB_USERNAME`, and `DOCKERHUB_TOKEN` are configured in repository secrets.
-- If WebRTC peers do not connect, verify `relayUrl` points to a reachable `@flockjs/relay` instance and check browser console ICE errors.
+- If WebRTC peers do not connect, verify `relayUrl` points to a reachable `@roomful/relay` instance and check browser console ICE errors.
 - Same-origin BroadcastChannel fallback only occurs during the initial WebRTC connect attempt when signaling is unavailable.
 
 ## Related Docs

@@ -15,7 +15,7 @@ A Notion-style editor where users can:
 ## Example
 
 ```ts
-import { createRoom } from '@flockjs/core';
+import { createRoom } from '@roomful/core';
 import * as Y from 'yjs';
 
 const room = createRoom(`doc-${documentId}`, {

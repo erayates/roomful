@@ -61,7 +61,7 @@ export function createBadge(text: string, tone: string): HTMLSpanElement {
       attributes: {
         'data-tone': tone,
       },
-      className: 'flock-badge',
+      className: 'roomful-badge',
       text,
     },
     [],

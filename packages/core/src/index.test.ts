@@ -5,7 +5,7 @@ import { createCoreHealth } from './index';
 describe('createCoreHealth', () => {
   it('returns the expected health object', () => {
     expect(createCoreHealth()).toEqual({
-      packageName: '@flockjs/core',
+      packageName: '@roomful/core',
       status: 'ok',
     });
   });

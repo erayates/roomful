@@ -2,10 +2,10 @@
 
 Audience: contributors.
 
-This is the planned monorepo structure for FlockJS.
+This is the planned monorepo structure for Roomful.
 
 ```text
-flockjs/
+roomful/
 ├── packages/
 │   ├── core/         # Transport, room lifecycle, engines
 │   ├── react/        # React provider and hooks

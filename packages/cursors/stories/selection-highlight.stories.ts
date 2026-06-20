@@ -13,7 +13,7 @@ interface SelectionHighlightStoryArgs {
 }
 
 const meta = {
-  title: '@flockjs/cursors/SelectionHighlight',
+  title: '@roomful/cursors/SelectionHighlight',
   tags: ['autodocs'],
   args: {
     color: '#2563eb',

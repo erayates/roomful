@@ -16,9 +16,9 @@ describe('FloatingReaction SSR', () => {
       }),
     );
 
-    expect(html).toContain('data-flockjs-floating-reaction="true"');
+    expect(html).toContain('data-roomful-floating-reaction="true"');
     expect(html).toContain('🎉');
-    expect(html).toContain('flockjs-floating-reaction-float');
+    expect(html).toContain('roomful-floating-reaction-float');
     expect(html).toContain('@keyframes');
   });
 });

@@ -71,7 +71,7 @@ function buildTransportMessage(roomId, peerId, payload, sequence) {
   return JSON.stringify({
     type: 'transport',
     message: {
-      source: 'flockjs',
+      source: 'roomful',
       protocolVersion: 2,
       codec: 'json',
       roomId,

@@ -148,7 +148,7 @@ describe('relay protocol', () => {
       JSON.stringify({
         type: 'transport',
         message: {
-          source: 'flockjs',
+          source: 'roomful',
           protocolVersion: 2,
           codec: 'json',
           roomId: 'room-a',
@@ -191,7 +191,7 @@ describe('relay protocol', () => {
       JSON.stringify({
         type: 'transport',
         message: {
-          source: 'flockjs',
+          source: 'roomful',
           protocolVersion: 2,
           codec: 'json',
           roomId: 'room-state',
@@ -244,7 +244,7 @@ describe('relay protocol', () => {
       encode({
         type: 'transport',
         message: {
-          source: 'flockjs',
+          source: 'roomful',
           protocolVersion: 2,
           codec: 'msgpack',
           roomId: 'room-crdt',
@@ -294,7 +294,7 @@ describe('relay protocol', () => {
       JSON.stringify({
         type: 'transport',
         message: {
-          source: 'flockjs',
+          source: 'roomful',
           protocolVersion: 2,
           codec: 'json',
           roomId: 'room-encrypted',
@@ -334,7 +334,7 @@ describe('relay protocol', () => {
       encode({
         type: 'transport',
         message: {
-          source: 'flockjs',
+          source: 'roomful',
           protocolVersion: 2,
           codec: 'msgpack',
           roomId: 'room-msgpack',
@@ -414,7 +414,7 @@ describe('relay protocol', () => {
         JSON.stringify({
           type: 'transport',
           message: {
-            source: 'flockjs',
+            source: 'roomful',
             protocolVersion: 2,
             codec: 'json',
             roomId: 'room-a',
@@ -432,7 +432,7 @@ describe('relay protocol', () => {
         JSON.stringify({
           type: 'transport',
           message: {
-            source: 'flockjs',
+            source: 'roomful',
             protocolVersion: 2,
             codec: 'json',
             roomId: 'room-a',

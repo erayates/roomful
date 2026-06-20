@@ -2,9 +2,9 @@
 
 Audience: contributors.
 
-FlockJS engineering conventions are defined in:
+Roomful engineering conventions are defined in:
 
-- [FlockJS Code Quality Guidelines](flockjs-code-quality-guidelines.md)
+- [Roomful Code Quality Guidelines](roomful-code-quality-guidelines.md)
 
 This guideline is the canonical source for:
 

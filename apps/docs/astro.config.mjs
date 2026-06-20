@@ -12,28 +12,28 @@ const hasDocSearch =
 
 const packageAliases = Object.fromEntries(
   ['core', 'react', 'vue', 'svelte', 'cursors', 'relay', 'devtools'].map((name) => [
-    `@flockjs/${name}`,
+    `@roomful/${name}`,
     fileURLToPath(new URL(`../../packages/${name}/src/index.ts`, import.meta.url)),
   ]),
 );
 
 export default defineConfig({
-  site: 'https://docs.flockjs.dev',
+  site: 'https://docs.roomful.dev',
   integrations: [
     react(),
     starlight({
-      title: 'FlockJS',
+      title: 'Roomful',
       description: 'Real-time collaboration primitives for the web.',
       logo: {
-        light: './src/assets/flock-mark.svg',
-        dark: './src/assets/flock-mark.svg',
+        light: './src/assets/roomful-mark.svg',
+        dark: './src/assets/roomful-mark.svg',
         replacesTitle: false,
       },
       social: [
         {
           icon: 'github',
           label: 'GitHub',
-          href: 'https://github.com/erayates/flockjs',
+          href: 'https://github.com/erayates/roomful',
         },
       ],
       customCss: ['@fontsource-variable/space-grotesk', './src/styles/site.css'],
@@ -71,11 +71,11 @@ export default defineConfig({
             { label: 'Overview', link: '/community/' },
             {
               label: 'Discussions',
-              link: 'https://github.com/erayates/flockjs/discussions',
+              link: 'https://github.com/erayates/roomful/discussions',
             },
             {
               label: 'Issues',
-              link: 'https://github.com/erayates/flockjs/issues',
+              link: 'https://github.com/erayates/roomful/issues',
             },
           ],
         },

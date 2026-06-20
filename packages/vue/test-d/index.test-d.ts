@@ -3,8 +3,8 @@ import type { Plugin, ShallowRef } from 'vue';
 import { expectAssignable, expectType } from 'tsd';
 
 import {
-  FlockPlugin,
-  type FlockPluginOptions,
+  RoomfulPlugin,
+  type RoomfulPluginOptions,
   type ReadonlyRef,
   type SharedStateSetter,
   type UseAwarenessResult,
@@ -14,7 +14,7 @@ import {
   usePresence,
   useSharedState,
 } from '..';
-import type { Peer, PresenceData } from '@flockjs/core';
+import type { Peer, PresenceData } from '@roomful/core';
 
 const presence = usePresence<{ role: 'editor' | 'viewer' }>();
 expectType<'editor' | 'viewer' | undefined>(presence.self.value.role);
@@ -24,9 +24,9 @@ const pluginOptions = {
     role: 'editor' as const,
   },
   roomId: 'room-id',
-} satisfies FlockPluginOptions<{ role: 'editor' }>;
+} satisfies RoomfulPluginOptions<{ role: 'editor' }>;
 expectType<string>(pluginOptions.roomId);
-expectAssignable<Plugin>(FlockPlugin);
+expectAssignable<Plugin>(RoomfulPlugin);
 
 const cursors = useCursors<{ tool: 'eraser' | 'pen' }>();
 expectType<HTMLElement | null>(cursors.ref.value);

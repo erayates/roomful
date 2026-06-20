@@ -1,4 +1,4 @@
-# Svelte Adapter (`@flockjs/svelte`)
+# Svelte Adapter (`@roomful/svelte`)
 
 Audience: users.
 
@@ -6,9 +6,9 @@ Audience: users.
 
 ```svelte
 <script lang="ts">
-  import { flock } from '@flockjs/svelte';
+  import { roomful } from '@roomful/svelte';
 
-  const { cursors, presence, state, events, awareness } = flock('my-room', {
+  const { cursors, presence, state, events, awareness } = roomful('my-room', {
     presence: { name: 'Alice', color: '#4F46E5' },
     transport: 'auto',
   });

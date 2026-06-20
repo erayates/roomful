@@ -1,12 +1,12 @@
 # Multiplayer Game Example
 
 A tiny shared-position game board. Each connected peer controls one marker, and the board state is
-stored in FlockJS shared state so late joiners see every active player.
+stored in Roomful shared state so late joiners see every active player.
 
 ## Run
 
 ```bash
-pnpm --filter @flockjs/example-multiplayer-game dev
+pnpm --filter @roomful/example-multiplayer-game dev
 ```
 
 Use the same room ID in two tabs, connect, and move each marker with the arrow buttons or keyboard.

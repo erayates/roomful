@@ -1,11 +1,11 @@
 # Changesets
 
-FlockJS uses [Changesets](https://github.com/changesets/changesets) for package versioning and release publishing.
+Roomful uses [Changesets](https://github.com/changesets/changesets) for package versioning and release publishing.
 
 ## Scope
 
-- Publishable: `packages/*` (`@flockjs/*`)
-- Internal only: `apps/*` (`@flockjs/app-*`)
+- Publishable: `packages/*` (`@roomful/*`)
+- Internal only: `apps/*` (`@roomful/app-*`)
 
 ## Contributor Workflow
 

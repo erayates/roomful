@@ -192,7 +192,7 @@ describe('websocket.protocol', () => {
         JSON.stringify({
           type: 'transport',
           message: {
-            source: 'flockjs',
+            source: 'roomful',
             protocolVersion: 2,
             codec: 'json',
             roomId: 'room-a',
@@ -210,7 +210,7 @@ describe('websocket.protocol', () => {
         JSON.stringify({
           type: 'transport',
           message: {
-            source: 'flockjs',
+            source: 'roomful',
             version: 1,
             signal: {
               roomId: 'room-a',

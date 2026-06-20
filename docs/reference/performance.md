@@ -48,15 +48,15 @@ const cursors = room.useCursors({
 
 Redis-backed relay validation:
 
-- Set `FLOCK_REDIS_URL` on two relay instances that share the same Redis deployment.
-- Run `pnpm --filter @flockjs/relay benchmark:redis` with that Redis URL in the environment.
+- Set `ROOMFUL_REDIS_URL` on two relay instances that share the same Redis deployment.
+- Run `pnpm --filter @roomful/relay benchmark:redis` with that Redis URL in the environment.
 - Compare the Redis cross-instance benchmark to the single-instance baseline and keep added median latency under `5ms` for local validation.
 
 Relay load validation:
 
-- Run `pnpm --filter @flockjs/relay benchmark:load:steady` for the single-room 100-peer baseline.
-- Run `pnpm --filter @flockjs/relay benchmark:load:scale -- --redis-url redis://127.0.0.1:6379/0` for the 500-peer, 50-room, 3-relay cluster scenario.
-- Run `pnpm --filter @flockjs/relay benchmark:load:soak -- --redis-url redis://127.0.0.1:6379/0` for the 30-minute soak and inspect `benchmarks/results/<run-id>/report.md`.
+- Run `pnpm --filter @roomful/relay benchmark:load:steady` for the single-room 100-peer baseline.
+- Run `pnpm --filter @roomful/relay benchmark:load:scale -- --redis-url redis://127.0.0.1:6379/0` for the 500-peer, 50-room, 3-relay cluster scenario.
+- Run `pnpm --filter @roomful/relay benchmark:load:soak -- --redis-url redis://127.0.0.1:6379/0` for the 30-minute soak and inspect `benchmarks/results/<run-id>/report.md`.
 - Increase `--vus` on the scale scenario to document the first concurrency level where latency thresholds or error-rate checks fail.
 
 ## Validation Targets

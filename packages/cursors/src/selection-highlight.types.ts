@@ -1,4 +1,4 @@
-import type { Peer, PresenceData } from '@flockjs/core';
+import type { Peer, PresenceData } from '@roomful/core';
 
 /**
  * Describes a text selection range within a target element.

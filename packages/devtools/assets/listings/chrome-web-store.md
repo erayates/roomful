@@ -2,11 +2,11 @@
 
 ## Short description
 
-Inspect FlockJS rooms, peers, state diffs, and event traffic directly inside Chrome DevTools.
+Inspect Roomful rooms, peers, state diffs, and event traffic directly inside Chrome DevTools.
 
 ## Full description
 
-FlockJS DevTools adds a dedicated panel to Chrome DevTools for live multiplayer diagnostics.
+Roomful DevTools adds a dedicated panel to Chrome DevTools for live multiplayer diagnostics.
 
 Use it to:
 
@@ -18,4 +18,4 @@ Use it to:
 
 ## Privacy
 
-FlockJS DevTools does not collect, transmit, or store user data outside the inspected page and the local DevTools session.
+Roomful DevTools does not collect, transmit, or store user data outside the inspected page and the local DevTools session.

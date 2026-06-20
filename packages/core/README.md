@@ -1,11 +1,11 @@
-# @flockjs/core
+# @roomful/core
 
-Framework-agnostic core for [FlockJS](https://github.com/erayates/flockjs) — real-time collaboration primitives (presence, cursors, shared state, awareness, and events) over WebRTC, BroadcastChannel, or a self-hosted WebSocket relay. Zero backend required for small rooms.
+Framework-agnostic core for [Roomful](https://github.com/erayates/roomful) — real-time collaboration primitives (presence, cursors, shared state, awareness, and events) over WebRTC, BroadcastChannel, or a self-hosted WebSocket relay. Zero backend required for small rooms.
 
 ## Install
 
 ```bash
-npm install @flockjs/core
+npm install @roomful/core
 
 # Optional: CRDT (Yjs) support
 npm install yjs y-protocols
@@ -14,7 +14,7 @@ npm install yjs y-protocols
 ## Usage
 
 ```ts
-import { createRoom } from '@flockjs/core';
+import { createRoom } from '@roomful/core';
 
 const room = createRoom('my-room', {
   presence: { name: 'Alice', color: '#4F46E5' },
@@ -30,7 +30,7 @@ presence.subscribe((peers) => {
 
 ## Documentation
 
-See the [FlockJS repository](https://github.com/erayates/flockjs) for the full API reference, guides, and examples.
+See the [Roomful repository](https://github.com/erayates/roomful) for the full API reference, guides, and examples.
 
 ## License
 

@@ -1,12 +1,12 @@
 # Collaborative Editor Example
 
-A minimal text editor that uses FlockJS room lifecycle, Yjs document sync, and awareness state.
+A minimal text editor that uses Roomful room lifecycle, Yjs document sync, and awareness state.
 Open the same room in two tabs and type in either editor.
 
 ## Run
 
 ```bash
-pnpm --filter @flockjs/example-collaborative-editor dev
+pnpm --filter @roomful/example-collaborative-editor dev
 ```
 
 The example uses `broadcast` transport by default so it runs locally without a relay.

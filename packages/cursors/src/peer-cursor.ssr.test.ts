@@ -21,6 +21,6 @@ describe('PeerCursor SSR', () => {
 
     expect(html).toContain('aria-hidden="true"');
     expect(html).toContain('Grace');
-    expect(html).toContain('data-flockjs-peer-cursor-style="pointer"');
+    expect(html).toContain('data-roomful-peer-cursor-style="pointer"');
   });
 });

@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { createFlockError } from './flock-error';
 import { createInitialStateSnapshot, setStateSnapshot } from './internal/state';
 import { createPersistedStateStorageKey } from './internal/state.persistence';
+import { createRoomfulError } from './roomful-error';
 import type { TransportAdapter, TransportSignal } from './transports/transport';
 import type { Room, RoomOptions } from './types';
 
@@ -317,10 +317,10 @@ describe('Room auto reconnect', () => {
 
     const initialAdapter = new ControlledTransportAdapter();
     const failedAttemptOne = new ControlledTransportAdapter(async () => {
-      throw createFlockError('NETWORK_ERROR', 'attempt-one-failed', false);
+      throw createRoomfulError('NETWORK_ERROR', 'attempt-one-failed', false);
     });
     const failedAttemptTwo = new ControlledTransportAdapter(async () => {
-      throw createFlockError('NETWORK_ERROR', 'attempt-two-failed', false);
+      throw createRoomfulError('NETWORK_ERROR', 'attempt-two-failed', false);
     });
     const adapters = [initialAdapter, failedAttemptOne, failedAttemptTwo];
     const room = await createReconnectRoom(

@@ -1,7 +1,7 @@
 import './styles.css';
 
-import type { Peer, PresenceData, Room, StateEngine, Unsubscribe } from '@flockjs/core';
-import { createRoom } from '@flockjs/core';
+import type { Peer, PresenceData, Room, StateEngine, Unsubscribe } from '@roomful/core';
+import { createRoom } from '@roomful/core';
 
 interface CanvasPresence extends PresenceData {
   color?: string;

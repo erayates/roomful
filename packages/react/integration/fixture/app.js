@@ -1,12 +1,12 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import {
-  FlockProvider,
+  RoomfulProvider,
   useConnectionStatus,
   useCursors,
   usePresence,
   useSharedState,
-} from '@flockjs/react-local';
+} from '@roomful/react-local';
 
 const { createElement, useRef } = React;
 
@@ -150,7 +150,7 @@ function AppContents({ appId }) {
 
 function App({ appId, roomId, color, name }) {
   return createElement(
-    FlockProvider,
+    RoomfulProvider,
     {
       roomId,
       transport: 'broadcast',
@@ -163,7 +163,7 @@ function App({ appId, roomId, color, name }) {
   );
 }
 
-window.__flockjsReactIntegration = {
+window.__roomfulReactIntegration = {
   mountApp(config) {
     const container = ensureContainer(config.id);
     const root = createRoot(container);

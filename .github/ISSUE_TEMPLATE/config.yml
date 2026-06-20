@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
   - name: Questions and Discussions
-    url: https://github.com/erayates/flockjs/discussions
+    url: https://github.com/erayates/roomful/discussions
     about: Ask usage questions, discuss design ideas, or share integration feedback.
   - name: Security Policy
-    url: https://github.com/erayates/flockjs/security
+    url: https://github.com/erayates/roomful/security
     about: Report vulnerabilities through private channels.

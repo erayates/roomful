@@ -19,7 +19,7 @@ interface BenchmarkScenario {
 }
 
 const SOCKET_TIMEOUT_MS = 2_000;
-const redisUrl = process.env.FLOCK_REDIS_URL;
+const redisUrl = process.env.ROOMFUL_REDIS_URL;
 const runBenchmarks = typeof redisUrl === 'string' && redisUrl.length > 0;
 
 function toUtf8(data: WebSocket.RawData): string {
@@ -262,7 +262,7 @@ async function measureEventLatency(
   send(scenario.clients.sender, {
     type: 'transport',
     message: {
-      source: 'flockjs',
+      source: 'roomful',
       protocolVersion: 2,
       codec: 'json',
       roomId: scenario.roomId,

@@ -11,13 +11,13 @@ const workdirRoot = path.join(smokeRoot, 'workdirs');
 const templateRoot = path.join(workspaceRoot, 'smoke', 'templates');
 
 const publicPackages = [
-  { name: '@flockjs/core', dir: 'packages/core' },
-  { name: '@flockjs/react', dir: 'packages/react' },
-  { name: '@flockjs/vue', dir: 'packages/vue' },
-  { name: '@flockjs/svelte', dir: 'packages/svelte' },
-  { name: '@flockjs/cursors', dir: 'packages/cursors' },
-  { name: '@flockjs/devtools', dir: 'packages/devtools' },
-  { name: '@flockjs/relay', dir: 'packages/relay' },
+  { name: '@roomful/core', dir: 'packages/core' },
+  { name: '@roomful/react', dir: 'packages/react' },
+  { name: '@roomful/vue', dir: 'packages/vue' },
+  { name: '@roomful/svelte', dir: 'packages/svelte' },
+  { name: '@roomful/cursors', dir: 'packages/cursors' },
+  { name: '@roomful/devtools', dir: 'packages/devtools' },
+  { name: '@roomful/relay', dir: 'packages/relay' },
 ];
 
 const smokeProjects = [

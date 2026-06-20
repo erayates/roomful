@@ -1,4 +1,4 @@
-import type { Peer, PresenceData } from '@flockjs/core';
+import type { Peer, PresenceData } from '@roomful/core';
 
 /**
  * Tracks the enter/leave animation phase for a rendered peer.

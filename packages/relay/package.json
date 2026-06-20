@@ -1,14 +1,14 @@
 {
-  "name": "@flockjs/relay",
+  "name": "@roomful/relay",
   "version": "1.0.0",
-  "description": "Self-hosted relay server for FlockJS realtime transports.",
+  "description": "Self-hosted relay server for Roomful realtime transports.",
   "private": false,
   "type": "module",
   "license": "MIT",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
-    "flockjs-relay": "./dist/cli.js"
+    "roomful-relay": "./dist/cli.js"
   },
   "exports": {
     ".": {
@@ -27,15 +27,15 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/erayates/flockjs.git",
+    "url": "git+https://github.com/erayates/roomful.git",
     "directory": "packages/relay"
   },
   "bugs": {
-    "url": "https://github.com/erayates/flockjs/issues"
+    "url": "https://github.com/erayates/roomful/issues"
   },
-  "homepage": "https://github.com/erayates/flockjs/tree/main/packages/relay#readme",
+  "homepage": "https://github.com/erayates/roomful/tree/main/packages/relay#readme",
   "keywords": [
-    "flockjs",
+    "roomful",
     "relay",
     "webrtc",
     "websocket",

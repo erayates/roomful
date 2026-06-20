@@ -112,7 +112,7 @@ describe('peer-message', () => {
   it('parses legacy v1 JSON envelopes into normalized modern messages', () => {
     const parsed = parsePeerWireEnvelope(
       JSON.stringify({
-        source: 'flockjs',
+        source: 'roomful',
         version: 1,
         signal: {
           type: 'event',
@@ -306,7 +306,7 @@ describe('peer-message', () => {
     expect(
       parsePeerWireEnvelope(
         JSON.stringify({
-          source: 'flockjs',
+          source: 'roomful',
           protocolVersion: 2,
           codec: 'json',
           roomId: 'room-a',
@@ -349,7 +349,7 @@ describe('peer-message', () => {
     expect(
       parsePeerWireEnvelope(
         JSON.stringify({
-          source: 'flockjs',
+          source: 'roomful',
           protocolVersion: 2,
           codec: 'json',
           roomId: 'room-a',
@@ -450,7 +450,7 @@ describe('peer-message', () => {
     expect(
       parsePeerWireEnvelope(
         JSON.stringify({
-          source: 'flockjs',
+          source: 'roomful',
           protocolVersion: 2,
           codec: 'json',
           roomId: 'room-a',
@@ -491,7 +491,7 @@ describe('peer-message', () => {
     expect(
       parsePeerWireEnvelope(
         JSON.stringify({
-          source: 'flockjs',
+          source: 'roomful',
           protocolVersion: 2,
           codec: 'json',
           roomId: 'room-a',
@@ -517,7 +517,7 @@ describe('peer-message', () => {
     expect(
       parsePeerWireEnvelope(
         JSON.stringify({
-          source: 'flockjs',
+          source: 'roomful',
           protocolVersion: 2,
           codec: 'json',
           roomId: 'room-a',
@@ -536,7 +536,7 @@ describe('peer-message', () => {
     expect(
       parsePeerWireEnvelope(
         JSON.stringify({
-          source: 'flockjs',
+          source: 'roomful',
           version: 1,
           signal: {
             type: 'event',
@@ -551,7 +551,7 @@ describe('peer-message', () => {
     expect(
       parsePeerWireEnvelope(
         JSON.stringify({
-          source: 'flockjs',
+          source: 'roomful',
           protocolVersion: 2,
           codec: 'json',
           roomId: 'room-a',

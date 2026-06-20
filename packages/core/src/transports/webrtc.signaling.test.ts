@@ -483,7 +483,7 @@ describe('WebRTCSignalingClient', () => {
     });
   });
 
-  it('maps ROOM_FULL server rejections to a recoverable flock error', async () => {
+  it('maps ROOM_FULL server rejections to a recoverable roomful error', async () => {
     const sockets: MockWebSocket[] = [];
     const client = new WebRTCSignalingClient({
       roomId: 'room-full',

@@ -1,4 +1,4 @@
-import type { PresenceData } from '@flockjs/core';
+import type { PresenceData } from '@roomful/core';
 import { createElement, type CSSProperties, type ReactElement } from 'react';
 
 import type {
@@ -27,14 +27,14 @@ export function CollaborationBadge<TPresence extends PresenceData = PresenceData
     'div',
     {
       'aria-label': `${displayName} is editing`,
-      'data-flockjs-collaboration-badge': 'true',
-      'data-flockjs-collaboration-badge-color': resolvedColor,
-      'data-flockjs-collaboration-badge-peer': peer.id,
+      'data-roomful-collaboration-badge': 'true',
+      'data-roomful-collaboration-badge-color': resolvedColor,
+      'data-roomful-collaboration-badge-peer': peer.id,
       style: createRootStyle(position, resolvedColor),
     },
     createElement('span', {
       'aria-hidden': 'true',
-      'data-flockjs-collaboration-badge-dot': 'true',
+      'data-roomful-collaboration-badge-dot': 'true',
       style: createDotStyle(),
     }),
     createElement(

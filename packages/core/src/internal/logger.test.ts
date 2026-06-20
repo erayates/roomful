@@ -33,7 +33,7 @@ describe('createStructuredLogger', () => {
     logger.info('state', 'state', 'State engine configured');
 
     expect(infoSpy).toHaveBeenCalledTimes(1);
-    expect(infoSpy).toHaveBeenCalledWith('[FlockJS] state: State engine configured', {
+    expect(infoSpy).toHaveBeenCalledWith('[Roomful] state: State engine configured', {
       category: 'state',
       component: 'state',
       message: 'State engine configured',
@@ -59,7 +59,7 @@ describe('createStructuredLogger', () => {
     });
 
     expect(warnSpy).toHaveBeenCalledWith(
-      '[FlockJS] transport:protocol: Malformed protocol frame rejected',
+      '[Roomful] transport:protocol: Malformed protocol frame rejected',
       {
         category: 'transport',
         component: 'transport:protocol',

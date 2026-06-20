@@ -50,7 +50,7 @@ export class BroadcastTransportAdapter implements TransportAdapter {
       return;
     }
 
-    this.channel = new BroadcastChannel(`flockjs:${this.roomId}`);
+    this.channel = new BroadcastChannel(`roomful:${this.roomId}`);
     this.channel.addEventListener('message', this.handleChannelMessage);
     this.connected = true;
   }

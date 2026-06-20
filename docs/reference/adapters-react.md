@@ -1,15 +1,15 @@
-# React Adapter (`@flockjs/react`)
+# React Adapter (`@roomful/react`)
 
 Audience: users.
 
 ## Provider
 
 ```tsx
-import { FlockProvider } from '@flockjs/react';
+import { RoomfulProvider } from '@roomful/react';
 
 function App() {
   return (
-    <FlockProvider
+    <RoomfulProvider
       roomId="my-room"
       transport="auto"
       presence={{ name: 'Alice', color: '#4F46E5' }}
@@ -17,7 +17,7 @@ function App() {
       onError={(error) => console.error(error)}
     >
       <Workspace />
-    </FlockProvider>
+    </RoomfulProvider>
   );
 }
 ```
@@ -40,7 +40,7 @@ function App() {
 ## Example
 
 ```tsx
-import { useCursors, useSharedState } from '@flockjs/react';
+import { useCursors, useSharedState } from '@roomful/react';
 
 function PollWidget() {
   const { ref, cursors } = useCursors<{ tool: 'pen' | 'eraser' }>();

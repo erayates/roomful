@@ -1,6 +1,6 @@
 // @vitest-environment node
 
-import type { Peer, PresenceData } from '@flockjs/core';
+import type { Peer, PresenceData } from '@roomful/core';
 import { createElement } from 'react';
 import { renderToString } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
@@ -45,7 +45,7 @@ describe('Awareness UI SSR', () => {
       }),
     );
 
-    expect(badgeHtml).toContain('data-flockjs-collaboration-badge="true"');
+    expect(badgeHtml).toContain('data-roomful-collaboration-badge="true"');
     expect(badgeHtml).toContain('Ada Lovelace');
     expect(highlightHtml).toBe('');
   });

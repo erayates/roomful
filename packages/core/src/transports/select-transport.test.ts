@@ -202,7 +202,7 @@ describe('selectTransportAdapter', () => {
     });
 
     expect(infoSpy).toHaveBeenCalledTimes(1);
-    expect(infoSpy).toHaveBeenCalledWith('[FlockJS] transport: Transport selected', {
+    expect(infoSpy).toHaveBeenCalledWith('[Roomful] transport: Transport selected', {
       category: 'transport',
       component: 'transport',
       message: 'Transport selected',

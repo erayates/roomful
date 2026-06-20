@@ -1,11 +1,11 @@
 import * as Y from 'yjs';
 
-import { createFlockError } from '../flock-error';
 import { cloneStateValue } from '../internal/state';
+import { createRoomfulError } from '../roomful-error';
 import type { StateChangeMeta, StateEngine, StateOptions } from '../types';
 import { LocalCrdtTransactionOrigin, readCrdtStateChangeMeta } from '../yjs/origin';
 
-export const CRDT_STATE_ROOT_NAME = '__flockjs__';
+export const CRDT_STATE_ROOT_NAME = '__roomful__';
 export const CRDT_STATE_KEY = 'state';
 
 interface CrdtStateEngineContext<T> {
@@ -50,7 +50,7 @@ function assertJsonCompatible(value: unknown, path = 'state'): void {
     return;
   }
 
-  throw createFlockError(
+  throw createRoomfulError(
     'INVALID_STATE',
     'CRDT state only supports plain JSON-compatible values.',
     false,

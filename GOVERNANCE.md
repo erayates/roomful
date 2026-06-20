@@ -2,11 +2,11 @@
 
 ## Purpose
 
-This document defines how technical and project decisions are made in FlockJS.
+This document defines how technical and project decisions are made in Roomful.
 
 ## Governance Model
 
-FlockJS currently follows a **maintainer-led** model.
+Roomful currently follows a **maintainer-led** model.
 
 - Maintainers curate roadmap priorities.
 - Contributors propose changes through issues and pull requests.

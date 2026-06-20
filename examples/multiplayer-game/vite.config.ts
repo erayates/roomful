@@ -9,7 +9,7 @@ const workspaceRoot = resolve(exampleRoot, '../..');
 export default defineConfig({
   resolve: {
     alias: {
-      '@flockjs/core': resolve(workspaceRoot, 'packages/core/src/index.ts'),
+      '@roomful/core': resolve(workspaceRoot, 'packages/core/src/index.ts'),
     },
   },
   server: {

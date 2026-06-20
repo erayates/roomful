@@ -12,7 +12,7 @@ interface PresenceAvatarsStoryArgs extends PresenceAvatarsProps<StoryPresence> {
 }
 
 const meta = {
-  title: '@flockjs/cursors/PresenceAvatars',
+  title: '@roomful/cursors/PresenceAvatars',
   tags: ['autodocs'],
   args: {
     maxVisible: 4,

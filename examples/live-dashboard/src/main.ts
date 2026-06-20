@@ -7,8 +7,8 @@ import type {
   Room,
   StateEngine,
   Unsubscribe,
-} from '@flockjs/core';
-import { createRoom } from '@flockjs/core';
+} from '@roomful/core';
+import { createRoom } from '@roomful/core';
 
 interface DashboardPresence extends PresenceData {
   name?: string;

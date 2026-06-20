@@ -1,10 +1,10 @@
 import { createEncryptionHandshake, isEncryptionEnabled } from '../encryption';
-import { createFlockError, FlockError as FlockErrorRuntime } from '../flock-error';
 import { env } from '../internal/env';
 import { createStructuredLogger, type StructuredLogger } from '../internal/logger';
 import { normalizeMaxPeers, resolveWebRtcRemotePeerLimit } from '../internal/max-peers';
 import type { PeerProtocolSession } from '../protocol/peer-message';
-import type { FlockError, PresenceData, RoomOptions } from '../types';
+import { createRoomfulError, RoomfulError as RoomfulErrorRuntime } from '../roomful-error';
+import type { PresenceData, RoomfulError, RoomOptions } from '../types';
 import {
   type RoomTransportSignal,
   toBroadcastSignal,
@@ -24,7 +24,7 @@ import { WebRTCSignalingClient, type WebRTCSignalingClientOptions } from './webr
 
 const DEFAULT_STUN_URL = 'stun:stun.l.google.com:19302';
 const DEFAULT_ICE_GATHER_TIMEOUT_MS = 5_000;
-const DEFAULT_DATA_CHANNEL_PROTOCOL = 'flockjs-v1';
+const DEFAULT_DATA_CHANNEL_PROTOCOL = 'roomful-v1';
 const DATA_CHANNEL_OPEN = 'open';
 const DATA_CHANNEL_CLOSED = 'closed';
 const PEER_CONNECTION_CLOSED = 'closed';
@@ -83,18 +83,18 @@ function toPlainDescription(
   };
 }
 
-function toFlockError(message: string, cause?: unknown): FlockError {
-  if (cause instanceof FlockErrorRuntime) {
+function toRoomfulError(message: string, cause?: unknown): RoomfulError {
+  if (cause instanceof RoomfulErrorRuntime) {
     return cause;
   }
 
-  return createFlockError('NETWORK_ERROR', message, false, cause);
+  return createRoomfulError('NETWORK_ERROR', message, false, cause);
 }
 
 function resolveRelayUrl<TPresence extends PresenceData>(options: RoomOptions<TPresence>): string {
   const relayUrl = options.relayUrl;
   if (!relayUrl || relayUrl.trim().length === 0) {
-    throw toFlockError('WebRTC transport requires `relayUrl` for signaling.');
+    throw toRoomfulError('WebRTC transport requires `relayUrl` for signaling.');
   }
 
   return relayUrl;
@@ -102,7 +102,7 @@ function resolveRelayUrl<TPresence extends PresenceData>(options: RoomOptions<TP
 
 function getRTCPeerConnectionConstructor(): typeof RTCPeerConnection {
   if (!env.hasRTCPeerConnection) {
-    throw toFlockError('RTCPeerConnection is not available in this runtime.');
+    throw toRoomfulError('RTCPeerConnection is not available in this runtime.');
   }
 
   return RTCPeerConnection;
@@ -203,7 +203,7 @@ export class WebRTCTransportAdapter<
     } catch (error) {
       this.signalingClient = null;
       this.connected = false;
-      throw toFlockError('Failed to initialize WebRTC signaling.', error);
+      throw toRoomfulError('Failed to initialize WebRTC signaling.', error);
     }
   }
 
@@ -401,7 +401,7 @@ export class WebRTCTransportAdapter<
       }
     } catch (error) {
       this.emitErrorSignal(
-        toFlockError(`Failed to process signaling message from ${message.fromPeerId}.`, error),
+        toRoomfulError(`Failed to process signaling message from ${message.fromPeerId}.`, error),
       );
       this.closePeerConnection(message.fromPeerId, {
         emitLeave: true,
@@ -427,7 +427,7 @@ export class WebRTCTransportAdapter<
 
       const localDescription = context.peerConnection.localDescription;
       if (!localDescription) {
-        throw toFlockError('Missing local description while responding to WebRTC offer.');
+        throw toRoomfulError('Missing local description while responding to WebRTC offer.');
       }
 
       this.signalingClient?.sendSignal({
@@ -477,7 +477,7 @@ export class WebRTCTransportAdapter<
 
       const localDescription = context.peerConnection.localDescription;
       if (!localDescription) {
-        throw toFlockError('Missing local description while creating WebRTC offer.');
+        throw toRoomfulError('Missing local description while creating WebRTC offer.');
       }
 
       this.signalingClient?.sendSignal({
@@ -486,7 +486,7 @@ export class WebRTCTransportAdapter<
       });
     } catch (error) {
       this.emitErrorSignal(
-        toFlockError(`Failed to establish WebRTC connection to ${remotePeerId}.`, error),
+        toRoomfulError(`Failed to establish WebRTC connection to ${remotePeerId}.`, error),
       );
       this.closePeerConnection(remotePeerId, {
         emitLeave: true,
@@ -515,7 +515,7 @@ export class WebRTCTransportAdapter<
       const timeout = setTimeout(() => {
         clearInterval(interval);
         reject(
-          toFlockError(
+          toRoomfulError(
             `ICE candidate gathering timed out after ${this.iceGatherTimeoutMs}ms for peer ${remotePeerId}.`,
             {
               elapsedMs: Date.now() - startedAt,
@@ -596,11 +596,16 @@ export class WebRTCTransportAdapter<
         },
       });
       this.emitErrorSignal(
-        createFlockError('NETWORK_ERROR', `Peer protocol mismatch for ${context.peerId}.`, false, {
-          source: 'peer-protocol',
-          kind: 'protocol-mismatch',
-          peerId: context.peerId,
-        }),
+        createRoomfulError(
+          'NETWORK_ERROR',
+          `Peer protocol mismatch for ${context.peerId}.`,
+          false,
+          {
+            source: 'peer-protocol',
+            kind: 'protocol-mismatch',
+            peerId: context.peerId,
+          },
+        ),
       );
       this.closePeerConnection(context.peerId, {
         emitLeave: true,
@@ -689,7 +694,7 @@ export class WebRTCTransportAdapter<
     }
   }
 
-  private emitErrorSignal(error: FlockError): void {
+  private emitErrorSignal(error: RoomfulError): void {
     this.emitTransportSignal({
       type: 'transport:error',
       roomId: this.roomId,

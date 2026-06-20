@@ -1,6 +1,6 @@
 # Local Development Guide
 
-This guide explains how to run, test, and validate FlockJS locally.
+This guide explains how to run, test, and validate Roomful locally.
 
 ## Prerequisites
 
@@ -11,8 +11,8 @@ This guide explains how to run, test, and validate FlockJS locally.
 ## Initial Setup
 
 ```bash
-git clone https://github.com/erayates/flockjs.git
-cd flockjs
+git clone https://github.com/erayates/roomful.git
+cd roomful
 pnpm install
 ```
 
@@ -20,7 +20,7 @@ pnpm install
 
 - The repository uses `pnpm workspaces`
 - Root orchestration uses `turbo`
-- `@flockjs/core` uses `yjs` and `y-protocols` for CRDT features
+- `@roomful/core` uses `yjs` and `y-protocols` for CRDT features
 - In this repo they are available for local development and tests
 
 ## Quick Start
@@ -36,16 +36,16 @@ The fastest ways to verify the repo is working are:
 The main local frontend app is `apps/demo`.
 
 ```bash
-pnpm --filter @flockjs/app-demo dev
+pnpm --filter @roomful/app-demo dev
 ```
 
 Other useful commands:
 
 ```bash
-pnpm --filter @flockjs/app-demo build
-pnpm --filter @flockjs/app-demo preview
-pnpm --filter @flockjs/app-demo test
-pnpm --filter @flockjs/app-demo typecheck
+pnpm --filter @roomful/app-demo build
+pnpm --filter @roomful/app-demo preview
+pnpm --filter @roomful/app-demo test
+pnpm --filter @roomful/app-demo typecheck
 ```
 
 Expected dev URL is usually:
@@ -61,28 +61,28 @@ http://localhost:5173
 It currently behaves like a small workspace package with build, test, and typecheck commands:
 
 ```bash
-pnpm --filter @flockjs/app-playground build
-pnpm --filter @flockjs/app-playground test
-pnpm --filter @flockjs/app-playground typecheck
+pnpm --filter @roomful/app-playground build
+pnpm --filter @roomful/app-playground test
+pnpm --filter @roomful/app-playground typecheck
 ```
 
-If you want an actual browser experience, use `@flockjs/app-demo`.
+If you want an actual browser experience, use `@roomful/app-demo`.
 
 ## Run the Docs Site
 
 The docs app is in `apps/docs`.
 
 ```bash
-pnpm --filter @flockjs/app-docs dev
+pnpm --filter @roomful/app-docs dev
 ```
 
 Other useful commands:
 
 ```bash
-pnpm --filter @flockjs/app-docs build
-pnpm --filter @flockjs/app-docs preview
-pnpm --filter @flockjs/app-docs test
-pnpm --filter @flockjs/app-docs typecheck
+pnpm --filter @roomful/app-docs build
+pnpm --filter @roomful/app-docs preview
+pnpm --filter @roomful/app-docs test
+pnpm --filter @roomful/app-docs typecheck
 ```
 
 Expected dev URL is usually:
@@ -98,13 +98,13 @@ The relay server supports signaling and websocket relay workflows.
 Build it first:
 
 ```bash
-pnpm --filter @flockjs/relay build
+pnpm --filter @roomful/relay build
 ```
 
 Then start it:
 
 ```bash
-pnpm --filter @flockjs/relay start
+pnpm --filter @roomful/relay start
 ```
 
 Health check:
@@ -116,20 +116,20 @@ curl http://127.0.0.1:8787/health
 With custom host and port:
 
 ```bash
-HOST=0.0.0.0 PORT=8787 MAX_CONNECTIONS=1000 pnpm --filter @flockjs/relay start
+HOST=0.0.0.0 PORT=8787 MAX_CONNECTIONS=1000 pnpm --filter @roomful/relay start
 ```
 
 With Redis enabled:
 
 ```bash
-FLOCK_REDIS_URL=redis://127.0.0.1:6379/0 pnpm --filter @flockjs/relay start
+ROOMFUL_REDIS_URL=redis://127.0.0.1:6379/0 pnpm --filter @roomful/relay start
 ```
 
 PowerShell example:
 
 ```powershell
-$env:FLOCK_REDIS_URL="redis://127.0.0.1:6379/0"
-pnpm --filter @flockjs/relay start
+$env:ROOMFUL_REDIS_URL="redis://127.0.0.1:6379/0"
+pnpm --filter @roomful/relay start
 ```
 
 ## Root Workspace Commands
@@ -192,58 +192,58 @@ pnpm clean
 ### Core
 
 ```bash
-pnpm --filter @flockjs/core build
-pnpm --filter @flockjs/core test
-pnpm --filter @flockjs/core test:watch
-pnpm --filter @flockjs/core typecheck
+pnpm --filter @roomful/core build
+pnpm --filter @roomful/core test
+pnpm --filter @roomful/core test:watch
+pnpm --filter @roomful/core typecheck
 ```
 
 ### React
 
 ```bash
-pnpm --filter @flockjs/react build
-pnpm --filter @flockjs/react test
-pnpm --filter @flockjs/react typecheck
+pnpm --filter @roomful/react build
+pnpm --filter @roomful/react test
+pnpm --filter @roomful/react typecheck
 ```
 
 ### Vue
 
 ```bash
-pnpm --filter @flockjs/vue build
-pnpm --filter @flockjs/vue test
-pnpm --filter @flockjs/vue typecheck
+pnpm --filter @roomful/vue build
+pnpm --filter @roomful/vue test
+pnpm --filter @roomful/vue typecheck
 ```
 
 ### Svelte
 
 ```bash
-pnpm --filter @flockjs/svelte build
-pnpm --filter @flockjs/svelte test
-pnpm --filter @flockjs/svelte typecheck
+pnpm --filter @roomful/svelte build
+pnpm --filter @roomful/svelte test
+pnpm --filter @roomful/svelte typecheck
 ```
 
 ### Cursors
 
 ```bash
-pnpm --filter @flockjs/cursors build
-pnpm --filter @flockjs/cursors test
-pnpm --filter @flockjs/cursors typecheck
+pnpm --filter @roomful/cursors build
+pnpm --filter @roomful/cursors test
+pnpm --filter @roomful/cursors typecheck
 ```
 
 ### Relay
 
 ```bash
-pnpm --filter @flockjs/relay build
-pnpm --filter @flockjs/relay test
-pnpm --filter @flockjs/relay typecheck
+pnpm --filter @roomful/relay build
+pnpm --filter @roomful/relay test
+pnpm --filter @roomful/relay typecheck
 ```
 
 ### Devtools
 
 ```bash
-pnpm --filter @flockjs/devtools build
-pnpm --filter @flockjs/devtools test
-pnpm --filter @flockjs/devtools typecheck
+pnpm --filter @roomful/devtools build
+pnpm --filter @roomful/devtools test
+pnpm --filter @roomful/devtools typecheck
 ```
 
 ## Browser and Integration Testing
@@ -275,7 +275,7 @@ Notes:
 ### Fastest UI feedback
 
 ```bash
-pnpm --filter @flockjs/app-demo dev
+pnpm --filter @roomful/app-demo dev
 ```
 
 ### Demo plus relay
@@ -283,14 +283,14 @@ pnpm --filter @flockjs/app-demo dev
 Terminal 1:
 
 ```bash
-pnpm --filter @flockjs/relay build
-pnpm --filter @flockjs/relay start
+pnpm --filter @roomful/relay build
+pnpm --filter @roomful/relay start
 ```
 
 Terminal 2:
 
 ```bash
-pnpm --filter @flockjs/app-demo dev
+pnpm --filter @roomful/app-demo dev
 ```
 
 Then open multiple browser tabs and test room behavior.
@@ -298,19 +298,19 @@ Then open multiple browser tabs and test room behavior.
 ### Docs editing
 
 ```bash
-pnpm --filter @flockjs/app-docs dev
+pnpm --filter @roomful/app-docs dev
 ```
 
 ### Core package development
 
 ```bash
-pnpm --filter @flockjs/core test:watch
+pnpm --filter @roomful/core test:watch
 ```
 
 In another terminal:
 
 ```bash
-pnpm --filter @flockjs/core typecheck
+pnpm --filter @roomful/core typecheck
 ```
 
 ## Full Validation Flow
@@ -370,7 +370,7 @@ pnpm lint
 ### Test a single package
 
 ```bash
-pnpm --filter @flockjs/core test
+pnpm --filter @roomful/core test
 ```
 
 ### Playwright browser issues
@@ -388,11 +388,11 @@ pnpm exec playwright install chromium firefox webkit
 ## Useful Filter Examples
 
 ```bash
-pnpm --filter @flockjs/core test
-pnpm --filter @flockjs/react test
-pnpm --filter @flockjs/app-demo dev
-pnpm --filter @flockjs/app-docs dev
-pnpm --filter @flockjs/relay start
+pnpm --filter @roomful/core test
+pnpm --filter @roomful/react test
+pnpm --filter @roomful/app-demo dev
+pnpm --filter @roomful/app-docs dev
+pnpm --filter @roomful/relay start
 ```
 
 ## Recommended Day-to-Day Flow
@@ -400,14 +400,14 @@ pnpm --filter @flockjs/relay start
 During development:
 
 ```bash
-pnpm --filter @flockjs/app-demo dev
+pnpm --filter @roomful/app-demo dev
 ```
 
 For core validation:
 
 ```bash
-pnpm --filter @flockjs/core test
-pnpm --filter @flockjs/core typecheck
+pnpm --filter @roomful/core test
+pnpm --filter @roomful/core typecheck
 ```
 
 Before opening a PR:

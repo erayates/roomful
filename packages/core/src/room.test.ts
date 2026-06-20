@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { createFlockError } from './flock-error';
-import { createRoom, FlockError } from './index';
+import { createRoom, RoomfulError } from './index';
+import { createRoomfulError } from './roomful-error';
 import type { TransportAdapter, TransportSignal } from './transports/transport';
 import type { Room } from './types';
 
@@ -109,7 +109,7 @@ describe('createRoom', () => {
 
     const connectPromise = room.connect();
 
-    await expect(connectPromise).rejects.toBeInstanceOf(FlockError);
+    await expect(connectPromise).rejects.toBeInstanceOf(RoomfulError);
     await expect(connectPromise).rejects.toMatchObject({
       code: 'NETWORK_ERROR',
       recoverable: false,
@@ -132,10 +132,10 @@ describe('createRoom', () => {
     }));
 
     try {
-      const flockErrorMod = await import('./flock-error');
+      const roomfulErrorMod = await import('./roomful-error');
       const mod = await import('./index');
       adapter = new MockTransportAdapter(async () => {
-        throw flockErrorMod.createFlockError('ROOM_FULL', 'Room is full.', true, {
+        throw roomfulErrorMod.createRoomfulError('ROOM_FULL', 'Room is full.', true, {
           source: 'websocket-relay',
           serverCode: 'ROOM_FULL',
         });
@@ -196,10 +196,10 @@ describe('createRoom', () => {
     }));
 
     try {
-      const flockErrorMod = await import('./flock-error');
+      const roomfulErrorMod = await import('./roomful-error');
       const mod = await import('./index');
       adapter = new MockTransportAdapter(async () => {
-        throw flockErrorMod.createFlockError('ROOM_FULL', 'Room is full.', true, {
+        throw roomfulErrorMod.createRoomfulError('ROOM_FULL', 'Room is full.', true, {
           source: 'websocket-relay',
           serverCode: 'ROOM_FULL',
         });
@@ -216,7 +216,7 @@ describe('createRoom', () => {
         code: 'ROOM_FULL',
       });
 
-      expect(errorSpy).toHaveBeenCalledWith('[FlockJS] transport: Room error emitted', {
+      expect(errorSpy).toHaveBeenCalledWith('[Roomful] transport: Room error emitted', {
         category: 'transport',
         component: 'transport',
         message: 'Room error emitted',
@@ -244,7 +244,7 @@ describe('createRoom', () => {
 
     const connectPromise = room.connect();
 
-    await expect(connectPromise).rejects.toBeInstanceOf(FlockError);
+    await expect(connectPromise).rejects.toBeInstanceOf(RoomfulError);
     await expect(connectPromise).rejects.toMatchObject({
       code: 'NETWORK_ERROR',
       recoverable: false,
@@ -283,7 +283,7 @@ describe('createRoom', () => {
       },
       WebRTCSignalingClient: class MockWebRTCSignalingClient {
         public async connect(): Promise<string[]> {
-          throw createFlockError(
+          throw createRoomfulError(
             'NETWORK_ERROR',
             'Timed out waiting for signaling join acknowledgement (25ms).',
             false,
@@ -746,7 +746,7 @@ describe('createRoom', () => {
     try {
       expect(() => {
         createRoom('room-peerid-no-secure-random');
-      }).toThrowError(FlockError);
+      }).toThrowError(RoomfulError);
 
       try {
         createRoom('room-peerid-no-secure-random');

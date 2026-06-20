@@ -1,7 +1,7 @@
 import './styles.css';
 
-import type { PresenceData, Room, StateEngine, Unsubscribe } from '@flockjs/core';
-import { createRoom } from '@flockjs/core';
+import type { PresenceData, Room, StateEngine, Unsubscribe } from '@roomful/core';
+import { createRoom } from '@roomful/core';
 
 interface GamePresence extends PresenceData {
   color?: string;

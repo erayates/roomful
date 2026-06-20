@@ -1,7 +1,7 @@
 import type { Awareness as YjsAwareness } from 'y-protocols/awareness';
 import type { Doc as YDoc } from 'yjs';
 
-import type { FlockError, FlockErrorCode } from './flock-error';
+import type { RoomfulError, RoomfulErrorCode } from './roomful-error';
 import type { TransportKind } from './transports/transport';
 
 /**
@@ -512,9 +512,9 @@ export type Peer<TPresence extends PresenceData = PresenceData> = {
 } & Partial<TPresence>;
 
 /**
- * Re-exports the public `FlockError` class type.
+ * Re-exports the public `RoomfulError` class type.
  */
-export type { FlockError, FlockErrorCode };
+export type { RoomfulError, RoomfulErrorCode };
 
 /**
  * Unsubscribes a previously registered listener.
@@ -526,12 +526,12 @@ export type Unsubscribe = () => void;
 /**
  * Represents the connection state of the Yjs provider.
  */
-export type FlockYjsProviderStatus = 'connected' | 'disconnected';
+export type RoomfulYjsProviderStatus = 'connected' | 'disconnected';
 
 /**
  * Maps Yjs provider event names to payloads.
  */
-export interface FlockYjsProviderEventMap {
+export interface RoomfulYjsProviderEventMap {
   /**
    * Fires when the provider connection status changes.
    */
@@ -539,7 +539,7 @@ export interface FlockYjsProviderEventMap {
     /**
      * Reports the new provider status.
      */
-    status: FlockYjsProviderStatus;
+    status: RoomfulYjsProviderStatus;
   };
 
   /**
@@ -556,7 +556,7 @@ export interface FlockYjsProviderEventMap {
 /**
  * Names the supported Yjs provider events.
  */
-export type FlockYjsProviderEventName = keyof FlockYjsProviderEventMap;
+export type RoomfulYjsProviderEventName = keyof RoomfulYjsProviderEventMap;
 
 /**
  * Handles a Yjs provider event.
@@ -565,14 +565,14 @@ export type FlockYjsProviderEventName = keyof FlockYjsProviderEventMap;
  * @param payload - The payload for the event.
  * @returns Nothing.
  */
-export type FlockYjsProviderEventHandler<TEvent extends FlockYjsProviderEventName> = (
-  payload: FlockYjsProviderEventMap[TEvent],
+export type RoomfulYjsProviderEventHandler<TEvent extends RoomfulYjsProviderEventName> = (
+  payload: RoomfulYjsProviderEventMap[TEvent],
 ) => void;
 
 /**
  * Exposes the Yjs document and provider used by CRDT state synchronization.
  */
-export interface FlockYjsProvider {
+export interface RoomfulYjsProvider {
   /**
    * Exposes the shared Yjs document.
    */
@@ -591,7 +591,7 @@ export interface FlockYjsProvider {
   /**
    * Reports the provider connection status.
    */
-  readonly status: FlockYjsProviderStatus;
+  readonly status: RoomfulYjsProviderStatus;
 
   /**
    * Opens the provider connection.
@@ -622,9 +622,9 @@ export interface FlockYjsProvider {
    * @param cb - The callback invoked with the matching payload.
    * @returns A function that removes the listener.
    */
-  on<TEvent extends FlockYjsProviderEventName>(
+  on<TEvent extends RoomfulYjsProviderEventName>(
     event: TEvent,
-    cb: FlockYjsProviderEventHandler<TEvent>,
+    cb: RoomfulYjsProviderEventHandler<TEvent>,
   ): Unsubscribe;
 
   /**
@@ -635,9 +635,9 @@ export interface FlockYjsProvider {
    * @param cb - The callback to remove.
    * @returns Nothing.
    */
-  off<TEvent extends FlockYjsProviderEventName>(
+  off<TEvent extends RoomfulYjsProviderEventName>(
     event: TEvent,
-    cb: FlockYjsProviderEventHandler<TEvent>,
+    cb: RoomfulYjsProviderEventHandler<TEvent>,
   ): void;
 }
 
@@ -691,7 +691,7 @@ export interface RoomEventMap<TPresence extends PresenceData = PresenceData> {
   /**
    * Fires when the room encounters an operational error.
    */
-  error: FlockError;
+  error: RoomfulError;
 
   /**
    * Fires when a remote peer joins.
@@ -1345,7 +1345,7 @@ export interface Room<TPresence extends PresenceData = PresenceData> {
    *
    * @returns The Yjs provider.
    */
-  getYProvider(): FlockYjsProvider;
+  getYProvider(): RoomfulYjsProvider;
 
   /**
    * Subscribes to a built-in room lifecycle event.

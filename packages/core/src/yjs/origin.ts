@@ -12,7 +12,7 @@ export class RemoteCrdtTransactionOrigin {
   ) {}
 }
 
-export const REMOTE_AWARENESS_ORIGIN = Symbol('flockjs-remote-awareness');
+export const REMOTE_AWARENESS_ORIGIN = Symbol('roomful-remote-awareness');
 
 export function readCrdtStateChangeMeta(
   origin: unknown,

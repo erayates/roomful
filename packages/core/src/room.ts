@@ -14,7 +14,6 @@ import { createPresenceEngine } from './engines/presence';
 import { createStateEngine } from './engines/state';
 import { createCrdtStateEngine as createCrdtStateEngineRuntime } from './engines/state.crdt';
 import { TypedEventEmitter } from './event-emitter';
-import { createFlockError, FlockError } from './flock-error';
 import {
   DEVTOOLS_BRIDGE_VERSION,
   DEVTOOLS_MAX_EVENT_LOG_ENTRIES,
@@ -65,6 +64,7 @@ import {
   encodeMessagePack,
   type ProtocolSerializationResult,
 } from './protocol/messagepack';
+import { createRoomfulError, RoomfulError } from './roomful-error';
 import { createPollingTransportAdapter } from './transports/polling';
 import {
   selectTransportAdapter,
@@ -91,7 +91,6 @@ import type {
   CursorPosition,
   EventEngine,
   EventOptions,
-  FlockYjsProvider,
   Peer,
   PresenceData,
   PresenceEngine,
@@ -100,6 +99,7 @@ import type {
   RoomEventHandler,
   RoomEventMap,
   RoomEventName,
+  RoomfulYjsProvider,
   RoomOptions,
   RoomStatus,
   StateChangeMeta,
@@ -114,8 +114,8 @@ const PRESENCE_HEARTBEAT_MS = 30_000;
 const OFFLINE_QUEUE_REPLAY_SETTLE_MS = 10;
 const MESSAGE_RATE_WINDOW_MS = 5_000;
 const MAX_LATENCY_SAMPLE_MS = 60_000;
-const DIAGNOSTIC_PING_EVENT = '__flockjs:diag:ping__';
-const DIAGNOSTIC_PONG_EVENT = '__flockjs:diag:pong__';
+const DIAGNOSTIC_PING_EVENT = '__roomful:diag:ping__';
+const DIAGNOSTIC_PONG_EVENT = '__roomful:diag:pong__';
 
 interface ConnectContext {
   isReconnectAttempt: boolean;
@@ -153,20 +153,20 @@ function readDiagnosticSentAt(payload: unknown): number | null {
   return typeof value === 'number' ? value : null;
 }
 
-function isFlockError(value: unknown): value is FlockError {
-  return value instanceof FlockError;
+function isRoomfulError(value: unknown): value is RoomfulError {
+  return value instanceof RoomfulError;
 }
 
 function isAbortError(value: unknown): boolean {
   return value instanceof Error && value.name === 'AbortError';
 }
 
-function toTransportError(error: unknown): FlockError {
-  if (isFlockError(error)) {
+function toTransportError(error: unknown): RoomfulError {
+  if (isRoomfulError(error)) {
     return error;
   }
 
-  return createFlockError(
+  return createRoomfulError(
     'NETWORK_ERROR',
     error instanceof Error ? error.message : 'Unknown transport connection error.',
     false,
@@ -178,8 +178,8 @@ function createReconnectExhaustedError(
   attempts: number,
   reason: string | null,
   lastError: unknown,
-): FlockError {
-  return createFlockError(
+): RoomfulError {
+  return createRoomfulError(
     'NETWORK_ERROR',
     `Reconnect attempts exhausted after ${attempts} attempt${attempts === 1 ? '' : 's'}.`,
     true,
@@ -277,7 +277,7 @@ function normalizeTransportSerializationResult(
   result: ProtocolSerializationResult<Uint8Array>,
 ): Uint8Array {
   if (!result.ok) {
-    throw createFlockError('ENCRYPTION_ERROR', result.error, false, {
+    throw createRoomfulError('ENCRYPTION_ERROR', result.error, false, {
       source: 'room-encryption',
       kind: 'serialization-failed',
     });
@@ -1061,11 +1061,11 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     return stateEngine;
   }
 
-  public getYDoc(): FlockYjsProvider['doc'] {
+  public getYDoc(): RoomfulYjsProvider['doc'] {
     return this.getOrCreateYjsController().doc;
   }
 
-  public getYProvider(): FlockYjsProvider {
+  public getYProvider(): RoomfulYjsProvider {
     return this.getOrCreateYjsController();
   }
 
@@ -1318,7 +1318,7 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
   private createCustomStateEngine<T>(options: StateOptions<T>): StateEngine<T> {
     const merge = options.merge;
     if (typeof merge !== 'function') {
-      throw createFlockError(
+      throw createRoomfulError(
         'INVALID_STATE',
         'State strategy "custom" requires a "merge" function. Provide a merge(a, b) => T function in StateOptions.',
         false,
@@ -1344,7 +1344,7 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     const normalized = strategy ?? this.stateStrategy ?? 'lww';
     if (normalized === 'custom' && strategy === 'custom') {
       if (this.stateStrategy && this.stateStrategy !== 'custom') {
-        throw createFlockError(
+        throw createRoomfulError(
           'INVALID_STATE',
           `Room state is already configured with strategy "${this.stateStrategy}".`,
           false,
@@ -1359,7 +1359,7 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     }
 
     if (normalized !== 'lww' && normalized !== 'crdt') {
-      throw createFlockError(
+      throw createRoomfulError(
         'INVALID_STATE',
         `State strategy "${normalized}" is not implemented in this runtime. Use "lww", "crdt", or "custom".`,
         false,
@@ -1370,7 +1370,7 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     }
 
     if (this.stateStrategy && normalized !== this.stateStrategy) {
-      throw createFlockError(
+      throw createRoomfulError(
         'INVALID_STATE',
         `Room state is already configured with strategy "${this.stateStrategy}".`,
         false,
@@ -1396,7 +1396,7 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
       return;
     }
 
-    throw createFlockError(
+    throw createRoomfulError(
       'INVALID_STATE',
       'State persistence is only supported for the "lww" strategy.',
       false,
@@ -1492,9 +1492,9 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
         await this.handleSignal(signal);
       } catch (error) {
         this.emitRoomError(
-          error instanceof FlockError
+          error instanceof RoomfulError
             ? error
-            : createFlockError(
+            : createRoomfulError(
                 'NETWORK_ERROR',
                 error instanceof Error ? error.message : 'Failed to process inbound room signal.',
                 true,
@@ -1530,9 +1530,9 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
         await this.dispatchOutboundSignal(signal);
       } catch (error) {
         this.emitRoomError(
-          error instanceof FlockError
+          error instanceof RoomfulError
             ? error
-            : createFlockError(
+            : createRoomfulError(
                 'ENCRYPTION_ERROR',
                 error instanceof Error ? error.message : 'Failed to encrypt outbound room signal.',
                 true,
@@ -1612,7 +1612,7 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
 
     this.incompatibleEncryptionPeers.add(peerId);
     this.emitRoomError(
-      createFlockError('ENCRYPTION_ERROR', reason, true, {
+      createRoomfulError('ENCRYPTION_ERROR', reason, true, {
         source: 'room-encryption',
         kind: 'peer-mode-mismatch',
         peerId,
@@ -1642,7 +1642,7 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     return false;
   }
 
-  private emitPeerDecryptionError(peerId: string, error: FlockError): void {
+  private emitPeerDecryptionError(peerId: string, error: RoomfulError): void {
     if (this.decryptionErrorPeers.has(peerId)) {
       return;
     }
@@ -1670,8 +1670,8 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     signal: Extract<RoomTransportSignal, { type: 'encrypted' }>,
     reason: string,
     cause?: unknown,
-  ): FlockError {
-    return createFlockError(
+  ): RoomfulError {
+    return createRoomfulError(
       'DECRYPTION_ERROR',
       `Failed to decrypt message from ${signal.fromPeerId}.`,
       true,
@@ -1767,7 +1767,7 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
       this.handleRoomSignal(innerSignal);
     } catch (error) {
       const decryptionError =
-        error instanceof FlockError
+        error instanceof RoomfulError
           ? error
           : this.createMalformedEncryptedSignalError(signal, 'decrypt-failed', error);
       this.clearPeerRuntimeState(signal.fromPeerId);
@@ -2104,7 +2104,7 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     this.emitCustomEvent(signal.payload.name, signal.payload.payload, fromPeer);
   }
 
-  private handleTransportErrorSignal(payload: { error: FlockError }): void {
+  private handleTransportErrorSignal(payload: { error: RoomfulError }): void {
     this.emitRoomError(toTransportError(payload.error));
   }
 
@@ -2545,7 +2545,7 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
 
   private requireStateSnapshot(): StateSnapshot {
     if (!this.stateSnapshot) {
-      throw createFlockError(
+      throw createRoomfulError(
         'INVALID_STATE',
         'Shared state has not been configured for this room. Call room.useState(...) first.',
         false,
@@ -2558,7 +2558,7 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
   private requireSyncedStateSnapshot(): StateSnapshot {
     if (!this.syncedStateSnapshot) {
       if (!this.stateSnapshot) {
-        throw createFlockError(
+        throw createRoomfulError(
           'INVALID_STATE',
           'Shared state has not been configured for this room. Call room.useState(...) first.',
           false,
@@ -2756,7 +2756,7 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
   }
 
   private failInitialConnect(error: unknown): never {
-    const flockError = toTransportError(error);
+    const roomfulError = toTransportError(error);
     this.connectStartedAt = null;
     this.unregisterUnloadHandlers();
     this.stopPresenceHeartbeat();
@@ -2768,11 +2768,11 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     this.transport = null;
     this.activeTransportKind = null;
     this.setStatus('error');
-    if (flockError.code === 'ROOM_FULL') {
+    if (roomfulError.code === 'ROOM_FULL') {
       this.roomEventEmitter.emit('room:full', undefined);
     }
-    this.emitRoomError(flockError);
-    throw flockError;
+    this.emitRoomError(roomfulError);
+    throw roomfulError;
   }
 
   private shouldAutoReconnect(): boolean {
@@ -2970,7 +2970,7 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     }
   }
 
-  private emitRoomError(error: FlockError): void {
+  private emitRoomError(error: RoomfulError): void {
     this.recordDevtoolsError(`${error.code}: ${error.message}`);
     this.logger.error('transport', 'transport', 'Room error emitted', {
       cause: error.cause,

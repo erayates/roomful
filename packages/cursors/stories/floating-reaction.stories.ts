@@ -6,7 +6,7 @@ import { FloatingReactionHarness } from './floating-reaction-harness';
 import { StorySurface } from './story-layout';
 
 const meta = {
-  title: '@flockjs/cursors/FloatingReaction',
+  title: '@roomful/cursors/FloatingReaction',
   component: FloatingReaction,
   tags: ['autodocs'],
   args: {

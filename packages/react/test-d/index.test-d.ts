@@ -4,8 +4,8 @@ import { expectType } from 'tsd';
 
 import {
   createReactHealth,
-  FlockProvider,
-  type FlockProviderProps,
+  RoomfulProvider,
+  type RoomfulProviderProps,
   type ReactHealth,
   type UseAwarenessResult,
   useAwareness,
@@ -17,9 +17,9 @@ import {
   useRoom,
   useSharedState,
 } from '..';
-import type { Peer, PresenceData, Room, RoomStatus } from '@flockjs/core';
+import type { Peer, PresenceData, Room, RoomStatus } from '@roomful/core';
 
-const provider = FlockProvider({
+const provider = RoomfulProvider({
   children: null,
   roomId: 'room-id',
 });
@@ -36,12 +36,12 @@ const providerProps = {
     role: 'editor' as const,
   },
   roomId: 'room-id',
-} satisfies FlockProviderProps<{ role: 'editor' }>;
+} satisfies RoomfulProviderProps<{ role: 'editor' }>;
 expectType<string>(providerProps.roomId);
 
 const health = createReactHealth();
 expectType<ReactHealth>(health);
-expectType<'@flockjs/core'>(health.dependencies.core.packageName);
+expectType<'@roomful/core'>(health.dependencies.core.packageName);
 
 const room = useRoom<{ role: 'editor' | 'viewer' }>();
 expectType<Room<{ role: 'editor' | 'viewer' }>>(room);

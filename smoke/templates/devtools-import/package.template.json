@@ -1,12 +1,12 @@
 {
-  "name": "flockjs-smoke-devtools-import",
+  "name": "roomful-smoke-devtools-import",
   "private": true,
   "type": "module",
   "scripts": {
     "validate": "tsc -p tsconfig.json && node dist/index.js"
   },
   "dependencies": {
-    "@flockjs/devtools": "workspace:*"
+    "@roomful/devtools": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.15.24",

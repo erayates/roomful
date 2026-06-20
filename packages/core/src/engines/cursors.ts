@@ -10,15 +10,15 @@ import type {
 const DEFAULT_THROTTLE_MS = 32;
 const DEFAULT_IDLE_AFTER_MS = 3_000;
 const SVG_NAMESPACE = 'http://www.w3.org/2000/svg';
-const CURSOR_ROOT_ATTRIBUTE = 'data-flockjs-cursor-root';
-const CURSOR_NODE_ATTRIBUTE = 'data-flockjs-peer-cursor';
+const CURSOR_ROOT_ATTRIBUTE = 'data-roomful-cursor-root';
+const CURSOR_NODE_ATTRIBUTE = 'data-roomful-peer-cursor';
 const CURSOR_USER_ATTRIBUTE = 'data-user-id';
 const CURSOR_IDLE_ATTRIBUTE = 'data-idle';
-const CURSOR_STYLE_ATTRIBUTE = 'data-flockjs-cursor-style';
-const CURSOR_MARKER_ATTRIBUTE = 'data-flockjs-cursor-marker';
-const CURSOR_MARKER_STYLE_ATTRIBUTE = 'data-flockjs-cursor-marker-style';
-const CURSOR_MARKER_COLOR_ATTRIBUTE = 'data-flockjs-cursor-marker-color';
-const CURSOR_LABEL_ATTRIBUTE = 'data-flockjs-cursor-label';
+const CURSOR_STYLE_ATTRIBUTE = 'data-roomful-cursor-style';
+const CURSOR_MARKER_ATTRIBUTE = 'data-roomful-cursor-marker';
+const CURSOR_MARKER_STYLE_ATTRIBUTE = 'data-roomful-cursor-marker-style';
+const CURSOR_MARKER_COLOR_ATTRIBUTE = 'data-roomful-cursor-marker-color';
+const CURSOR_LABEL_ATTRIBUTE = 'data-roomful-cursor-label';
 const CURSOR_TRANSITION = 'left 120ms linear, top 120ms linear, opacity 160ms ease';
 const DEFAULT_CURSOR_COLOR = '#111827';
 

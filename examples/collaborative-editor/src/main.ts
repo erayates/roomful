@@ -1,7 +1,7 @@
 import './styles.css';
 
-import type { AwarenessState, Peer, PresenceData, Room, Unsubscribe } from '@flockjs/core';
-import { createRoom } from '@flockjs/core';
+import type { AwarenessState, Peer, PresenceData, Room, Unsubscribe } from '@roomful/core';
+import { createRoom } from '@roomful/core';
 
 interface EditorPresence extends PresenceData {
   color?: string;

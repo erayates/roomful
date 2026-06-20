@@ -6,7 +6,7 @@ with the same room ID, draw in either tab, and late joiners receive the existing
 ## Run
 
 ```bash
-pnpm --filter @flockjs/example-shared-canvas dev
+pnpm --filter @roomful/example-shared-canvas dev
 ```
 
 The example defaults to `broadcast` transport so it works locally without a relay.

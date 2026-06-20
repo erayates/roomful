@@ -1,4 +1,4 @@
-import type { Peer, PresenceData } from '@flockjs/core';
+import type { Peer, PresenceData } from '@roomful/core';
 
 /**
  * Positions the collaboration badge relative to its nearest positioned ancestor.

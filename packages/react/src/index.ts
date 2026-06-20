@@ -13,8 +13,8 @@ import type {
   RoomStatus,
   StateEngine,
   StateOptions,
-} from '@flockjs/core';
-import { createCoreHealth, createRoom, FlockError } from '@flockjs/core';
+} from '@roomful/core';
+import { createCoreHealth, createRoom, RoomfulError } from '@roomful/core';
 import type { Dispatch, ReactNode, RefCallback, SetStateAction } from 'react';
 import {
   createContext,
@@ -27,13 +27,13 @@ import {
 } from 'react';
 
 /**
- * Reports package-level health metadata for `@flockjs/react`.
+ * Reports package-level health metadata for `@roomful/react`.
  */
 export interface ReactHealth {
   /**
    * Identifies the package.
    */
-  packageName: '@flockjs/react';
+  packageName: '@roomful/react';
 
   /**
    * Reports the package health state.
@@ -45,7 +45,7 @@ export interface ReactHealth {
    */
   dependencies: {
     /**
-     * Reports health metadata for `@flockjs/core`.
+     * Reports health metadata for `@roomful/core`.
      */
     core: ReturnType<typeof createCoreHealth>;
   };
@@ -56,7 +56,7 @@ export interface ReactHealth {
  *
  * @typeParam TPresence - The room presence shape inferred from `presence`.
  */
-export interface FlockProviderProps<
+export interface RoomfulProviderProps<
   TPresence extends PresenceData = PresenceData,
 > extends RoomOptions<TPresence> {
   /**
@@ -82,7 +82,7 @@ export interface FlockProviderProps<
   /**
    * Runs when the room emits an operational error.
    */
-  onError?: (error: FlockError) => void;
+  onError?: (error: RoomfulError) => void;
 }
 
 /**
@@ -192,7 +192,7 @@ interface RoomSlot<TPresence extends PresenceData> {
 interface ProviderCallbacks {
   onConnect: (() => void) | undefined;
   onDisconnect: ((payload: { reason?: string }) => void) | undefined;
-  onError: ((error: FlockError) => void) | undefined;
+  onError: ((error: RoomfulError) => void) | undefined;
 }
 
 interface PresenceSnapshotCache<TPresence extends PresenceData> {
@@ -243,17 +243,17 @@ interface SharedStateBinding {
 
 const sharedStateBindings = new WeakMap<Room<PresenceData>, SharedStateBinding>();
 
-const FlockRoomContext = createContext<unknown>(null);
-FlockRoomContext.displayName = 'FlockRoomContext';
+const RoomfulRoomContext = createContext<unknown>(null);
+RoomfulRoomContext.displayName = 'RoomfulRoomContext';
 
 /**
- * Returns package-level health metadata for `@flockjs/react`.
+ * Returns package-level health metadata for `@roomful/react`.
  *
  * @returns The static React package health payload.
  */
 export function createReactHealth(): ReactHealth {
   return {
-    packageName: '@flockjs/react',
+    packageName: '@roomful/react',
     status: 'ok',
     dependencies: {
       core: createCoreHealth(),
@@ -268,8 +268,8 @@ export function createReactHealth(): ReactHealth {
  * @param props - The provider configuration and children.
  * @returns The provider element.
  */
-export function FlockProvider<TPresence extends PresenceData = PresenceData>(
-  props: FlockProviderProps<TPresence>,
+export function RoomfulProvider<TPresence extends PresenceData = PresenceData>(
+  props: RoomfulProviderProps<TPresence>,
 ): ReactNode {
   const callbacksRef = useRef<ProviderCallbacks>({
     onConnect: props.onConnect,
@@ -322,21 +322,25 @@ export function FlockProvider<TPresence extends PresenceData = PresenceData>(
     };
   }, [room]);
 
-  return createElement(FlockRoomContext.Provider, { value: room }, props.children);
+  return createElement(RoomfulRoomContext.Provider, { value: room }, props.children);
 }
 
 /**
- * Returns the current room from `FlockProvider`.
+ * Returns the current room from `RoomfulProvider`.
  *
  * @typeParam TPresence - The room presence shape to project onto the room.
  * @returns The current room instance.
- * @throws {FlockError} When called outside `FlockProvider`.
+ * @throws {RoomfulError} When called outside `RoomfulProvider`.
  */
 export function useRoom<TPresence extends PresenceData = PresenceData>(): Room<TPresence> {
-  const room = useContext(FlockRoomContext);
+  const room = useContext(RoomfulRoomContext);
 
   if (!isRoom<TPresence>(room)) {
-    throw new FlockError('INVALID_STATE', 'useRoom() must be used within a FlockProvider.', false);
+    throw new RoomfulError(
+      'INVALID_STATE',
+      'useRoom() must be used within a RoomfulProvider.',
+      false,
+    );
   }
 
   return room;
@@ -701,7 +705,7 @@ export function useSharedState<T, TPresence extends PresenceData = PresenceData>
 }
 
 function createRoomDefinition<TPresence extends PresenceData = PresenceData>(
-  props: FlockProviderProps<TPresence>,
+  props: RoomfulProviderProps<TPresence>,
 ): RoomDefinition<TPresence> {
   const options: RoomOptions<TPresence> = {};
 
@@ -1108,7 +1112,7 @@ function assertCompatibleSharedStateBinding<T>(
   options: StateOptions<T>,
 ): void {
   if (binding.key !== key) {
-    throw new FlockError(
+    throw new RoomfulError(
       'INVALID_STATE',
       `useSharedState() is already bound to key "${binding.key}" for this room.`,
       false,
@@ -1121,7 +1125,7 @@ function assertCompatibleSharedStateBinding<T>(
 
   const normalizedStrategy = normalizeSharedStateStrategy(options.strategy, binding.strategy);
   if (binding.strategy !== normalizedStrategy) {
-    throw new FlockError(
+    throw new RoomfulError(
       'INVALID_STATE',
       `useSharedState("${key}") is already configured with strategy "${binding.strategy}".`,
       false,
@@ -1133,7 +1137,7 @@ function assertCompatibleSharedStateBinding<T>(
   }
 
   if (!areStructuredValuesEqual(binding.initialValue, options.initialValue)) {
-    throw new FlockError(
+    throw new RoomfulError(
       'INVALID_STATE',
       `useSharedState("${key}") received a different initialValue for the same room.`,
       false,
@@ -1150,7 +1154,7 @@ function assertCompatibleSharedStateBinding<T>(
   }
 
   if (requestedPersist && binding.strategy !== 'lww') {
-    throw new FlockError(
+    throw new RoomfulError(
       'INVALID_STATE',
       'State persistence is only supported for the "lww" strategy.',
       false,
@@ -1161,7 +1165,7 @@ function assertCompatibleSharedStateBinding<T>(
     );
   }
 
-  throw new FlockError(
+  throw new RoomfulError(
     'INVALID_STATE',
     `useSharedState("${key}") persistence is already enabled for this room.`,
     false,
@@ -1181,7 +1185,7 @@ function normalizeSharedStateStrategy(
     return normalized;
   }
 
-  throw new FlockError(
+  throw new RoomfulError(
     'INVALID_STATE',
     `State strategy "${normalized}" is not implemented in this runtime. Use "lww" or "crdt".`,
     false,

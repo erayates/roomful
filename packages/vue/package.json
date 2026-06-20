@@ -1,5 +1,5 @@
 {
-  "name": "@flockjs/vue",
+  "name": "@roomful/vue",
   "version": "1.0.0",
   "private": false,
   "type": "module",
@@ -30,7 +30,7 @@
     "test:watch": "vitest --config ../../vitest.package.config.ts"
   },
   "dependencies": {
-    "@flockjs/core": "workspace:*"
+    "@roomful/core": "workspace:*"
   },
   "devDependencies": {
     "@vue/test-utils": "^2.4.6",

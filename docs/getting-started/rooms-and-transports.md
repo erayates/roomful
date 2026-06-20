@@ -4,7 +4,7 @@ Audience: users.
 
 ## Room Model
 
-A `room` is the primary collaboration scope in FlockJS.
+A `room` is the primary collaboration scope in Roomful.
 
 - Peers with the same `roomId` join the same session.
 - Rooms are ephemeral by default.
@@ -16,7 +16,7 @@ A `room` is the primary collaboration scope in FlockJS.
 | ----------- | ------------------------------------------- | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
 | `webrtc`    | small collaborative rooms across machines   | Yes (relay for WebRTC)   | P2P DataChannel mesh after signaling; same-origin fallback uses BroadcastChannel only when signaling is unavailable during connect |
 | `broadcast` | same-browser, same-origin tabs              | No                       | JSON-envelope messaging + unload-aware leave handling                                                                              |
-| `websocket` | larger rooms or strict network environments | Yes (`@flockjs/relay`)   | Relay-backed room messaging with targeted send + broadcast support                                                                 |
+| `websocket` | larger rooms or strict network environments | Yes (`@roomful/relay`)   | Relay-backed room messaging with targeted send + broadcast support                                                                 |
 | `auto`      | choose best available option                | Depends on fallback path | Ordered selection: `broadcast` -> `webrtc` -> `websocket` -> `in-memory`                                                           |
 
 ## Recommended Defaults
@@ -67,7 +67,7 @@ const room = createRoom('doc-123', {
   maxPeers: 8,
   webrtc: {
     iceGatherTimeoutMs: 5000,
-    dataChannel: { ordered: true, protocol: 'flockjs-v1' },
+    dataChannel: { ordered: true, protocol: 'roomful-v1' },
   },
 });
 ```

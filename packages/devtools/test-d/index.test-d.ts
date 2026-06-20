@@ -16,7 +16,7 @@ import {
   type DevtoolsStateDiffEntry,
 } from '..';
 
-expectType<'__flockjs_devtools__'>(DEVTOOLS_BRIDGE_GLOBAL);
+expectType<'__roomful_devtools__'>(DEVTOOLS_BRIDGE_GLOBAL);
 expectType<1>(DEVTOOLS_BRIDGE_VERSION);
 expectType<100>(DEVTOOLS_MAX_EVENT_LOG_ENTRIES);
 

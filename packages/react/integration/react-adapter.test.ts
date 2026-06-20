@@ -20,7 +20,7 @@ interface ReactHarnessSnapshot {
 
 declare global {
   interface Window {
-    __flockjsReactIntegration: {
+    __roomfulReactIntegration: {
       clickSharedState(id: string): void;
       dispatchCursorMove(id: string, input: { x: number; y: number }): void;
       getSnapshot(id: string): ReactHarnessSnapshot;
@@ -42,30 +42,30 @@ test.describe.configure({ mode: 'serial' });
 test.describe('React adapter Playwright integration', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
-    await expect(page.locator('h1')).toHaveText('FlockJS React integration fixture');
+    await expect(page.locator('h1')).toHaveText('Roomful React integration fixture');
     await page.waitForFunction(() => {
-      return typeof window.__flockjsReactIntegration !== 'undefined';
+      return typeof window.__roomfulReactIntegration !== 'undefined';
     });
   });
 
   test.afterEach(async ({ page }) => {
     await page.evaluate(() => {
-      if (!window.__flockjsReactIntegration) {
+      if (!window.__roomfulReactIntegration) {
         return;
       }
 
       for (const id of ['alpha', 'beta', 'primary']) {
-        window.__flockjsReactIntegration.unmountApp(id);
+        window.__roomfulReactIntegration.unmountApp(id);
       }
     });
   });
 
-  test('mounts FlockProvider and connects successfully in a browser', async ({ page }) => {
+  test('mounts RoomfulProvider and connects successfully in a browser', async ({ page }) => {
     const roomId = nextRoomId('playwright-provider-connect');
 
     await page.evaluate(
       (config) => {
-        window.__flockjsReactIntegration.mountApp(config);
+        window.__roomfulReactIntegration.mountApp(config);
       },
       {
         color: '#111111',
@@ -78,7 +78,7 @@ test.describe('React adapter Playwright integration', () => {
     await expect
       .poll(async () => {
         return page.evaluate(() => {
-          return window.__flockjsReactIntegration.getSnapshot('primary').status;
+          return window.__roomfulReactIntegration.getSnapshot('primary').status;
         });
       })
       .toBe('connected');
@@ -90,7 +90,7 @@ test.describe('React adapter Playwright integration', () => {
     await page.evaluate(
       (configs) => {
         for (const config of configs) {
-          window.__flockjsReactIntegration.mountApp(config);
+          window.__roomfulReactIntegration.mountApp(config);
         }
       },
       [
@@ -112,45 +112,45 @@ test.describe('React adapter Playwright integration', () => {
     await expect
       .poll(async () => {
         return page.evaluate(() => {
-          return window.__flockjsReactIntegration.getSnapshot('alpha').peerCount;
+          return window.__roomfulReactIntegration.getSnapshot('alpha').peerCount;
         });
       })
       .toBe(1);
     await expect
       .poll(async () => {
         return page.evaluate(() => {
-          return window.__flockjsReactIntegration.getSnapshot('beta').peerCount;
-        });
-      })
-      .toBe(1);
-
-    await page.evaluate(() => {
-      window.__flockjsReactIntegration.clickSharedState('alpha');
-    });
-
-    await expect
-      .poll(async () => {
-        return page.evaluate(() => {
-          return window.__flockjsReactIntegration.getSnapshot('alpha').sharedCount;
-        });
-      })
-      .toBe(1);
-    await expect
-      .poll(async () => {
-        return page.evaluate(() => {
-          return window.__flockjsReactIntegration.getSnapshot('beta').sharedCount;
+          return window.__roomfulReactIntegration.getSnapshot('beta').peerCount;
         });
       })
       .toBe(1);
 
     await page.evaluate(() => {
-      window.__flockjsReactIntegration.unmountApp('beta');
+      window.__roomfulReactIntegration.clickSharedState('alpha');
     });
 
     await expect
       .poll(async () => {
         return page.evaluate(() => {
-          return window.__flockjsReactIntegration.getSnapshot('alpha').peerCount;
+          return window.__roomfulReactIntegration.getSnapshot('alpha').sharedCount;
+        });
+      })
+      .toBe(1);
+    await expect
+      .poll(async () => {
+        return page.evaluate(() => {
+          return window.__roomfulReactIntegration.getSnapshot('beta').sharedCount;
+        });
+      })
+      .toBe(1);
+
+    await page.evaluate(() => {
+      window.__roomfulReactIntegration.unmountApp('beta');
+    });
+
+    await expect
+      .poll(async () => {
+        return page.evaluate(() => {
+          return window.__roomfulReactIntegration.getSnapshot('alpha').peerCount;
         });
       })
       .toBe(0);
@@ -162,7 +162,7 @@ test.describe('React adapter Playwright integration', () => {
     await page.evaluate(
       (configs) => {
         for (const config of configs) {
-          window.__flockjsReactIntegration.mountApp(config);
+          window.__roomfulReactIntegration.mountApp(config);
         }
       },
       [
@@ -184,7 +184,7 @@ test.describe('React adapter Playwright integration', () => {
     await expect
       .poll(async () => {
         return page.evaluate(() => {
-          const snapshot = window.__flockjsReactIntegration.getSnapshot('alpha');
+          const snapshot = window.__roomfulReactIntegration.getSnapshot('alpha');
           return snapshot.boardAttached && snapshot.status === 'connected'
             ? snapshot.peerCount
             : -1;
@@ -193,7 +193,7 @@ test.describe('React adapter Playwright integration', () => {
       .toBe(1);
 
     await page.evaluate(() => {
-      window.__flockjsReactIntegration.dispatchCursorMove('alpha', {
+      window.__roomfulReactIntegration.dispatchCursorMove('alpha', {
         x: 0.25,
         y: 0.5,
       });
@@ -202,7 +202,7 @@ test.describe('React adapter Playwright integration', () => {
     await expect
       .poll(async () => {
         return page.evaluate(() => {
-          return window.__flockjsReactIntegration.getSnapshot('beta');
+          return window.__roomfulReactIntegration.getSnapshot('beta');
         });
       })
       .toMatchObject({
@@ -212,13 +212,13 @@ test.describe('React adapter Playwright integration', () => {
       });
 
     await page.evaluate(() => {
-      window.__flockjsReactIntegration.unmountApp('alpha');
+      window.__roomfulReactIntegration.unmountApp('alpha');
     });
 
     await expect
       .poll(async () => {
         return page.evaluate(() => {
-          return window.__flockjsReactIntegration.getSnapshot('beta');
+          return window.__roomfulReactIntegration.getSnapshot('beta');
         });
       })
       .toMatchObject({

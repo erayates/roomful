@@ -1,4 +1,3 @@
-import { createFlockError } from '../flock-error';
 import {
   assertSupportedStateStrategy,
   cloneStateValue,
@@ -10,6 +9,7 @@ import {
   type StateSnapshot,
   undoStateSnapshot,
 } from '../internal/state';
+import { createRoomfulError } from '../roomful-error';
 import type { StateChangeMeta, StateEngine, StateOptions, Unsubscribe } from '../types';
 
 type StateEngineMutation<T> =
@@ -80,7 +80,7 @@ export function createStateEngine<T>(
   assertSupportedStateStrategy(options.strategy);
 
   if (options.strategy === 'custom' && typeof options.merge !== 'function') {
-    throw createFlockError(
+    throw createRoomfulError(
       'INVALID_STATE',
       'State strategy "custom" requires a "merge" function. Provide a merge(a, b) => T function in StateOptions.',
       false,

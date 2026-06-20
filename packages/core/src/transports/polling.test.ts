@@ -509,7 +509,7 @@ describe('PollingTransportAdapter', () => {
     await adapter.disconnect();
   });
 
-  it('maps relay join rejections to typed Flock errors', async () => {
+  it('maps relay join rejections to typed Roomful errors', async () => {
     const fullRelay = new MockPollingRelay({
       rejectJoinCode: 'ROOM_FULL',
       rejectJoinMessage: 'Room is full.',

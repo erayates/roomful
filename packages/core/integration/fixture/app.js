@@ -185,9 +185,9 @@ function createSyntheticTouchEvent(type, clientX, clientY) {
 
 function getRenderedCursorSnapshot() {
   const board = getBoardElement();
-  return Array.from(board.querySelectorAll('[data-flockjs-peer-cursor]')).map((node) => {
-    const marker = node.querySelector('[data-flockjs-cursor-marker]');
-    const label = node.querySelector('[data-flockjs-cursor-label]');
+  return Array.from(board.querySelectorAll('[data-roomful-peer-cursor]')).map((node) => {
+    const marker = node.querySelector('[data-roomful-cursor-marker]');
+    const label = node.querySelector('[data-roomful-cursor-label]');
     return {
       userId: node.getAttribute('data-user-id'),
       text: node.textContent ?? '',
@@ -195,10 +195,10 @@ function getRenderedCursorSnapshot() {
       top: node.style.top,
       idle: node.getAttribute('data-idle'),
       transition: node.style.transition,
-      style: node.getAttribute('data-flockjs-cursor-style'),
+      style: node.getAttribute('data-roomful-cursor-style'),
       markerTag: marker?.tagName.toLowerCase() ?? null,
-      markerStyle: marker?.getAttribute('data-flockjs-cursor-marker-style') ?? null,
-      markerColor: marker?.getAttribute('data-flockjs-cursor-marker-color') ?? null,
+      markerStyle: marker?.getAttribute('data-roomful-cursor-marker-style') ?? null,
+      markerColor: marker?.getAttribute('data-roomful-cursor-marker-color') ?? null,
       labelDisplay: label instanceof HTMLElement ? label.style.display : null,
     };
   });
@@ -243,11 +243,11 @@ function getYjsSnapshot() {
 }
 
 function instrumentRtcChannel(channel) {
-  if (channel.__flockjsInstrumented) {
+  if (channel.__roomfulInstrumented) {
     return;
   }
 
-  channel.__flockjsInstrumented = true;
+  channel.__roomfulInstrumented = true;
   if (channel.readyState === 'open') {
     state.rtc.dataChannelsOpened += 1;
   }
@@ -286,7 +286,7 @@ function installRtcInstrumentation() {
 
 installRtcInstrumentation();
 
-window.__flockjsIntegration = {
+window.__roomfulIntegration = {
   async initRoom(config) {
     if (state.room) {
       await state.room.disconnect();
@@ -642,7 +642,7 @@ window.__flockjsIntegration = {
   },
 
   getState() {
-    return window.__flockjsIntegration.getStateSnapshot();
+    return window.__roomfulIntegration.getStateSnapshot();
   },
 
   setTimeOverride(timestamp) {

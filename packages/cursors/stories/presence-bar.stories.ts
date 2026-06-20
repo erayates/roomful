@@ -12,7 +12,7 @@ interface PresenceBarStoryArgs extends PresenceBarProps<StoryPresence> {
 }
 
 const meta = {
-  title: '@flockjs/cursors/PresenceBar',
+  title: '@roomful/cursors/PresenceBar',
   tags: ['autodocs'],
   args: {
     maxVisible: 4,

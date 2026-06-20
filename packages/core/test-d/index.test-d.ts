@@ -2,10 +2,10 @@ import { expectType } from 'tsd';
 
 import {
   createRoom,
-  FlockError,
+  RoomfulError,
   type AwarenessEngine,
   type CursorPosition,
-  type FlockErrorCode,
+  type RoomfulErrorCode,
   type Peer,
   type Room,
   type RoomDiagnostics,
@@ -85,7 +85,7 @@ const unsubscribeDisconnected = room.on('disconnected', (payload) => {
 });
 expectType<Unsubscribe>(unsubscribeDisconnected);
 
-const error = new FlockError('NETWORK_ERROR', 'network failed', true);
-expectType<FlockError>(error);
-expectType<FlockErrorCode>(error.code);
+const error = new RoomfulError('NETWORK_ERROR', 'network failed', true);
+expectType<RoomfulError>(error);
+expectType<RoomfulErrorCode>(error.code);
 expectType<boolean>(error.recoverable);

@@ -1,5 +1,5 @@
 {
-  "name": "@flockjs/core",
+  "name": "@roomful/core",
   "version": "1.0.0",
   "private": false,
   "type": "module",
@@ -39,7 +39,7 @@
     "yjs": "^13.6.29"
   },
   "devDependencies": {
-    "@flockjs/devtools": "workspace:*",
+    "@roomful/devtools": "workspace:*",
     "y-protocols": "^1.0.7",
     "yjs": "^13.6.29"
   }

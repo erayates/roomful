@@ -1,6 +1,6 @@
 # Code Quality Guidelines
 
-> **Context:** FlockJS is a framework-agnostic, zero-backend, open-source TypeScript library.  
+> **Context:** Roomful is a framework-agnostic, zero-backend, open-source TypeScript library.  
 > It runs in Chrome 80+, Firefox 75+, Safari 14+, and Node.js 18+ (limited).  
 > These rules are different from application-level guidelines — library code has stricter constraints.
 
@@ -29,9 +29,9 @@
 
 ## 1. Library vs Application — The Key Difference
 
-Most TypeScript guidelines are written for applications. FlockJS is a library. The constraints are fundamentally different.
+Most TypeScript guidelines are written for applications. Roomful is a library. The constraints are fundamentally different.
 
-| Concern | Application (e.g. Zyora) | Library (FlockJS core) |
+| Concern | Application (e.g. Zyora) | Library (Roomful core) |
 |---|---|---|
 | Hard dependencies | Fine — you control the stack | Forbidden — you ship into unknown stacks |
 | Bundle size | Managed at app level | Every byte is your user's problem |
@@ -73,22 +73,22 @@ Most TypeScript guidelines are written for applications. FlockJS is a library. T
 
 ### Why `ES2019` target?
 
-Safari 14 is in the support matrix. ES2019 is the highest common denominator that does not require polyfills for the features FlockJS uses. Do not raise this target without checking the browser support table first.
+Safari 14 is in the support matrix. ES2019 is the highest common denominator that does not require polyfills for the features Roomful uses. Do not raise this target without checking the browser support table first.
 
 ### Why `declaration: true`?
 
-FlockJS ships types alongside the compiled output. Users get full autocomplete and type checking without any extra setup. This is non-negotiable for a TypeScript-first library.
+Roomful ships types alongside the compiled output. Users get full autocomplete and type checking without any extra setup. This is non-negotiable for a TypeScript-first library.
 
 ---
 
 ## 3. Dependency Rules
 
-### Core Package (`@flockjs/core`) — Zero Runtime Dependencies
+### Core Package (`@roomful/core`) — Zero Runtime Dependencies
 
 The core package must have **zero `dependencies`** in `package.json`. Every external package you add becomes mandatory weight in every user's bundle.
 
 ```json
-// package.json — @flockjs/core
+// package.json — @roomful/core
 {
   "dependencies": {},       // ← must stay empty
   "peerDependencies": {},   // ← optional, for framework adapters only
@@ -101,31 +101,31 @@ The core package must have **zero `dependencies`** in `package.json`. Every exte
 }
 ```
 
-**No Zod in core.** Validate with manual type guards (see Section 5). The relay server (`@flockjs/relay`) runs on Node.js where bundle size is irrelevant — Zod is fine there.
+**No Zod in core.** Validate with manual type guards (see Section 5). The relay server (`@roomful/relay`) runs on Node.js where bundle size is irrelevant — Zod is fine there.
 
-### Framework Adapters (`@flockjs/react`, `@flockjs/vue`, `@flockjs/svelte`)
+### Framework Adapters (`@roomful/react`, `@roomful/vue`, `@roomful/svelte`)
 
 Framework packages declare the framework as a `peerDependency`, not a `dependency`. Users already have React/Vue/Svelte installed — don't ship a second copy.
 
 ```json
-// package.json — @flockjs/react
+// package.json — @roomful/react
 {
   "peerDependencies": {
     "react": ">=18.0.0",
     "react-dom": ">=18.0.0"
   },
   "dependencies": {
-    "@flockjs/core": "workspace:*"
+    "@roomful/core": "workspace:*"
   }
 }
 ```
 
-### Relay Server (`@flockjs/relay`) — Node.js Only
+### Relay Server (`@roomful/relay`) — Node.js Only
 
 The relay server is a standalone Node.js process. Bundle size is irrelevant. Zod, structured logging, and other server utilities are welcome here.
 
 ```json
-// package.json — @flockjs/relay
+// package.json — @roomful/relay
 {
   "dependencies": {
     "zod": "^3.0.0",
@@ -189,7 +189,7 @@ const peer = this.peers.get(peerId)!;
 // ✅ CORRECT — handle the nullable case explicitly
 const peer = this.peers.get(peerId);
 if (!peer) {
-  this.emit('error', new FlockError('PEER_NOT_FOUND', `No peer with id: ${peerId}`));
+  this.emit('error', new RoomfulError('PEER_NOT_FOUND', `No peer with id: ${peerId}`));
   return;
 }
 ```
@@ -216,7 +216,7 @@ export class Room {
 
 ## 5. Trust Boundaries & Validation
 
-FlockJS has two real trust boundaries. Everything that crosses them is `unknown` and must be validated before use. Everything inside the library, typed by TypeScript, must never be defensively re-checked.
+Roomful has two real trust boundaries. Everything that crosses them is `unknown` and must be validated before use. Everything inside the library, typed by TypeScript, must never be defensively re-checked.
 
 ```
 ┌─────────────────────────────────────────────────────┐
@@ -233,7 +233,7 @@ FlockJS has two real trust boundaries. Everything that crosses them is `unknown`
 
          ↓ typed, validated
 ┌─────────────────────────────────────────────────────┐
-│  FLOCKJS INTERNALS — fully typed                    │
+│  ROOMFUL INTERNALS — fully typed                    │
 │  Do NOT re-check types here.                        │
 │  TypeScript guarantees them.                        │
 └─────────────────────────────────────────────────────┘
@@ -270,7 +270,7 @@ export function isCursorPosition(data: unknown): data is CursorPosition {
   );
 }
 
-export function isFlockMessage(data: unknown): data is FlockMessage {
+export function isRoomfulMessage(data: unknown): data is RoomfulMessage {
   if (!isObject(data)) return false;
   return (
     typeof data['type'] === 'string' &&
@@ -290,12 +290,12 @@ channel.onmessage = (event: MessageEvent) => {
     return;
   }
 
-  if (!isFlockMessage(raw)) {
-    this.log('warn', 'Received malformed FlockMessage, ignoring.', raw);
+  if (!isRoomfulMessage(raw)) {
+    this.log('warn', 'Received malformed RoomfulMessage, ignoring.', raw);
     return;
   }
 
-  // raw is FlockMessage from here on — no more checks needed downstream
+  // raw is RoomfulMessage from here on — no more checks needed downstream
   this.handleMessage(raw);
 };
 ```
@@ -303,7 +303,7 @@ channel.onmessage = (event: MessageEvent) => {
 ### 5.2 Validation Pattern for Relay Server (Zod OK)
 
 ```typescript
-// @flockjs/relay — Node.js, Zod is fine
+// @roomful/relay — Node.js, Zod is fine
 import { z } from 'zod';
 
 const JoinMessageSchema = z.object({
@@ -350,7 +350,7 @@ function broadcastPresence(presence: PresenceData): void {
 
 ## 6. Environment & API Availability
 
-Unlike Zyora (known Next.js + Node 20+ stack), FlockJS runs in genuinely unknown environments. Browser guards are sometimes required — but must be precise and documented.
+Unlike Zyora (known Next.js + Node 20+ stack), Roomful runs in genuinely unknown environments. Browser guards are sometimes required — but must be precise and documented.
 
 ### APIs That Are Guaranteed Across the Full Support Matrix
 
@@ -392,15 +392,15 @@ export const env = {
 
 Then use `env.*` everywhere. This is the single source of truth — not scattered inline `typeof` checks.
 
-### `crypto.randomUUID()` — Requires a Guard in FlockJS
+### `crypto.randomUUID()` — Requires a Guard in Roomful
 
-Unlike in Zyora (Node 20+ guaranteed), FlockJS targets Node 18 and Safari 14 where `crypto.randomUUID()` may not exist.
+Unlike in Zyora (Node 20+ guaranteed), Roomful targets Node 18 and Safari 14 where `crypto.randomUUID()` may not exist.
 
 ```typescript
-// ❌ WRONG for FlockJS — randomUUID is not available everywhere in the support matrix
+// ❌ WRONG for Roomful — randomUUID is not available everywhere in the support matrix
 const id = crypto.randomUUID();
 
-// ✅ CORRECT for FlockJS — polyfill inline or detect
+// ✅ CORRECT for Roomful — polyfill inline or detect
 function generatePeerId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID();
@@ -413,7 +413,7 @@ function generatePeerId(): string {
 }
 ```
 
-This is one of the few legitimate uses of an environment guard in FlockJS — and it is centralized in one place, not scattered across the codebase.
+This is one of the few legitimate uses of an environment guard in Roomful — and it is centralized in one place, not scattered across the codebase.
 
 ---
 
@@ -426,7 +426,7 @@ Library code must not execute anything when imported. All work happens inside fu
 ```typescript
 // ❌ FORBIDDEN — executes on import
 const defaultRoom = createRoom('default');  // side effect at module level
-console.log('FlockJS loaded');             // side effect at module level
+console.log('Roomful loaded');             // side effect at module level
 
 // ✅ CORRECT — export functions/classes, nothing executes until called
 export { createRoom } from './room';
@@ -473,7 +473,7 @@ const clamp = (n: number, min: number, max: number) => Math.min(Math.max(n, min)
 
 ### 8.1 Never Break the Public API Without a Major Version
 
-Every exported type, function signature, and class method is a contract with every FlockJS user. Changing a parameter type, removing an option, or renaming an event is a **breaking change**.
+Every exported type, function signature, and class method is a contract with every Roomful user. Changing a parameter type, removing an option, or renaming an event is a **breaking change**.
 
 | Change | Version bump required |
 |---|---|
@@ -530,11 +530,11 @@ const value = state.get(); // inferred as { count: number; selectedId: string | 
 
 ### 9.1 Typed Error Class
 
-All errors thrown by FlockJS must be instances of `FlockError` with a typed code. This allows users to handle specific error cases programmatically.
+All errors thrown by Roomful must be instances of `RoomfulError` with a typed code. This allows users to handle specific error cases programmatically.
 
 ```typescript
 // src/errors.ts
-export type FlockErrorCode =
+export type RoomfulErrorCode =
   | 'ROOM_FULL'
   | 'CONNECTION_FAILED'
   | 'PEER_NOT_FOUND'
@@ -542,19 +542,19 @@ export type FlockErrorCode =
   | 'ENCRYPTION_FAILED'
   | 'RELAY_UNAVAILABLE';
 
-export class FlockError extends Error {
-  readonly code: FlockErrorCode;
+export class RoomfulError extends Error {
+  readonly code: RoomfulErrorCode;
 
-  constructor(code: FlockErrorCode, message: string) {
+  constructor(code: RoomfulErrorCode, message: string) {
     super(message);
-    this.name = 'FlockError';
+    this.name = 'RoomfulError';
     this.code = code;
   }
 }
 
 // Usage — users can handle specific codes
 room.on('error', (err) => {
-  if (err instanceof FlockError && err.code === 'ROOM_FULL') {
+  if (err instanceof RoomfulError && err.code === 'ROOM_FULL') {
     showRoomFullDialog();
   }
 });
@@ -584,10 +584,10 @@ Errors in a library are read by other developers. Include context.
 
 ```typescript
 // ❌ UNHELPFUL
-throw new FlockError('INVALID_STATE', 'Invalid state');
+throw new RoomfulError('INVALID_STATE', 'Invalid state');
 
 // ✅ HELPFUL
-throw new FlockError(
+throw new RoomfulError(
   'INVALID_STATE',
   `Cannot call room.connect() when status is '${this.status}'. ` +
   `Call room.disconnect() first, then reconnect.`
@@ -717,15 +717,15 @@ export default [
 
 ## 12. AI Code Agent Rules
 
-> Paste this block into `.claude/CLAUDE.md` for FlockJS development.
+> Paste this block into `.claude/CLAUDE.md` for Roomful development.
 
 ```
-FLOCKJS LIBRARY CODE RULES
+ROOMFUL LIBRARY CODE RULES
 ============================
 
 CONTEXT
 ────────
-FlockJS is a zero-dependency, framework-agnostic TypeScript library.
+Roomful is a zero-dependency, framework-agnostic TypeScript library.
 It is NOT an application. Application-level rules (Next.js, NestJS, Zod in core)
 do NOT apply here.
 
@@ -733,9 +733,9 @@ Support matrix: Chrome 80+, Firefox 75+, Safari 14+, Node.js 18+ (limited).
 
 DEPENDENCIES — ABSOLUTE RULES
 ───────────────────────────────
-- @flockjs/core → zero runtime dependencies. Period.
-- @flockjs/react/vue/svelte → framework as peerDependency only.
-- @flockjs/relay → Node.js only, Zod and ws are fine here.
+- @roomful/core → zero runtime dependencies. Period.
+- @roomful/react/vue/svelte → framework as peerDependency only.
+- @roomful/relay → Node.js only, Zod and ws are fine here.
 - Never add a dependency to core without explicit team discussion.
 
 TYPE SYSTEM
@@ -748,7 +748,7 @@ TYPE SYSTEM
 
 TRUST BOUNDARIES
 ─────────────────
-There are exactly two trust boundaries in FlockJS core:
+There are exactly two trust boundaries in Roomful core:
   1. WebRTC DataChannel onmessage → unknown → validate with isObject() guards
   2. WebSocket relay message     → unknown → validate with isObject() guards
      (relay server can use Zod instead)
@@ -757,7 +757,7 @@ Inside the library, TypeScript types are trusted. Never re-check them.
 
 ENVIRONMENT GUARDS
 ──────────────────
-FlockJS targets Safari 14 and Node 18 — environment guards ARE sometimes required.
+Roomful targets Safari 14 and Node 18 — environment guards ARE sometimes required.
 Rules:
   - All environment detection lives in src/internal/env.ts
   - Use env.hasWebRTC, env.isBrowser, etc. — never inline typeof checks
@@ -783,7 +783,7 @@ PUBLIC API
 
 ERROR HANDLING
 ───────────────
-- All thrown errors must be instances of FlockError with a typed code
+- All thrown errors must be instances of RoomfulError with a typed code
 - Wrap user callback invocations in try/catch — never let user errors propagate
 - Error messages must include context (current state, what to do instead)
 
@@ -814,7 +814,7 @@ WHEN IN DOUBT
 - [ ] `no-floating-promises` — no violations
 
 ### Manual Review — Dependencies
-- [ ] Any new entry in `dependencies` in `@flockjs/core`? → Reject unless explicitly approved
+- [ ] Any new entry in `dependencies` in `@roomful/core`? → Reject unless explicitly approved
 - [ ] Framework package using `dependencies` instead of `peerDependencies`? → Fix
 
 ### Manual Review — Type System
@@ -836,7 +836,7 @@ WHEN IN DOUBT
 - [ ] Side effect at module top level? → Remove
 
 ### Manual Review — Errors & Async
-- [ ] Error thrown with a raw `new Error()` instead of `FlockError`? → Fix
+- [ ] Error thrown with a raw `new Error()` instead of `RoomfulError`? → Fix
 - [ ] User callback invoked without try/catch? → Wrap it
 - [ ] `forEach` with `async` callback? → Replace with `for...of` or `Promise.all`
 - [ ] `async/await` mixed with `.then()` in same function? → Pick one
@@ -856,8 +856,8 @@ WHEN IN DOUBT
 | Adding a runtime dependency to core | Don't. Write the function inline. |
 | Changing a public API parameter type | Major version bump |
 | `on()` / `subscribe()` return value | Always return unsubscribe function |
-| Error to throw | `new FlockError(code, descriptive message)` |
+| Error to throw | `new RoomfulError(code, descriptive message)` |
 
 ---
 
-*This document governs FlockJS library development. Application-level guidelines (Zyora) apply separately to apps that consume FlockJS — not to the library itself.*
+*This document governs Roomful library development. Application-level guidelines (Zyora) apply separately to apps that consume Roomful — not to the library itself.*

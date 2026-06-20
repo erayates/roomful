@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { flock } from '@flockjs/svelte';
+  import { roomful } from '@roomful/svelte';
 
-  const adapter = flock<{ color: string; name: string }>('publish-smoke-svelte', {
+  const adapter = roomful<{ color: string; name: string }>('publish-smoke-svelte', {
     presence: {
       color: '#ff3e00',
       name: 'Svelte Smoke',

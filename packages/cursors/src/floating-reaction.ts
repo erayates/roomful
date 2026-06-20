@@ -9,7 +9,7 @@ import {
 
 const DEFAULT_EMOJI_SIZE = 32;
 const DEFAULT_DURATION_MS = 1500;
-const FLOATING_REACTION_ANIMATION_NAME = 'flockjs-floating-reaction-float';
+const FLOATING_REACTION_ANIMATION_NAME = 'roomful-floating-reaction-float';
 const FLOATING_REACTION_STYLE = `
   @keyframes ${FLOATING_REACTION_ANIMATION_NAME} {
     0% {
@@ -70,7 +70,7 @@ export interface FloatingReactionProps {
 
 function FloatingReactionStyleSheet(): ReactElement {
   return createElement('style', {
-    'data-flockjs-floating-reaction-styles': 'true',
+    'data-roomful-floating-reaction-styles': 'true',
     key: 'floating-reaction-styles',
     children: FLOATING_REACTION_STYLE,
   });
@@ -164,8 +164,8 @@ export function FloatingReaction(props: FloatingReactionProps): ReactElement | n
       'span',
       {
         'aria-hidden': 'true',
-        'data-flockjs-floating-reaction': 'true',
-        'data-flockjs-floating-reaction-emoji': emoji,
+        'data-roomful-floating-reaction': 'true',
+        'data-roomful-floating-reaction-emoji': emoji,
         style: createRootStyle(left, top, resolvedSize, duration, delay),
       },
       emoji,

@@ -17,8 +17,8 @@ import type {
   RoomStatus,
   StateChangeMeta,
   StateEngine,
-} from '@flockjs/core';
-import { FlockError } from '@flockjs/core';
+} from '@roomful/core';
+import { RoomfulError } from '@roomful/core';
 import type { Action } from 'svelte/action';
 import type { Writable } from 'svelte/store';
 import { get } from 'svelte/store';
@@ -57,8 +57,8 @@ vi.mock('svelte', async () => {
   };
 });
 
-vi.mock('@flockjs/core', async () => {
-  const actual = await vi.importActual<typeof import('@flockjs/core')>('@flockjs/core');
+vi.mock('@roomful/core', async () => {
+  const actual = await vi.importActual<typeof import('@roomful/core')>('@roomful/core');
 
   return {
     ...actual,
@@ -67,7 +67,7 @@ vi.mock('@flockjs/core', async () => {
 });
 
 import type { AwarenessStoreValue, EventChannelValue, PresenceStoreValue } from './index';
-import { flock } from './index';
+import { roomful } from './index';
 
 type RoomEventPayload = RoomEventMap<PresenceData>[RoomEventName];
 type RoomEventHandler = (payload: RoomEventPayload) => void;
@@ -586,7 +586,7 @@ beforeEach(() => {
   resetLifecycleState();
 });
 
-describe('flock', () => {
+describe('roomful', () => {
   it('creates the room immediately, defers connect until mount, and auto-cleans on destroy', async () => {
     const self = createPeer('svelte-self', { name: 'Ada' });
     const other = createPeer('svelte-other', { name: 'Grace' });
@@ -619,7 +619,7 @@ describe('flock', () => {
       },
     );
 
-    const adapter = flock('svelte-room', {
+    const adapter = roomful('svelte-room', {
       transport: 'broadcast',
     });
     const snapshots: PresenceStoreValue<PresenceData>[] = [];
@@ -697,7 +697,7 @@ describe('flock', () => {
       },
     );
 
-    const adapter = flock('manual-room', {
+    const adapter = roomful('manual-room', {
       transport: 'broadcast',
     });
     const onMessage = vi.fn();
@@ -750,7 +750,7 @@ describe('flock', () => {
       },
     );
 
-    const adapter = flock('presence-room');
+    const adapter = roomful('presence-room');
     const snapshots: PresenceStoreValue<PresenceData>[] = [];
     const unsubscribe = adapter.presence.subscribe((value) => {
       snapshots.push(value);
@@ -843,7 +843,7 @@ describe('flock', () => {
       },
     );
 
-    const adapter = flock('awareness-room');
+    const adapter = roomful('awareness-room');
     const snapshots: AwarenessStoreValue[] = [];
     const unsubscribe = adapter.awareness.subscribe((value) => {
       snapshots.push(value);
@@ -925,7 +925,7 @@ describe('flock', () => {
       },
     );
 
-    const adapter = flock('cursor-room');
+    const adapter = roomful('cursor-room');
     const snapshots: Array<CursorPosition<CursorData>[]> = [];
     const unsubscribe = adapter.cursors.subscribe((value) => {
       snapshots.push(value);
@@ -1006,7 +1006,7 @@ describe('flock', () => {
       },
     );
 
-    const adapter = flock('state-room');
+    const adapter = roomful('state-room');
     const [countStore, setCount] = adapter.state.shared('counter', {
       count: 0,
     });
@@ -1101,7 +1101,7 @@ describe('flock', () => {
       },
     );
 
-    const adapter = flock('event-room');
+    const adapter = roomful('event-room');
     const onMessage = vi.fn();
     const unsubscribe = adapter.events.on<{ text: string }>('message', onMessage);
     const channel = adapter.events.channel<{ text: string }>('message');
@@ -1170,7 +1170,9 @@ describe('flock', () => {
   it('preserves the intended public types', () => {
     createMockRoom('typed-room', {}, { peerId: 'typed-self' });
 
-    const adapter = flock<{ role: 'editor' | 'viewer' }, { tool: 'pen' | 'eraser' }>('typed-room');
+    const adapter = roomful<{ role: 'editor' | 'viewer' }, { tool: 'pen' | 'eraser' }>(
+      'typed-room',
+    );
     const [votes, setVotes] = adapter.state.shared('votes', {
       no: 0,
       yes: 0,
@@ -1195,7 +1197,7 @@ describe('flock', () => {
 
   it('throws typed errors for destroyed adapters', async () => {
     createMockRoom('destroyed-room');
-    const adapter = flock('destroyed-room');
+    const adapter = roomful('destroyed-room');
 
     await adapter.destroy();
 
@@ -1203,7 +1205,7 @@ describe('flock', () => {
       adapter.events.emit('message', {
         text: 'boom',
       });
-    }).toThrowError(FlockError);
+    }).toThrowError(RoomfulError);
     expect(() => {
       adapter.presence.set({
         status: 'away',

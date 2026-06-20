@@ -117,7 +117,7 @@ export function createStructuredLogger(config: StructuredLoggerConfig): Structur
       message,
     };
 
-    log(`[FlockJS] ${component}: ${message}`, payload);
+    log(`[Roomful] ${component}: ${message}`, payload);
   };
 
   return {

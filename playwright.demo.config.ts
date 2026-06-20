@@ -24,7 +24,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'pnpm --filter @flockjs/app-demo dev --host 127.0.0.1 --port 4174',
+    command: 'pnpm --filter @roomful/app-demo dev --host 127.0.0.1 --port 4174',
     port: 4174,
     reuseExistingServer: !process.env.CI,
     timeout: 30_000,

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { createFlockError } from './flock-error';
 import { createRoom } from './index';
+import { createRoomfulError } from './roomful-error';
 import type { TransportAdapter, TransportSignal } from './transports/transport';
 
 type WindowListener = (...args: unknown[]) => void;
@@ -236,10 +236,10 @@ describe('Room events', () => {
 
     const initialAdapter = new MockReconnectTransportAdapter();
     const failedAttemptOne = new MockReconnectTransportAdapter(async () => {
-      throw createFlockError('NETWORK_ERROR', 'attempt-one-failed', false);
+      throw createRoomfulError('NETWORK_ERROR', 'attempt-one-failed', false);
     });
     const failedAttemptTwo = new MockReconnectTransportAdapter(async () => {
-      throw createFlockError('NETWORK_ERROR', 'attempt-two-failed', false);
+      throw createRoomfulError('NETWORK_ERROR', 'attempt-two-failed', false);
     });
     const adapters = [initialAdapter, failedAttemptOne, failedAttemptTwo];
 

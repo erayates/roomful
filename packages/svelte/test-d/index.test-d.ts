@@ -3,14 +3,14 @@ import { get, type Writable } from 'svelte/store';
 
 import { expectType } from 'tsd';
 
-import { flock, type FlockAdapter } from '..';
+import { roomful, type RoomfulAdapter } from '..';
 
-const adapter = flock('room-id', {
+const adapter = roomful('room-id', {
   presence: {
     role: 'editor' as const,
   },
 });
-expectType<FlockAdapter<{ role: 'editor' }>>(adapter);
+expectType<RoomfulAdapter<{ role: 'editor' }>>(adapter);
 
 expectType<'editor' | undefined>(get(adapter.presence).self.role);
 expectType<'editor' | undefined>(get(adapter.presence).others[0]?.role);

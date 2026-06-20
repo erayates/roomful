@@ -34,17 +34,17 @@ describe('FloatingReaction', () => {
       y: 0.75,
     });
 
-    const element = container.querySelector('[data-flockjs-floating-reaction="true"]');
+    const element = container.querySelector('[data-roomful-floating-reaction="true"]');
 
     expect(element).not.toBeNull();
     expect((element as HTMLElement).style.left).toBe('25%');
     expect((element as HTMLElement).style.top).toBe('75%');
-    expect((element as HTMLElement).style.animation).toContain('flockjs-floating-reaction-float');
+    expect((element as HTMLElement).style.animation).toContain('roomful-floating-reaction-float');
     expect((element as HTMLElement).style.pointerEvents).toBe('none');
     expect((element as HTMLElement).style.animationDelay).toBe('0ms');
     expect(element?.textContent).toBe('F');
     expect(
-      container.querySelector('[data-flockjs-floating-reaction-styles="true"]'),
+      container.querySelector('[data-roomful-floating-reaction-styles="true"]'),
     ).not.toBeNull();
   });
 
@@ -54,7 +54,7 @@ describe('FloatingReaction', () => {
       y: 1.8,
     });
 
-    const element = container.querySelector('[data-flockjs-floating-reaction="true"]');
+    const element = container.querySelector('[data-roomful-floating-reaction="true"]');
 
     expect((element as HTMLElement).style.left).toBe('0%');
     expect((element as HTMLElement).style.top).toBe('100%');
@@ -70,14 +70,14 @@ describe('FloatingReaction', () => {
       onAnimationEnd,
     });
 
-    const element = container.querySelector('[data-flockjs-floating-reaction="true"]');
+    const element = container.querySelector('[data-roomful-floating-reaction="true"]');
     expect((element as HTMLElement).style.animationDelay).toBe('30ms');
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(120);
     });
 
-    expect(container.querySelector('[data-flockjs-floating-reaction="true"]')).not.toBeNull();
+    expect(container.querySelector('[data-roomful-floating-reaction="true"]')).not.toBeNull();
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(30);

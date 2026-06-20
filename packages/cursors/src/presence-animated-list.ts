@@ -1,4 +1,4 @@
-import type { Peer, PresenceData } from '@flockjs/core';
+import type { Peer, PresenceData } from '@roomful/core';
 import { useEffect, useRef, useState } from 'react';
 
 import type { AnimatedPresencePeer } from './presence-types';

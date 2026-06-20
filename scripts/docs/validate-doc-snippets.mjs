@@ -61,13 +61,13 @@ async function validateDocSnippets() {
 function createShim(code) {
   const lines = ['export {};'];
 
-  if (/\bcreateRoom\b/u.test(code) && !/from '@flockjs\/core'/u.test(code)) {
-    lines.push("import { createRoom } from '@flockjs/core';");
+  if (/\bcreateRoom\b/u.test(code) && !/from '@roomful\/core'/u.test(code)) {
+    lines.push("import { createRoom } from '@roomful/core';");
   }
 
   if (/\broom\b/u.test(code) && !/\b(?:const|let|var)\s+room\b/u.test(code)) {
     if (!lines.some((line) => line.includes('createRoom'))) {
-      lines.push("import { createRoom } from '@flockjs/core';");
+      lines.push("import { createRoom } from '@roomful/core';");
     }
     lines.push('declare const room: ReturnType<typeof createRoom>;');
   }

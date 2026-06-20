@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import type { Peer, PresenceData } from '@flockjs/core';
+import type { Peer, PresenceData } from '@roomful/core';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { act, createElement } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -32,7 +32,7 @@ const { replaceMock, setPeers, updateMock, usePresenceMock } = vi.hoisted(() => 
   };
 });
 
-vi.mock('@flockjs/react', () => {
+vi.mock('@roomful/react', () => {
   return {
     usePresence: usePresenceMock,
   };
@@ -84,16 +84,16 @@ describe('PresenceBar', () => {
     ]);
 
     const { container } = renderPresenceBar();
-    const root = container.querySelector('[data-flockjs-presence-bar="true"]');
+    const root = container.querySelector('[data-roomful-presence-bar="true"]');
 
     expect(root).not.toBeNull();
     expect(screen.queryByText('Ada Lovelace')).not.toBeNull();
     expect(screen.queryByText('Bob Stone')).not.toBeNull();
     expect(
-      container.querySelector('[data-flockjs-presence-peer="self"]')?.getAttribute('title'),
+      container.querySelector('[data-roomful-presence-peer="self"]')?.getAttribute('title'),
     ).toBe('Ada Lovelace');
     expect(
-      container.querySelector('[data-flockjs-presence-peer="peer-b"]')?.getAttribute('title'),
+      container.querySelector('[data-roomful-presence-peer="peer-b"]')?.getAttribute('title'),
     ).toBe('Bob Stone');
   });
 
@@ -110,8 +110,8 @@ describe('PresenceBar', () => {
     ]);
 
     const { container } = renderPresenceBar();
-    const image = container.querySelector('[data-flockjs-presence-avatar-image="true"]');
-    const fallback = container.querySelector('[data-flockjs-presence-avatar-fallback="true"]');
+    const image = container.querySelector('[data-roomful-presence-avatar-image="true"]');
+    const fallback = container.querySelector('[data-roomful-presence-avatar-fallback="true"]');
 
     expect(image).not.toBeNull();
     expect(image?.getAttribute('src')).toBe('https://cdn.example.com/ada.png');
@@ -135,11 +135,11 @@ describe('PresenceBar', () => {
     expect(screen.queryByText('Bob Stone')).not.toBeNull();
     expect(screen.queryByText('Carol Jones')).toBeNull();
     expect(screen.queryByText('Dana Scott')).toBeNull();
-    expect(container.querySelector('[data-flockjs-presence-overflow="true"]')?.textContent).toBe(
+    expect(container.querySelector('[data-roomful-presence-overflow="true"]')?.textContent).toBe(
       '+2',
     );
     expect(
-      container.querySelector('[data-flockjs-presence-overflow="true"]')?.getAttribute('title'),
+      container.querySelector('[data-roomful-presence-overflow="true"]')?.getAttribute('title'),
     ).toBe('Carol Jones, Dana Scott');
   });
 
@@ -187,8 +187,8 @@ describe('PresenceBar', () => {
 
     expect(
       container
-        .querySelector('[data-flockjs-presence-peer="peer-b"]')
-        ?.getAttribute('data-flockjs-presence-phase'),
+        .querySelector('[data-roomful-presence-peer="peer-b"]')
+        ?.getAttribute('data-roomful-presence-phase'),
     ).toBe('entering');
 
     await act(async () => {
@@ -197,8 +197,8 @@ describe('PresenceBar', () => {
 
     expect(
       container
-        .querySelector('[data-flockjs-presence-peer="peer-b"]')
-        ?.getAttribute('data-flockjs-presence-phase'),
+        .querySelector('[data-roomful-presence-peer="peer-b"]')
+        ?.getAttribute('data-roomful-presence-phase'),
     ).toBe('entered');
 
     setPeers([createPeer('self', { name: 'Ada Lovelace' })]);
@@ -211,15 +211,15 @@ describe('PresenceBar', () => {
 
     expect(
       container
-        .querySelector('[data-flockjs-presence-peer="peer-b"]')
-        ?.getAttribute('data-flockjs-presence-phase'),
+        .querySelector('[data-roomful-presence-peer="peer-b"]')
+        ?.getAttribute('data-roomful-presence-phase'),
     ).toBe('exiting');
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(180);
     });
 
-    expect(container.querySelector('[data-flockjs-presence-peer="peer-b"]')).toBeNull();
+    expect(container.querySelector('[data-roomful-presence-peer="peer-b"]')).toBeNull();
   });
 });
 
@@ -237,11 +237,11 @@ describe('PresenceAvatars', () => {
       }),
     );
 
-    const visiblePeers = Array.from(container.querySelectorAll('[data-flockjs-presence-peer]'));
+    const visiblePeers = Array.from(container.querySelectorAll('[data-roomful-presence-peer]'));
 
-    expect(container.querySelector('[data-flockjs-presence-avatars="true"]')).not.toBeNull();
+    expect(container.querySelector('[data-roomful-presence-avatars="true"]')).not.toBeNull();
     expect(visiblePeers).toHaveLength(2);
-    expect(container.querySelector('[data-flockjs-presence-overflow="true"]')?.textContent).toBe(
+    expect(container.querySelector('[data-roomful-presence-overflow="true"]')?.textContent).toBe(
       '+1',
     );
   });

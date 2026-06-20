@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useAwareness, usePresence, useSharedState } from '@flockjs/vue';
+import { useAwareness, usePresence, useSharedState } from '@roomful/vue';
 
 type SmokePresence = {
   color: string;

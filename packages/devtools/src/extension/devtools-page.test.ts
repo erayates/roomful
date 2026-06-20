@@ -39,7 +39,7 @@ describe('bootDevtoolsPanel', () => {
     expect(typeof module.bootDevtoolsPanel).toBe('function');
     expect(mocks.createDevtoolsPanel).toHaveBeenCalledWith(
       devtoolsApi,
-      'FlockJS',
+      'Roomful',
       'icons/icon-32.png',
       'extension/panel.html',
     );

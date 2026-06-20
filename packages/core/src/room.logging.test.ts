@@ -86,7 +86,7 @@ describe('Room structured logging', () => {
     expect(
       infoSpy.mock.calls.some(([message, payload]) => {
         return (
-          message === '[FlockJS] transport: Transport connect attempt started' &&
+          message === '[Roomful] transport: Transport connect attempt started' &&
           (payload as Record<string, unknown>).roomId === 'room-logging'
         );
       }),
@@ -94,7 +94,7 @@ describe('Room structured logging', () => {
     expect(
       infoSpy.mock.calls.some(([message, payload]) => {
         return (
-          message === '[FlockJS] transport: Transport connected' &&
+          message === '[Roomful] transport: Transport connected' &&
           (payload as Record<string, unknown>).transport === 'webrtc'
         );
       }),
@@ -102,7 +102,7 @@ describe('Room structured logging', () => {
     expect(
       infoSpy.mock.calls.some(([message, payload]) => {
         return (
-          message === '[FlockJS] transport: Transport disconnected' &&
+          message === '[Roomful] transport: Transport disconnected' &&
           (payload as Record<string, unknown>).reason === 'manual'
         );
       }),
@@ -149,7 +149,7 @@ describe('Room structured logging', () => {
     expect(
       infoSpy.mock.calls.some(([message, payload]) => {
         return (
-          message === '[FlockJS] transport: Reconnect loop started' &&
+          message === '[Roomful] transport: Reconnect loop started' &&
           (payload as Record<string, unknown>).reason === 'socket-gone'
         );
       }),
@@ -157,7 +157,7 @@ describe('Room structured logging', () => {
     expect(
       infoSpy.mock.calls.some(([message, payload]) => {
         return (
-          message === '[FlockJS] performance: Reconnect attempt scheduled' &&
+          message === '[Roomful] performance: Reconnect attempt scheduled' &&
           (payload as Record<string, unknown>).attempt === 1
         );
       }),
@@ -244,35 +244,35 @@ describe('Room structured logging', () => {
 
     expect(
       infoSpy.mock.calls.some(([message]) => {
-        return message === '[FlockJS] presence: Local presence updated';
+        return message === '[Roomful] presence: Local presence updated';
       }),
     ).toBe(true);
     expect(
       infoSpy.mock.calls.some(([message]) => {
-        return message === '[FlockJS] presence: Peer hello received';
+        return message === '[Roomful] presence: Peer hello received';
       }),
     ).toBe(true);
     expect(
       infoSpy.mock.calls.some(([message]) => {
-        return message === '[FlockJS] state: Local state mutation applied';
+        return message === '[Roomful] state: Local state mutation applied';
       }),
     ).toBe(true);
     expect(
       [...infoSpy.mock.calls, ...warnSpy.mock.calls].some(([message]) => {
         return (
-          message === '[FlockJS] state: Remote state snapshot accepted' ||
-          message === '[FlockJS] state: Remote state snapshot ignored'
+          message === '[Roomful] state: Remote state snapshot accepted' ||
+          message === '[Roomful] state: Remote state snapshot ignored'
         );
       }),
     ).toBe(true);
     expect(
       infoSpy.mock.calls.some(([message]) => {
-        return message === '[FlockJS] events: Outbound event emitted';
+        return message === '[Roomful] events: Outbound event emitted';
       }),
     ).toBe(true);
     expect(
       infoSpy.mock.calls.some(([message]) => {
-        return message === '[FlockJS] events: Inbound event delivered';
+        return message === '[Roomful] events: Inbound event delivered';
       }),
     ).toBe(true);
 

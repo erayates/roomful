@@ -1,4 +1,4 @@
-import { FlockProvider } from '@flockjs/react';
+import { RoomfulProvider } from '@roomful/react';
 import { createElement, Fragment, type ReactElement, type ReactNode, useId } from 'react';
 
 import { createPresencePeers, createStoryRoomId, toStoryPresence } from './story-fixtures';
@@ -22,7 +22,7 @@ export function PresenceStoryHarness(props: PresenceStoryHarnessProps): ReactEle
     Fragment,
     null,
     ...peers.slice(1).map((peer) => {
-      return createElement(FlockProvider, {
+      return createElement(RoomfulProvider, {
         key: peer.id,
         roomId,
         transport: 'broadcast',
@@ -30,7 +30,7 @@ export function PresenceStoryHarness(props: PresenceStoryHarnessProps): ReactEle
       });
     }),
     createElement(
-      FlockProvider,
+      RoomfulProvider,
       {
         roomId,
         transport: 'broadcast',

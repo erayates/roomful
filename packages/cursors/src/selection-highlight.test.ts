@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import type { Peer, PresenceData } from '@flockjs/core';
+import type { Peer, PresenceData } from '@roomful/core';
 import { cleanup, render } from '@testing-library/react';
 import { createElement } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -64,17 +64,17 @@ describe('SelectionHighlight', () => {
     );
 
     const highlights = Array.from(
-      document.querySelectorAll('[data-flockjs-selection-highlight="true"]'),
+      document.querySelectorAll('[data-roomful-selection-highlight="true"]'),
     );
 
     expect(highlights).toHaveLength(2);
     expect(highlights.map((highlight) => highlight.textContent)).toEqual(['a ', 'Lovelace']);
-    expect(highlights[0]?.getAttribute('data-flockjs-selection-highlight-peer')).toBe('peer-a');
+    expect(highlights[0]?.getAttribute('data-roomful-selection-highlight-peer')).toBe('peer-a');
     expect(document.getElementById('editor')?.textContent).toBe('Ada Lovelace writes tests');
 
     unmount();
 
-    expect(document.querySelector('[data-flockjs-selection-highlight="true"]')).toBeNull();
+    expect(document.querySelector('[data-roomful-selection-highlight="true"]')).toBeNull();
     expect(document.getElementById('editor')?.innerHTML).toBe(
       'Ada <strong>Lovelace</strong> writes tests',
     );
@@ -115,14 +115,14 @@ describe('SelectionHighlight', () => {
     );
 
     expect(highlightRegistry.set).toHaveBeenCalledTimes(1);
-    expect(document.querySelector('[data-flockjs-selection-highlight="true"]')).toBeNull();
+    expect(document.querySelector('[data-roomful-selection-highlight="true"]')).toBeNull();
 
     const [highlightName, highlight] = highlightRegistry.set.mock.calls[0] ?? [];
     const styleElement = document.head.querySelector(
-      `[data-flockjs-selection-highlight-style="${highlightName}"]`,
+      `[data-roomful-selection-highlight-style="${highlightName}"]`,
     );
 
-    expect(String(highlightName)).toContain('flockjs-selection');
+    expect(String(highlightName)).toContain('roomful-selection');
     expect(highlight).toBeInstanceOf(HighlightMock);
     expect(styleElement).not.toBeNull();
     expect(styleElement?.textContent).toContain(`::highlight(${String(highlightName)})`);
@@ -131,7 +131,7 @@ describe('SelectionHighlight', () => {
 
     expect(highlightRegistry.delete).toHaveBeenCalledWith(highlightName);
     expect(
-      document.head.querySelector(`[data-flockjs-selection-highlight-style="${highlightName}"]`),
+      document.head.querySelector(`[data-roomful-selection-highlight-style="${highlightName}"]`),
     ).toBeNull();
   });
 });

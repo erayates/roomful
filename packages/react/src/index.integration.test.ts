@@ -1,12 +1,12 @@
 // @vitest-environment jsdom
 
-import type { CursorData, PresenceData } from '@flockjs/core';
+import type { CursorData, PresenceData } from '@roomful/core';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { createElement, type ReactElement } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
-  FlockProvider,
+  RoomfulProvider,
   useConnectionStatus,
   useCursors,
   usePresence,
@@ -161,7 +161,7 @@ function withProviders(
     'div',
     null,
     createElement(
-      FlockProvider,
+      RoomfulProvider,
       {
         roomId,
         transport: 'broadcast',
@@ -171,7 +171,7 @@ function withProviders(
     ),
     includeSecondProvider
       ? createElement(
-          FlockProvider,
+          RoomfulProvider,
           {
             roomId,
             transport: 'broadcast',
@@ -381,12 +381,12 @@ afterEach(() => {
 });
 
 describe('React adapter integration', () => {
-  it('mounts FlockProvider and connects successfully', async () => {
+  it('mounts RoomfulProvider and connects successfully', async () => {
     const roomId = nextRoomId('react-provider-connect');
     const onConnect = vi.fn();
     const view = render(
       createElement(
-        FlockProvider,
+        RoomfulProvider,
         {
           roomId,
           transport: 'broadcast',
@@ -403,7 +403,7 @@ describe('React adapter integration', () => {
     await waitFor(() => {
       expect(onConnect).toHaveBeenCalledTimes(1);
     });
-    expect(TrackingBroadcastChannel.getChannelCount(`flockjs:${roomId}`)).toBe(1);
+    expect(TrackingBroadcastChannel.getChannelCount(`roomful:${roomId}`)).toBe(1);
 
     view.unmount();
 
@@ -517,7 +517,7 @@ describe('React adapter integration', () => {
     const eventTracker = createElementEventTracker('composite-board');
     const view = render(
       createElement(
-        FlockProvider,
+        RoomfulProvider,
         {
           roomId,
           transport: 'broadcast',
@@ -559,7 +559,7 @@ describe('React adapter integration', () => {
       for (let cycle = 0; cycle < 20; cycle += 1) {
         const view = render(
           createElement(
-            FlockProvider,
+            RoomfulProvider,
             {
               roomId,
               transport: 'broadcast',
@@ -572,7 +572,7 @@ describe('React adapter integration', () => {
         await waitFor(() => {
           expect(screen.getByTestId('composite-status').textContent).toBe('connected');
         });
-        expect(TrackingBroadcastChannel.getChannelCount(`flockjs:${roomId}`)).toBe(1);
+        expect(TrackingBroadcastChannel.getChannelCount(`roomful:${roomId}`)).toBe(1);
 
         view.unmount();
 

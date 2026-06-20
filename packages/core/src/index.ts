@@ -1,8 +1,8 @@
-import { FlockError } from './flock-error';
 import { createRoom } from './room';
+import { RoomfulError } from './roomful-error';
 
 export { createRoom };
-export { FlockError };
+export { RoomfulError };
 export type {
   AwarenessEngine,
   AwarenessSelection,
@@ -17,12 +17,6 @@ export type {
   EncryptionOptions,
   EventEngine,
   EventOptions,
-  FlockErrorCode,
-  FlockYjsProvider,
-  FlockYjsProviderEventHandler,
-  FlockYjsProviderEventMap,
-  FlockYjsProviderEventName,
-  FlockYjsProviderStatus,
   Peer,
   PresenceData,
   PresenceEngine,
@@ -41,6 +35,12 @@ export type {
   RoomEventHandler,
   RoomEventMap,
   RoomEventName,
+  RoomfulErrorCode,
+  RoomfulYjsProvider,
+  RoomfulYjsProviderEventHandler,
+  RoomfulYjsProviderEventMap,
+  RoomfulYjsProviderEventName,
+  RoomfulYjsProviderStatus,
   RoomOptions,
   RoomStatus,
   StateChangeMeta,
@@ -54,13 +54,13 @@ export type {
 } from './types';
 
 /**
- * Reports package-level health metadata for `@flockjs/core`.
+ * Reports package-level health metadata for `@roomful/core`.
  */
 export interface CoreHealth {
   /**
    * Identifies the package.
    */
-  packageName: '@flockjs/core';
+  packageName: '@roomful/core';
 
   /**
    * Reports the package health state.
@@ -69,13 +69,13 @@ export interface CoreHealth {
 }
 
 /**
- * Returns package-level health metadata for `@flockjs/core`.
+ * Returns package-level health metadata for `@roomful/core`.
  *
  * @returns The static core package health payload.
  */
 export function createCoreHealth(): CoreHealth {
   return {
-    packageName: '@flockjs/core',
+    packageName: '@roomful/core',
     status: 'ok',
   };
 }

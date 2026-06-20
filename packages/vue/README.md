@@ -1,39 +1,39 @@
-# @flockjs/vue
+# @roomful/vue
 
-Vue 3 bindings for [FlockJS](https://github.com/erayates/flockjs) — a plugin and composables that integrate real-time collaboration with Vue's reactivity system.
+Vue 3 bindings for [Roomful](https://github.com/erayates/roomful) — a plugin and composables that integrate real-time collaboration with Vue's reactivity system.
 
 ## Install
 
 ```bash
-npm install @flockjs/core @flockjs/vue
+npm install @roomful/core @roomful/vue
 ```
 
 ## Usage
 
 ```ts
 import { createApp } from 'vue';
-import { FlockPlugin } from '@flockjs/vue';
+import { RoomfulPlugin } from '@roomful/vue';
 import App from './App.vue';
 
 createApp(App)
-  .use(FlockPlugin, { roomId: 'my-room', presence: { name: 'Alice' } })
+  .use(RoomfulPlugin, { roomId: 'my-room', presence: { name: 'Alice' } })
   .mount('#app');
 ```
 
 ```vue
 <script setup>
-import { usePresence, useSharedState } from '@flockjs/vue';
+import { usePresence, useSharedState } from '@roomful/vue';
 
 const { others } = usePresence();
 const [count, setCount] = useSharedState('count', { initialValue: 0 });
 </script>
 ```
 
-Composables: `usePresence`, `useCursors`, `useSharedState`, `useAwareness`, `useEvent` (plus the `v-flock-cursors` directive).
+Composables: `usePresence`, `useCursors`, `useSharedState`, `useAwareness`, `useEvent` (plus the `v-roomful-cursors` directive).
 
 ## Documentation
 
-See the [FlockJS repository](https://github.com/erayates/flockjs) for the full API reference.
+See the [Roomful repository](https://github.com/erayates/roomful) for the full API reference.
 
 ## License
 

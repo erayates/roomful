@@ -1,6 +1,6 @@
 # Publish Readiness Roadmap
 
-Audience: maintainers preparing FlockJS for npm distribution.
+Audience: maintainers preparing Roomful for npm distribution.
 
 ## Goal
 
@@ -107,13 +107,13 @@ pnpm smoke:publish -- core-vanilla react-app
 
 | Package             | Consumer target   | Primary proof                                   |
 | ------------------- | ----------------- | ----------------------------------------------- |
-| `@flockjs/core`     | `core-vanilla`    | Vite build + typecheck against packed tarball   |
-| `@flockjs/react`    | `react-app`       | React consumer build against packed tarballs    |
-| `@flockjs/vue`      | `vue-app`         | Vue consumer build against packed tarballs      |
-| `@flockjs/svelte`   | `svelte-app`      | Svelte consumer build against packed tarballs   |
-| `@flockjs/cursors`  | `cursors-react`   | React UI consumer build against packed tarballs |
-| `@flockjs/devtools` | `devtools-import` | Typecheck + runtime import smoke                |
-| `@flockjs/relay`    | CI relay job      | Tarball install, CLI health check, Docker smoke |
+| `@roomful/core`     | `core-vanilla`    | Vite build + typecheck against packed tarball   |
+| `@roomful/react`    | `react-app`       | React consumer build against packed tarballs    |
+| `@roomful/vue`      | `vue-app`         | Vue consumer build against packed tarballs      |
+| `@roomful/svelte`   | `svelte-app`      | Svelte consumer build against packed tarballs   |
+| `@roomful/cursors`  | `cursors-react`   | React UI consumer build against packed tarballs |
+| `@roomful/devtools` | `devtools-import` | Typecheck + runtime import smoke                |
+| `@roomful/relay`    | CI relay job      | Tarball install, CLI health check, Docker smoke |
 
 ## Manual Signoff Items
 

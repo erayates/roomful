@@ -94,12 +94,12 @@ describe('relay cli', () => {
     expect(
       resolveRelayCliOptions(
         {
-          FLOCK_REDIS_URL: 'not-a-url',
+          ROOMFUL_REDIS_URL: 'not-a-url',
         },
         [],
       ),
     ).toEqual({
-      error: 'Invalid FLOCK_REDIS_URL value "not-a-url".',
+      error: 'Invalid ROOMFUL_REDIS_URL value "not-a-url".',
     });
   });
 
@@ -110,7 +110,7 @@ describe('relay cli', () => {
           PORT: '8788',
           HOST: '0.0.0.0',
           MAX_CONNECTIONS: '250',
-          FLOCK_REDIS_URL: 'redis://127.0.0.1:6379/0',
+          ROOMFUL_REDIS_URL: 'redis://127.0.0.1:6379/0',
         },
         [],
       ),
@@ -133,7 +133,7 @@ describe('relay cli', () => {
           PORT: '8787',
           HOST: '127.0.0.1',
           MAX_CONNECTIONS: '100',
-          FLOCK_REDIS_URL: 'redis://127.0.0.1:6379/0',
+          ROOMFUL_REDIS_URL: 'redis://127.0.0.1:6379/0',
         },
         ['--port', '8080', '--host', '0.0.0.0', '--max-connections', '200'],
       ),
@@ -166,7 +166,7 @@ describe('relay cli', () => {
 
   it('prints help output without starting the relay', async () => {
     const createServer = vi.fn();
-    const { processLike } = createFakeProcess({}, ['node', 'flockjs-relay', '--help']);
+    const { processLike } = createFakeProcess({}, ['node', 'roomful-relay', '--help']);
 
     await expect(
       runRelayCli({
@@ -177,13 +177,13 @@ describe('relay cli', () => {
 
     expect(createServer).not.toHaveBeenCalled();
     expect(processLike.stdout.write).toHaveBeenCalledWith(
-      expect.stringContaining('Usage: flockjs-relay [options]'),
+      expect.stringContaining('Usage: roomful-relay [options]'),
     );
   });
 
   it('prints the package version without starting the relay', async () => {
     const createServer = vi.fn();
-    const { processLike } = createFakeProcess({}, ['node', 'flockjs-relay', '--version']);
+    const { processLike } = createFakeProcess({}, ['node', 'roomful-relay', '--version']);
 
     await expect(
       runRelayCli({
@@ -194,7 +194,7 @@ describe('relay cli', () => {
 
     expect(createServer).not.toHaveBeenCalled();
     expect(processLike.stdout.write).toHaveBeenCalledWith(
-      `flockjs-relay ${readExpectedRelayPackageVersion()}\n`,
+      `roomful-relay ${readExpectedRelayPackageVersion()}\n`,
     );
   });
 
@@ -221,9 +221,9 @@ describe('relay cli', () => {
         PORT: '8788',
         HOST: '127.0.0.1',
         MAX_CONNECTIONS: '42',
-        FLOCK_REDIS_URL: 'redis://127.0.0.1:6379/0',
+        ROOMFUL_REDIS_URL: 'redis://127.0.0.1:6379/0',
       },
-      ['node', 'flockjs-relay'],
+      ['node', 'roomful-relay'],
     );
 
     await expect(
@@ -254,13 +254,13 @@ describe('relay cli', () => {
     expect(processLike.exitCode).toBe(0);
   });
 
-  it('resolves the documented FLOCK_* environment variables', () => {
+  it('resolves the documented ROOMFUL_* environment variables', () => {
     const resolved = resolveRelayCliOptions(
       {
-        FLOCK_PORT: '9000',
-        FLOCK_MAX_ROOM_SIZE: '200',
-        FLOCK_CORS_ORIGIN: 'https://app.example.com',
-        FLOCK_AUTH_SECRET: 'top-secret',
+        ROOMFUL_PORT: '9000',
+        ROOMFUL_MAX_ROOM_SIZE: '200',
+        ROOMFUL_CORS_ORIGIN: 'https://app.example.com',
+        ROOMFUL_AUTH_SECRET: 'top-secret',
       },
       [],
     );
@@ -273,10 +273,10 @@ describe('relay cli', () => {
     });
   });
 
-  it('prefers an explicit --port flag over FLOCK_PORT and PORT', () => {
+  it('prefers an explicit --port flag over ROOMFUL_PORT and PORT', () => {
     const resolved = resolveRelayCliOptions(
       {
-        FLOCK_PORT: '9000',
+        ROOMFUL_PORT: '9000',
         PORT: '8000',
       },
       ['--port', '7000'],

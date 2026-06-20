@@ -35,11 +35,11 @@ export function createExtensionManifest(
 ): ExtensionManifest {
   const baseManifest: BaseExtensionManifest = {
     description:
-      'Inspect FlockJS rooms, peers, state diffs, event traffic, and transport status from browser DevTools.',
+      'Inspect Roomful rooms, peers, state diffs, event traffic, and transport status from browser DevTools.',
     devtools_page: 'extension/devtools.html',
     icons: ICON_PATHS,
     manifest_version: 3,
-    name: 'FlockJS DevTools',
+    name: 'Roomful DevTools',
     version,
   };
 
@@ -48,7 +48,7 @@ export function createExtensionManifest(
       ...baseManifest,
       browser_specific_settings: {
         gecko: {
-          id: 'devtools@flockjs.dev',
+          id: 'devtools@roomful.dev',
         },
       },
       data_collection_permissions: {

@@ -234,9 +234,9 @@ async function buildBrowserArtifacts(version) {
       `${JSON.stringify(manifest, null, 2)}\n`,
     );
 
-    const temporaryArchiveFileName = `flockjs-devtools-${browser}.zip`;
+    const temporaryArchiveFileName = `roomful-devtools-${browser}.zip`;
     const temporaryArchivePath = path.join(targetDirectory, temporaryArchiveFileName);
-    const archivePath = path.join(browserArtifactsDirectory, `flockjs-devtools-${browser}.zip`);
+    const archivePath = path.join(browserArtifactsDirectory, `roomful-devtools-${browser}.zip`);
     await rm(temporaryArchivePath, { force: true, recursive: false });
     if (
       !(await fileExists(targetDirectory)) ||

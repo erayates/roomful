@@ -401,7 +401,7 @@ function normalizeTransportEnvelope(
     return null;
   }
 
-  if (value.source === 'flockjs' && value.version === 1) {
+  if (value.source === 'roomful' && value.version === 1) {
     const signal = parseBaseSignal(value.signal);
     if (!signal) {
       return null;
@@ -424,7 +424,7 @@ function normalizeTransportEnvelope(
   }
 
   if (
-    value.source === 'flockjs' &&
+    value.source === 'roomful' &&
     value.protocolVersion === 2 &&
     (carrier !== 'json' || value.codec === 'json') &&
     (carrier !== 'msgpack' || value.codec === 'msgpack')
@@ -469,7 +469,7 @@ function parseJsonPayload(payload: string): unknown | null {
 
 function encodeLegacyTransportSignal(signal: RelayTransportSignal): Record<string, unknown> {
   return {
-    source: 'flockjs',
+    source: 'roomful',
     version: 1,
     signal: {
       type: signal.type,
@@ -491,7 +491,7 @@ function encodeModernTransportSignal(
   session: RelayTransportSession,
 ): Record<string, unknown> {
   return {
-    source: 'flockjs',
+    source: 'roomful',
     protocolVersion: 2,
     codec: session.codec,
     roomId: signal.roomId,

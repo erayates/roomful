@@ -1,4 +1,4 @@
-import type { Peer, PresenceData } from '@flockjs/core';
+import type { Peer, PresenceData } from '@roomful/core';
 import { createElement, type CSSProperties, type ReactElement } from 'react';
 
 import type { PresenceSizeTokens } from './presence-types';
@@ -24,13 +24,13 @@ export function PresenceAvatar<TPresence extends PresenceData = PresenceData>(
   return createElement(
     'span',
     {
-      'data-flockjs-presence-avatar': 'true',
+      'data-roomful-presence-avatar': 'true',
       style: createAvatarShellStyle(sizeTokens, backgroundColor),
     },
     avatarUrl
       ? createElement('img', {
           alt: '',
-          'data-flockjs-presence-avatar-image': 'true',
+          'data-roomful-presence-avatar-image': 'true',
           draggable: false,
           src: avatarUrl,
           style: createAvatarImageStyle(),
@@ -38,7 +38,7 @@ export function PresenceAvatar<TPresence extends PresenceData = PresenceData>(
       : createElement(
           'span',
           {
-            'data-flockjs-presence-avatar-fallback': 'true',
+            'data-roomful-presence-avatar-fallback': 'true',
             style: createAvatarInitialsStyle(sizeTokens),
           },
           resolvePeerInitials(peer),

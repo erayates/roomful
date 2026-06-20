@@ -1,13 +1,13 @@
 {
-  "name": "flockjs-smoke-react-app",
+  "name": "roomful-smoke-react-app",
   "private": true,
   "type": "module",
   "scripts": {
     "validate": "tsc --noEmit && vite build"
   },
   "dependencies": {
-    "@flockjs/core": "workspace:*",
-    "@flockjs/react": "workspace:*",
+    "@roomful/core": "workspace:*",
+    "@roomful/react": "workspace:*",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "y-protocols": "^1.0.7",

@@ -1,9 +1,9 @@
-import { createFlockError, FlockError } from '../flock-error';
 import { env } from '../internal/env';
 import { isObject, readString } from '../internal/guards';
 import { createStructuredLogger, type StructuredLogger } from '../internal/logger';
 import { normalizeMaxPeers } from '../internal/max-peers';
 import type { PeerProtocolCapabilities, PeerProtocolSession } from '../protocol/peer-message';
+import { createRoomfulError, RoomfulError } from '../roomful-error';
 import type { DebugOptions, PresenceData, RelayAuthToken, RoomOptions } from '../types';
 import { resolveRelayHttpUrl } from './relay-url';
 import {
@@ -56,19 +56,19 @@ interface PollingJoinResponse {
   peers: WebSocketRelayPeerDescriptor[];
 }
 
-function createPollingTransportError(message: string, cause?: unknown): FlockError {
-  return createFlockError('NETWORK_ERROR', message, false, cause);
+function createPollingTransportError(message: string, cause?: unknown): RoomfulError {
+  return createRoomfulError('NETWORK_ERROR', message, false, cause);
 }
 
-function createRelayMessageError(message: string, serverCode: string): FlockError {
+function createRelayMessageError(message: string, serverCode: string): RoomfulError {
   if (serverCode === 'ROOM_FULL') {
-    return createFlockError('ROOM_FULL', message, true, {
+    return createRoomfulError('ROOM_FULL', message, true, {
       source: 'polling-relay',
       serverCode,
     });
   }
 
-  return createFlockError(
+  return createRoomfulError(
     serverCode === 'AUTH_FAILED' ? 'AUTH_FAILED' : 'NETWORK_ERROR',
     message,
     false,
@@ -142,7 +142,7 @@ function parseJsonPayload(payload: string): unknown | null {
 async function readRelayResponseError(
   response: FetchResponseLike,
   fallbackMessage: string,
-): Promise<FlockError> {
+): Promise<RoomfulError> {
   const payload = await readResponsePayload(response);
   if (typeof payload === 'string') {
     const parsed = parseJsonPayload(payload);
@@ -201,8 +201,8 @@ function resolveEventResponseMessage(
   return parseWebSocketRelayServerMessage(payload, options);
 }
 
-function toPollingTransportError(error: unknown, fallbackMessage: string): FlockError {
-  if (error instanceof FlockError) {
+function toPollingTransportError(error: unknown, fallbackMessage: string): RoomfulError {
+  if (error instanceof RoomfulError) {
     return error;
   }
 
@@ -424,9 +424,9 @@ export class PollingTransportAdapter<
           return;
         }
 
-        const flockError = toPollingTransportError(error, 'Polling relay event request failed.');
-        this.emitErrorSignal(flockError);
-        this.handleTransportFailure(flockError.message);
+        const roomfulError = toPollingTransportError(error, 'Polling relay event request failed.');
+        this.emitErrorSignal(roomfulError);
+        this.handleTransportFailure(roomfulError.message);
         return;
       }
     }
@@ -458,12 +458,12 @@ export class PollingTransportAdapter<
       return;
     }
 
-    const flockError = await readRelayResponseError(
+    const roomfulError = await readRelayResponseError(
       response,
       'Polling relay rejected a transport frame.',
     );
-    this.emitErrorSignal(flockError);
-    this.handleTransportFailure(flockError.message);
+    this.emitErrorSignal(roomfulError);
+    this.handleTransportFailure(roomfulError.message);
   }
 
   private handleServerMessage(message: WebSocketRelayServerMessage): void {
@@ -596,7 +596,7 @@ export class PollingTransportAdapter<
     }
   }
 
-  private emitErrorSignal(error: FlockError): void {
+  private emitErrorSignal(error: RoomfulError): void {
     this.emitTransportSignal({
       type: 'transport:error',
       roomId: this.roomId,

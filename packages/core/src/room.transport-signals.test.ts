@@ -95,7 +95,7 @@ describe('Room transport signal mapping', () => {
     expect(onError).toHaveBeenCalledTimes(1);
     expect(onError).toHaveBeenCalledWith(
       expect.objectContaining({
-        name: 'FlockError',
+        name: 'RoomfulError',
         code: 'NETWORK_ERROR',
         message: 'ice gather failed',
       }),

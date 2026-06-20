@@ -1,20 +1,20 @@
-# @flockjs/svelte
+# @roomful/svelte
 
-Svelte bindings for [FlockJS](https://github.com/erayates/flockjs) — Svelte-native stores and actions for real-time collaboration.
+Svelte bindings for [Roomful](https://github.com/erayates/roomful) — Svelte-native stores and actions for real-time collaboration.
 
 ## Install
 
 ```bash
-npm install @flockjs/core @flockjs/svelte
+npm install @roomful/core @roomful/svelte
 ```
 
 ## Usage
 
 ```svelte
 <script>
-  import { flock } from '@flockjs/svelte';
+  import { roomful } from '@roomful/svelte';
 
-  const { presence, cursors, state } = flock('my-room', {
+  const { presence, cursors, state } = roomful('my-room', {
     presence: { name: 'Alice', color: '#4F46E5' },
   });
 
@@ -29,11 +29,11 @@ npm install @flockjs/core @flockjs/svelte
 </div>
 ```
 
-`flock()` returns `{ presence, cursors, state, events, awareness }` as Svelte stores.
+`roomful()` returns `{ presence, cursors, state, events, awareness }` as Svelte stores.
 
 ## Documentation
 
-See the [FlockJS repository](https://github.com/erayates/flockjs) for the full API reference.
+See the [Roomful repository](https://github.com/erayates/roomful) for the full API reference.
 
 ## License
 
