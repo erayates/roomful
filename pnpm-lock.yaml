@@ -210,6 +210,9 @@ importers:
       '@roomful/devtools':
         specifier: workspace:*
         version: link:../devtools
+      '@types/node':
+        specifier: ^25.3.3
+        version: 25.3.3
       y-protocols:
         specifier: ^1.0.7
         version: 1.0.7(yjs@13.6.29)
@@ -302,6 +305,9 @@ importers:
         specifier: ^3.24.1
         version: 3.25.76
     devDependencies:
+      '@types/node':
+        specifier: ^25.3.3
+        version: 25.3.3
       '@types/ws':
         specifier: ^8.18.1
         version: 8.18.1

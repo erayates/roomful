@@ -40,6 +40,7 @@
   },
   "devDependencies": {
     "@roomful/devtools": "workspace:*",
+    "@types/node": "^25.3.3",
     "y-protocols": "^1.0.7",
     "yjs": "^13.6.29"
   }

@@ -75,6 +75,7 @@
     }
   },
   "devDependencies": {
+    "@types/node": "^25.3.3",
     "@types/ws": "^8.18.1"
   }
 }
