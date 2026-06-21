@@ -1,5 +1,5 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "pnpm build-storybook",
+  "buildCommand": "pnpm exec turbo run build --filter=@roomful/cursors && pnpm build-storybook",
   "outputDirectory": "storybook-static"
 }
