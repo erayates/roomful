@@ -165,6 +165,21 @@ importers:
         specifier: ^7.3.1
         version: 7.3.1(@types/node@25.3.3)(jiti@2.6.1)(yaml@2.8.2)
 
+  apps/web:
+    devDependencies:
+      '@astrojs/check':
+        specifier: 0.9.4
+        version: 0.9.4(prettier@3.8.1)(typescript@5.8.2)
+      '@fontsource-variable/space-grotesk':
+        specifier: 5.2.10
+        version: 5.2.10
+      astro:
+        specifier: 5.18.1
+        version: 5.18.1(@types/node@25.3.3)(ioredis@5.10.0)(jiti@2.6.1)(rollup@4.59.0)(typescript@5.8.2)(yaml@2.8.2)
+      typescript:
+        specifier: 5.8.2
+        version: 5.8.2
+
   examples/collaborative-editor:
     dependencies:
       '@roomful/core':
@@ -4373,6 +4388,7 @@ packages:
   tsconfck@3.1.6:
     resolution: {integrity: sha512-ks6Vjr/jEw0P1gmOVwutM3B7fWxoWBL2KRDb1JfqGVawBmO5UsvmWOQFGHBPl5yxYz4eERr19E6L7NMv+Fej4w==}
     engines: {node: ^18 || >=20}
+    deprecated: unmaintained
     hasBin: true
     peerDependencies:
       typescript: ^5.0.0
@@ -6515,7 +6531,7 @@ snapshots:
   '@testing-library/jest-dom@6.9.1':
     dependencies:
       '@adobe/css-tools': 4.4.4
-      aria-query: 5.3.1
+      aria-query: 5.3.2
       css.escape: 1.5.1
       dom-accessibility-api: 0.6.3
       picocolors: 1.1.1

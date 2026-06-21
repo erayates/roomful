@@ -1,0 +1,299 @@
+---
+import { Code } from 'astro:components';
+
+import Base from '../layouts/Base.astro';
+
+const DOCS = 'https://docs.roomful.dev';
+const DEMO = 'https://demo.roomful.dev';
+const GITHUB = 'https://github.com/erayates/roomful';
+const NPM = 'https://www.npmjs.com/package/@roomful/core';
+
+const primitives = [
+  {
+    name: 'Presence',
+    icon: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+    desc: 'See who is in the room in real time — names, colors, and any metadata you attach, synced the instant someone joins or leaves.',
+  },
+  {
+    name: 'Cursors',
+    icon: '<path d="m3 3 7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/><path d="m13 13 6 6"/>',
+    desc: 'Smooth, labeled multiplayer cursors with built-in interpolation. Mount once and every peer’s pointer broadcasts automatically.',
+  },
+  {
+    name: 'Shared state',
+    icon: '<path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/>',
+    desc: 'Conflict-free shared values with last-write-wins by default, or drop in a full Yjs CRDT document when you need rich merges.',
+  },
+  {
+    name: 'Awareness',
+    icon: '<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>',
+    desc: 'Ephemeral per-user signals: who is typing, what they have selected, where they are looking — gone the moment they disconnect.',
+  },
+  {
+    name: 'Events',
+    icon: '<path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/>',
+    desc: 'Fire-and-forget realtime events between peers for reactions, toasts, nudges, and anything else that should feel instant.',
+  },
+  {
+    name: 'Any transport',
+    icon: '<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" x2="15.42" y1="13.51" y2="17.49"/><line x1="15.41" x2="8.59" y1="6.51" y2="10.49"/>',
+    desc: 'WebRTC peer-to-peer, same-device BroadcastChannel, or a self-hosted WebSocket relay. The same API runs on all three.',
+  },
+];
+
+const frameworks = [
+  { pkg: '@roomful/core', tag: 'Framework-agnostic' },
+  { pkg: '@roomful/react', tag: 'Hooks + Provider' },
+  { pkg: '@roomful/vue', tag: 'Composables' },
+  { pkg: '@roomful/svelte', tag: 'Stores + actions' },
+];
+
+const transports = [
+  {
+    tag: 'Zero backend',
+    name: 'WebRTC',
+    desc: 'Peers connect directly for small rooms. No server to run, no per-seat bill — just open a room and collaborate.',
+  },
+  {
+    tag: 'Same device',
+    name: 'BroadcastChannel',
+    desc: 'Sync tabs and windows on one machine with no network at all. Perfect for local-first apps and demos.',
+  },
+  {
+    tag: 'Production scale',
+    name: 'WebSocket relay',
+    desc: 'Self-host the open-source relay (Docker or npm) with JWT auth, CORS, and Redis fan-out when you outgrow peer-to-peer.',
+  },
+];
+
+const cursors = [
+  { name: 'Ada', color: '#0f766e', left: '8%', top: '20%', dur: '17s', delay: '0s' },
+  { name: 'Mateo', color: '#f59e0b', left: '78%', top: '14%', dur: '19s', delay: '1.4s' },
+  { name: 'Lin', color: '#7c3aed', left: '64%', top: '58%', dur: '15s', delay: '0.7s' },
+  { name: 'Noor', color: '#e11d48', left: '20%', top: '66%', dur: '21s', delay: '2.3s' },
+];
+
+const cursorArrow =
+  '<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 2.2 11 20l2.3-7.2L20.5 10 3 2.2Z"/></svg>';
+
+const snippet = `import {
+  RoomfulProvider,
+  usePresence,
+  useCursors,
+  useSharedState,
+} from '@roomful/react';
+
+function DesignReview() {
+  return (
+    <RoomfulProvider roomId="design-review" presence={{ name: 'Ada' }}>
+      <Canvas />
+    </RoomfulProvider>
+  );
+}
+
+function Canvas() {
+  const { others } = usePresence();
+  const [zoom, setZoom] = useSharedState('zoom', { initialValue: 1 });
+
+  useCursors(); // live multiplayer cursors, mounted
+
+  return <p>{others.length} teammates exploring at {zoom}×</p>;
+}`;
+---
+
+<Base
+  title="Roomful — Realtime collaboration primitives for product teams"
+  description="Presence, cursors, shared state, and awareness over WebRTC, BroadcastChannel, or your own relay. First-class React, Vue, and Svelte bindings. Zero backend for small rooms."
+>
+  <nav class="nav">
+    <div class="wrap nav__inner">
+      <a class="brand" href="/">
+        <img src="/roomful-mark.svg" alt="" width="32" height="32" />
+        Roomful
+      </a>
+      <div class="nav__links">
+        <a class="nav-hide" href="#primitives">Primitives</a>
+        <a class="nav-hide" href={DOCS}>Docs</a>
+        <a href={DEMO}>Demo</a>
+        <a href={GITHUB}>GitHub</a>
+        <a class="btn btn-primary nav__cta" href={DOCS}>Get started</a>
+      </div>
+    </div>
+  </nav>
+
+  <header class="hero">
+    <div class="cursors" aria-hidden="true">
+      {
+        cursors.map((c) => (
+          <div
+            class="cursor"
+            style={`--cc:${c.color};left:${c.left};top:${c.top};--dur:${c.dur};--delay:${c.delay}`}
+          >
+            <Fragment set:html={cursorArrow} />
+            <span>{c.name}</span>
+          </div>
+        ))
+      }
+    </div>
+
+    <div class="wrap hero__inner">
+      <span class="eyebrow"><span class="dot"></span> Open source · MIT licensed</span>
+      <h1>Realtime collaboration <span class="accent">primitives for product teams</span></h1>
+      <p class="lede">
+        Add presence, multiplayer cursors, shared state, and awareness to any app — over WebRTC,
+        BroadcastChannel, or your own relay. First-class React, Vue, and Svelte bindings, with zero
+        backend required for small rooms.
+      </p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href={DOCS}>Read the docs</a>
+        <a class="btn btn-ghost" href={DEMO}>Try the live demo →</a>
+      </div>
+      <div class="install">
+        <span><span class="prompt">$</span> npm i @roomful/core</span>
+        <button data-copy="npm i @roomful/core" type="button">Copy</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="section" id="primitives">
+      <div class="wrap">
+        <div class="section__head">
+          <span class="eyebrow">The toolkit</span>
+          <h2>Everything multiplayer, in one small package</h2>
+          <p>
+            Five collaboration primitives and a transport layer that just works. Compose only what
+            you need — each one is tree-shakeable and typed end to end.
+          </p>
+        </div>
+        <div class="grid">
+          {
+            primitives.map((p) => (
+              <article class="card">
+                <span class="card-icon">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    set:html={p.icon}
+                  />
+                </span>
+                <h3>{p.name}</h3>
+                <p>{p.desc}</p>
+              </article>
+            ))
+          }
+        </div>
+      </div>
+    </section>
+
+    <section class="section code-section">
+      <div class="wrap code-layout">
+        <div>
+          <span class="eyebrow">Ship in an afternoon</span>
+          <h2 style="font-size:clamp(1.75rem,4vw,2.5rem);font-weight:700;margin-top:0.9rem">
+            A few lines, fully typed
+          </h2>
+          <p style="color:var(--muted);font-size:1.1rem;margin-top:0.85rem">
+            Wrap your tree in a provider, call a hook, and you have live presence and cursors. The
+            same primitives are available as Vue composables and Svelte stores.
+          </p>
+          <ul class="framework-list">
+            {
+              frameworks.map((f) => (
+                <li>
+                  <b>{f.pkg}</b>
+                  <small>{f.tag}</small>
+                </li>
+              ))
+            }
+          </ul>
+        </div>
+        <div class="code-window">
+          <div class="code-window__bar">
+            <i></i><i></i><i></i>
+            <span>design-review.tsx</span>
+          </div>
+          <Code code={snippet} lang="tsx" theme="github-dark" />
+        </div>
+      </div>
+    </section>
+
+    <section class="section transports">
+      <div class="wrap">
+        <div class="section__head">
+          <span class="eyebrow">Transport-agnostic</span>
+          <h2>Start peer-to-peer, scale when you need to</h2>
+          <p>
+            One API, three transports. Prototype with zero infrastructure, then move to a relay you
+            control without rewriting a line of product code.
+          </p>
+        </div>
+        <div class="grid">
+          {
+            transports.map((t) => (
+              <article class="transport">
+                <span class="tag">{t.tag}</span>
+                <h3>{t.name}</h3>
+                <p>{t.desc}</p>
+              </article>
+            ))
+          }
+        </div>
+      </div>
+    </section>
+
+    <section class="wrap cta-final">
+      <div class="cta-final__card">
+        <h2>Ship presence today.</h2>
+        <p>
+          Install the core package, follow the five-minute quickstart, and have teammates in the
+          same room before your coffee gets cold.
+        </p>
+        <div class="cta-row">
+          <a class="btn btn-primary" href={DOCS}>Get started</a>
+          <a class="btn btn-ghost" href={GITHUB}>Star on GitHub</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap footer__inner">
+      <a class="brand" href="/">
+        <img src="/roomful-mark.svg" alt="" width="28" height="28" />
+        Roomful
+      </a>
+      <nav class="footer__links">
+        <a href={DOCS}>Documentation</a>
+        <a href={DEMO}>Demo</a>
+        <a href={`${DOCS}/playground/`}>Playground</a>
+        <a href={GITHUB}>GitHub</a>
+        <a href={NPM}>npm</a>
+        <a href={`${GITHUB}/issues`}>Issues</a>
+      </nav>
+      <span class="footer__meta">© 2026 Roomful · MIT</span>
+    </div>
+  </footer>
+
+  <script>
+    const buttons = document.querySelectorAll<HTMLButtonElement>('button[data-copy]');
+    buttons.forEach((button) => {
+      button.addEventListener('click', () => {
+        const text = button.dataset.copy ?? '';
+        void navigator.clipboard.writeText(text).then(() => {
+          const original = button.textContent;
+          button.textContent = 'Copied';
+          button.dataset.copied = 'true';
+          window.setTimeout(() => {
+            button.textContent = original;
+            button.removeAttribute('data-copied');
+          }, 1600);
+        });
+      });
+    });
+  </script>
+</Base>
