@@ -7,7 +7,7 @@
     "dev": "node ../../scripts/docs/prepare-docs-site.mjs && astro dev",
     "build": "node ../../scripts/docs/prepare-docs-site.mjs && astro build",
     "preview": "node ../../scripts/docs/prepare-docs-site.mjs && astro preview",
-    "lint": "eslint \"src/**/*.{ts,tsx}\" --max-warnings 0",
+    "lint": "astro sync && eslint \"src/**/*.{ts,tsx}\" --max-warnings 0",
     "test": "node ../../scripts/docs/validate-doc-snippets.mjs",
     "typecheck": "node ../../scripts/docs/prepare-docs-site.mjs && astro check",
     "clean": "rimraf dist .astro"
