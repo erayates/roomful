@@ -57,36 +57,65 @@ function interpolateChannel(start, end, ratio) {
   return Math.round(start + (end - start) * ratio);
 }
 
+// Roomful mark, normalized 0..1 — two multiplayer cursors in the teal "room".
+const CREAM_CURSOR = [
+  [0.328, 0.344],
+  [0.528, 0.789],
+  [0.586, 0.609],
+  [0.766, 0.539],
+];
+const AMBER_CURSOR = [
+  [0.641, 0.258],
+  [0.747, 0.494],
+  [0.777, 0.399],
+  [0.873, 0.361],
+];
+
+function pointInPolygon(px, py, polygon) {
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i, i += 1) {
+    const [xi, yi] = polygon[i];
+    const [xj, yj] = polygon[j];
+    const intersects = yi > py !== yj > py && px < ((xj - xi) * (py - yi)) / (yj - yi) + xi;
+    if (intersects) {
+      inside = !inside;
+    }
+  }
+
+  return inside;
+}
+
 function drawIconPixel(size, x, y) {
-  const gradientRatio = (x + y) / Math.max(1, (size - 1) * 2);
-  let red = interpolateChannel(18, 234, gradientRatio);
-  let green = interpolateChannel(35, 116, gradientRatio);
-  let blue = interpolateChannel(46, 82, gradientRatio);
+  const max = Math.max(1, size - 1);
 
-  const unit = size / 8;
-  const center = (size - 1) / 2;
-  const dx = x - center;
-  const dy = y - center;
-  const distance = Math.sqrt(dx * dx + dy * dy);
-  const outerRadius = size * 0.47;
-  const ringThickness = Math.max(1, size * 0.07);
-
-  if (distance >= outerRadius - ringThickness && distance <= outerRadius) {
-    red = 255;
-    green = 244;
-    blue = 225;
+  // Rounded-square mask → transparent outside the corners.
+  const cornerRadius = size * 0.234;
+  const cornerX = Math.min(x, max - x);
+  const cornerY = Math.min(y, max - y);
+  if (cornerX < cornerRadius && cornerY < cornerRadius) {
+    const dx = cornerRadius - cornerX;
+    const dy = cornerRadius - cornerY;
+    if (dx * dx + dy * dy > cornerRadius * cornerRadius) {
+      return [0, 0, 0, 0];
+    }
   }
 
-  const letterF =
-    (x >= unit * 2 && x <= unit * 3.05 && y >= unit * 1.45 && y <= unit * 6.45) ||
-    (x >= unit * 2 && x <= unit * 5.7 && y >= unit * 1.45 && y <= unit * 2.55) ||
-    (x >= unit * 2 && x <= unit * 4.85 && y >= unit * 3.45 && y <= unit * 4.55);
+  const nx = x / max;
+  const ny = y / max;
 
-  if (letterF) {
-    red = 255;
-    green = 252;
-    blue = 246;
+  // Cream cursor sits in front of the amber teammate cursor.
+  if (pointInPolygon(nx, ny, CREAM_CURSOR)) {
+    return [251, 247, 236, 255];
   }
+  if (pointInPolygon(nx, ny, AMBER_CURSOR)) {
+    return [251, 191, 36, 255];
+  }
+
+  // Teal "room" gradient — bright top-left to deep bottom-right.
+  const gradientRatio = (x + y) / (max * 2);
+  const red = interpolateChannel(33, 10, gradientRatio);
+  const green = interpolateChannel(205, 84, gradientRatio);
+  const blue = interpolateChannel(182, 76, gradientRatio);
 
   return [red, green, blue, 255];
 }
