@@ -1,0 +1,43 @@
+---
+const transports = [
+  {
+    tag: 'Zero backend',
+    name: 'WebRTC',
+    desc: 'Peers connect directly for small rooms. No server to run, no per-seat bill — just open a room and collaborate.',
+  },
+  {
+    tag: 'Same device',
+    name: 'BroadcastChannel',
+    desc: 'Sync tabs and windows on one machine with no network at all. Perfect for local-first apps and demos.',
+  },
+  {
+    tag: 'Production scale',
+    name: 'WebSocket relay',
+    desc: 'Self-host the open-source relay (Docker or npm) with JWT auth, CORS, and Redis fan-out when you outgrow peer-to-peer.',
+  },
+];
+---
+
+<section class="section" data-transports>
+  <div class="shell">
+    <div data-reveal>
+      <span class="section__kicker">Transport-agnostic</span>
+      <h2 class="section__title">Start peer-to-peer, scale when you need to.</h2>
+      <p class="section__lead">
+        One API, three transports. Prototype with zero infrastructure, then move to a relay you
+        control without rewriting a line of product code.
+      </p>
+    </div>
+    <div class="transports-grid">
+      {
+        transports.map((t) => (
+          <article class="transport" data-reveal-stagger data-magnetic>
+            <span class="tag">{t.tag}</span>
+            <h3>{t.name}</h3>
+            <p>{t.desc}</p>
+          </article>
+        ))
+      }
+    </div>
+  </div>
+</section>

@@ -1,0 +1,24 @@
+---
+const items = [
+  'Presence',
+  'Multiplayer cursors',
+  'Shared state',
+  'Awareness',
+  'Events',
+  'WebRTC',
+  'BroadcastChannel',
+  'WebSocket relay',
+  'React',
+  'Vue',
+  'Svelte',
+  'Yjs CRDT',
+  'Zero backend',
+];
+const loop = [...items, ...items];
+---
+
+<div class="marquee" aria-hidden="true">
+  <div class="marquee__track" data-marquee>
+    {loop.map((item) => <span class="marquee__item">{item}</span>)}
+  </div>
+</div>

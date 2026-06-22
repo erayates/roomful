@@ -1,0 +1,324 @@
+---
+/* The single motion orchestrator. All GSAP/Lenis lives in the bundled <script> below;
+   it is the only place that imports the motion libraries. Markup = the custom-cursor nodes. */
+---
+
+<div class="cursor-dot" data-cursor-dot aria-hidden="true"></div>
+<div class="cursor-ghost" data-cursor-ghost aria-hidden="true">
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="#5cc7ab"
+    ><path d="M3 2.2 11 20l2.3-7.2L20.5 10 3 2.2Z"></path></svg
+  >
+</div>
+
+<script>
+  import gsap from 'gsap';
+  import { ScrollTrigger } from 'gsap/ScrollTrigger';
+  import Lenis from 'lenis';
+
+  gsap.registerPlugin(ScrollTrigger);
+
+  const root = document.documentElement;
+
+  const mm = gsap.matchMedia();
+  mm.add(
+    {
+      isDesktop: '(min-width: 900px)',
+      reduce: '(prefers-reduced-motion: reduce)',
+      pointerFine: '(pointer: fine)',
+    },
+    (context) => {
+      const c = context.conditions;
+      if (!c || c.reduce) {
+        return;
+      }
+
+      const lenis = new Lenis({ lerp: 0.1, smoothWheel: true });
+      lenis.on('scroll', () => ScrollTrigger.update());
+      const ticker = (time: number): void => {
+        lenis.raf(time * 1000);
+      };
+      gsap.ticker.add(ticker);
+      gsap.ticker.lagSmoothing(0);
+
+      initHero();
+      initNav();
+      initMarquee();
+      initReveals();
+      initGlows();
+      initStats();
+      initCode();
+      if (c.isDesktop) {
+        initPrimitivesPin();
+      }
+
+      let teardownCursor: (() => void) | undefined;
+      if (c.pointerFine) {
+        teardownCursor = initCursor();
+      }
+
+      ScrollTrigger.refresh();
+      void document.fonts.ready.then(() => ScrollTrigger.refresh());
+
+      return () => {
+        gsap.ticker.remove(ticker);
+        lenis.destroy();
+        if (teardownCursor) {
+          teardownCursor();
+        }
+      };
+    },
+  );
+
+  function initHero(): void {
+    const lines = gsap.utils.toArray<HTMLElement>('[data-hero-line]');
+    const els = gsap.utils.toArray<HTMLElement>('[data-hero-el]');
+    const tl = gsap.timeline({ defaults: { ease: 'expo.out' } });
+    tl.fromTo(lines, { yPercent: 115 }, { yPercent: 0, duration: 1.05, stagger: 0.1 }, 0.15);
+    tl.to(els, { opacity: 1, y: 0, duration: 0.75, stagger: 0.09 }, 0.55);
+
+    const hero = document.querySelector<HTMLElement>('[data-hero]');
+    const cursors = gsap.utils.toArray<HTMLElement>('[data-live-cursor]');
+    cursors.forEach((el, i) => {
+      gsap.fromTo(
+        el,
+        { autoAlpha: 0, scale: 0.5 },
+        { autoAlpha: 1, scale: 1, duration: 0.7, delay: 0.7 + i * 0.12, ease: 'back.out(2)' },
+      );
+      gsap.to(el, {
+        x: `+=${gsap.utils.random(-16, 16)}`,
+        y: `+=${gsap.utils.random(-14, 14)}`,
+        duration: gsap.utils.random(4, 7),
+        repeat: -1,
+        yoyo: true,
+        ease: 'sine.inOut',
+        delay: 1.2,
+      });
+    });
+
+    if (hero) {
+      const setters = cursors.map((el, i) => ({
+        depth: (i + 1) * 7,
+        qx: gsap.quickTo(el, 'x', { duration: 0.9, ease: 'power3' }),
+        qy: gsap.quickTo(el, 'y', { duration: 0.9, ease: 'power3' }),
+      }));
+      hero.addEventListener('pointermove', (event: PointerEvent) => {
+        const r = hero.getBoundingClientRect();
+        const dx = (event.clientX - r.left) / r.width - 0.5;
+        const dy = (event.clientY - r.top) / r.height - 0.5;
+        setters.forEach((s) => {
+          s.qx(dx * s.depth);
+          s.qy(dy * s.depth);
+        });
+      });
+    }
+  }
+
+  function initNav(): void {
+    const nav = document.querySelector('[data-nav]');
+    if (!nav) {
+      return;
+    }
+    ScrollTrigger.create({
+      start: 0,
+      end: 'max',
+      onUpdate: (self) => {
+        nav.classList.toggle('nav--scrolled', self.scroll() > 60);
+      },
+    });
+  }
+
+  function initMarquee(): void {
+    const track = document.querySelector<HTMLElement>('[data-marquee]');
+    if (!track) {
+      return;
+    }
+    gsap.to(track, { xPercent: -50, duration: 28, ease: 'none', repeat: -1 });
+  }
+
+  function initReveals(): void {
+    gsap.utils.toArray<HTMLElement>('[data-reveal]').forEach((el) => {
+      gsap.set(el, { y: 42, autoAlpha: 0 });
+      ScrollTrigger.create({
+        trigger: el,
+        start: 'top 86%',
+        once: true,
+        onEnter: () => {
+          gsap.to(el, { y: 0, autoAlpha: 1, duration: 0.9, ease: 'expo.out' });
+        },
+      });
+    });
+
+    const groups = gsap.utils.toArray<HTMLElement>('[data-reveal-stagger]');
+    if (groups.length > 0) {
+      gsap.set(groups, { y: 42, autoAlpha: 0 });
+      ScrollTrigger.batch(groups, {
+        start: 'top 88%',
+        once: true,
+        onEnter: (batch) => {
+          gsap.to(batch, { y: 0, autoAlpha: 1, duration: 0.8, stagger: 0.1, ease: 'expo.out' });
+        },
+      });
+    }
+  }
+
+  function initGlows(): void {
+    gsap.utils.toArray<HTMLElement>('[data-glow]').forEach((el, i) => {
+      gsap.to(el, {
+        yPercent: i % 2 === 0 ? 28 : -22,
+        ease: 'none',
+        scrollTrigger: { trigger: '[data-hero]', start: 'top top', end: 'bottom top', scrub: true },
+      });
+      gsap.to(el, {
+        x: '+=40',
+        y: '+=30',
+        duration: gsap.utils.random(9, 13),
+        repeat: -1,
+        yoyo: true,
+        ease: 'sine.inOut',
+      });
+    });
+  }
+
+  function initStats(): void {
+    gsap.utils.toArray<HTMLElement>('[data-count]').forEach((el) => {
+      const target = Number(el.dataset.count ?? '0');
+      const suffix = el.dataset.suffix ?? '';
+      const obj = { v: 0 };
+      ScrollTrigger.create({
+        trigger: el,
+        start: 'top 85%',
+        once: true,
+        onEnter: () => {
+          gsap.to(obj, {
+            v: target,
+            duration: 1.6,
+            ease: 'expo.out',
+            onUpdate: () => {
+              el.textContent = `${Math.round(obj.v)}${suffix}`;
+            },
+          });
+        },
+      });
+    });
+  }
+
+  function initCode(): void {
+    const section = document.querySelector<HTMLElement>('[data-code]');
+    const hl = document.querySelector<HTMLElement>('[data-code-hl]');
+    const steps = gsap.utils.toArray<HTMLElement>('[data-steps] li');
+    if (!section || !hl || steps.length === 0) {
+      return;
+    }
+    const tops = ['7%', '46%', '74%'];
+    gsap.set(hl, { autoAlpha: 0, top: tops[0] ?? '7%' });
+    ScrollTrigger.create({
+      trigger: section,
+      start: 'top 58%',
+      end: 'bottom 72%',
+      scrub: true,
+      onUpdate: (self) => {
+        const idx = Math.min(steps.length - 1, Math.floor(self.progress * steps.length));
+        steps.forEach((li, i) => {
+          li.setAttribute('data-active', i === idx ? 'true' : 'false');
+        });
+        gsap.to(hl, {
+          top: tops[idx] ?? '7%',
+          autoAlpha: self.progress > 0.03 && self.progress < 0.97 ? 1 : 0,
+          duration: 0.3,
+          overwrite: 'auto',
+        });
+      },
+    });
+  }
+
+  function initPrimitivesPin(): void {
+    const section = document.querySelector<HTMLElement>('[data-primitives]');
+    const track = document.querySelector<HTMLElement>('[data-prim-track]');
+    const viewport = document.querySelector<HTMLElement>('[data-prim-viewport]');
+    if (!section || !track || !viewport) {
+      return;
+    }
+    const cards = gsap.utils.toArray<HTMLElement>('[data-prim-card]');
+    const distance = (): number => Math.max(0, track.scrollWidth - viewport.clientWidth);
+
+    gsap.set(cards, { autoAlpha: 0, y: 32 });
+    ScrollTrigger.create({
+      trigger: section,
+      start: 'top 72%',
+      once: true,
+      onEnter: () => {
+        gsap.to(cards, { autoAlpha: 1, y: 0, duration: 0.7, stagger: 0.08, ease: 'expo.out' });
+      },
+    });
+
+    gsap.to(track, {
+      x: () => -distance(),
+      ease: 'none',
+      scrollTrigger: {
+        trigger: section,
+        start: 'top top',
+        end: () => `+=${distance()}`,
+        pin: true,
+        scrub: 1,
+        anticipatePin: 1,
+        invalidateOnRefresh: true,
+      },
+    });
+  }
+
+  function initCursor(): () => void {
+    const dot = document.querySelector<HTMLElement>('[data-cursor-dot]');
+    const ghost = document.querySelector<HTMLElement>('[data-cursor-ghost]');
+    if (!dot || !ghost) {
+      return () => {};
+    }
+    root.classList.add('cursor-on');
+    gsap.set([dot, ghost], { autoAlpha: 1 });
+
+    const dx = gsap.quickTo(dot, 'x', { duration: 0.16, ease: 'power3' });
+    const dy = gsap.quickTo(dot, 'y', { duration: 0.16, ease: 'power3' });
+    const gx = gsap.quickTo(ghost, 'x', { duration: 0.5, ease: 'power3' });
+    const gy = gsap.quickTo(ghost, 'y', { duration: 0.5, ease: 'power3' });
+    const move = (event: PointerEvent): void => {
+      dx(event.clientX);
+      dy(event.clientY);
+      gx(event.clientX);
+      gy(event.clientY);
+    };
+    window.addEventListener('pointermove', move);
+
+    const cleanups: Array<() => void> = [];
+    gsap.utils.toArray<HTMLElement>('[data-magnetic]').forEach((m) => {
+      const mx = gsap.quickTo(m, 'x', { duration: 0.4, ease: 'power3' });
+      const my = gsap.quickTo(m, 'y', { duration: 0.4, ease: 'power3' });
+      const enter = (): void => {
+        gsap.to(dot, { scale: 2.6, duration: 0.3 });
+      };
+      const moveM = (event: PointerEvent): void => {
+        const r = m.getBoundingClientRect();
+        mx((event.clientX - r.left - r.width / 2) * 0.35);
+        my((event.clientY - r.top - r.height / 2) * 0.35);
+      };
+      const leave = (): void => {
+        mx(0);
+        my(0);
+        gsap.to(dot, { scale: 1, duration: 0.3 });
+      };
+      m.addEventListener('pointerenter', enter);
+      m.addEventListener('pointermove', moveM);
+      m.addEventListener('pointerleave', leave);
+      cleanups.push(() => {
+        m.removeEventListener('pointerenter', enter);
+        m.removeEventListener('pointermove', moveM);
+        m.removeEventListener('pointerleave', leave);
+      });
+    });
+
+    return () => {
+      root.classList.remove('cursor-on');
+      window.removeEventListener('pointermove', move);
+      cleanups.forEach((fn) => fn());
+      gsap.set([dot, ghost], { autoAlpha: 0 });
+    };
+  }
+</script>

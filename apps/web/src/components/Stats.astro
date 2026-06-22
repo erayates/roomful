@@ -1,0 +1,26 @@
+---
+const stats = [
+  { num: 5, suffix: '', label: 'collaboration primitives' },
+  { num: 3, suffix: '', label: 'transports, one API' },
+  { num: 4, suffix: '', label: 'framework bindings' },
+  { num: 100, suffix: '%', label: 'open source · MIT' },
+];
+---
+
+<section class="section" data-stats>
+  <div class="shell">
+    <div class="stats-grid">
+      {
+        stats.map((s) => (
+          <div class="stat" data-reveal>
+            <div class="stat__num" data-count={s.num} data-suffix={s.suffix}>
+              {s.num}
+              {s.suffix}
+            </div>
+            <div class="stat__label">{s.label}</div>
+          </div>
+        ))
+      }
+    </div>
+  </div>
+</section>

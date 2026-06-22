@@ -1,6 +1,8 @@
 ---
 import '@fontsource-variable/space-grotesk';
+import '@fontsource-variable/geist';
 import '../styles/global.css';
+import Grain from '../components/Grain.astro';
 
 interface Props {
   title: string;
@@ -20,7 +22,7 @@ const canonical = new URL(Astro.url.pathname, Astro.site).href;
     <title>{title}</title>
     <meta name="description" content={description} />
     <link rel="canonical" href={canonical} />
-    <meta name="theme-color" content="#0f766e" />
+    <meta name="theme-color" content="#0a0f0e" />
     <meta property="og:type" content="website" />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
@@ -29,8 +31,23 @@ const canonical = new URL(Astro.url.pathname, Astro.site).href;
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content={title} />
     <meta name="twitter:description" content={description} />
+    <script is:inline>
+      // Pre-paint: flag JS + reduced-motion on <html> so CSS from-states behave (no flash, no-JS safe).
+      (function () {
+        var el = document.documentElement;
+        el.classList.add('js');
+        try {
+          if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            el.classList.add('reduce-motion');
+          }
+        } catch (e) {
+          /* no-op */
+        }
+      })();
+    </script>
   </head>
   <body>
+    <Grain />
     <slot />
   </body>
 </html>

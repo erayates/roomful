@@ -1,0 +1,71 @@
+---
+const primitives = [
+  {
+    name: 'Presence',
+    icon: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+    desc: 'See who is in the room in real time — names, colors, and any metadata you attach, synced the instant someone joins or leaves.',
+  },
+  {
+    name: 'Cursors',
+    icon: '<path d="m3 3 7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/><path d="m13 13 6 6"/>',
+    desc: 'Smooth, labeled multiplayer cursors with built-in interpolation. Mount once and every peer’s pointer broadcasts automatically.',
+  },
+  {
+    name: 'Shared state',
+    icon: '<path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/>',
+    desc: 'Conflict-free shared values with last-write-wins by default, or drop in a full Yjs CRDT document when you need rich merges.',
+  },
+  {
+    name: 'Awareness',
+    icon: '<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>',
+    desc: 'Ephemeral per-user signals: who is typing, what they have selected, where they are looking — gone the moment they disconnect.',
+  },
+  {
+    name: 'Events',
+    icon: '<path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/>',
+    desc: 'Fire-and-forget realtime events between peers for reactions, toasts, nudges, and anything that should feel instant.',
+  },
+  {
+    name: 'Any transport',
+    icon: '<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" x2="15.42" y1="13.51" y2="17.49"/><line x1="15.41" x2="8.59" y1="6.51" y2="10.49"/>',
+    desc: 'WebRTC peer-to-peer, same-device BroadcastChannel, or a self-hosted WebSocket relay. The same API runs on all three.',
+  },
+];
+---
+
+<section class="section" id="primitives" data-primitives>
+  <div class="prim__head" data-reveal>
+    <span class="section__kicker">The toolkit</span>
+    <h2 class="section__title">Everything multiplayer, in one small package.</h2>
+    <p class="section__lead">
+      Five collaboration primitives and a transport layer that just works. Compose only what you
+      need — each one is tree-shakeable and typed end to end.
+    </p>
+  </div>
+
+  <div class="prim__viewport" data-prim-viewport>
+    <div class="prim__track" data-prim-track>
+      {
+        primitives.map((p, i) => (
+          <article class="prim-card" data-prim-card>
+            <span class="prim-card__glow" aria-hidden="true" />
+            <span class="prim-card__idx">0{i + 1}</span>
+            <span class="prim-card__icon">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.7"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                set:html={p.icon}
+              />
+            </span>
+            <h3>{p.name}</h3>
+            <p>{p.desc}</p>
+          </article>
+        ))
+      }
+    </div>
+  </div>
+</section>

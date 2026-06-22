@@ -1,0 +1,54 @@
+---
+const cursors = [
+  { name: 'Ada', color: '#5cc7ab', left: '13%', top: '34%' },
+  { name: 'Mateo', color: '#fbbf24', left: '80%', top: '26%' },
+  { name: 'Lin', color: '#9d8cff', left: '69%', top: '66%' },
+  { name: 'Noor', color: '#ff8fa3', left: '22%', top: '72%' },
+];
+
+const arrow =
+  '<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 2.2 11 20l2.3-7.2L20.5 10 3 2.2Z"/></svg>';
+---
+
+<header class="hero" data-hero>
+  <span class="glow hero__glow-a" data-glow aria-hidden="true"></span>
+  <span class="glow hero__glow-b" data-glow aria-hidden="true"></span>
+
+  <div class="live" aria-hidden="true">
+    {
+      cursors.map((c, i) => (
+        <div
+          class="live__cursor"
+          data-live-cursor
+          data-depth={i}
+          style={`--cc:${c.color};left:${c.left};top:${c.top}`}
+        >
+          <Fragment set:html={arrow} />
+          <span>{c.name}</span>
+        </div>
+      ))
+    }
+  </div>
+
+  <div class="shell hero__inner">
+    <span class="eyebrow" data-hero-el><span class="dot"></span> Public beta · open source</span>
+    <h1>
+      <span class="reveal-line"><span data-hero-line>Realtime collaboration,</span></span>
+      <span class="reveal-line"
+        ><span data-hero-line class="accent">dropped into your app.</span></span
+      >
+    </h1>
+    <p class="lede" data-hero-el>
+      Presence, multiplayer cursors, shared state, and awareness for any app — over WebRTC,
+      BroadcastChannel, or your own relay, with first-class React, Vue, and Svelte bindings.
+    </p>
+    <div class="cta-row" data-hero-el>
+      <a class="btn btn-primary" href="https://docs.roomful.dev" data-magnetic>Read the docs</a>
+      <a class="btn btn-ghost" href="https://demo.roomful.dev" data-magnetic>Try the live demo →</a>
+    </div>
+    <div class="install" data-hero-el>
+      <span><span class="prompt">$</span> npm i @roomful/core@beta</span>
+      <button type="button" data-copy="npm i @roomful/core@beta" data-magnetic>Copy</button>
+    </div>
+  </div>
+</header>

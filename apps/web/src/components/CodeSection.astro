@@ -1,0 +1,84 @@
+---
+import { Code } from 'astro:components';
+
+const snippet = `import {
+  RoomfulProvider,
+  usePresence,
+  useCursors,
+  useSharedState,
+} from '@roomful/react';
+
+function DesignReview() {
+  return (
+    <RoomfulProvider roomId="design-review" presence={{ name: 'Ada' }}>
+      <Canvas />
+    </RoomfulProvider>
+  );
+}
+
+function Canvas() {
+  const { others } = usePresence();
+  const [zoom, setZoom] = useSharedState('zoom', { initialValue: 1 });
+
+  useCursors(); // live multiplayer cursors, mounted
+
+  return <p>{others.length} teammates exploring at {zoom}×</p>;
+}`;
+
+const steps = [
+  { n: '01', t: 'Wrap your tree in the provider' },
+  { n: '02', t: 'Call a hook — presence, cursors, state' },
+  { n: '03', t: 'Render live — no backend wiring' },
+];
+
+const frameworks = [
+  { pkg: '@roomful/core', tag: 'Framework-agnostic' },
+  { pkg: '@roomful/react', tag: 'Hooks + Provider' },
+  { pkg: '@roomful/vue', tag: 'Composables' },
+  { pkg: '@roomful/svelte', tag: 'Stores + actions' },
+];
+---
+
+<section class="section" id="how" data-code>
+  <div class="shell code-grid">
+    <div data-reveal>
+      <span class="section__kicker">Ship in an afternoon</span>
+      <h2 class="section__title">A few lines, fully typed.</h2>
+      <p class="section__lead">
+        Wrap your tree, call a hook, and you have live presence and cursors. The same primitives are
+        Vue composables and Svelte stores too.
+      </p>
+      <ol class="code-steps" data-steps>
+        {
+          steps.map((s, i) => (
+            <li data-step={i} data-active={i === 0 ? 'true' : 'false'}>
+              <b>{s.n}</b>
+              <span>{s.t}</span>
+            </li>
+          ))
+        }
+      </ol>
+      <ul class="framework-list">
+        {
+          frameworks.map((f) => (
+            <li>
+              <b>{f.pkg}</b>
+              <small>{f.tag}</small>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+
+    <div class="code-window" data-reveal>
+      <div class="code-window__bar">
+        <i></i><i></i><i></i>
+        <span>design-review.tsx</span>
+      </div>
+      <div class="code-window__body">
+        <span class="code-window__hl" data-code-hl aria-hidden="true"></span>
+        <Code code={snippet} lang="tsx" theme="vitesse-dark" />
+      </div>
+    </div>
+  </div>
+</section>
