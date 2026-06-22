@@ -1,8 +1,3 @@
----
-/* The single motion orchestrator. All GSAP/Lenis lives in the bundled <script> below;
-   it is the only place that imports the motion libraries. Markup = the custom-cursor nodes. */
----
-
 <div class="cursor-dot" data-cursor-dot aria-hidden="true"></div>
 <div class="cursor-ghost" data-cursor-ghost aria-hidden="true">
   <svg width="20" height="20" viewBox="0 0 24 24" fill="#5cc7ab"
@@ -11,6 +6,7 @@
 </div>
 
 <script>
+  // The single GSAP/Lenis motion orchestrator — the only module that imports the motion libs.
   import gsap from 'gsap';
   import { ScrollTrigger } from 'gsap/ScrollTrigger';
   import Lenis from 'lenis';
