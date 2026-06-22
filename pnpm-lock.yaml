@@ -117,6 +117,24 @@ importers:
       '@roomful/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@roomful/cursors':
+        specifier: workspace:*
+        version: link:../../packages/cursors
+      '@roomful/devtools':
+        specifier: workspace:*
+        version: link:../../packages/devtools
+      '@roomful/react':
+        specifier: workspace:*
+        version: link:../../packages/react
+      '@roomful/relay':
+        specifier: workspace:*
+        version: link:../../packages/relay
+      '@roomful/svelte':
+        specifier: workspace:*
+        version: link:../../packages/svelte
+      '@roomful/vue':
+        specifier: workspace:*
+        version: link:../../packages/vue
     devDependencies:
       '@astrojs/check':
         specifier: 0.9.4

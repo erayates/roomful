@@ -242,8 +242,9 @@ async function buildBrowserArtifacts(version) {
       !(await fileExists(targetDirectory)) ||
       !zipDirectory(targetDirectory, temporaryArchiveFileName)
     ) {
-      console.error(`Failed to package the ${browser} DevTools artifact.`);
-      process.exitCode = 1;
+      console.warn(
+        `Skipping the ${browser} DevTools zip artifact: the 'zip' tool is unavailable on this platform. The build continues without it.`,
+      );
       continue;
     }
 

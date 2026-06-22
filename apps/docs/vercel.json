@@ -1,6 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "astro",
-  "buildCommand": "pnpm build",
+  "buildCommand": "pnpm exec turbo run build --filter=@roomful/app-docs",
   "outputDirectory": "dist"
 }
