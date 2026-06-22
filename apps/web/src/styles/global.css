@@ -266,12 +266,12 @@ html.cursor-on [data-magnetic] {
   align-items: center;
   gap: 1.9rem;
 }
-.nav__links a {
+.nav__links a:not(.btn) {
   font-size: 0.92rem;
   color: var(--muted);
   transition: color 0.2s var(--ease);
 }
-.nav__links a:hover {
+.nav__links a:not(.btn):hover {
   color: var(--text);
 }
 .nav__cta {
@@ -306,14 +306,17 @@ html.cursor-on [data-magnetic] {
   max-width: 52rem;
 }
 .hero h1 {
-  font-size: clamp(2.7rem, 7.5vw, 5.4rem);
+  font-size: clamp(3rem, 8vw, 5.2rem);
   font-weight: 600;
-  margin: 1.6rem 0 0;
+  line-height: 1.05;
+  letter-spacing: -0.045em;
+  margin: 1.7rem 0 0;
 }
 .reveal-line {
   display: block;
   overflow: hidden;
-  padding-block: 0.04em;
+  padding-bottom: 0.14em;
+  margin-bottom: -0.1em;
 }
 .reveal-line > span {
   display: block;
