@@ -1,0 +1,60 @@
+---
+/* Custom splash hero for Roomful docs. Consumes Starlight's documented `hero` route
+   data (title, tagline, actions). Pinned to @astrojs/starlight 0.37.x — re-verify the
+   `Astro.locals.starlightRoute.entry.data.hero` shape on Starlight upgrades. */
+const { data } = Astro.locals.starlightRoute.entry;
+const { title = data.title, tagline, actions = [] } = data.hero ?? {};
+---
+
+<div class="roomful-hero">
+  <div class="roomful-hero__copy">
+    <span class="roomful-hero__eyebrow">
+      <span class="roomful-hero__dot"></span>
+      Realtime collaboration SDK
+    </span>
+    <h1 id="_top" data-page-title set:html={title} />
+    {tagline && <p class="roomful-hero__tagline" set:html={tagline} />}
+    {
+      actions.length > 0 && (
+        <div class="roomful-hero__actions">
+          {actions.map((action) => (
+            <a
+              href={action.link}
+              class:list={[
+                'roomful-hero__btn',
+                action.variant === 'secondary' || action.variant === 'minimal'
+                  ? 'roomful-hero__btn--ghost'
+                  : 'roomful-hero__btn--primary',
+              ]}
+            >
+              {action.text}
+              {action.icon?.html && <Fragment set:html={action.icon.html} />}
+            </a>
+          ))}
+        </div>
+      )
+    }
+    <div class="roomful-hero__install">
+      <span><span class="roomful-hero__prompt">$</span> npm i @roomful/core</span>
+      <button type="button" data-roomful-copy="npm i @roomful/core">Copy</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const buttons = document.querySelectorAll<HTMLButtonElement>('button[data-roomful-copy]');
+  buttons.forEach((button) => {
+    button.addEventListener('click', () => {
+      const text = button.dataset.roomfulCopy ?? '';
+      void navigator.clipboard.writeText(text).then(() => {
+        const original = button.textContent;
+        button.textContent = 'Copied';
+        button.dataset.copied = 'true';
+        window.setTimeout(() => {
+          button.textContent = original;
+          button.removeAttribute('data-copied');
+        }, 1600);
+      });
+    });
+  });
+</script>

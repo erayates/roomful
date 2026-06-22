@@ -37,6 +37,12 @@ export default defineConfig({
         },
       ],
       customCss: ['@fontsource-variable/space-grotesk', './src/styles/site.css'],
+      expressiveCode: {
+        themes: ['vitesse-dark', 'vitesse-light'],
+        styleOverrides: {
+          borderRadius: '0.6rem',
+        },
+      },
       credits: false,
       disable404Route: true,
       pagefind: !hasDocSearch,
@@ -81,6 +87,7 @@ export default defineConfig({
         },
       ],
       components: {
+        Hero: './src/components/Hero.astro',
         Footer: './src/components/Footer.astro',
         MobileMenuFooter: './src/components/MobileMenuFooter.astro',
         Search: hasDocSearch
