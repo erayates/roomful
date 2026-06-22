@@ -2,10 +2,12 @@
 
 Prebuilt collaboration UI components for Roomful.
 
+> **Public beta** — install with the `@beta` tag; the API is stable but may still change before 1.0.
+
 ## Install
 
 ```bash
-npm install @roomful/cursors
+npm install @roomful/cursors@beta
 ```
 
 ## Storybook

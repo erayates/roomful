@@ -7,7 +7,7 @@ This walkthrough shows the intended first integration flow for Roomful.
 ## 1) Install Core
 
 ```bash
-npm install @roomful/core
+npm install @roomful/core@beta
 ```
 
 ## 2) Create and Connect a Room

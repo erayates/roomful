@@ -2,10 +2,12 @@
 
 React bindings for [Roomful](https://github.com/erayates/roomful) — a provider plus idiomatic hooks for real-time presence, cursors, shared state, awareness, and events.
 
+> **Public beta** — install with the `@beta` tag; the API is stable but may still change before 1.0.
+
 ## Install
 
 ```bash
-npm install @roomful/core @roomful/react
+npm install @roomful/core@beta @roomful/react@beta
 ```
 
 ## Usage

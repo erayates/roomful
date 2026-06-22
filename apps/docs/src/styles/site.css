@@ -86,6 +86,26 @@ body {
   border-bottom: 1px solid var(--roomful-border);
 }
 
+/* Public-beta banner (site-wide via route middleware). */
+.sl-banner {
+  --sl-color-banner-bg: color-mix(in srgb, var(--roomful-amber) 16%, var(--sl-color-bg));
+  --sl-color-banner-text: var(--sl-color-text);
+  border-bottom: 1px solid var(--roomful-border);
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.sl-banner code {
+  background: color-mix(in srgb, var(--roomful-amber) 22%, transparent);
+  padding: 0.05rem 0.35rem;
+  border-radius: 0.35rem;
+}
+
+.sl-banner a {
+  color: var(--sl-color-accent);
+  font-weight: 600;
+}
+
 /* Homepage hero (custom component). */
 .roomful-hero {
   position: relative;

@@ -2,10 +2,12 @@
 
 Framework-agnostic core for [Roomful](https://github.com/erayates/roomful) — real-time collaboration primitives (presence, cursors, shared state, awareness, and events) over WebRTC, BroadcastChannel, or a self-hosted WebSocket relay. Zero backend required for small rooms.
 
+> **Public beta** — install with the `@beta` tag; the API is stable but may still change before 1.0.
+
 ## Install
 
 ```bash
-npm install @roomful/core
+npm install @roomful/core@beta
 
 # Optional: CRDT (Yjs) support
 npm install yjs y-protocols

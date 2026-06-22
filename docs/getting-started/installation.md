@@ -22,24 +22,24 @@ Install only what you need.
 
 ```bash
 # Core SDK (required)
-npm install @roomful/core
+npm install @roomful/core@beta
 
 # CRDT / Yjs support (required only when using strategy: 'crdt' or Yjs APIs)
 npm install yjs y-protocols
 
 # Framework adapters (optional)
-npm install @roomful/react
-npm install @roomful/vue
-npm install @roomful/svelte
+npm install @roomful/react@beta
+npm install @roomful/vue@beta
+npm install @roomful/svelte@beta
 
 # Prebuilt collaboration UI (optional)
-npm install @roomful/cursors
+npm install @roomful/cursors@beta
 
 # Self-hosted relay server (optional)
-npm install @roomful/relay
+npm install @roomful/relay@beta
 
 # Relay CLI (optional)
-npm install -g @roomful/relay
+npm install -g @roomful/relay@beta
 ```
 
 ## Environment Constraints

@@ -2,7 +2,7 @@
 
 Real-time collaboration primitives for the web.
 
-[![npm](https://img.shields.io/npm/v/@roomful/core?color=0f766e&label=%40roomful%2Fcore)](https://www.npmjs.com/package/@roomful/core) [![CI](https://github.com/erayates/roomful/actions/workflows/ci.yml/badge.svg)](https://github.com/erayates/roomful/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/license-MIT-0f766e.svg)](LICENSE)
+[![npm](https://img.shields.io/npm/v/@roomful/core/beta?color=0f766e&label=%40roomful%2Fcore)](https://www.npmjs.com/package/@roomful/core) [![CI](https://github.com/erayates/roomful/actions/workflows/ci.yml/badge.svg)](https://github.com/erayates/roomful/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/license-MIT-0f766e.svg)](LICENSE) [![Status: public beta](https://img.shields.io/badge/status-public%20beta-f59e0b.svg)](https://github.com/erayates/roomful/releases)
 
 **[Website](https://roomful.dev)** · **[Docs](https://docs.roomful.dev)** · **[Live demo](https://demo.roomful.dev)** · **[Storybook](https://storybook.roomful.dev)** · **[GitHub](https://github.com/erayates/roomful)** · **[npm](https://www.npmjs.com/package/@roomful/core)**
 
@@ -10,7 +10,9 @@ Roomful is an open-source, framework-agnostic SDK designed to help frontend team
 
 ## Project Status
 
-Roomful is in release-candidate validation. All major features are implemented and tested across 7 public packages.
+> **Public beta.** Roomful is feature-complete and tested across 7 public packages, but its APIs are not yet battle-tested in production. Install with the `@beta` tag (`npm install @roomful/core@beta`) and please [open an issue](https://github.com/erayates/roomful/issues) with feedback — it shapes the stable 1.0.
+
+All major features are implemented and tested across 7 public packages.
 
 - API contracts are stable and implemented.
 - All framework adapters (React, Vue, Svelte) provide full presence, cursors, state, awareness, and events APIs.
@@ -49,7 +51,7 @@ CRDT note: `strategy: 'crdt'`, `room.getYDoc()`, and `room.getYProvider()` requi
 ## Quick Start
 
 ```bash
-npm install @roomful/core
+npm install @roomful/core@beta
 
 # Add these only if you use CRDT/Yjs features
 npm install yjs y-protocols
@@ -103,7 +105,7 @@ window.addEventListener('beforeunload', () => {
 Install the relay as a global CLI:
 
 ```bash
-npm install -g @roomful/relay
+npm install -g @roomful/relay@beta
 roomful-relay --port 8080
 ```
 

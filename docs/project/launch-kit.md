@@ -101,7 +101,7 @@ Hosted collaboration platforms are useful, but they can be too large a commitmen
 Install the core package:
 
 ```bash
-npm install @roomful/core
+npm install @roomful/core@beta
 ```
 
 Create a room:

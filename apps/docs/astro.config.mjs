@@ -37,6 +37,7 @@ export default defineConfig({
         },
       ],
       customCss: ['@fontsource-variable/space-grotesk', './src/styles/site.css'],
+      routeMiddleware: './src/routeData.ts',
       expressiveCode: {
         themes: ['vitesse-dark', 'vitesse-light'],
         styleOverrides: {

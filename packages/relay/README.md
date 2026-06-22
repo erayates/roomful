@@ -2,18 +2,20 @@
 
 Self-hosted relay server for Roomful WebRTC signaling and WebSocket room transport.
 
+> **Public beta** — install with the `@beta` tag; the API is stable but may still change before 1.0.
+
 ## Install
 
 Library usage:
 
 ```bash
-npm install @roomful/relay
+npm install @roomful/relay@beta
 ```
 
 Global CLI usage:
 
 ```bash
-npm install -g @roomful/relay
+npm install -g @roomful/relay@beta
 ```
 
 ## Run

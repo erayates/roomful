@@ -1,0 +1,14 @@
+{
+  "mode": "pre",
+  "tag": "beta",
+  "initialVersions": {
+    "@roomful/core": "1.0.0-beta.1",
+    "@roomful/react": "1.0.0-beta.1",
+    "@roomful/vue": "1.0.0-beta.1",
+    "@roomful/svelte": "1.0.0-beta.1",
+    "@roomful/cursors": "1.0.0-beta.1",
+    "@roomful/devtools": "1.0.0-beta.1",
+    "@roomful/relay": "1.0.0-beta.1"
+  },
+  "changesets": []
+}

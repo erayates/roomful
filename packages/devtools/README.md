@@ -4,10 +4,12 @@ Developer tooling for [Roomful](https://github.com/erayates/roomful) — a debug
 
 The bridge powers a DevTools panel that shows connected peers and presence, a real-time state inspector with diff highlighting, an event log, room status and transport type, and simulated-peer injection for solo testing.
 
+> **Public beta** — install with the `@beta` tag; the API is stable but may still change before 1.0.
+
 ## Install
 
 ```bash
-npm install @roomful/devtools
+npm install @roomful/devtools@beta
 ```
 
 ## Usage
