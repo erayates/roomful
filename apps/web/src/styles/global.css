@@ -778,22 +778,32 @@ html.cursor-on [data-magnetic] {
   font-size: 0.85rem;
 }
 
-/* ---- JS-gated motion from-states (no-JS + reduced-motion keep content visible) ---- */
-.js .reveal-line > span {
-  transform: translateY(115%);
+/* ---- Hero entrance — CSS-driven so it ALWAYS completes (no GSAP dependency).
+   `.js`-gated: no-JS shows content statically; reduced-motion disables it below.
+   `both` fill mode holds the `from` state during animation-delay → no flash. ---- */
+@keyframes hero-line-rise {
+  from {
+    transform: translateY(115%);
+  }
+  to {
+    transform: translateY(0);
+  }
 }
-.reduce-motion .reveal-line > span,
-:root:not(.js) .reveal-line > span {
-  transform: none;
+@keyframes hero-el-in {
+  from {
+    opacity: 0;
+    transform: translateY(22px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.js .reveal-line > span {
+  animation: hero-line-rise 1.05s var(--ease) var(--d, 0.2s) both;
 }
 .js [data-hero-el] {
-  opacity: 0;
-  transform: translateY(22px);
-}
-.reduce-motion [data-hero-el],
-:root:not(.js) [data-hero-el] {
-  opacity: 1;
-  transform: none;
+  animation: hero-el-in 0.8s var(--ease) var(--d, 0.5s) both;
 }
 
 /* ---- Responsive ---- */
@@ -841,7 +851,10 @@ html.cursor-on [data-magnetic] {
     flex-wrap: wrap;
     white-space: normal;
   }
-  .reveal-line > span {
+  .reveal-line > span,
+  [data-hero-el] {
+    animation: none !important;
+    opacity: 1 !important;
     transform: none !important;
   }
 }

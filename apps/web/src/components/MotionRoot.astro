@@ -7,6 +7,9 @@
 
 <script>
   // The single GSAP/Lenis motion orchestrator — the only module that imports the motion libs.
+  // The hero text entrance is CSS-driven (global.css), so it never depends on this script.
+  // Lenis + scroll inits run ONCE; matchMedia gates only the pin + pointer-fine features —
+  // this avoids the revert-on-resize cascade that used to freeze the hero.
   import gsap from 'gsap';
   import { ScrollTrigger } from 'gsap/ScrollTrigger';
   import Lenis from 'lenis';
@@ -14,72 +17,47 @@
   gsap.registerPlugin(ScrollTrigger);
 
   const root = document.documentElement;
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  const mm = gsap.matchMedia();
-  mm.add(
-    {
-      isDesktop: '(min-width: 900px)',
-      reduce: '(prefers-reduced-motion: reduce)',
-      pointerFine: '(pointer: fine)',
-    },
-    (context) => {
-      const c = context.conditions;
-      if (!c || c.reduce) {
-        return;
-      }
+  if (!reduced) {
+    const lenis = new Lenis({ lerp: 0.1, smoothWheel: true });
+    lenis.on('scroll', () => ScrollTrigger.update());
+    const ticker = (time: number): void => {
+      lenis.raf(time * 1000);
+    };
+    gsap.ticker.add(ticker);
+    gsap.ticker.lagSmoothing(0);
 
-      const lenis = new Lenis({ lerp: 0.1, smoothWheel: true });
-      lenis.on('scroll', () => ScrollTrigger.update());
-      const ticker = (time: number): void => {
-        lenis.raf(time * 1000);
-      };
-      gsap.ticker.add(ticker);
-      gsap.ticker.lagSmoothing(0);
+    // Non-responsive inits — created once, persist across resizes.
+    initNav();
+    initMarquee();
+    initReveals();
+    initGlows();
+    initStats();
+    initCode();
+    initHeroCursors();
 
-      initHero();
-      initNav();
-      initMarquee();
-      initReveals();
-      initGlows();
-      initStats();
-      initCode();
-      if (c.isDesktop) {
-        initPrimitivesPin();
-      }
-
-      let teardownCursor: (() => void) | undefined;
-      if (c.pointerFine) {
-        teardownCursor = initCursor();
-      }
-
-      ScrollTrigger.refresh();
-      void document.fonts.ready.then(() => ScrollTrigger.refresh());
-
+    // Responsive / pointer-conditional features — matchMedia reverts only these.
+    const mm = gsap.matchMedia();
+    mm.add('(min-width: 900px)', () => {
+      initPrimitivesPin();
+    });
+    mm.add('(pointer: fine)', () => {
+      const teardownCursor = initCursor();
+      const teardownParallax = initHeroParallax();
       return () => {
-        gsap.ticker.remove(ticker);
-        lenis.destroy();
-        if (teardownCursor) {
-          teardownCursor();
-        }
+        teardownCursor();
+        teardownParallax();
       };
-    },
-  );
+    });
 
-  function initHero(): void {
-    const lines = gsap.utils.toArray<HTMLElement>('[data-hero-line]');
-    const els = gsap.utils.toArray<HTMLElement>('[data-hero-el]');
-    const tl = gsap.timeline({ defaults: { ease: 'expo.out' } });
-    tl.fromTo(lines, { yPercent: 115 }, { yPercent: 0, duration: 1.05, stagger: 0.1 }, 0.15);
-    tl.to(els, { opacity: 1, y: 0, duration: 0.75, stagger: 0.09 }, 0.55);
+    ScrollTrigger.refresh();
+    void document.fonts.ready.then(() => ScrollTrigger.refresh());
+  }
 
-    const hero = document.querySelector<HTMLElement>('[data-hero]');
-    const cursors = gsap.utils.toArray<HTMLElement>('[data-live-cursor]');
-    cursors.forEach((el, i) => {
-      gsap.fromTo(
-        el,
-        { autoAlpha: 0, scale: 0.5 },
-        { autoAlpha: 1, scale: 1, duration: 0.7, delay: 0.7 + i * 0.12, ease: 'back.out(2)' },
-      );
+  function initHeroCursors(): void {
+    // Presence cursors are default-visible (CSS); GSAP only adds the ambient drift.
+    gsap.utils.toArray<HTMLElement>('[data-live-cursor]').forEach((el, i) => {
       gsap.to(el, {
         x: `+=${gsap.utils.random(-16, 16)}`,
         y: `+=${gsap.utils.random(-14, 14)}`,
@@ -87,26 +65,29 @@
         repeat: -1,
         yoyo: true,
         ease: 'sine.inOut',
-        delay: 1.2,
+        delay: 0.4 + i * 0.1,
       });
     });
+  }
 
-    if (hero) {
-      const setters = cursors.map((el, i) => ({
-        depth: (i + 1) * 7,
-        qx: gsap.quickTo(el, 'x', { duration: 0.9, ease: 'power3' }),
-        qy: gsap.quickTo(el, 'y', { duration: 0.9, ease: 'power3' }),
-      }));
-      hero.addEventListener('pointermove', (event: PointerEvent) => {
-        const r = hero.getBoundingClientRect();
-        const dx = (event.clientX - r.left) / r.width - 0.5;
-        const dy = (event.clientY - r.top) / r.height - 0.5;
-        setters.forEach((s) => {
-          s.qx(dx * s.depth);
-          s.qy(dy * s.depth);
-        });
-      });
+  function initHeroParallax(): () => void {
+    // Parallax the whole cursor layer with the pointer (no per-cursor conflict with drift).
+    const hero = document.querySelector<HTMLElement>('[data-hero]');
+    const layer = document.querySelector<HTMLElement>('.live');
+    if (!hero || !layer) {
+      return () => {};
     }
+    const qx = gsap.quickTo(layer, 'x', { duration: 1, ease: 'power3' });
+    const qy = gsap.quickTo(layer, 'y', { duration: 1, ease: 'power3' });
+    const onMove = (event: PointerEvent): void => {
+      const r = hero.getBoundingClientRect();
+      qx(((event.clientX - r.left) / r.width - 0.5) * 30);
+      qy(((event.clientY - r.top) / r.height - 0.5) * 24);
+    };
+    hero.addEventListener('pointermove', onMove);
+    return () => {
+      hero.removeEventListener('pointermove', onMove);
+    };
   }
 
   function initNav(): void {
