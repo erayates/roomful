@@ -2,7 +2,10 @@ import type { ReactElement } from 'react';
 
 import type { DemoIdentity } from '../demo-types';
 import { CanvasApp } from './canvas-app';
+import { ChatApp } from './chat-app';
+import { ChecklistApp } from './checklist-app';
 import { CursorsApp } from './cursors-app';
+import { MoodApp } from './mood-app';
 import { NotesApp } from './notes-app';
 import { PollApp } from './poll-app';
 import { ReactionsApp } from './reactions-app';
@@ -40,6 +43,14 @@ export const MINI_APPS: readonly MiniAppDefinition[] = [
     Component: CursorsApp,
   },
   {
+    id: 'chat',
+    title: 'Cursor chat',
+    tagline: 'Type a message — it pops up beside your cursor for everyone.',
+    icon: '❝',
+    primitives: 'Cursors · Events',
+    Component: ChatApp,
+  },
+  {
     id: 'reactions',
     title: 'Reactions',
     tagline: 'Fire emoji that float up on every screen at once.',
@@ -48,12 +59,28 @@ export const MINI_APPS: readonly MiniAppDefinition[] = [
     Component: ReactionsApp,
   },
   {
+    id: 'mood',
+    title: 'Vibe check',
+    tagline: 'Pick a vibe — it updates your presence for the whole room.',
+    icon: '◉',
+    primitives: 'Presence',
+    Component: MoodApp,
+  },
+  {
     id: 'notes',
     title: 'Sticky notes',
     tagline: 'Drop notes on a shared board and edit them together.',
     icon: '▢',
     primitives: 'CRDT shared state',
     Component: NotesApp,
+  },
+  {
+    id: 'checklist',
+    title: 'Checklist',
+    tagline: 'Add and check off shared to-dos in real time.',
+    icon: '✓',
+    primitives: 'CRDT shared state',
+    Component: ChecklistApp,
   },
   {
     id: 'poll',

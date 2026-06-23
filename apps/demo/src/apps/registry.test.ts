@@ -7,8 +7,11 @@ describe('mini-app registry', () => {
     expect(MINI_APPS.map((app) => app.id)).toEqual([
       'canvas',
       'cursors',
+      'chat',
       'reactions',
+      'mood',
       'notes',
+      'checklist',
       'poll',
     ]);
   });

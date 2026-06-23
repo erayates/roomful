@@ -757,6 +757,225 @@ textarea {
   font-size: 0.85rem;
 }
 
+/* ---- Cursor chat app ---- */
+.chat-app {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.chat-surface {
+  cursor: text;
+}
+
+.chat-bubble {
+  position: absolute;
+  transform: translate(14px, -6px);
+  max-width: 16rem;
+  padding: 0.35rem 0.7rem;
+  border: 1px solid var(--line-strong);
+  border-radius: 0.8rem;
+  background: color-mix(in srgb, var(--bg) 86%, transparent);
+  color: var(--text);
+  font-size: 0.85rem;
+  white-space: nowrap;
+  pointer-events: none;
+  animation: bubble-in 0.2s var(--ease);
+}
+
+.chat-bubble--me {
+  border-color: var(--teal);
+}
+
+@keyframes bubble-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.chat-input {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.chat-input input,
+.checklist-add input {
+  flex: 1;
+  min-height: 44px;
+  padding: 0 1rem;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--bg-1);
+  color: var(--text);
+}
+
+.chat-input input:focus-visible,
+.checklist-add input:focus-visible {
+  outline: none;
+  border-color: var(--teal);
+}
+
+/* ---- Checklist app ---- */
+.checklist-app {
+  display: grid;
+  gap: 0.8rem;
+  width: 100%;
+  max-width: 40rem;
+  margin: 0 auto;
+}
+
+.checklist-add {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.checklist-meta {
+  margin: 0;
+  color: var(--faint);
+  font-size: 0.82rem;
+}
+
+.checklist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.checklist__item {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--bg-1);
+}
+
+.checklist__item[data-done='true'] .checklist__text {
+  color: var(--faint);
+  text-decoration: line-through;
+}
+
+.checklist__check {
+  flex: none;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 1px solid var(--line-strong);
+  border-radius: 0.4rem;
+  background: transparent;
+  color: var(--teal);
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.checklist__check[aria-pressed='true'] {
+  background: rgba(92, 199, 171, 0.16);
+  border-color: var(--teal);
+}
+
+.checklist__text {
+  flex: 1;
+}
+
+.checklist__by {
+  color: var(--faint);
+  font-size: 0.78rem;
+}
+
+.checklist__del {
+  border: 0;
+  background: transparent;
+  color: var(--faint);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.checklist__del:hover {
+  color: var(--rose);
+}
+
+.checklist__empty {
+  padding: 1.5rem;
+  text-align: center;
+  color: var(--faint);
+}
+
+/* ---- Vibe check (mood) app ---- */
+.mood-app {
+  display: grid;
+  gap: 1.2rem;
+  padding: 1rem 0;
+}
+
+.mood-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
+.mood-btn {
+  width: 52px;
+  height: 52px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  background: var(--card);
+  font-size: 1.5rem;
+  cursor: pointer;
+  transition:
+    border-color 0.15s var(--ease),
+    transform 0.15s var(--ease);
+}
+
+.mood-btn:hover {
+  transform: translateY(-2px);
+}
+
+.mood-btn[aria-pressed='true'] {
+  border-color: var(--teal);
+  background: rgba(92, 199, 171, 0.12);
+}
+
+.mood-grid {
+  display: grid;
+  gap: 0.8rem;
+  grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));
+}
+
+.mood-card {
+  display: grid;
+  gap: 0.3rem;
+  place-items: center;
+  padding: 1.1rem 0.8rem;
+  border: 1px solid var(--line);
+  border-left-width: 3px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-1);
+}
+
+.mood-emoji {
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.mood-name {
+  color: var(--muted);
+  font-size: 0.82rem;
+  text-align: center;
+}
+
+.mood-hint {
+  margin: 0;
+  text-align: center;
+  color: var(--faint);
+  font-size: 0.85rem;
+}
+
 /* ---- Responsive ---- */
 @media (max-width: 720px) {
   .topbar {
