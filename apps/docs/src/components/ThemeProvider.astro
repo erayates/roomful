@@ -1,0 +1,14 @@
+---
+/* Dark-only: the Roomful docs are committed to the dark theme to match the landing.
+   This overrides Starlight's ThemeProvider so a light theme is never applied — there is
+   no theme toggle, and the pre-paint inline script pins `data-theme="dark"`. */
+---
+
+<script is:inline>
+  document.documentElement.dataset.theme = 'dark';
+  try {
+    window.localStorage.setItem('starlight-theme', 'dark');
+  } catch (error) {
+    /* localStorage unavailable — the attribute above is enough. */
+  }
+</script>

@@ -36,10 +36,14 @@ export default defineConfig({
           href: 'https://github.com/erayates/roomful',
         },
       ],
-      customCss: ['@fontsource-variable/space-grotesk', './src/styles/site.css'],
+      customCss: [
+        '@fontsource-variable/geist',
+        '@fontsource-variable/space-grotesk',
+        './src/styles/site.css',
+      ],
       routeMiddleware: './src/routeData.ts',
       expressiveCode: {
-        themes: ['vitesse-dark', 'vitesse-light'],
+        themes: ['vitesse-dark'],
         styleOverrides: {
           borderRadius: '0.6rem',
         },
@@ -88,6 +92,7 @@ export default defineConfig({
         },
       ],
       components: {
+        ThemeProvider: './src/components/ThemeProvider.astro',
         Hero: './src/components/Hero.astro',
         Footer: './src/components/Footer.astro',
         MobileMenuFooter: './src/components/MobileMenuFooter.astro',

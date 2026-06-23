@@ -26,6 +26,7 @@
     "@astrojs/react": "5.0.0",
     "@astrojs/starlight": "0.37.7",
     "@astrojs/starlight-docsearch": "0.6.1",
+    "@fontsource-variable/geist": "5.2.9",
     "@fontsource-variable/space-grotesk": "5.2.10",
     "@types/react": "19.0.0",
     "@types/react-dom": "19.0.0",
