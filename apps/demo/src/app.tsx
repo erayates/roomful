@@ -1,11 +1,13 @@
 import { RoomfulProvider } from '@roomful/react';
-import { type ReactElement, useEffect, useState } from 'react';
+import { type ReactElement, useCallback, useEffect, useState } from 'react';
 
+import { findMiniApp, MINI_APPS } from './apps/registry';
 import { resolveDemoRuntimeConfig } from './demo-config';
-import { DemoExperience } from './demo-experience';
 import { createDemoIdentity, readStoredIdentity, writeStoredIdentity } from './demo-identity';
 import { getMillisecondsUntilNextUtcMidnight, resolveDemoRoomSelection } from './demo-room';
 import type { DemoIdentity, DemoPresence, DemoRuntimeConfig } from './demo-types';
+import { MiniAppStage } from './shell/mini-app-stage';
+import { TopBar } from './shell/top-bar';
 
 function readInitialIdentity(): DemoIdentity {
   try {
@@ -15,34 +17,19 @@ function readInitialIdentity(): DemoIdentity {
   }
 }
 
-function readInitialPresence(): DemoPresence {
-  return {
-    ...readInitialIdentity(),
-  };
-}
-
-function readInitialConfig(): DemoRuntimeConfig {
-  return resolveDemoRuntimeConfig(window.location);
-}
-
-function resolveRoomLabel(roomKey: string, roomOverride?: string): string {
-  return roomOverride ?? `${roomKey} UTC`;
+function readActiveAppId(): string {
+  return findMiniApp(new URLSearchParams(window.location.search).get('app')).id;
 }
 
 export function App(): ReactElement {
-  const [providerPresence] = useState<DemoPresence>(() => readInitialPresence());
-  const [identity, setIdentity] = useState<DemoIdentity>(() => ({
-    color: providerPresence.color,
-    name: providerPresence.name,
-  }));
-  const [runtimeConfig] = useState<DemoRuntimeConfig>(() => readInitialConfig());
+  const [identity, setIdentity] = useState<DemoIdentity>(() => readInitialIdentity());
+  const [providerPresence] = useState<DemoPresence>(() => ({ ...identity }));
+  const [config] = useState<DemoRuntimeConfig>(() => resolveDemoRuntimeConfig(window.location));
   const [roomError, setRoomError] = useState<string | null>(null);
+  const [activeAppId, setActiveAppId] = useState<string>(() => readActiveAppId());
   const [roomSelection, setRoomSelection] = useState(() =>
     resolveDemoRoomSelection(
-      {
-        dayOverride: runtimeConfig.dayOverride,
-        roomOverride: runtimeConfig.roomOverride,
-      },
+      { dayOverride: config.dayOverride, roomOverride: config.roomOverride },
       new Date(),
     ),
   );
@@ -58,7 +45,7 @@ export function App(): ReactElement {
   }, [identity]);
 
   useEffect(() => {
-    if (runtimeConfig.dayOverride || runtimeConfig.roomOverride) {
+    if (config.dayOverride || config.roomOverride) {
       return undefined;
     }
 
@@ -72,10 +59,24 @@ export function App(): ReactElement {
     return () => {
       window.clearTimeout(timeoutId);
     };
-  }, [roomSelection.roomId, runtimeConfig.dayOverride, runtimeConfig.roomOverride]);
+  }, [roomSelection.roomId, config.dayOverride, config.roomOverride]);
+
+  const selectApp = useCallback((id: string): void => {
+    setActiveAppId(id);
+    const url = new URL(window.location.href);
+    url.searchParams.set('app', id);
+    window.history.replaceState(null, '', url);
+  }, []);
+
+  const activeApp = findMiniApp(activeAppId);
+  const appRoomId = `${roomSelection.roomId}-${activeApp.id}`;
+  const shareUrl = `${config.canonicalBaseUrl}?app=${activeApp.id}`;
 
   return (
-    <>
+    <div className="playground">
+      <span aria-hidden="true" className="demo-page__glow demo-page__glow--left" />
+      <span aria-hidden="true" className="demo-page__glow demo-page__glow--right" />
+
       {roomError ? (
         <div className="demo-error" role="alert">
           <span>Connection issue — {roomError}</span>
@@ -89,26 +90,41 @@ export function App(): ReactElement {
           </button>
         </div>
       ) : null}
-      <RoomfulProvider<DemoPresence>
-        key={roomSelection.roomId}
-        onError={(error) => {
-          setRoomError(error.message);
-        }}
-        presence={providerPresence}
-        reconnect={{ backoffMs: 500, backoffMultiplier: 1.6, maxAttempts: 8, maxBackoffMs: 4_000 }}
-        roomId={roomSelection.roomId}
-        transport={runtimeConfig.transport}
-        websocket={{ fallbackTransport: 'polling' }}
-        {...(runtimeConfig.relayUrl ? { relayUrl: runtimeConfig.relayUrl } : {})}
-      >
-        <DemoExperience
-          canonicalBaseUrl={runtimeConfig.canonicalBaseUrl}
-          identity={identity}
-          onIdentityChange={setIdentity}
-          roomLabel={resolveRoomLabel(roomSelection.roomKey, runtimeConfig.roomOverride)}
-          transportLabel={runtimeConfig.transportLabel}
-        />
-      </RoomfulProvider>
-    </>
+
+      <TopBar
+        activeAppId={activeApp.id}
+        apps={MINI_APPS}
+        identity={identity}
+        onIdentityChange={setIdentity}
+        onSelectApp={selectApp}
+        shareUrl={shareUrl}
+      />
+
+      <main className="playground__main">
+        <RoomfulProvider<DemoPresence>
+          key={appRoomId}
+          onError={(error) => {
+            setRoomError(error.message);
+          }}
+          presence={providerPresence}
+          reconnect={{
+            backoffMs: 500,
+            backoffMultiplier: 1.6,
+            maxAttempts: 8,
+            maxBackoffMs: 4_000,
+          }}
+          roomId={appRoomId}
+          transport={config.transport}
+          websocket={{ fallbackTransport: 'polling' }}
+          {...(config.relayUrl ? { relayUrl: config.relayUrl } : {})}
+        >
+          <MiniAppStage
+            app={activeApp}
+            identity={identity}
+            transportLabel={config.transportLabel}
+          />
+        </RoomfulProvider>
+      </main>
+    </div>
   );
 }
