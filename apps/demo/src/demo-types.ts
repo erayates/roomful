@@ -40,6 +40,8 @@ export type DemoPreviewEvent =
 export interface DemoRuntimeConfig {
   canonicalBaseUrl: string;
   dayOverride?: string | undefined;
-  relayUrl: string;
+  relayUrl: string | undefined;
   roomOverride?: string | undefined;
+  transport: 'broadcast' | 'websocket';
+  transportLabel: string;
 }

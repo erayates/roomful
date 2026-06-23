@@ -48,6 +48,7 @@ interface DemoExperienceProps {
   identity: DemoIdentity;
   onIdentityChange: (identity: DemoIdentity) => void;
   roomLabel: string;
+  transportLabel: string;
 }
 
 interface SurfaceSize {
@@ -227,7 +228,7 @@ function pruneRemotePreviews(
 }
 
 export function DemoExperience(props: DemoExperienceProps): ReactElement {
-  const { canonicalBaseUrl, identity, onIdentityChange, roomLabel } = props;
+  const { canonicalBaseUrl, identity, onIdentityChange, roomLabel, transportLabel } = props;
   const { all, others, self, update } = usePresence<DemoPresence>();
   const connectionStatus = useConnectionStatus<DemoPresence>();
   const cursorTracking = useCursors({ idleAfterMs: 2_400, throttleMs: 24 });
@@ -521,23 +522,25 @@ export function DemoExperience(props: DemoExperienceProps): ReactElement {
             instantly across every visitor.
           </p>
           <div className="hero-panel__actions">
-            <a
+            <button
               className="button button--primary"
+              onClick={() => {
+                window.open(window.location.href, '_blank', 'noopener');
+              }}
+              type="button"
+            >
+              Open a second tab →
+            </button>
+            <a
+              className="button button--ghost"
               href={shareLinks.x}
               rel="noreferrer"
               target="_blank"
             >
               Share on X
             </a>
-            <a
-              className="button button--ghost"
-              href={shareLinks.linkedin}
-              rel="noreferrer"
-              target="_blank"
-            >
-              Share on LinkedIn
-            </a>
           </div>
+          <p className="hero-panel__transport">{transportLabel}</p>
         </div>
         <div className="hero-panel__stats">
           <div className="stat-chip">
@@ -606,7 +609,7 @@ export function DemoExperience(props: DemoExperienceProps): ReactElement {
               <p>Draw with mouse, touch, or pen. Everyone here sees each stroke in real time.</p>
             </div>
             <div className="canvas-card__status">
-              <LiveIndicator ariaLabel="Canvas is live" color="#ff6b35" size={12} />
+              <LiveIndicator ariaLabel="Canvas is live" color="#5cc7ab" size={12} />
               <span>{others.length} other people active</span>
             </div>
           </div>

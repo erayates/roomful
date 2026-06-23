@@ -1,3 +1,5 @@
+import '@fontsource-variable/geist';
+import '@fontsource-variable/space-grotesk';
 import './styles.css';
 
 import { createRoot } from 'react-dom/client';

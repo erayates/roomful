@@ -2,8 +2,6 @@ import { readDemoRoomOverrides } from './demo-room';
 import type { DemoRuntimeConfig } from './demo-types';
 
 const DEFAULT_CANONICAL_BASE_URL = 'https://demo.roomful.dev';
-const DEFAULT_PUBLIC_RELAY_URL = 'wss://relay.roomful.dev';
-const DEFAULT_LOCAL_RELAY_URL = 'ws://127.0.0.1:8787';
 
 interface LocationLike {
   hostname: string;
@@ -44,22 +42,22 @@ function normalizeRelayUrl(value: string | undefined): string | undefined {
   }
 }
 
-function isLocalHostname(hostname: string): boolean {
-  return (
-    hostname === 'localhost' ||
-    hostname === '127.0.0.1' ||
-    hostname === '0.0.0.0' ||
-    hostname.endsWith('.local')
-  );
-}
-
+/**
+ * Resolves the demo's runtime config. The default transport is BroadcastChannel — it works
+ * with zero backend (sync across tabs/windows in one browser). A WebSocket relay is opt-in:
+ * provide it via `?relay=wss://…` or the `VITE_ROOMFUL_RELAY_URL` build env to unlock
+ * cross-device multiplayer without any code change.
+ */
 export function resolveDemoRuntimeConfig(locationLike: LocationLike): DemoRuntimeConfig {
   const searchParams = new URLSearchParams(locationLike.search);
   const roomOverrides = readDemoRoomOverrides(searchParams);
   const relayUrl =
     normalizeRelayUrl(searchParams.get('relay') ?? undefined) ??
-    normalizeRelayUrl(import.meta.env.VITE_ROOMFUL_RELAY_URL) ??
-    (isLocalHostname(locationLike.hostname) ? DEFAULT_LOCAL_RELAY_URL : DEFAULT_PUBLIC_RELAY_URL);
+    normalizeRelayUrl(import.meta.env.VITE_ROOMFUL_RELAY_URL);
+  const transport: 'broadcast' | 'websocket' = relayUrl ? 'websocket' : 'broadcast';
+  const transportLabel = relayUrl
+    ? 'Live relay · synced across devices'
+    : 'In-browser · open a second tab to collaborate';
   const canonicalBaseUrl =
     normalizeBaseUrl(import.meta.env.VITE_DEMO_BASE_URL) ?? DEFAULT_CANONICAL_BASE_URL;
 
@@ -68,5 +66,7 @@ export function resolveDemoRuntimeConfig(locationLike: LocationLike): DemoRuntim
     dayOverride: roomOverrides.dayOverride,
     relayUrl,
     roomOverride: roomOverrides.roomOverride,
+    transport,
+    transportLabel,
   };
 }

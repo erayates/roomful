@@ -115,6 +115,7 @@ describe('DemoExperience', () => {
         identity={{ color: '#ff6b35', name: 'Ada Orbit' }}
         onIdentityChange={vi.fn()}
         roomLabel="2026-03-11 UTC"
+        transportLabel="In-browser"
       />,
     );
 
@@ -135,6 +136,7 @@ describe('DemoExperience', () => {
         identity={{ color: '#ff6b35', name: 'Ada Orbit' }}
         onIdentityChange={onIdentityChange}
         roomLabel="2026-03-11 UTC"
+        transportLabel="In-browser"
       />,
     );
 

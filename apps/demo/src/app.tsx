@@ -36,6 +36,7 @@ export function App(): ReactElement {
     name: providerPresence.name,
   }));
   const [runtimeConfig] = useState<DemoRuntimeConfig>(() => readInitialConfig());
+  const [roomError, setRoomError] = useState<string | null>(null);
   const [roomSelection, setRoomSelection] = useState(() =>
     resolveDemoRoomSelection(
       {
@@ -74,21 +75,40 @@ export function App(): ReactElement {
   }, [roomSelection.roomId, runtimeConfig.dayOverride, runtimeConfig.roomOverride]);
 
   return (
-    <RoomfulProvider<DemoPresence>
-      key={roomSelection.roomId}
-      presence={providerPresence}
-      reconnect={{ backoffMs: 500, backoffMultiplier: 1.6, maxAttempts: 8, maxBackoffMs: 4_000 }}
-      relayUrl={runtimeConfig.relayUrl}
-      roomId={roomSelection.roomId}
-      transport="websocket"
-      websocket={{ fallbackTransport: 'polling' }}
-    >
-      <DemoExperience
-        canonicalBaseUrl={runtimeConfig.canonicalBaseUrl}
-        identity={identity}
-        onIdentityChange={setIdentity}
-        roomLabel={resolveRoomLabel(roomSelection.roomKey, runtimeConfig.roomOverride)}
-      />
-    </RoomfulProvider>
+    <>
+      {roomError ? (
+        <div className="demo-error" role="alert">
+          <span>Connection issue — {roomError}</span>
+          <button
+            onClick={() => {
+              setRoomError(null);
+            }}
+            type="button"
+          >
+            Dismiss
+          </button>
+        </div>
+      ) : null}
+      <RoomfulProvider<DemoPresence>
+        key={roomSelection.roomId}
+        onError={(error) => {
+          setRoomError(error.message);
+        }}
+        presence={providerPresence}
+        reconnect={{ backoffMs: 500, backoffMultiplier: 1.6, maxAttempts: 8, maxBackoffMs: 4_000 }}
+        roomId={roomSelection.roomId}
+        transport={runtimeConfig.transport}
+        websocket={{ fallbackTransport: 'polling' }}
+        {...(runtimeConfig.relayUrl ? { relayUrl: runtimeConfig.relayUrl } : {})}
+      >
+        <DemoExperience
+          canonicalBaseUrl={runtimeConfig.canonicalBaseUrl}
+          identity={identity}
+          onIdentityChange={setIdentity}
+          roomLabel={resolveRoomLabel(roomSelection.roomKey, runtimeConfig.roomOverride)}
+          transportLabel={runtimeConfig.transportLabel}
+        />
+      </RoomfulProvider>
+    </>
   );
 }

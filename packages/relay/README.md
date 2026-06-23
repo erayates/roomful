@@ -58,3 +58,16 @@ docker run --rm -p 8787:8787 -e HOST=0.0.0.0 roomful/relay:latest
 
 Local and production Compose examples live at the repository root in `docker-compose.yml` and
 `docker-compose.prod.yml`.
+
+## Powering the live demo
+
+`apps/demo` (demo.roomful.dev) ships on **BroadcastChannel** by default — zero backend, multiplayer
+across tabs/windows in one browser. To upgrade it to **cross-device** multiplayer, deploy this relay
+and point the demo at it (no demo code change required):
+
+1. Deploy the relay (the `roomful/relay:latest` image, the Compose files, or the `roomful-relay`
+   CLI on Fly/Railway/Render). Set `HOST=0.0.0.0` and `ROOMFUL_CORS_ORIGIN=https://demo.roomful.dev`.
+2. On the demo's Vercel project, set `VITE_ROOMFUL_RELAY_URL=wss://your-relay-host` and redeploy.
+
+The demo auto-switches to the WebSocket transport whenever a relay URL is present. You can also test
+ad-hoc against any relay with `?relay=wss://your-relay-host` appended to a demo URL.
