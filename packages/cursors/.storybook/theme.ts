@@ -6,6 +6,7 @@ export const roomfulTheme = create({
   brandTitle: 'Roomful UI',
   brandUrl: 'https://roomful.dev',
   brandTarget: '_blank',
+  brandImage: './roomful-mark.svg',
 
   colorPrimary: '#5cc7ab',
   colorSecondary: '#5cc7ab',

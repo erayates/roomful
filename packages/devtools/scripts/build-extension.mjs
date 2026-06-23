@@ -111,11 +111,11 @@ function drawIconPixel(size, x, y) {
     return [251, 191, 36, 255];
   }
 
-  // Teal "room" gradient — bright top-left to deep bottom-right.
+  // Teal "room" gradient — bright top-left to medium-teal bottom-right (no near-black).
   const gradientRatio = (x + y) / (max * 2);
-  const red = interpolateChannel(33, 10, gradientRatio);
-  const green = interpolateChannel(205, 84, gradientRatio);
-  const blue = interpolateChannel(182, 76, gradientRatio);
+  const red = interpolateChannel(44, 17, gradientRatio);
+  const green = interpolateChannel(209, 144, gradientRatio);
+  const blue = interpolateChannel(187, 121, gradientRatio);
 
   return [red, green, blue, 255];
 }
