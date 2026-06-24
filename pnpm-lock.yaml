@@ -182,16 +182,6 @@ importers:
         specifier: 3.25.76
         version: 3.25.76
 
-  apps/playground:
-    dependencies:
-      '@roomful/core':
-        specifier: workspace:*
-        version: link:../../packages/core
-    devDependencies:
-      vite:
-        specifier: ^7.3.1
-        version: 7.3.1(@types/node@25.3.3)(jiti@2.6.1)(yaml@2.8.2)
-
   apps/web:
     dependencies:
       '@fontsource-variable/geist':

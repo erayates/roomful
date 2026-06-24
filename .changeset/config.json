@@ -10,7 +10,6 @@
   "ignore": [
     "@roomful/app-demo",
     "@roomful/app-docs",
-    "@roomful/app-playground",
     "@roomful/example-collaborative-editor",
     "@roomful/example-live-dashboard",
     "@roomful/example-multiplayer-game",

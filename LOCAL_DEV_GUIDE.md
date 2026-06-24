@@ -54,20 +54,6 @@ Expected dev URL is usually:
 http://localhost:5173
 ```
 
-## Run the Playground
-
-`apps/playground` is not a live browser app right now. It does not have a `dev` script.
-
-It currently behaves like a small workspace package with build, test, and typecheck commands:
-
-```bash
-pnpm --filter @roomful/app-playground build
-pnpm --filter @roomful/app-playground test
-pnpm --filter @roomful/app-playground typecheck
-```
-
-If you want an actual browser experience, use `@roomful/app-demo`.
-
 ## Run the Docs Site
 
 The docs app is in `apps/docs`.

@@ -16,8 +16,7 @@ roomful/
 │   └── devtools/     # Developer diagnostics tooling
 ├── apps/
 │   ├── docs/         # Documentation application (future phase)
-│   ├── demo/         # Interactive showcase app
-│   └── playground/   # API exploration environment
+│   └── demo/         # Interactive showcase app
 ├── examples/
 │   ├── collaborative-editor/
 │   ├── shared-canvas/
