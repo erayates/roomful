@@ -13,7 +13,7 @@ const hasDocSearch =
 const packageAliases = Object.fromEntries(
   ['core', 'react', 'vue', 'svelte', 'cursors', 'relay', 'devtools'].map((name) => [
     `@roomful/${name}`,
-    fileURLToPath(new URL(`../../packages/${name}/src/index.ts`, import.meta.url)),
+    fileURLToPath(new URL(`../../packages/${name}/src`, import.meta.url)),
   ]),
 );
 

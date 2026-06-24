@@ -10,8 +10,8 @@ export default defineConfig({
   root: fixtureDir,
   resolve: {
     alias: {
-      '@roomful/core': path.resolve(repoRoot, 'packages/core/src/index.ts'),
-      '@roomful/react-local': path.resolve(repoRoot, 'packages/react/src/index.ts'),
+      '@roomful/core': path.resolve(repoRoot, 'packages/core/src'),
+      '@roomful/react-local': path.resolve(repoRoot, 'packages/react/src'),
     },
   },
   server: {
