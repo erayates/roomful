@@ -556,3 +556,190 @@ describe('PollingTransportAdapter', () => {
     });
   });
 });
+
+describe('PollingTransportAdapter error and edge paths', () => {
+  const protocol = getTransportProtocolCapabilities('polling');
+  const jsonHeaders = { 'content-type': 'application/json; charset=utf-8' };
+  const joinResponse = (roomId: string, peerId: string): string =>
+    JSON.stringify({ type: 'joined', sessionId: 'session-x', roomId, peerId, peers: [] });
+
+  it('throws when relayUrl is missing', () => {
+    expect(() =>
+      createPollingTransportAdapter(
+        'room-x',
+        'peer-a',
+        { transport: 'websocket', websocket: { fallbackTransport: 'polling' } },
+        async () => new MockResponse(204),
+      ),
+    ).toThrow(/requires `relayUrl`/);
+  });
+
+  it('accepts a static string relay auth token', async () => {
+    const relay = new MockPollingRelay();
+    const adapter = createPollingTransportAdapter(
+      'room-str',
+      'peer-a',
+      {
+        transport: 'websocket',
+        relayUrl: 'ws://relay.local',
+        relayAuth: 'static-token',
+        websocket: { fallbackTransport: 'polling' },
+      },
+      relay.fetch,
+    );
+
+    await adapter.connect();
+    const joinRequest = relay.requests.find((request) => request.url.includes('/poll/sessions'));
+    expect(joinRequest?.headers.authorization).toBe('Bearer static-token');
+    await adapter.disconnect();
+  });
+
+  it('emits a leave signal when a remote peer disconnects', async () => {
+    const relay = new MockPollingRelay();
+    const makeAdapter = (peerId: string): ReturnType<typeof createPollingTransportAdapter> =>
+      createPollingTransportAdapter(
+        'room-leave',
+        peerId,
+        {
+          transport: 'websocket',
+          relayUrl: 'ws://relay.local',
+          websocket: { fallbackTransport: 'polling' },
+        },
+        relay.fetch,
+      );
+    const adapterA = makeAdapter('peer-a');
+    const adapterB = makeAdapter('peer-b');
+    const received: string[] = [];
+    adapterA.onMessage((signal) => {
+      received.push(signal.type);
+    });
+
+    await adapterA.connect();
+    await adapterB.connect();
+    await adapterB.disconnect();
+
+    await waitFor(() => received.includes('leave'));
+    await adapterA.disconnect();
+  });
+
+  it('emits an error and disconnects when the event poll fails', async () => {
+    const fetchImpl: FetchLike = async (input, init) => {
+      const url = new URL(input);
+      const method = init?.method ?? 'GET';
+      if (method === 'POST' && url.pathname.endsWith('/poll/sessions')) {
+        return new MockResponse(200, joinResponse('room-poll-fail', 'peer-a'), jsonHeaders);
+      }
+
+      if (method === 'GET' && url.pathname.endsWith('/events')) {
+        return new MockResponse(
+          500,
+          JSON.stringify({ code: 'INTERNAL', message: 'boom' }),
+          jsonHeaders,
+        );
+      }
+
+      return new MockResponse(204);
+    };
+    const adapter = createPollingTransportAdapter(
+      'room-poll-fail',
+      'peer-a',
+      {
+        transport: 'websocket',
+        relayUrl: 'ws://relay.local',
+        websocket: { fallbackTransport: 'polling' },
+      },
+      fetchImpl,
+    );
+    const signals: string[] = [];
+    adapter.onMessage((signal) => {
+      signals.push(signal.type);
+    });
+
+    await adapter.connect();
+    await waitFor(() => signals.includes('transport:disconnected'));
+    expect(signals).toContain('transport:error');
+    await adapter.disconnect();
+  });
+
+  it('emits an error when sending a transport frame is rejected', async () => {
+    const fetchImpl: FetchLike = async (input, init) => {
+      const url = new URL(input);
+      const method = init?.method ?? 'GET';
+      if (method === 'POST' && url.pathname.endsWith('/poll/sessions')) {
+        return new MockResponse(200, joinResponse('room-send-fail', 'peer-a'), jsonHeaders);
+      }
+
+      if (method === 'POST' && url.pathname.endsWith('/messages')) {
+        return new MockResponse(
+          503,
+          JSON.stringify({ code: 'INTERNAL', message: 'reject' }),
+          jsonHeaders,
+        );
+      }
+
+      if (method === 'GET' && url.pathname.endsWith('/events')) {
+        return new Promise<FetchResponseLike>(() => undefined);
+      }
+
+      return new MockResponse(204);
+    };
+    const adapter = createPollingTransportAdapter(
+      'room-send-fail',
+      'peer-a',
+      {
+        transport: 'websocket',
+        relayUrl: 'ws://relay.local',
+        websocket: { fallbackTransport: 'polling' },
+      },
+      fetchImpl,
+    );
+    const signals: string[] = [];
+    adapter.onMessage((signal) => {
+      signals.push(signal.type);
+    });
+
+    await adapter.connect();
+    adapter.broadcast({
+      type: 'hello',
+      roomId: 'room-send-fail',
+      fromPeerId: 'peer-a',
+      timestamp: 1,
+      payload: {
+        peer: { id: 'peer-a', joinedAt: 1, lastSeen: 1 },
+        protocol,
+      },
+    });
+
+    await waitFor(() => signals.includes('transport:disconnected'));
+    expect(signals).toContain('transport:error');
+    await adapter.disconnect();
+  });
+
+  it('sends non-handshake signals as msgpack frames', async () => {
+    const relay = new MockPollingRelay();
+    const adapter = createPollingTransportAdapter(
+      'room-msgpack',
+      'peer-a',
+      {
+        transport: 'websocket',
+        relayUrl: 'ws://relay.local',
+        websocket: { fallbackTransport: 'polling' },
+      },
+      relay.fetch,
+    );
+
+    await adapter.connect();
+    adapter.broadcast({
+      type: 'event',
+      roomId: 'room-msgpack',
+      fromPeerId: 'peer-a',
+      timestamp: 1,
+      payload: { name: 'ping', payload: { scope: 'all' } },
+    });
+
+    await waitFor(() => relay.requests.some((request) => request.url.includes('/messages')));
+    const messageRequest = relay.requests.find((request) => request.url.includes('/messages'));
+    expect(messageRequest?.headers['content-type']).toBe('application/msgpack');
+    await adapter.disconnect();
+  });
+});

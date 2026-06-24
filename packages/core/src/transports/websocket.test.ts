@@ -4,7 +4,13 @@ import {
   getBootstrapProtocolSession,
   getTransportProtocolCapabilities,
 } from './transport.protocol';
-import { createWebSocketTransportAdapter, type WebSocketLike } from './websocket';
+import {
+  createWebSocketTransportAdapter,
+  isWebSocketPollingFallbackEligibleError,
+  readWebSocketTransportFailure,
+  type WebSocketFactory,
+  type WebSocketLike,
+} from './websocket';
 import {
   parseWebSocketRelayClientMessage,
   serializeWebSocketRelayMessage,
@@ -776,5 +782,164 @@ describe('WebSocketTransportAdapter', () => {
         reason: 'disconnect',
       },
     ]);
+  });
+});
+
+describe('WebSocketTransportAdapter error and lifecycle paths', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('throws when relayUrl is missing', () => {
+    expect(() =>
+      createWebSocketTransportAdapter(
+        'room-x',
+        'peer-a',
+        { transport: 'websocket' },
+        new MockRelay().connect,
+      ),
+    ).toThrow(/requires `relayUrl`/);
+  });
+
+  it('disconnects cleanly when never connected', async () => {
+    const adapter = createWebSocketTransportAdapter(
+      'room-nc',
+      'peer-a',
+      { transport: 'websocket', relayUrl: 'ws://relay.local' },
+      new MockRelay().connect,
+    );
+
+    await expect(adapter.disconnect()).resolves.toBeUndefined();
+  });
+
+  it('appends a static string relay auth token to the socket url', async () => {
+    const relay = new MockRelay();
+    const adapter = createWebSocketTransportAdapter(
+      'room-str',
+      'peer-a',
+      { transport: 'websocket', relayUrl: 'ws://relay.local', relayAuth: 'static-token' },
+      relay.connect,
+    );
+
+    await adapter.connect();
+    expect(relay.getSocket('peer-a')?.url).toContain('token=static-token');
+    await adapter.disconnect();
+  });
+
+  it('emits disconnected when the socket errors after connect', async () => {
+    const relay = new MockRelay();
+    const adapter = createWebSocketTransportAdapter(
+      'room-socket-error',
+      'peer-a',
+      { transport: 'websocket', relayUrl: 'ws://relay.local' },
+      relay.connect,
+    );
+    const onMessage = vi.fn();
+    adapter.onMessage(onMessage);
+
+    await adapter.connect();
+    relay.getSocket('peer-a')?.emitError();
+
+    await waitFor(() =>
+      onMessage.mock.calls.some(([signal]) => signal.type === 'transport:disconnected'),
+    );
+    expect(onMessage).toHaveBeenCalledWith({
+      type: 'transport:disconnected',
+      roomId: 'room-socket-error',
+      fromPeerId: 'peer-a',
+      payload: { reason: 'Relay socket error.' },
+    });
+
+    await adapter.disconnect();
+  });
+
+  it('emits disconnected with the close reason when the socket closes after connect', async () => {
+    const relay = new MockRelay();
+    const adapter = createWebSocketTransportAdapter(
+      'room-socket-close',
+      'peer-a',
+      { transport: 'websocket', relayUrl: 'ws://relay.local' },
+      relay.connect,
+    );
+    const onMessage = vi.fn();
+    adapter.onMessage(onMessage);
+
+    await adapter.connect();
+    relay.getSocket('peer-a')?.close(1011, 'relay shutdown');
+
+    await waitFor(() =>
+      onMessage.mock.calls.some(([signal]) => signal.type === 'transport:disconnected'),
+    );
+    expect(onMessage).toHaveBeenCalledWith({
+      type: 'transport:disconnected',
+      roomId: 'room-socket-close',
+      fromPeerId: 'peer-a',
+      payload: { reason: 'relay shutdown' },
+    });
+
+    await adapter.disconnect();
+  });
+
+  it('rejects the connection when the socket errors during join', async () => {
+    const factory: WebSocketFactory = (url) => {
+      const socket = new MockWebSocket(url, new MockRelay());
+      queueMicrotask(() => {
+        socket.emitError();
+      });
+      return socket;
+    };
+    const adapter = createWebSocketTransportAdapter(
+      'room-connect-error',
+      'peer-a',
+      { transport: 'websocket', relayUrl: 'ws://relay.local' },
+      factory,
+    );
+
+    await expect(adapter.connect()).rejects.toMatchObject({
+      code: 'NETWORK_ERROR',
+      message: 'Failed to establish relay socket.',
+    });
+  });
+
+  it('rejects the connection when the socket closes during join', async () => {
+    const factory: WebSocketFactory = (url) => {
+      const socket = new MockWebSocket(url, new MockRelay());
+      queueMicrotask(() => {
+        socket.close(1006, 'gone before ack');
+      });
+      return socket;
+    };
+    const adapter = createWebSocketTransportAdapter(
+      'room-connect-close',
+      'peer-a',
+      { transport: 'websocket', relayUrl: 'ws://relay.local' },
+      factory,
+    );
+
+    await expect(adapter.connect()).rejects.toMatchObject({
+      code: 'NETWORK_ERROR',
+      message: 'gone before ack',
+    });
+  });
+
+  it('reads and classifies websocket transport failures', () => {
+    const failure = { source: 'websocket-relay', kind: 'connect-failed' };
+
+    expect(readWebSocketTransportFailure(failure)).toEqual(failure);
+    expect(readWebSocketTransportFailure('not-a-failure')).toBeNull();
+    expect(
+      readWebSocketTransportFailure(
+        new Error('outer', { cause: { source: 'websocket-relay', kind: 'connect-timeout' } }),
+      ),
+    ).toEqual({ source: 'websocket-relay', kind: 'connect-timeout' });
+
+    expect(isWebSocketPollingFallbackEligibleError(failure)).toBe(true);
+    expect(
+      isWebSocketPollingFallbackEligibleError({
+        source: 'websocket-relay',
+        kind: 'server-rejected',
+      }),
+    ).toBe(false);
+    expect(isWebSocketPollingFallbackEligibleError('not-a-failure')).toBe(false);
   });
 });
