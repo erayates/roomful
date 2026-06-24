@@ -15,6 +15,19 @@ import type {
   StateOptions,
 } from '@roomful/core';
 import { createCoreHealth, createRoom, RoomfulError } from '@roomful/core';
+import {
+  areAwarenessArraysEqual,
+  areCursorArraysEqual,
+  areCursorPositionsEqual,
+  arePeerArraysEqual,
+  arePeersEqual,
+  areStructuredValuesEqual,
+  assertCompatibleSharedStateBinding,
+  createSharedStateBinding,
+  isObjectLike,
+  readSelfPeer,
+  type SharedStateBinding,
+} from '@roomful/core/adapter-runtime';
 import type { Dispatch, ReactNode, RefCallback, SetStateAction } from 'react';
 import {
   createContext,
@@ -232,13 +245,6 @@ interface SharedStateSnapshotCache<TPresence extends PresenceData, T> {
   room: Room<TPresence>;
   engine: StateEngine<T>;
   snapshot: T;
-}
-
-interface SharedStateBinding {
-  key: string;
-  strategy: 'lww' | 'crdt';
-  initialValue: unknown;
-  persist: boolean;
 }
 
 const sharedStateBindings = new WeakMap<Room<PresenceData>, SharedStateBinding>();
@@ -845,10 +851,6 @@ function areShallowObjectsEqual(a: object | undefined, b: object | undefined): b
   return true;
 }
 
-function isObjectLike(value: unknown): value is object {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
 function readAwarenessSnapshot<TPresence extends PresenceData>(
   room: Room<TPresence>,
   awareness: AwarenessEngine,
@@ -948,44 +950,6 @@ function readPresenceSnapshot<TPresence extends PresenceData>(
   };
 
   return snapshot;
-}
-
-function readSelfPeer<TPresence extends PresenceData>(
-  room: Room<TPresence>,
-  presence: PresenceEngine<TPresence>,
-  peers: Peer<TPresence>[],
-): Peer<TPresence> {
-  for (const peer of peers) {
-    if (peer.id === room.peerId) {
-      return peer;
-    }
-  }
-
-  return presence.getSelf();
-}
-
-function arePeerArraysEqual<TPresence extends PresenceData>(
-  previous: readonly Peer<TPresence>[],
-  next: readonly Peer<TPresence>[],
-): boolean {
-  if (previous === next) {
-    return true;
-  }
-
-  if (previous.length !== next.length) {
-    return false;
-  }
-
-  for (let index = 0; index < previous.length; index += 1) {
-    const previousPeer = previous[index];
-    const nextPeer = next[index];
-
-    if (!previousPeer || !nextPeer || !arePeersEqual(previousPeer, nextPeer)) {
-      return false;
-    }
-  }
-
-  return true;
 }
 
 function readPeersSnapshot<TPresence extends PresenceData>(
@@ -1095,269 +1059,6 @@ function readSharedStateSnapshot<TPresence extends PresenceData, T>(
     snapshot: nextSnapshot,
   };
   return nextSnapshot;
-}
-
-function createSharedStateBinding<T>(key: string, options: StateOptions<T>): SharedStateBinding {
-  return {
-    key,
-    strategy: normalizeSharedStateStrategy(options.strategy),
-    initialValue: cloneSharedStateValue(options.initialValue),
-    persist: options.persist === true,
-  };
-}
-
-function assertCompatibleSharedStateBinding<T>(
-  binding: SharedStateBinding,
-  key: string,
-  options: StateOptions<T>,
-): void {
-  if (binding.key !== key) {
-    throw new RoomfulError(
-      'INVALID_STATE',
-      `useSharedState() is already bound to key "${binding.key}" for this room.`,
-      false,
-      {
-        currentKey: binding.key,
-        requestedKey: key,
-      },
-    );
-  }
-
-  const normalizedStrategy = normalizeSharedStateStrategy(options.strategy, binding.strategy);
-  if (binding.strategy !== normalizedStrategy) {
-    throw new RoomfulError(
-      'INVALID_STATE',
-      `useSharedState("${key}") is already configured with strategy "${binding.strategy}".`,
-      false,
-      {
-        currentStrategy: binding.strategy,
-        requestedStrategy: normalizedStrategy,
-      },
-    );
-  }
-
-  if (!areStructuredValuesEqual(binding.initialValue, options.initialValue)) {
-    throw new RoomfulError(
-      'INVALID_STATE',
-      `useSharedState("${key}") received a different initialValue for the same room.`,
-      false,
-    );
-  }
-
-  const requestedPersist = options.persist === true;
-  if (binding.persist === requestedPersist) {
-    return;
-  }
-
-  if (!binding.persist && requestedPersist && binding.strategy === 'lww') {
-    return;
-  }
-
-  if (requestedPersist && binding.strategy !== 'lww') {
-    throw new RoomfulError(
-      'INVALID_STATE',
-      'State persistence is only supported for the "lww" strategy.',
-      false,
-      {
-        strategy: binding.strategy,
-        persist: requestedPersist,
-      },
-    );
-  }
-
-  throw new RoomfulError(
-    'INVALID_STATE',
-    `useSharedState("${key}") persistence is already enabled for this room.`,
-    false,
-    {
-      persist: binding.persist,
-      requestedPersist,
-    },
-  );
-}
-
-function normalizeSharedStateStrategy(
-  strategy: StateOptions<unknown>['strategy'],
-  currentStrategy?: 'lww' | 'crdt',
-): 'lww' | 'crdt' {
-  const normalized = strategy ?? currentStrategy ?? 'lww';
-  if (normalized === 'lww' || normalized === 'crdt') {
-    return normalized;
-  }
-
-  throw new RoomfulError(
-    'INVALID_STATE',
-    `State strategy "${normalized}" is not implemented in this runtime. Use "lww" or "crdt".`,
-    false,
-    {
-      strategy: normalized,
-    },
-  );
-}
-
-function cloneSharedStateValue<T>(value: T): T {
-  if (typeof structuredClone === 'function') {
-    return structuredClone(value);
-  }
-
-  return value;
-}
-
-function areAwarenessArraysEqual(
-  previous: readonly AwarenessState[],
-  next: readonly AwarenessState[],
-): boolean {
-  if (previous === next) {
-    return true;
-  }
-
-  if (previous.length !== next.length) {
-    return false;
-  }
-
-  for (let index = 0; index < previous.length; index += 1) {
-    const previousEntry = previous[index];
-    const nextEntry = next[index];
-
-    if (!previousEntry || !nextEntry || !areStructuredValuesEqual(previousEntry, nextEntry)) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
-function areCursorArraysEqual<TCursor extends CursorData>(
-  previous: readonly CursorPosition<TCursor>[],
-  next: readonly CursorPosition<TCursor>[],
-): boolean {
-  if (previous === next) {
-    return true;
-  }
-
-  if (previous.length !== next.length) {
-    return false;
-  }
-
-  for (let index = 0; index < previous.length; index += 1) {
-    const previousCursor = previous[index];
-    const nextCursor = next[index];
-
-    if (!previousCursor || !nextCursor || !areCursorPositionsEqual(previousCursor, nextCursor)) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
-function areCursorPositionsEqual<TCursor extends CursorData>(
-  previous: CursorPosition<TCursor>,
-  next: CursorPosition<TCursor>,
-): boolean {
-  if (previous === next) {
-    return true;
-  }
-
-  const previousKeys = Object.keys(previous);
-  const nextKeys = Object.keys(next);
-  if (previousKeys.length !== nextKeys.length) {
-    return false;
-  }
-
-  for (const key of previousKeys) {
-    if (!Object.prototype.hasOwnProperty.call(next, key)) {
-      return false;
-    }
-
-    if (!areStructuredValuesEqual(Reflect.get(previous, key), Reflect.get(next, key))) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
-function arePeersEqual<TPresence extends PresenceData>(
-  previous: Peer<TPresence>,
-  next: Peer<TPresence>,
-): boolean {
-  if (previous === next) {
-    return true;
-  }
-
-  const previousKeys = Object.keys(previous).filter((key) => {
-    return key !== 'lastSeen';
-  });
-  const nextKeys = Object.keys(next).filter((key) => {
-    return key !== 'lastSeen';
-  });
-
-  if (previousKeys.length !== nextKeys.length) {
-    return false;
-  }
-
-  for (const key of previousKeys) {
-    if (!Object.prototype.hasOwnProperty.call(next, key)) {
-      return false;
-    }
-
-    if (!areStructuredValuesEqual(Reflect.get(previous, key), Reflect.get(next, key))) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
-function areStructuredValuesEqual(previous: unknown, next: unknown): boolean {
-  if (previous === next) {
-    return true;
-  }
-
-  if (Array.isArray(previous) || Array.isArray(next)) {
-    if (!Array.isArray(previous) || !Array.isArray(next) || previous.length !== next.length) {
-      return false;
-    }
-
-    for (let index = 0; index < previous.length; index += 1) {
-      if (!areStructuredValuesEqual(previous[index], next[index])) {
-        return false;
-      }
-    }
-
-    return true;
-  }
-
-  if (!isPlainObject(previous) || !isPlainObject(next)) {
-    return false;
-  }
-
-  const previousKeys = Object.keys(previous);
-  const nextKeys = Object.keys(next);
-  if (previousKeys.length !== nextKeys.length) {
-    return false;
-  }
-
-  for (const key of previousKeys) {
-    if (!Object.prototype.hasOwnProperty.call(next, key)) {
-      return false;
-    }
-
-    if (!areStructuredValuesEqual(Reflect.get(previous, key), Reflect.get(next, key))) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  if (!isObjectLike(value)) {
-    return false;
-  }
-
-  return Object.getPrototypeOf(value) === Object.prototype;
 }
 
 function isStateUpdater<T>(value: SetStateAction<T>): value is (previous: T) => T {
