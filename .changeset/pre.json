@@ -19,6 +19,7 @@
   },
   "changesets": [
     "dedupe-adapter-runtime",
+    "fix-docs-snippet-react",
     "fix-release-gates",
     "fix-release-lint-resolution"
   ]

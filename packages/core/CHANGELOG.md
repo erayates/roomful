@@ -1,5 +1,13 @@
 # @roomful/core
 
+## 1.0.0-beta.5
+
+### Patch Changes
+
+- efdbbd0: Add react and @types/react as root devDependencies so the docs snippet
+  validator can resolve react/jsx-runtime under a clean CI install. A stray
+  react in the developer home directory masked the missing root dependency.
+
 ## 1.0.0-beta.4
 
 ### Patch Changes
