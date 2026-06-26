@@ -5,6 +5,10 @@
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "paths": {
+      "@roomful/core/adapter-runtime": [
+        "packages/core/dist/adapter-runtime.d.ts",
+        "packages/core/src/adapter-runtime.ts"
+      ],
       "@roomful/*": ["packages/*/dist/index.d.ts", "packages/*/src/index.ts"]
     },
     "lib": ["ES2019", "DOM", "DOM.Iterable"],
