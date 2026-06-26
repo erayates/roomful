@@ -1,6 +1,7 @@
 # Roomful
 
-Real-time collaboration primitives for the web.
+<img width="2172" height="724" alt="image" src="https://github.com/user-attachments/assets/9a5d00dd-6320-48db-b082-6c531113f18e" />
+
 
 [![npm](https://img.shields.io/npm/v/@roomful/core/beta?color=0f766e&label=%40roomful%2Fcore)](https://www.npmjs.com/package/@roomful/core) [![CI](https://github.com/erayates/roomful/actions/workflows/ci.yml/badge.svg)](https://github.com/erayates/roomful/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/license-MIT-0f766e.svg)](LICENSE) [![Status: public beta](https://img.shields.io/badge/status-public%20beta-f59e0b.svg)](https://github.com/erayates/roomful/releases)
 
