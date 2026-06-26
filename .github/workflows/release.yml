@@ -107,6 +107,11 @@ jobs:
       - name: Release status
         shell: bash
         run: |
+          if [ -f .changeset/pre.json ]; then
+            echo "Changesets pre mode is active; changeset files persist after versioning, so skip the status check."
+            exit 0
+          fi
+
           changeset_count=$(find .changeset -maxdepth 1 -type f -name '*.md' ! -name README.md | wc -l | tr -d ' ')
 
           if [ "$changeset_count" = "0" ]; then
