@@ -21,6 +21,7 @@
     "dedupe-adapter-runtime",
     "fix-docs-snippet-react",
     "fix-release-gates",
-    "fix-release-lint-resolution"
+    "fix-release-lint-resolution",
+    "fix-release-status-pre"
   ]
 }

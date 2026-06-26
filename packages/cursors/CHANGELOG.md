@@ -1,5 +1,18 @@
 # @roomful/cursors
 
+## 1.0.0-beta.6
+
+### Patch Changes
+
+- 2361597: Skip the changeset status check during release when changesets pre mode is
+  active. The release workflow ran changeset status on a tag-triggered shallow
+  checkout, which has no main branch to diff against, so it failed right before
+  publishing. In pre mode changeset files persist after versioning, so the
+  existing empty-changeset guard never applied.
+- Updated dependencies [2361597]
+  - @roomful/core@1.0.0-beta.6
+  - @roomful/react@1.0.0-beta.6
+
 ## 1.0.0-beta.5
 
 ### Patch Changes
