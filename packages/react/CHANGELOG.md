@@ -1,5 +1,15 @@
 # @roomful/react
 
+## 1.0.0-beta.4
+
+### Patch Changes
+
+- 8ef5cd7: Fix the remaining release pipeline gates so packages can publish: ignore the
+  changeset-generated .changeset/pre.json in prettier, and scope the root
+  typecheck to packages so app-only TSX/Astro source no longer fails it.
+- Updated dependencies [8ef5cd7]
+  - @roomful/core@1.0.0-beta.4
+
 ## 1.0.0-beta.3
 
 ### Patch Changes

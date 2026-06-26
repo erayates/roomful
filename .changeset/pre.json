@@ -19,6 +19,7 @@
   },
   "changesets": [
     "dedupe-adapter-runtime",
+    "fix-release-gates",
     "fix-release-lint-resolution"
   ]
 }
