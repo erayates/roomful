@@ -1,5 +1,14 @@
 # @roomful/core
 
+## 1.0.0-beta.3
+
+### Patch Changes
+
+- Fix the release pipeline so the packages can publish. CI lints the framework
+  adapters before building @roomful/core, and the @roomful/core/adapter-runtime
+  subpath did not resolve pre-build, failing the lint gate. The base tsconfig now
+  maps that subpath to source, so lint and typecheck resolve it without a build.
+
 ## 1.0.0-beta.2
 
 ### Patch Changes

@@ -1,6 +1,6 @@
 {
   "name": "@roomful/svelte",
-  "version": "1.0.0-beta.2",
+  "version": "1.0.0-beta.3",
   "private": false,
   "type": "module",
   "main": "dist/index.js",

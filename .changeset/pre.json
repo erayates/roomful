@@ -18,6 +18,7 @@
     "@roomful/example-shared-canvas": "0.0.0"
   },
   "changesets": [
-    "dedupe-adapter-runtime"
+    "dedupe-adapter-runtime",
+    "fix-release-lint-resolution"
   ]
 }
