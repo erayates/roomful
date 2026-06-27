@@ -5,7 +5,7 @@ const DEFAULT_OWNER = 'erayates';
 const DEFAULT_REPO = 'roomful';
 const DEFAULT_DOCS_URL = 'https://docs.roomful.dev';
 const DEFAULT_DEMO_URL = 'https://demo.roomful.dev';
-const DEFAULT_DOCKER_REPOSITORY = 'roomful/relay';
+const DEFAULT_DOCKER_REPOSITORY = 'erayatesdev/roomful';
 
 function readArgs(argv) {
   const args = {

@@ -1,6 +1,6 @@
 services:
   relay:
-    image: roomful/relay:latest
+    image: erayatesdev/roomful:latest
     environment:
       HOST: 0.0.0.0
       PORT: ${PORT:-8787}

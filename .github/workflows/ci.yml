@@ -276,7 +276,7 @@ jobs:
         run: |
           set -euo pipefail
           docker compose -f docker-compose.prod.yml config > compose.prod.rendered.yml
-          grep -q "image: roomful/relay:latest" compose.prod.rendered.yml
+          grep -q "image: erayatesdev/roomful:latest" compose.prod.rendered.yml
           if grep -q "build:" compose.prod.rendered.yml; then
             echo "Production compose config unexpectedly contains a build section."
             exit 1

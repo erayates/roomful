@@ -49,11 +49,11 @@ curl http://127.0.0.1:8787/health
 
 ## Docker
 
-Official image:
+Published image (`erayatesdev/roomful` — versions are pinned; prereleases get no `:latest` tag until the stable `1.0.0`):
 
 ```bash
-docker pull roomful/relay:latest
-docker run --rm -p 8787:8787 -e HOST=0.0.0.0 roomful/relay:latest
+docker pull erayatesdev/roomful:1.0.0-beta.7
+docker run --rm -p 8787:8787 -e HOST=0.0.0.0 erayatesdev/roomful:1.0.0-beta.7
 ```
 
 Local and production Compose examples live at the repository root in `docker-compose.yml` and
@@ -65,7 +65,7 @@ Local and production Compose examples live at the repository root in `docker-com
 across tabs/windows in one browser. To upgrade it to **cross-device** multiplayer, deploy this relay
 and point the demo at it (no demo code change required):
 
-1. Deploy the relay (the `roomful/relay:latest` image, the Compose files, or the `roomful-relay`
+1. Deploy the relay (the `erayatesdev/roomful` image, the Compose files, or the `roomful-relay`
    CLI on Fly/Railway/Render). Set `HOST=0.0.0.0` and `ROOMFUL_CORS_ORIGIN=https://demo.roomful.dev`.
 2. On the demo's Vercel project, set `VITE_ROOMFUL_RELAY_URL=wss://your-relay-host` and redeploy.
 

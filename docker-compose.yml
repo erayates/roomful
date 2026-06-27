@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: roomful/relay:local
+    image: erayatesdev/roomful:local
     environment:
       HOST: 0.0.0.0
       PORT: ${PORT:-8787}

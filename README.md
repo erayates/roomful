@@ -2,7 +2,6 @@
 
 <img width="2172" height="724" alt="image" src="https://github.com/user-attachments/assets/9a5d00dd-6320-48db-b082-6c531113f18e" />
 
-
 [![npm](https://img.shields.io/npm/v/@roomful/core/beta?color=0f766e&label=%40roomful%2Fcore)](https://www.npmjs.com/package/@roomful/core) [![CI](https://github.com/erayates/roomful/actions/workflows/ci.yml/badge.svg)](https://github.com/erayates/roomful/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/license-MIT-0f766e.svg)](LICENSE) [![Status: public beta](https://img.shields.io/badge/status-public%20beta-f59e0b.svg)](https://github.com/erayates/roomful/releases)
 
 **[Website](https://roomful.dev)** · **[Docs](https://docs.roomful.dev)** · **[Live demo](https://demo.roomful.dev)** · **[Storybook](https://storybook.roomful.dev)** · **[GitHub](https://github.com/erayates/roomful)** · **[npm](https://www.npmjs.com/package/@roomful/core)**
@@ -119,11 +118,11 @@ Relay runtime environment variables:
 | `MAX_CONNECTIONS`   | unset       | Optional concurrent WebSocket connection cap                             |
 | `ROOMFUL_REDIS_URL` | unset       | Optional Redis URL used to coordinate multiple relay instances           |
 
-Docker image:
+Docker image (`erayatesdev/roomful` — pinned per release; no `:latest` until the stable `1.0.0`):
 
 ```bash
-docker pull roomful/relay:latest
-docker run --rm -p 8787:8787 -e HOST=0.0.0.0 roomful/relay:latest
+docker pull erayatesdev/roomful:1.0.0-beta.7
+docker run --rm -p 8787:8787 -e HOST=0.0.0.0 erayatesdev/roomful:1.0.0-beta.7
 ```
 
 Compose examples:
@@ -187,7 +186,7 @@ CI/CD baseline for EP-01 `#005`:
 - PR validation runs on every PR to `main`.
 - Validation runs on Node `18` and `20`.
 - Pipeline order: install -> lint -> typecheck -> test -> build.
-- Release workflow triggers on `v*` tags, publishes `@roomful/*` via Changesets, and publishes `roomful/relay` to Docker Hub.
+- Release workflow triggers on `v*` tags, publishes `@roomful/*` via Changesets, and publishes the relay image (`erayatesdev/roomful`) to Docker Hub.
 - Release workflow creates a GitHub Release after npm and Docker publishing succeed.
 - Changesets release PR workflow (`.github/workflows/changesets-release-pr.yml`) runs on pushes to `main`.
 - Release workflow requires `NPM_TOKEN`, `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`, and optionally uses `TURBO_TEAM` / `TURBO_TOKEN`.

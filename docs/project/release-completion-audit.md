@@ -66,7 +66,7 @@ pnpm release:downloads-baseline
 
 - npm registry entries for every public `@roomful/*` package at the current package versions
 - GitHub Release for the release tag
-- Docker Hub tag for `roomful/relay`
+- Docker Hub tag for `erayatesdev/roomful`
 - `https://docs.roomful.dev`
 - `https://demo.roomful.dev`
 
