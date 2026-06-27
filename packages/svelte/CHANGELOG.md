@@ -1,5 +1,15 @@
 # @roomful/svelte
 
+## 1.0.0-beta.7
+
+### Patch Changes
+
+- 1aa3efa: Publish the relay Docker image under the erayatesdev/roomful namespace because
+  Docker Hub no longer offers a free organization tier. No package code changes;
+  this release re-runs the pipeline so the relay image publishes.
+- Updated dependencies [1aa3efa]
+  - @roomful/core@1.0.0-beta.7
+
 ## 1.0.0-beta.6
 
 ### Patch Changes
