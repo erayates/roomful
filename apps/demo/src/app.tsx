@@ -1,10 +1,11 @@
 import { RoomfulProvider } from '@roomful/react';
-import { type ReactElement, useCallback, useEffect, useState } from 'react';
+import { type ReactElement, useCallback, useEffect, useMemo, useState } from 'react';
 
 import { findMiniApp, MINI_APPS } from './apps/registry';
 import { resolveDemoRuntimeConfig } from './demo-config';
 import { createDemoIdentity, readStoredIdentity, writeStoredIdentity } from './demo-identity';
-import { getMillisecondsUntilNextUtcMidnight, resolveDemoRoomSelection } from './demo-room';
+import { createDemoRoomId, getOrCreateStoredRoomId, resolveDemoRoomSelection } from './demo-room';
+import { createInviteUrl } from './demo-share';
 import type { DemoIdentity, DemoPresence, DemoRuntimeConfig } from './demo-types';
 import { MiniAppStage } from './shell/mini-app-stage';
 import { TopBar } from './shell/top-bar';
@@ -14,6 +15,14 @@ function readInitialIdentity(): DemoIdentity {
     return readStoredIdentity(window.localStorage) ?? createDemoIdentity();
   } catch {
     return createDemoIdentity();
+  }
+}
+
+function readInitialRoomId(): string {
+  try {
+    return getOrCreateStoredRoomId(window.localStorage);
+  } catch {
+    return createDemoRoomId();
   }
 }
 
@@ -27,11 +36,14 @@ export function App(): ReactElement {
   const [config] = useState<DemoRuntimeConfig>(() => resolveDemoRuntimeConfig(window.location));
   const [roomError, setRoomError] = useState<string | null>(null);
   const [activeAppId, setActiveAppId] = useState<string>(() => readActiveAppId());
-  const [roomSelection, setRoomSelection] = useState(() =>
-    resolveDemoRoomSelection(
-      { dayOverride: config.dayOverride, roomOverride: config.roomOverride },
-      new Date(),
-    ),
+  const [roomId] = useState(() => readInitialRoomId());
+  const roomSelection = useMemo(
+    () =>
+      resolveDemoRoomSelection(
+        { dayOverride: config.dayOverride, roomOverride: config.roomOverride },
+        roomId,
+      ),
+    [config.dayOverride, config.roomOverride, roomId],
   );
 
   useEffect(() => {
@@ -44,23 +56,6 @@ export function App(): ReactElement {
     return undefined;
   }, [identity]);
 
-  useEffect(() => {
-    if (config.dayOverride || config.roomOverride) {
-      return undefined;
-    }
-
-    const timeoutId = window.setTimeout(
-      () => {
-        setRoomSelection(resolveDemoRoomSelection({}, new Date()));
-      },
-      getMillisecondsUntilNextUtcMidnight(new Date()) + 100,
-    );
-
-    return () => {
-      window.clearTimeout(timeoutId);
-    };
-  }, [roomSelection.roomId, config.dayOverride, config.roomOverride]);
-
   const selectApp = useCallback((id: string): void => {
     setActiveAppId(id);
     const url = new URL(window.location.href);
@@ -70,7 +65,12 @@ export function App(): ReactElement {
 
   const activeApp = findMiniApp(activeAppId);
   const appRoomId = `${roomSelection.roomId}-${activeApp.id}`;
-  const shareUrl = `${config.canonicalBaseUrl}?app=${activeApp.id}`;
+  const shareUrl = createInviteUrl(
+    config.canonicalBaseUrl,
+    activeApp.id,
+    roomSelection.roomId,
+    config.relayUrl,
+  );
 
   return (
     <div className="playground">

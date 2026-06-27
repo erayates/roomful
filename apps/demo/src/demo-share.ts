@@ -3,6 +3,21 @@ export interface DemoShareLinks {
   x: string;
 }
 
+export function createInviteUrl(
+  baseUrl: string,
+  appId: string,
+  roomId: string,
+  relayUrl?: string,
+): string {
+  const url = new URL(baseUrl);
+  url.searchParams.set('app', appId);
+  url.searchParams.set('room', roomId);
+  if (relayUrl) {
+    url.searchParams.set('relay', relayUrl);
+  }
+  return url.toString();
+}
+
 export function createShareLinks(baseUrl: string): DemoShareLinks {
   const canonicalUrl = new URL('/', baseUrl).toString();
   const xUrl = new URL('https://twitter.com/intent/tweet');

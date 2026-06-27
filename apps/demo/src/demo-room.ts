@@ -8,25 +8,56 @@ export interface DemoRoomSelection {
   roomKey: string;
 }
 
-const ROOM_SANITIZER = /[^a-z0-9-]+/g;
-const DAY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
-
-export function getUtcRoomKey(date: Date): string {
-  return date.toISOString().slice(0, 10);
+interface StorageLike {
+  getItem(key: string): string | null;
+  setItem(key: string, value: string): void;
 }
 
-export function getMillisecondsUntilNextUtcMidnight(date: Date): number {
-  const nextMidnight = Date.UTC(
-    date.getUTCFullYear(),
-    date.getUTCMonth(),
-    date.getUTCDate() + 1,
-    0,
-    0,
-    0,
-    0,
-  );
+export const DEMO_ROOM_STORAGE_KEY = 'roomful-demo-room';
 
-  return Math.max(0, nextMidnight - date.getTime());
+const ROOM_SANITIZER = /[^a-z0-9-]+/g;
+const DAY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const ROOM_ID_PATTERN = /^demo-[a-z0-9]{6,}$/;
+
+export function createDemoRoomId(): string {
+  // `randomUUID` is typed as always-present but is missing in non-secure-context / older
+  // browsers, so guard it at runtime and fall back to a Math.random-based id.
+  const uuid =
+    typeof globalThis.crypto.randomUUID === 'function' ? globalThis.crypto.randomUUID() : undefined;
+  const random = uuid
+    ? uuid.replace(/-/g, '').slice(0, 12)
+    : Math.random().toString(36).slice(2).padEnd(12, '0').slice(0, 12);
+
+  return `demo-${random}`;
+}
+
+export function readStoredRoomId(storage: StorageLike): string | null {
+  try {
+    const stored = storage.getItem(DEMO_ROOM_STORAGE_KEY)?.trim();
+    if (stored && ROOM_ID_PATTERN.test(stored)) {
+      return stored;
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export function getOrCreateStoredRoomId(storage: StorageLike): string {
+  const existing = readStoredRoomId(storage);
+  if (existing) {
+    return existing;
+  }
+
+  const roomId = createDemoRoomId();
+  try {
+    storage.setItem(DEMO_ROOM_STORAGE_KEY, roomId);
+  } catch {
+    // Storage may be read-only (private mode / SSR); fall through with the generated id.
+  }
+
+  return roomId;
 }
 
 export function readDemoRoomOverrides(searchParams: URLSearchParams): DemoRoomOverrides {
@@ -46,7 +77,7 @@ export function readDemoRoomOverrides(searchParams: URLSearchParams): DemoRoomOv
 
 export function resolveDemoRoomSelection(
   overrides: DemoRoomOverrides = {},
-  date: Date = new Date(),
+  fallbackRoomId: string,
 ): DemoRoomSelection {
   if (overrides.roomOverride) {
     return {
@@ -55,9 +86,15 @@ export function resolveDemoRoomSelection(
     };
   }
 
-  const roomKey = overrides.dayOverride ?? getUtcRoomKey(date);
+  if (overrides.dayOverride) {
+    return {
+      roomId: `demo-${overrides.dayOverride}`,
+      roomKey: overrides.dayOverride,
+    };
+  }
+
   return {
-    roomId: `demo-${roomKey}`,
-    roomKey,
+    roomId: fallbackRoomId,
+    roomKey: fallbackRoomId,
   };
 }

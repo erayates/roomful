@@ -148,7 +148,7 @@ test.describe('live demo app', () => {
   });
 
   test('shares strokes and cursors live with late joiners', async ({ browser }) => {
-    const roomQuery = '?room=playwright-live-room';
+    const roomQuery = '?room=demo-integrationroom';
 
     const contextA = await browser.newContext();
     const contextB = await browser.newContext();
