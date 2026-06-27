@@ -173,7 +173,7 @@ pnpm release:status
 Type checking is split intentionally:
 
 - `pnpm typecheck`: runs per-workspace checks through Turbo.
-- `pnpm typecheck:root`: runs a root `tsc --noEmit` over `packages/*` and `apps/*`.
+- `pnpm typecheck:root`: runs a root `tsc --noEmit` over `packages/*` (apps are typechecked per-workspace above).
 
 Testing is package-scoped for this sprint:
 
