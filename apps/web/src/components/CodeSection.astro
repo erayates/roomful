@@ -36,6 +36,9 @@ const frameworks = [
   { pkg: '@roomful/react', tag: 'Hooks + Provider' },
   { pkg: '@roomful/vue', tag: 'Composables' },
   { pkg: '@roomful/svelte', tag: 'Stores + actions' },
+  { pkg: '@roomful/solid', tag: 'Signals + Provider' },
+  { pkg: '@roomful/angular', tag: 'Providers + signals' },
+  { pkg: '@roomful/next', tag: 'Auth tokens' },
 ];
 ---
 
@@ -46,7 +49,7 @@ const frameworks = [
       <h2 class="section__title">A few lines, fully typed.</h2>
       <p class="section__lead">
         Wrap your tree, call a hook, and you have live presence and cursors. The same primitives are
-        Vue composables and Svelte stores too.
+        Vue composables, Svelte stores, and Solid signals too.
       </p>
       <ol class="code-steps" data-steps>
         {
