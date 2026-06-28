@@ -253,6 +253,43 @@ importers:
         specifier: ^7.3.1
         version: 7.3.1(@types/node@25.3.3)(jiti@2.6.1)(yaml@2.8.2)
 
+  packages/angular:
+    dependencies:
+      '@roomful/core':
+        specifier: workspace:*
+        version: link:../core
+    devDependencies:
+      '@angular/common':
+        specifier: ^20.3.0
+        version: 20.3.25(@angular/core@20.3.25(@angular/compiler@20.3.25)(rxjs@7.8.2)(zone.js@0.15.1))(rxjs@7.8.2)
+      '@angular/compiler':
+        specifier: ^20.3.0
+        version: 20.3.25
+      '@angular/core':
+        specifier: ^20.3.0
+        version: 20.3.25(@angular/compiler@20.3.25)(rxjs@7.8.2)(zone.js@0.15.1)
+      '@angular/platform-browser':
+        specifier: ^20.3.0
+        version: 20.3.25(@angular/common@20.3.25(@angular/core@20.3.25(@angular/compiler@20.3.25)(rxjs@7.8.2)(zone.js@0.15.1))(rxjs@7.8.2))(@angular/core@20.3.25(@angular/compiler@20.3.25)(rxjs@7.8.2)(zone.js@0.15.1))
+      '@angular/platform-browser-dynamic':
+        specifier: ^20.3.0
+        version: 20.3.25(@angular/common@20.3.25(@angular/core@20.3.25(@angular/compiler@20.3.25)(rxjs@7.8.2)(zone.js@0.15.1))(rxjs@7.8.2))(@angular/compiler@20.3.25)(@angular/core@20.3.25(@angular/compiler@20.3.25)(rxjs@7.8.2)(zone.js@0.15.1))(@angular/platform-browser@20.3.25(@angular/common@20.3.25(@angular/core@20.3.25(@angular/compiler@20.3.25)(rxjs@7.8.2)(zone.js@0.15.1))(rxjs@7.8.2))(@angular/core@20.3.25(@angular/compiler@20.3.25)(rxjs@7.8.2)(zone.js@0.15.1)))
+      '@types/node':
+        specifier: ^25.3.3
+        version: 25.3.3
+      jsdom:
+        specifier: ^26.1.0
+        version: 26.1.0
+      rxjs:
+        specifier: ^7.8.0
+        version: 7.8.2
+      tsd:
+        specifier: ^0.33.0
+        version: 0.33.0
+      zone.js:
+        specifier: ~0.15.0
+        version: 0.15.1
+
   packages/core:
     devDependencies:
       '@roomful/devtools':
@@ -501,6 +538,51 @@ packages:
   '@ampproject/remapping@2.3.0':
     resolution: {integrity: sha512-30iZtAPgz+LTIYoeivqYo853f02jBYSd5uGnGpkFV0M3xOt9aN73erkgYAmZU43x4VfqcnLxW9Kpg3R5LC4YYw==}
     engines: {node: '>=6.0.0'}
+
+  '@angular/common@20.3.25':
+    resolution: {integrity: sha512-rnRGcXbjet0DHgkRL4Dqxk21G2T4UypVfiTV/fay58H8w9U89PJ1L6gRmk8B/uyfpii/9r23cBwnpcguQykxYw==}
+    engines: {node: ^20.19.0 || ^22.12.0 || >=24.0.0}
+    peerDependencies:
+      '@angular/core': 20.3.25
+      rxjs: ^6.5.3 || ^7.4.0
+
+  '@angular/compiler@20.3.25':
+    resolution: {integrity: sha512-TSh6gVoQqlLPqWwsYMK0lfVEQYENQO+USzS+BHFXEHFfgBRap6qDpIUGnRdj0Y2PlaVJUVFbeq1855EZUPUEoA==}
+    engines: {node: ^20.19.0 || ^22.12.0 || >=24.0.0}
+
+  '@angular/core@20.3.25':
+    resolution: {integrity: sha512-B4XnnR5jzikZDvZ4PjwjAWZMT14dxrKrmJdwa/n0yp7rMPkIJTKF6ZJMg4d1pLWLLSsc2oWHioN3UrWlGqIKnA==}
+    engines: {node: ^20.19.0 || ^22.12.0 || >=24.0.0}
+    peerDependencies:
+      '@angular/compiler': 20.3.25
+      rxjs: ^6.5.3 || ^7.4.0
+      zone.js: ~0.15.0
+    peerDependenciesMeta:
+      '@angular/compiler':
+        optional: true
+      zone.js:
+        optional: true
+
+  '@angular/platform-browser-dynamic@20.3.25':
+    resolution: {integrity: sha512-3Ku+IsN4tQPVBsw75SoLbLf7TsXAGL0rGPHSsyNYFhG2ZZeQuYNIAi8mc4cwz/qMDnuassHFrCxuLDgN6Yab5w==}
+    engines: {node: ^20.19.0 || ^22.12.0 || >=24.0.0}
+    deprecated: '@angular/platform-browser-dynamic is deprecated. Use `@angular/platform-browser` instead.'
+    peerDependencies:
+      '@angular/common': 20.3.25
+      '@angular/compiler': 20.3.25
+      '@angular/core': 20.3.25
+      '@angular/platform-browser': 20.3.25
+
+  '@angular/platform-browser@20.3.25':
+    resolution: {integrity: sha512-0k06U/AJRQifGMLkcU3R9uEHWbuKEzkKMuKcGagXTrkeFvCG2Ub4JdsbcjFNWB2bspWgaxIMSceuj7c83U5wOA==}
+    engines: {node: ^20.19.0 || ^22.12.0 || >=24.0.0}
+    peerDependencies:
+      '@angular/animations': 20.3.25
+      '@angular/common': 20.3.25
+      '@angular/core': 20.3.25
+    peerDependenciesMeta:
+      '@angular/animations':
+        optional: true
 
   '@asamuzakjp/css-color@3.2.0':
     resolution: {integrity: sha512-K1A6z8tS3XsmCMM86xoWdn7Fkdn9m6RSVtocUrJYIwZnFVkng/PvkEoWtOWmP+Scc6saYWHWZYbndEEXxl24jw==}
@@ -4228,6 +4310,9 @@ packages:
   run-parallel@1.2.0:
     resolution: {integrity: sha512-5l4VyZR86LZ/lDxZTR6jqL8AFE2S0IFLMP26AbjsLVADxHdhB/c0GUsH+y39UfCi3dzz8OlQuPmnaJOMoDHQBA==}
 
+  rxjs@7.8.2:
+    resolution: {integrity: sha512-dhKf903U/PQZY6boNNtAGdWbG85WAbjT/1xYoZIC7FAY0yWapOBQVsVrDl58W86//e1VpMNBtRV4MaXfdMySFA==}
+
   safer-buffer@2.1.2:
     resolution: {integrity: sha512-YZo3K82SD7Riyi0E1EQPojLz7kpepnSQI9IyPbHHg1XXXevb5dJI7tpyN2ADxGcQbHG7vcyRHk0cbwqcQriUtg==}
 
@@ -5204,6 +5289,9 @@ packages:
   zod@4.3.6:
     resolution: {integrity: sha512-rftlrkhHZOcjDwkGlnUtZZkvaPHCsDATp4pGpuOOMDaTdDDXF91wuVDJoWoPsKX/3YPQ5fHuF3STjcYyKr+Qhg==}
 
+  zone.js@0.15.1:
+    resolution: {integrity: sha512-XE96n56IQpJM7NAoXswY3XRLcWFW83xe0BiAOeMD7K5k5xecOeul3Qcpx6GqEeeHNkW5DWL5zOyTbEfB4eti8w==}
+
   zwitch@2.0.4:
     resolution: {integrity: sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A==}
 
@@ -5327,6 +5415,38 @@ snapshots:
     dependencies:
       '@jridgewell/gen-mapping': 0.3.13
       '@jridgewell/trace-mapping': 0.3.31
+
+  '@angular/common@20.3.25(@angular/core@20.3.25(@angular/compiler@20.3.25)(rxjs@7.8.2)(zone.js@0.15.1))(rxjs@7.8.2)':
+    dependencies:
+      '@angular/core': 20.3.25(@angular/compiler@20.3.25)(rxjs@7.8.2)(zone.js@0.15.1)
+      rxjs: 7.8.2
+      tslib: 2.8.1
+
+  '@angular/compiler@20.3.25':
+    dependencies:
+      tslib: 2.8.1
+
+  '@angular/core@20.3.25(@angular/compiler@20.3.25)(rxjs@7.8.2)(zone.js@0.15.1)':
+    dependencies:
+      rxjs: 7.8.2
+      tslib: 2.8.1
+    optionalDependencies:
+      '@angular/compiler': 20.3.25
+      zone.js: 0.15.1
+
+  '@angular/platform-browser-dynamic@20.3.25(@angular/common@20.3.25(@angular/core@20.3.25(@angular/compiler@20.3.25)(rxjs@7.8.2)(zone.js@0.15.1))(rxjs@7.8.2))(@angular/compiler@20.3.25)(@angular/core@20.3.25(@angular/compiler@20.3.25)(rxjs@7.8.2)(zone.js@0.15.1))(@angular/platform-browser@20.3.25(@angular/common@20.3.25(@angular/core@20.3.25(@angular/compiler@20.3.25)(rxjs@7.8.2)(zone.js@0.15.1))(rxjs@7.8.2))(@angular/core@20.3.25(@angular/compiler@20.3.25)(rxjs@7.8.2)(zone.js@0.15.1)))':
+    dependencies:
+      '@angular/common': 20.3.25(@angular/core@20.3.25(@angular/compiler@20.3.25)(rxjs@7.8.2)(zone.js@0.15.1))(rxjs@7.8.2)
+      '@angular/compiler': 20.3.25
+      '@angular/core': 20.3.25(@angular/compiler@20.3.25)(rxjs@7.8.2)(zone.js@0.15.1)
+      '@angular/platform-browser': 20.3.25(@angular/common@20.3.25(@angular/core@20.3.25(@angular/compiler@20.3.25)(rxjs@7.8.2)(zone.js@0.15.1))(rxjs@7.8.2))(@angular/core@20.3.25(@angular/compiler@20.3.25)(rxjs@7.8.2)(zone.js@0.15.1))
+      tslib: 2.8.1
+
+  '@angular/platform-browser@20.3.25(@angular/common@20.3.25(@angular/core@20.3.25(@angular/compiler@20.3.25)(rxjs@7.8.2)(zone.js@0.15.1))(rxjs@7.8.2))(@angular/core@20.3.25(@angular/compiler@20.3.25)(rxjs@7.8.2)(zone.js@0.15.1))':
+    dependencies:
+      '@angular/common': 20.3.25(@angular/core@20.3.25(@angular/compiler@20.3.25)(rxjs@7.8.2)(zone.js@0.15.1))(rxjs@7.8.2)
+      '@angular/core': 20.3.25(@angular/compiler@20.3.25)(rxjs@7.8.2)(zone.js@0.15.1)
+      tslib: 2.8.1
 
   '@asamuzakjp/css-color@3.2.0':
     dependencies:
@@ -9877,6 +9997,10 @@ snapshots:
     dependencies:
       queue-microtask: 1.2.3
 
+  rxjs@7.8.2:
+    dependencies:
+      tslib: 2.8.1
+
   safer-buffer@2.1.2: {}
 
   sax@1.5.0: {}
@@ -10804,5 +10928,7 @@ snapshots:
   zod@3.25.76: {}
 
   zod@4.3.6: {}
+
+  zone.js@0.15.1: {}
 
   zwitch@2.0.4: {}
