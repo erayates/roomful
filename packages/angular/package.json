@@ -1,0 +1,64 @@
+{
+  "name": "@roomful/angular",
+  "version": "1.0.1",
+  "private": false,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "lint": "eslint src --max-warnings 0",
+    "test": "vitest run --config vitest.config.ts",
+    "test:types": "tsd --files test-d/**/*.test-d.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "clean": "rimraf dist coverage",
+    "test:watch": "vitest --config vitest.config.ts"
+  },
+  "dependencies": {
+    "@roomful/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@angular/common": "^20.3.0",
+    "@angular/compiler": "^20.3.0",
+    "@angular/core": "^20.3.0",
+    "@angular/platform-browser": "^20.3.0",
+    "@angular/platform-browser-dynamic": "^20.3.0",
+    "@roomful/core": "workspace:*",
+    "@types/node": "^25.3.3",
+    "jsdom": "^26.1.0",
+    "rxjs": "^7.8.0",
+    "tsd": "^0.33.0",
+    "zone.js": "~0.15.0"
+  },
+  "peerDependencies": {
+    "@angular/core": ">=17",
+    "@roomful/core": "workspace:*"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "tsd": {
+    "compilerOptions": {
+      "experimentalDecorators": true,
+      "useDefineForClassFields": false,
+      "types": [
+        "node"
+      ]
+    }
+  }
+}
