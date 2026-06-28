@@ -1,0 +1,52 @@
+{
+  "name": "@roomful/solid",
+  "version": "1.0.1",
+  "private": false,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "lint": "eslint src --max-warnings 0",
+    "test": "vitest run --config vitest.config.ts",
+    "test:types": "tsd --files test-d/**/*.test-d.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "clean": "rimraf dist coverage",
+    "test:watch": "vitest --config vitest.config.ts"
+  },
+  "dependencies": {
+    "@roomful/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@roomful/core": "workspace:*",
+    "@solidjs/testing-library": "^0.8.10",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@types/node": "^25.3.3",
+    "jsdom": "^26.1.0",
+    "solid-js": "^1.8.0",
+    "tsd": "^0.33.0",
+    "vite-plugin-solid": "^2.11.12"
+  },
+  "peerDependencies": {
+    "@roomful/core": "workspace:*",
+    "solid-js": "^1.8.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
