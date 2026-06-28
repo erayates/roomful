@@ -1,5 +1,15 @@
 # @roomful/devtools
 
+## 1.0.1
+
+### Patch Changes
+
+- 6f4e1f5: Stable 1.0.1.
+  - core: the `'custom'` shared-state strategy now syncs across peers, resolving conflicts via the
+    user-provided `merge` function (previously it ran local-only and never propagated).
+  - Drop beta framing now that 1.0 is stable: README/docs install commands no longer use the `@beta`
+    tag, status badges read "stable", and the Docker examples use the `:latest` image tag.
+
 ## 1.0.0
 
 ### Minor Changes
