@@ -347,6 +347,22 @@ importers:
 
   packages/devtools: {}
 
+  packages/next:
+    dependencies:
+      '@roomful/core':
+        specifier: workspace:*
+        version: link:../core
+    devDependencies:
+      '@roomful/relay':
+        specifier: workspace:*
+        version: link:../relay
+      '@types/node':
+        specifier: ^25.3.3
+        version: 25.3.3
+      tsd:
+        specifier: ^0.33.0
+        version: 0.33.0
+
   packages/react:
     dependencies:
       '@roomful/core':
