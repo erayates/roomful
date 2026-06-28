@@ -36,7 +36,7 @@ All contribution types are welcome:
 
 ### Prerequisites
 
-- Node.js `20` for local development (`18` and `20` are validated in CI)
+- Node.js `20` for local development (validated in CI)
 - `pnpm`
 - `git`
 
@@ -124,7 +124,7 @@ Every PR should:
 6. Explicitly call out breaking changes (or state none).
 7. Pass CI checks.
 
-CI validates each PR to `main` on Node `18` and `20` with this stage order:
+CI validates each PR to `main` on Node `20` with this stage order:
 
 1. install
 2. lint

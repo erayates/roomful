@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { readFileSync } from 'node:fs';
+import { readFileSync, realpathSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 
@@ -413,7 +413,14 @@ function isExecutedDirectly(): boolean {
     return false;
   }
 
-  return fileURLToPath(import.meta.url) === scriptPath;
+  // Compare resolved real paths so the entrypoint is detected even when invoked
+  // through a symlink (e.g. npm global `bin` links the CLI into the PATH).
+  const modulePath = fileURLToPath(import.meta.url);
+  try {
+    return realpathSync(modulePath) === realpathSync(scriptPath);
+  } catch {
+    return modulePath === scriptPath;
+  }
 }
 
 async function runRelayCliEntrypoint(): Promise<void> {

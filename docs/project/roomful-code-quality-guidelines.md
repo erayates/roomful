@@ -1,7 +1,7 @@
 # Code Quality Guidelines
 
 > **Context:** Roomful is a framework-agnostic, zero-backend, open-source TypeScript library.  
-> It runs in Chrome 80+, Firefox 75+, Safari 14+, and Node.js 18+ (limited).  
+> It runs in Chrome 80+, Firefox 75+, Safari 14+, and Node.js 20+ (limited).  
 > These rules are different from application-level guidelines — library code has stricter constraints.
 
 **Last updated:** 2026  
