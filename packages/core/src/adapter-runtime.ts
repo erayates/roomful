@@ -1,3 +1,5 @@
+/** @internal — internal adapter glue, NO stability guarantee, exempt from semver. */
+
 import { RoomfulError } from './roomful-error';
 import type {
   AwarenessState,

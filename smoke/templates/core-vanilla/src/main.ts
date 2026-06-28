@@ -1,4 +1,4 @@
-import { createCoreHealth, createRoom } from '@roomful/core';
+import { createRoom } from '@roomful/core';
 
 const room = createRoom('publish-smoke-core', {
   presence: {
@@ -20,7 +20,6 @@ const state = room.useState({
 state.patch({ count: 1 });
 
 const summary = {
-  health: createCoreHealth(),
   providerStatus: room.getYProvider().status,
   state: state.get(),
   yDocClientId: room.getYDoc().clientID,

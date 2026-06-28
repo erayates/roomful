@@ -12,7 +12,10 @@ Options:
   --port <number>             Port to listen on (default: 8787)
   --host <address>            Host interface to bind (default: 127.0.0.1)
   --max-connections <number>  Maximum concurrent WebSocket connections
-  --redis-url <url>           Redis URL for multi-instance coordination
+  --max-room-size <number>    Hard per-room peer cap
+  --cors-origin <origin>      Allowed browser origin (use '*' to allow any)
+  --auth-secret <secret>      HS256 JWT secret enabling built-in authorization
+  --redis-url <url>           Redis URL for multi-instance coordination (experimental)
   --version                   Show the package version
   --help                      Show this help message
 
@@ -54,7 +57,13 @@ interface RelayCliRuntime {
 
 function parsePositiveIntegerOption(
   value: string | undefined,
-  name: 'PORT' | 'MAX_CONNECTIONS' | 'ROOMFUL_MAX_ROOM_SIZE' | '--port' | '--max-connections',
+  name:
+    | 'PORT'
+    | 'MAX_CONNECTIONS'
+    | 'ROOMFUL_MAX_ROOM_SIZE'
+    | '--port'
+    | '--max-connections'
+    | '--max-room-size',
 ): number | { error: string } | undefined {
   if (value === undefined) {
     return undefined;
@@ -135,6 +144,9 @@ function parseRelayCliArgs(argv: readonly string[]):
       help: boolean;
       host?: string;
       maxConnections?: string;
+      maxRoomSize?: string;
+      corsOrigin?: string;
+      authSecret?: string;
       port?: string;
       redisUrl?: string;
       version: boolean;
@@ -158,6 +170,15 @@ function parseRelayCliArgs(argv: readonly string[]):
         'max-connections': {
           type: 'string',
         },
+        'max-room-size': {
+          type: 'string',
+        },
+        'cors-origin': {
+          type: 'string',
+        },
+        'auth-secret': {
+          type: 'string',
+        },
         port: {
           type: 'string',
         },
@@ -169,6 +190,9 @@ function parseRelayCliArgs(argv: readonly string[]):
 
     const host = readParsedStringValue(parsed.values.host);
     const maxConnections = readParsedStringValue(parsed.values['max-connections']);
+    const maxRoomSize = readParsedStringValue(parsed.values['max-room-size']);
+    const corsOrigin = readParsedStringValue(parsed.values['cors-origin']);
+    const authSecret = readParsedStringValue(parsed.values['auth-secret']);
     const port = readParsedStringValue(parsed.values.port);
     const redisUrl = readParsedStringValue(parsed.values['redis-url']);
 
@@ -176,6 +200,9 @@ function parseRelayCliArgs(argv: readonly string[]):
       help: boolean;
       host?: string;
       maxConnections?: string;
+      maxRoomSize?: string;
+      corsOrigin?: string;
+      authSecret?: string;
       port?: string;
       redisUrl?: string;
       version: boolean;
@@ -189,6 +216,15 @@ function parseRelayCliArgs(argv: readonly string[]):
     }
     if (maxConnections !== undefined) {
       result.maxConnections = maxConnections;
+    }
+    if (maxRoomSize !== undefined) {
+      result.maxRoomSize = maxRoomSize;
+    }
+    if (corsOrigin !== undefined) {
+      result.corsOrigin = corsOrigin;
+    }
+    if (authSecret !== undefined) {
+      result.authSecret = authSecret;
     }
     if (port !== undefined) {
       result.port = port;
@@ -271,6 +307,11 @@ export function resolveRelayCliOptions(
     return redisUrlEnv;
   }
 
+  const maxRoomSizeFlag = parsePositiveIntegerOption(parsedArgs.maxRoomSize, '--max-room-size');
+  if (typeof maxRoomSizeFlag === 'object') {
+    return maxRoomSizeFlag;
+  }
+
   const maxRoomSizeEnv = parsePositiveIntegerOption(
     env.ROOMFUL_MAX_ROOM_SIZE,
     'ROOMFUL_MAX_ROOM_SIZE',
@@ -280,10 +321,13 @@ export function resolveRelayCliOptions(
   }
 
   const host = parsedArgs.host ?? env.HOST;
-  const corsOrigin = readNonEmptyEnv(env.ROOMFUL_CORS_ORIGIN);
-  const authSecret = readNonEmptyEnv(env.ROOMFUL_AUTH_SECRET);
+  const corsOrigin =
+    readNonEmptyEnv(parsedArgs.corsOrigin) ?? readNonEmptyEnv(env.ROOMFUL_CORS_ORIGIN);
+  const authSecret =
+    readNonEmptyEnv(parsedArgs.authSecret) ?? readNonEmptyEnv(env.ROOMFUL_AUTH_SECRET);
   const resolvedPort = portFlag ?? portEnv ?? 8787;
   const resolvedMaxConnections = maxConnectionsFlag ?? maxConnectionsEnv;
+  const resolvedMaxRoomSize = maxRoomSizeFlag ?? maxRoomSizeEnv;
   const resolvedRedisUrl = redisUrlFlag ?? redisUrlEnv;
 
   const options: {
@@ -304,8 +348,8 @@ export function resolveRelayCliOptions(
   if (resolvedRedisUrl !== undefined) {
     options.redisUrl = resolvedRedisUrl;
   }
-  if (maxRoomSizeEnv !== undefined) {
-    options.maxRoomSize = maxRoomSizeEnv;
+  if (resolvedMaxRoomSize !== undefined) {
+    options.maxRoomSize = resolvedMaxRoomSize;
   }
   if (corsOrigin !== undefined) {
     options.corsOrigin = corsOrigin;

@@ -170,6 +170,10 @@ export interface RelayServerOptions {
 
   /**
    * Enables Redis coordination across relay instances.
+   *
+   * @experimental Multi-instance/Redis coordination is experimental. Its
+   * semantics (e.g. rejecting joins while Redis is unavailable) may change
+   * before being declared stable.
    */
   redisUrl?: string;
 

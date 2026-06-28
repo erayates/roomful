@@ -14,6 +14,7 @@ import type {
   RoomEventMap,
   RoomEventName,
   RoomOptions,
+  RoomStatus,
   StateChangeMeta,
   StateEngine,
 } from '@roomful/core';
@@ -26,6 +27,7 @@ import type { UseAwarenessResult, UseCursorsResult, UsePresenceResult } from './
 import {
   RoomfulPlugin,
   useAwareness,
+  useConnectionStatus,
   useCursors,
   useEvent,
   usePresence,
@@ -99,6 +101,7 @@ type TestRoom = Room<PresenceData> & {
     payload: RoomEventMap<PresenceData>[TEvent],
   ) => void;
   listenerCount(event: RoomEventName): number;
+  setStatus(status: RoomStatus): void;
   awarenessEngine: TestAwarenessEngine;
   cursorEngine: TestCursorEngine;
   eventEngine: TestEventEngine;
@@ -374,11 +377,14 @@ function createMockRoom(
   const stateEngine = config.stateEngine ?? createMockStateEngine({});
   const presenceEngine =
     config.presenceEngine ?? createMockPresenceEngine(peerId, [createPeer(peerId)]);
+  let currentStatus: RoomStatus = 'idle';
 
   const room = {
     id: roomId,
     peerId,
-    status: 'idle',
+    get status() {
+      return currentStatus;
+    },
     peers: presenceEngine.getAll().filter((peer) => {
       return peer.id !== peerId;
     }),
@@ -475,12 +481,32 @@ function createMockRoom(
       handlers.get(event)?.delete(handler);
     }),
     emit(event: RoomEventName, payload: RoomEventPayload) {
+      switch (event) {
+        case 'connected':
+          currentStatus = 'connected';
+          break;
+        case 'reconnecting':
+          currentStatus = 'reconnecting';
+          break;
+        case 'disconnected':
+          currentStatus = 'disconnected';
+          break;
+        case 'error':
+          currentStatus = 'error';
+          break;
+        default:
+          break;
+      }
+
       for (const handler of handlers.get(event) ?? []) {
         handler(payload);
       }
     },
     listenerCount(event: RoomEventName) {
       return handlers.get(event)?.size ?? 0;
+    },
+    setStatus(status: RoomStatus) {
+      currentStatus = status;
     },
     awarenessEngine,
     cursorEngine,
@@ -557,6 +583,95 @@ describe('RoomfulPlugin', () => {
 
     expect(cursorEngine.unmount).toHaveBeenCalledTimes(1);
     expect(room.disconnect).toHaveBeenCalledTimes(1);
+  });
+
+  it('forwards connected, disconnected, and error events to plugin callbacks and cleans up', async () => {
+    const room = createMockRoom('callback-room');
+    const onConnect = vi.fn();
+    const onDisconnect = vi.fn();
+    const onError = vi.fn();
+
+    const wrapper = mount(
+      defineComponent({
+        template: '<div></div>',
+      }),
+      {
+        global: {
+          plugins: [
+            [
+              RoomfulPlugin,
+              {
+                roomId: 'callback-room',
+                onConnect,
+                onDisconnect,
+                onError,
+              },
+            ],
+          ],
+        },
+      },
+    );
+
+    const error = new RoomfulError('NETWORK_ERROR', 'boom', true);
+    room.emit('connected', undefined);
+    room.emit('disconnected', { reason: 'manual' });
+    room.emit('error', error);
+
+    expect(onConnect).toHaveBeenCalledTimes(1);
+    expect(onDisconnect).toHaveBeenCalledWith({ reason: 'manual' });
+    expect(onError).toHaveBeenCalledWith(error);
+
+    wrapper.unmount();
+
+    expect(room.listenerCount('connected')).toBe(0);
+    expect(room.listenerCount('disconnected')).toBe(0);
+    expect(room.listenerCount('error')).toBe(0);
+  });
+});
+
+describe('useConnectionStatus', () => {
+  it('tracks room status transitions and cleans up subscriptions on unmount', async () => {
+    const room = createMockRoom('connection-status-room');
+    const statuses: RoomStatus[] = [];
+
+    const wrapper = mount(
+      defineComponent({
+        setup() {
+          const status = useConnectionStatus();
+          watchEffect(() => {
+            statuses.push(status.value);
+          });
+          return () => null;
+        },
+      }),
+      {
+        global: {
+          plugins: [[RoomfulPlugin, { roomId: 'connection-status-room' }]],
+        },
+      },
+    );
+
+    room.emit('connected', undefined);
+    await nextTick();
+    room.emit('reconnecting', { attempt: 1 });
+    await nextTick();
+    room.emit('disconnected', { reason: 'manual' });
+    await nextTick();
+    room.emit('error', new RoomfulError('NETWORK_ERROR', 'boom', true));
+    await nextTick();
+
+    expect(statuses).toContain('idle');
+    expect(statuses).toContain('connected');
+    expect(statuses).toContain('reconnecting');
+    expect(statuses).toContain('disconnected');
+    expect(statuses).toContain('error');
+
+    wrapper.unmount();
+
+    expect(room.listenerCount('connected')).toBe(0);
+    expect(room.listenerCount('reconnecting')).toBe(0);
+    expect(room.listenerCount('disconnected')).toBe(0);
+    expect(room.listenerCount('error')).toBe(0);
   });
 });
 

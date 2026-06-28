@@ -20,7 +20,7 @@ npm install @roomful/core@beta @roomful/svelte@beta
     presence: { name: 'Alice', color: '#4F46E5' },
   });
 
-  const [count, setCount] = state.shared('count', 0);
+  const [count, setCount] = state.shared('count', { initialValue: 0 });
 </script>
 
 <div use:cursors.mount>
@@ -31,7 +31,7 @@ npm install @roomful/core@beta @roomful/svelte@beta
 </div>
 ```
 
-`roomful()` returns `{ presence, cursors, state, events, awareness }` as Svelte stores.
+`roomful()` returns `{ presence, cursors, state, events, awareness, status }` as Svelte stores. The `status` store exposes the current `RoomStatus`, and `roomful()` accepts `onConnect`, `onDisconnect`, and `onError` lifecycle callbacks.
 
 ## Documentation
 

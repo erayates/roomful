@@ -1008,10 +1008,14 @@ describe('roomful', () => {
 
     const adapter = roomful('state-room');
     const [countStore, setCount] = adapter.state.shared('counter', {
-      count: 0,
+      initialValue: {
+        count: 0,
+      },
     });
     const [sameStore, sameSetter] = adapter.state.shared('counter', {
-      count: 0,
+      initialValue: {
+        count: 0,
+      },
     });
     const values: Array<{ count: number }> = [];
     const unsubscribe = countStore.subscribe((value) => {
@@ -1066,25 +1070,26 @@ describe('roomful', () => {
       count: 4,
     });
 
-    adapter.state.shared(
-      'counter',
-      {
+    adapter.state.shared('counter', {
+      initialValue: {
         count: 0,
       },
-      {
-        persist: true,
-      },
-    );
+      persist: true,
+    });
     expect(room.useState.mock.calls).toHaveLength(2);
 
     expect(() => {
       adapter.state.shared('different-key', {
-        count: 0,
+        initialValue: {
+          count: 0,
+        },
       });
     }).toThrow('already bound to key');
     expect(() => {
       adapter.state.shared('counter', {
-        count: 1,
+        initialValue: {
+          count: 1,
+        },
       });
     }).toThrow('different initialValue');
 
@@ -1174,8 +1179,10 @@ describe('roomful', () => {
       'typed-room',
     );
     const [votes, setVotes] = adapter.state.shared('votes', {
-      no: 0,
-      yes: 0,
+      initialValue: {
+        no: 0,
+        yes: 0,
+      },
     });
     const reaction = adapter.events.channel<{ emoji: string }>('reaction');
 
@@ -1211,5 +1218,51 @@ describe('roomful', () => {
         status: 'away',
       });
     }).toThrow('destroy()');
+  });
+
+  it('exposes a status store that tracks room lifecycle transitions', async () => {
+    const room = createMockRoom('status-room');
+    const adapter = roomful('status-room');
+    const statuses: RoomStatus[] = [];
+    const unsubscribe = adapter.status.subscribe((value) => {
+      statuses.push(value);
+    });
+
+    room.emit('connected', undefined);
+    room.emit('reconnecting', { attempt: 1 });
+    room.emit('disconnected', { reason: 'manual' });
+    room.emit('error', new RoomfulError('NETWORK_ERROR', 'boom', true));
+
+    expect(statuses).toEqual(['idle', 'connected', 'reconnecting', 'disconnected', 'error']);
+
+    unsubscribe();
+    await adapter.destroy();
+  });
+
+  it('forwards connected, disconnected, and error events to lifecycle callbacks and cleans up', async () => {
+    const room = createMockRoom('lifecycle-room');
+    const onConnect = vi.fn();
+    const onDisconnect = vi.fn();
+    const onError = vi.fn();
+    const adapter = roomful('lifecycle-room', {
+      onConnect,
+      onDisconnect,
+      onError,
+    });
+
+    const error = new RoomfulError('NETWORK_ERROR', 'boom', true);
+    room.emit('connected', undefined);
+    room.emit('disconnected', { reason: 'manual' });
+    room.emit('error', error);
+
+    expect(onConnect).toHaveBeenCalledTimes(1);
+    expect(onDisconnect).toHaveBeenCalledWith({ reason: 'manual' });
+    expect(onError).toHaveBeenCalledWith(error);
+
+    await adapter.destroy();
+
+    expect(room.listenerCount('connected')).toBe(0);
+    expect(room.listenerCount('disconnected')).toBe(0);
+    expect(room.listenerCount('error')).toBe(0);
   });
 });

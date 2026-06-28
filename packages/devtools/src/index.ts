@@ -1,3 +1,5 @@
+import type { DevtoolsBridge } from './types.js';
+
 export {
   DEVTOOLS_BRIDGE_GLOBAL,
   DEVTOOLS_BRIDGE_VERSION,
@@ -27,3 +29,16 @@ export type {
   DevtoolsStateStrategy,
   DevtoolsTransportKind,
 } from './types.js';
+
+declare global {
+  interface Window {
+    /**
+     * Exposes the devtools bridge that `@roomful/core` registers on `window`.
+     * The property key mirrors {@link DEVTOOLS_BRIDGE_GLOBAL}.
+     *
+     * @experimental The bridge protocol is experimental; the single-integer
+     * `version` has no negotiation and may change.
+     */
+    __roomful_devtools__?: DevtoolsBridge;
+  }
+}

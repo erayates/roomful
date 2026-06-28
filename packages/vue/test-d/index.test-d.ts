@@ -9,17 +9,27 @@ import {
   type SharedStateSetter,
   type UseAwarenessResult,
   useAwareness,
+  useConnectionStatus,
   useCursors,
   useEvent,
   usePresence,
   useSharedState,
 } from '..';
-import type { Peer, PresenceData } from '@roomful/core';
+import type { Peer, PresenceData, RoomfulError, RoomStatus } from '@roomful/core';
 
 const presence = usePresence<{ role: 'editor' | 'viewer' }>();
 expectType<'editor' | 'viewer' | undefined>(presence.self.value.role);
 
 const pluginOptions = {
+  onConnect() {
+    return undefined;
+  },
+  onDisconnect(payload) {
+    expectType<string | undefined>(payload.reason);
+  },
+  onError(error: RoomfulError) {
+    expectType<string>(error.message);
+  },
   presence: {
     role: 'editor' as const,
   },
@@ -27,6 +37,10 @@ const pluginOptions = {
 } satisfies RoomfulPluginOptions<{ role: 'editor' }>;
 expectType<string>(pluginOptions.roomId);
 expectAssignable<Plugin>(RoomfulPlugin);
+
+const connectionStatus = useConnectionStatus();
+expectType<ReadonlyRef<RoomStatus>>(connectionStatus);
+expectType<RoomStatus>(connectionStatus.value);
 
 const cursors = useCursors<{ tool: 'eraser' | 'pen' }>();
 expectType<HTMLElement | null>(cursors.ref.value);

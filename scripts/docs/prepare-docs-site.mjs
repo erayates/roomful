@@ -445,6 +445,8 @@ async function runTypeDoc(entryPoint, outputDir, tsconfig) {
       'typedoc-plugin-markdown',
       '--logLevel',
       'Error',
+      '--excludeInternal',
+      'true',
       '--validation.notExported',
       'false',
       '--validation.invalidLink',

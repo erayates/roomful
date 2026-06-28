@@ -77,7 +77,7 @@ function isTransportKind(value: unknown): value is DevtoolsTransportKind {
 }
 
 function isStateStrategy(value: unknown): value is DevtoolsStateStrategy {
-  return value === null || value === 'lww' || value === 'crdt';
+  return value === null || value === 'lww' || value === 'crdt' || value === 'custom';
 }
 
 function isStateReason(value: unknown): value is DevtoolsStateReason {

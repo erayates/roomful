@@ -61,6 +61,38 @@ describe('devtools guards', () => {
     expect(isDevtoolsRoomSnapshot(snapshot)).toBe(true);
   });
 
+  it('accepts snapshots using the custom state strategy', () => {
+    const snapshot: DevtoolsRoomSnapshot = {
+      bridgeVersion: DEVTOOLS_BRIDGE_VERSION,
+      errors: [],
+      events: [],
+      hasSimulatedPeer: false,
+      hasState: true,
+      instanceId: 'room-a::peer-a',
+      peerCount: 1,
+      peerId: 'peer-a',
+      peers: [],
+      roomId: 'room-a',
+      state: {
+        available: true,
+        diff: [],
+        lastChangedBy: 'peer-a',
+        lastUpdatedAt: 1,
+        pending: false,
+        queuedMutationCount: 0,
+        reason: 'set',
+        strategy: 'custom',
+        value: {
+          ready: true,
+        },
+      },
+      status: 'connected',
+      transport: 'websocket',
+    };
+
+    expect(isDevtoolsRoomSnapshot(snapshot)).toBe(true);
+  });
+
   it('rejects snapshots with malformed nested data', () => {
     expect(
       isDevtoolsRoomSnapshot({

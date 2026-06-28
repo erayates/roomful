@@ -269,6 +269,9 @@ export interface DevtoolsRoomSummary {
 export interface DevtoolsRoomSnapshot extends DevtoolsRoomSummary {
   /**
    * Stores the devtools bridge protocol version.
+   *
+   * @experimental The single-integer bridge version has no negotiation, so the
+   * bridge protocol may change.
    */
   bridgeVersion: number;
 
@@ -310,6 +313,11 @@ export interface DevtoolsCommandResult {
 
 /**
  * Exposes the devtools bridge available to browser extensions and overlays.
+ *
+ * @experimental The bridge protocol is experimental. The single-integer
+ * {@link DevtoolsBridge.version} carries no negotiation, so the protocol may
+ * change. The pure `serializeDevtoolsValue`/`diffSerializedState` helpers are
+ * stable.
  */
 export interface DevtoolsBridge {
   /**

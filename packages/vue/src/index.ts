@@ -10,6 +10,7 @@ import type {
   PresenceEngine,
   Room,
   RoomOptions,
+  RoomStatus,
   StateEngine,
   StateOptions,
 } from '@roomful/core';
@@ -42,6 +43,21 @@ export interface RoomfulPluginOptions<
    * Identifies the room to create or join.
    */
   roomId: string;
+
+  /**
+   * Runs after the room connects.
+   */
+  onConnect?: () => void;
+
+  /**
+   * Runs after the room disconnects.
+   */
+  onDisconnect?: (payload: { reason?: string }) => void;
+
+  /**
+   * Runs when the room emits an operational error.
+   */
+  onError?: (error: RoomfulError) => void;
 }
 
 /**
@@ -233,6 +249,16 @@ export const RoomfulPlugin: Plugin<RoomfulPluginOptions<PresenceData>> = {
     app.provide(ROOMFUL_CONTEXT_KEY, context);
     app.directive('roomful-cursors', createRoomfulCursorsDirective(context, directiveStates));
 
+    const unsubscribeConnected = room.on('connected', () => {
+      rawOptions.onConnect?.();
+    });
+    const unsubscribeDisconnected = room.on('disconnected', (payload) => {
+      rawOptions.onDisconnect?.(payload);
+    });
+    const unsubscribeError = room.on('error', (error) => {
+      rawOptions.onError?.(error);
+    });
+
     void room.connect().catch(() => {
       return undefined;
     });
@@ -246,6 +272,10 @@ export const RoomfulPlugin: Plugin<RoomfulPluginOptions<PresenceData>> = {
       }
 
       isCleanedUp = true;
+
+      unsubscribeError();
+      unsubscribeDisconnected();
+      unsubscribeConnected();
 
       for (const state of directiveStates.values()) {
         state.engine.unmount();
@@ -578,6 +608,53 @@ export function useAwareness<TPresence extends PresenceData = PresenceData>(): U
         .setTyping(isTyping);
     },
   };
+}
+
+/**
+ * Subscribes to the current room connection status.
+ *
+ * @typeParam TPresence - The room presence shape.
+ * @returns A readonly ref holding the latest connection status.
+ */
+export function useConnectionStatus<
+  TPresence extends PresenceData = PresenceData,
+>(): ReadonlyRef<RoomStatus> {
+  const context = useRoomfulContext('useConnectionStatus');
+  const initialRoom = requireTypedRoom<TPresence>(context.room.value, 'useConnectionStatus');
+  const status = shallowRef<RoomStatus>(initialRoom.status);
+
+  watch(
+    context.room,
+    (room, _previousRoom, onCleanup) => {
+      const typedRoom = requireTypedRoom<TPresence>(room, 'useConnectionStatus');
+      const syncStatus = (): void => {
+        if (status.value === typedRoom.status) {
+          return;
+        }
+
+        status.value = typedRoom.status;
+      };
+
+      const unsubscribeConnected = typedRoom.on('connected', syncStatus);
+      const unsubscribeReconnecting = typedRoom.on('reconnecting', syncStatus);
+      const unsubscribeDisconnected = typedRoom.on('disconnected', syncStatus);
+      const unsubscribeError = typedRoom.on('error', syncStatus);
+
+      syncStatus();
+
+      onCleanup(() => {
+        unsubscribeError();
+        unsubscribeDisconnected();
+        unsubscribeReconnecting();
+        unsubscribeConnected();
+      });
+    },
+    {
+      immediate: true,
+    },
+  );
+
+  return status;
 }
 
 /**

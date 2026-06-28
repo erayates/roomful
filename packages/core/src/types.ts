@@ -22,6 +22,8 @@ export type RoomStatus =
 
 /**
  * Selects the preferred transport strategy for a room.
+ *
+ * Non-exhaustive; new codes may be added in minor releases — handle a default case.
  */
 export type TransportMode = 'auto' | 'webrtc' | 'websocket' | 'broadcast';
 
@@ -643,6 +645,8 @@ export interface RoomfulYjsProvider {
 
 /**
  * Names the built-in room lifecycle events.
+ *
+ * Non-exhaustive; new codes may be added in minor releases — handle a default case.
  */
 export type RoomEventName =
   | 'connected'
@@ -891,6 +895,8 @@ export interface StateOptions<T> {
 export interface StateChangeMeta {
   /**
    * Identifies the mutation that produced the change.
+   *
+   * Non-exhaustive; new codes may be added in minor releases — handle a default case.
    */
   reason: 'set' | 'patch' | 'undo' | 'reset';
 
@@ -982,7 +988,7 @@ export interface AwarenessState {
  */
 export interface PresenceEngine<TPresence extends PresenceData = PresenceData> {
   /**
-   * Partially updates the local presence payload.
+   * Partially updates the local presence payload. Merges into the existing value.
    *
    * @param data - The partial presence payload to merge into the local peer.
    * @returns Nothing.
@@ -990,7 +996,7 @@ export interface PresenceEngine<TPresence extends PresenceData = PresenceData> {
   update(this: void, data: Partial<TPresence>): void;
 
   /**
-   * Replaces the local presence payload.
+   * Replaces the local presence payload. Overwrites the existing value.
    *
    * @param data - The partial presence payload to publish for the local peer.
    * @returns Nothing.
@@ -1073,7 +1079,7 @@ export interface CursorEngine<TCursor extends CursorData = CursorData> {
   getPositions(): CursorPosition<TCursor>[];
 
   /**
-   * Updates the local cursor payload.
+   * Updates the local cursor payload. Merges into the existing value.
    *
    * @param position - The partial cursor payload to publish.
    * @returns Nothing.
@@ -1095,7 +1101,7 @@ export interface StateEngine<T> {
   get(): T;
 
   /**
-   * Replaces the shared state value.
+   * Replaces the shared state value. Overwrites the existing value.
    *
    * @param value - The next shared state value.
    * @returns Nothing.
@@ -1103,7 +1109,7 @@ export interface StateEngine<T> {
   set(value: T): void;
 
   /**
-   * Partially updates a shared object state.
+   * Partially updates a shared object state. Merges into the existing value.
    *
    * @param partial - The partial state value to merge.
    * @returns Nothing.
@@ -1138,7 +1144,7 @@ export interface StateEngine<T> {
  */
 export interface AwarenessEngine {
   /**
-   * Merges arbitrary awareness metadata into the local peer.
+   * Merges arbitrary awareness metadata into the local peer. Merges into the existing value.
    *
    * @param value - The awareness fields to merge.
    * @returns Nothing.

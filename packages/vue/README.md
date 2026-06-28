@@ -31,7 +31,7 @@ const [count, setCount] = useSharedState('count', { initialValue: 0 });
 </script>
 ```
 
-Composables: `usePresence`, `useCursors`, `useSharedState`, `useAwareness`, `useEvent` (plus the `v-roomful-cursors` directive).
+Composables: `usePresence`, `useCursors`, `useSharedState`, `useAwareness`, `useEvent`, `useConnectionStatus` (plus the `v-roomful-cursors` directive). `RoomfulPlugin` also accepts `onConnect`, `onDisconnect`, and `onError` lifecycle callbacks.
 
 ## Documentation
 

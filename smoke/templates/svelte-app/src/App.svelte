@@ -10,11 +10,10 @@
 
   const presence = adapter.presence;
   const awareness = adapter.awareness;
-  const [sharedState, setSharedState] = adapter.state.shared(
-    'svelte-smoke-state',
-    { count: 1 },
-    { strategy: 'lww' },
-  );
+  const [sharedState, setSharedState] = adapter.state.shared('svelte-smoke-state', {
+    initialValue: { count: 1 },
+    strategy: 'lww',
+  });
 
   setSharedState((current) => {
     return { ...current, count: current.count + 1 };

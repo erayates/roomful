@@ -3,10 +3,8 @@ import type { Dispatch, ReactNode, SetStateAction } from 'react';
 import { expectType } from 'tsd';
 
 import {
-  createReactHealth,
   RoomfulProvider,
   type RoomfulProviderProps,
-  type ReactHealth,
   type UseAwarenessResult,
   useAwareness,
   useConnectionStatus,
@@ -38,10 +36,6 @@ const providerProps = {
   roomId: 'room-id',
 } satisfies RoomfulProviderProps<{ role: 'editor' }>;
 expectType<string>(providerProps.roomId);
-
-const health = createReactHealth();
-expectType<ReactHealth>(health);
-expectType<'@roomful/core'>(health.dependencies.core.packageName);
 
 const room = useRoom<{ role: 'editor' | 'viewer' }>();
 expectType<Room<{ role: 'editor' | 'viewer' }>>(room);

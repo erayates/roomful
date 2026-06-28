@@ -14,7 +14,7 @@ import type {
   StateEngine,
   StateOptions,
 } from '@roomful/core';
-import { createCoreHealth, createRoom, RoomfulError } from '@roomful/core';
+import { createRoom, RoomfulError } from '@roomful/core';
 import {
   areAwarenessArraysEqual,
   areCursorArraysEqual,
@@ -38,31 +38,6 @@ import {
   useRef,
   useSyncExternalStore,
 } from 'react';
-
-/**
- * Reports package-level health metadata for `@roomful/react`.
- */
-export interface ReactHealth {
-  /**
-   * Identifies the package.
-   */
-  packageName: '@roomful/react';
-
-  /**
-   * Reports the package health state.
-   */
-  status: 'ok';
-
-  /**
-   * Reports package dependency health.
-   */
-  dependencies: {
-    /**
-     * Reports health metadata for `@roomful/core`.
-     */
-    core: ReturnType<typeof createCoreHealth>;
-  };
-}
 
 /**
  * Configures the React provider.
@@ -251,21 +226,6 @@ const sharedStateBindings = new WeakMap<Room<PresenceData>, SharedStateBinding>(
 
 const RoomfulRoomContext = createContext<unknown>(null);
 RoomfulRoomContext.displayName = 'RoomfulRoomContext';
-
-/**
- * Returns package-level health metadata for `@roomful/react`.
- *
- * @returns The static React package health payload.
- */
-export function createReactHealth(): ReactHealth {
-  return {
-    packageName: '@roomful/react',
-    status: 'ok',
-    dependencies: {
-      core: createCoreHealth(),
-    },
-  };
-}
 
 /**
  * Creates a room and provides it to the React subtree.

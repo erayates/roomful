@@ -42,7 +42,6 @@ vi.mock('@roomful/core', async () => {
 
 import type { UseAwarenessResult, UseCursorsResult, UsePresenceResult } from './index';
 import {
-  createReactHealth,
   RoomfulProvider,
   useAwareness,
   useConnectionStatus,
@@ -597,21 +596,6 @@ beforeEach(() => {
 
 afterEach(() => {
   document.body.innerHTML = '';
-});
-
-describe('createReactHealth', () => {
-  it('returns expected React health metadata including core dependency', () => {
-    expect(createReactHealth()).toEqual({
-      packageName: '@roomful/react',
-      status: 'ok',
-      dependencies: {
-        core: {
-          packageName: '@roomful/core',
-          status: 'ok',
-        },
-      },
-    });
-  });
 });
 
 describe('RoomfulProvider', () => {

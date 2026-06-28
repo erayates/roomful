@@ -13,7 +13,7 @@ Audience: users.
     transport: 'auto',
   });
 
-  const [votes, setVotes] = state.shared('votes', { yes: 0, no: 0 });
+  const [votes, setVotes] = state.shared('votes', { initialValue: { yes: 0, no: 0 } });
   const reactions = events.channel<{ emoji: string }>('reaction');
 </script>
 
@@ -43,7 +43,7 @@ Audience: users.
 ## Integration Notes
 
 - `presence`, `cursors`, and `awareness` are Svelte-compatible stores.
-- `state.shared(key, initialValue, options?)` returns a writable store plus a stable convenience setter.
+- `state.shared(key, options)` returns a writable store plus a stable convenience setter. Pass the initial value as `options.initialValue`.
 - `events` exposes `emit`, `emitTo`, `on`, and `channel(name)` for store-based event consumption.
 - `cursors.mount` is a Svelte action and `cursors.unmount()` is available for explicit teardown.
 - In component setup, the adapter auto-connects on mount and auto-destroys on teardown.

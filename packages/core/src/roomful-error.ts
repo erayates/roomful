@@ -1,5 +1,7 @@
 /**
  * Enumerates the public Roomful error codes.
+ *
+ * Non-exhaustive; new codes may be added in minor releases — handle a default case.
  */
 export type RoomfulErrorCode =
   | 'ROOM_FULL'

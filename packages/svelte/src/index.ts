@@ -12,6 +12,7 @@ import type {
   PresenceEngine,
   Room,
   RoomOptions,
+  RoomStatus,
   StateEngine,
   StateOptions,
   Unsubscribe,
@@ -363,15 +364,37 @@ export interface StateNamespace {
    *
    * @typeParam T - The shared state value type.
    * @param key - The logical binding key used to reuse the same shared-state engine.
-   * @param initialValue - The initial shared-state value.
-   * @param options - Optional shared-state configuration overrides.
+   * @param options - The shared-state configuration, including `initialValue`.
    * @returns A Svelte writable store and setter pair.
    */
   shared<T>(
     key: string,
-    initialValue: T,
-    options?: Omit<StateOptions<T>, 'initialValue'>,
+    options: StateOptions<T>,
   ): readonly [Writable<T>, (nextValue: SetStateAction<T>) => void];
+}
+
+/**
+ * Configures the Svelte adapter.
+ *
+ * @typeParam TPresence - The room presence shape inferred from `presence`.
+ */
+export interface RoomfulOptions<
+  TPresence extends PresenceData = PresenceData,
+> extends RoomOptions<TPresence> {
+  /**
+   * Runs after the room connects.
+   */
+  onConnect?: () => void;
+
+  /**
+   * Runs after the room disconnects.
+   */
+  onDisconnect?: (payload: { reason?: string }) => void;
+
+  /**
+   * Runs when the room emits an operational error.
+   */
+  onError?: (error: RoomfulError) => void;
 }
 
 /**
@@ -429,6 +452,11 @@ export interface RoomfulAdapter<
    * Exposes the shared-state namespace.
    */
   state: StateNamespace;
+
+  /**
+   * Exposes the room connection status store.
+   */
+  status: Readable<RoomStatus>;
 }
 
 /**
@@ -437,14 +465,15 @@ export interface RoomfulAdapter<
  * @typeParam TPresence - The room presence shape inferred from `options.presence`.
  * @typeParam TCursor - The custom cursor payload shape.
  * @param roomId - The room identifier to create or join.
- * @param options - Optional room configuration.
+ * @param options - Optional room and lifecycle configuration.
  * @returns The Svelte adapter.
  */
 export function roomful<
   TPresence extends PresenceData = PresenceData,
   TCursor extends CursorData = CursorData,
->(roomId: string, options: RoomOptions<TPresence> = {}): RoomfulAdapter<TPresence, TCursor> {
-  const room = createRoom(roomId, options);
+>(roomId: string, options: RoomfulOptions<TPresence> = {}): RoomfulAdapter<TPresence, TCursor> {
+  const { onConnect, onDisconnect, onError, ...roomOptions } = options;
+  const room = createRoom(roomId, roomOptions);
   const presenceEngine = room.usePresence();
   const cursorEngine = room.useCursors<TCursor>();
   const awarenessEngine = room.useAwareness();
@@ -496,6 +525,11 @@ export function roomful<
       },
     }),
   );
+  const statusStore = createValueStore<RoomStatus>(room.status);
+
+  const refreshStatus = (): void => {
+    statusStore.publish(room.status);
+  };
 
   const refreshPresence = (): void => {
     presenceStore.publish(
@@ -545,6 +579,29 @@ export function roomful<
     cleanupRegistry.add(cleanup);
     return cleanup;
   };
+
+  const unsubscribeConnected = room.on('connected', () => {
+    refreshStatus();
+    onConnect?.();
+  });
+  const unsubscribeReconnecting = room.on('reconnecting', () => {
+    refreshStatus();
+  });
+  const unsubscribeDisconnected = room.on('disconnected', (payload) => {
+    refreshStatus();
+    onDisconnect?.(payload);
+  });
+  const unsubscribeError = room.on('error', (error) => {
+    refreshStatus();
+    onError?.(error);
+  });
+
+  registerCleanup(() => {
+    unsubscribeError();
+    unsubscribeDisconnected();
+    unsubscribeReconnecting();
+    unsubscribeConnected();
+  });
 
   const attachPresenceSubscription = (): void => {
     if (!runtimeStarted) {
@@ -807,15 +864,11 @@ export function roomful<
   const state: StateNamespace = {
     shared<T>(
       key: string,
-      initialValue: T,
-      sharedOptions: Omit<StateOptions<T>, 'initialValue'> = {},
+      options: StateOptions<T>,
     ): readonly [Writable<T>, (nextValue: SetStateAction<T>) => void] {
       assertAvailable('state.shared');
 
-      const stateOptions: StateOptions<T> = {
-        ...sharedOptions,
-        initialValue,
-      };
+      const stateOptions: StateOptions<T> = options;
 
       if (sharedStateController) {
         assertCompatibleSharedStateBinding(sharedStateController.binding, key, stateOptions, {
@@ -825,7 +878,7 @@ export function roomful<
 
         if (
           sharedStateController.binding.persist !== true &&
-          sharedOptions.persist === true &&
+          options.persist === true &&
           sharedStateController.binding.strategy === 'lww'
         ) {
           room.useState(stateOptions);
@@ -1017,12 +1070,19 @@ export function roomful<
     presenceStore.clear();
     cursorStore.clear();
     awarenessStore.clear();
+    statusStore.clear();
     sharedStateController?.valueStore.clear();
 
     await room.disconnect().catch(() => {
       return undefined;
     });
   }
+
+  const status: Readable<RoomStatus> = {
+    subscribe(run, invalidate) {
+      return statusStore.subscribe(run, invalidate);
+    },
+  };
 
   return {
     awareness,
@@ -1033,6 +1093,7 @@ export function roomful<
     events,
     presence,
     state,
+    status,
   };
 }
 
