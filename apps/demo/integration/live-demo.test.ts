@@ -44,9 +44,28 @@ async function seedIdentity(context: BrowserContext, name: string, color: string
   );
 }
 
-async function openDemo(page: Page, relayUrl: string, query = ''): Promise<void> {
-  const prefix = query === '' ? '?' : `${query}&`;
-  await page.goto(`/${prefix}relay=${encodeURIComponent(relayUrl)}`);
+interface OpenDemoOptions {
+  app?: string;
+  room?: string;
+}
+
+async function openDemo(
+  page: Page,
+  relayUrl: string,
+  { app = 'canvas', room }: OpenDemoOptions = {},
+): Promise<void> {
+  const params = new URLSearchParams();
+  // `?relay=` forces the websocket transport so independent browser contexts sync over the
+  // relay (the default BroadcastChannel transport is scoped to a single browser).
+  params.set('relay', relayUrl);
+  params.set('app', app);
+  if (room !== undefined) {
+    params.set('room', room);
+  }
+
+  await page.goto(`/?${params.toString()}`);
+  // Wait for the canvas mini-app to mount before the test interacts with it.
+  await expect(page.getByTestId('demo-canvas-surface')).toBeVisible();
 }
 
 async function drawStroke(page: Page): Promise<void> {
@@ -148,7 +167,7 @@ test.describe('live demo app', () => {
   });
 
   test('shares strokes and cursors live with late joiners', async ({ browser }) => {
-    const roomQuery = '?room=demo-integrationroom';
+    const room = 'demo-integrationroom';
 
     const contextA = await browser.newContext();
     const contextB = await browser.newContext();
@@ -162,8 +181,8 @@ test.describe('live demo app', () => {
     const pageB = await contextB.newPage();
     const latePage = await lateContext.newPage();
 
-    await openDemo(pageA, relayUrl, roomQuery);
-    await openDemo(pageB, relayUrl, roomQuery);
+    await openDemo(pageA, relayUrl, { room });
+    await openDemo(pageB, relayUrl, { room });
 
     await expect(pageA.getByTestId('presence-count-value')).toHaveText('2');
     await expect(pageB.getByTestId('presence-count-value')).toHaveText('2');
@@ -176,7 +195,7 @@ test.describe('live demo app', () => {
       'Ada Orbit',
     ]);
 
-    await openDemo(latePage, relayUrl, roomQuery);
+    await openDemo(latePage, relayUrl, { room });
 
     await expect(latePage.getByTestId('presence-count-value')).toHaveText('3');
     await expect(latePage.getByTestId('stroke-count-value')).toHaveText('1');
@@ -195,7 +214,7 @@ test.describe('live demo app', () => {
     await seedIdentity(context, 'Touch Sketch', '#5f0f40');
 
     const page = await context.newPage();
-    await openDemo(page, relayUrl, '?room=playwright-touch-room');
+    await openDemo(page, relayUrl, { room: 'playwright-touch-room' });
 
     await dispatchTouchStroke(page);
 
@@ -204,24 +223,38 @@ test.describe('live demo app', () => {
     await context.close();
   });
 
-  test('keeps each UTC day in a separate public room', async ({ browser }) => {
+  test('isolates rooms by ?room id over the same relay', async ({ browser }) => {
     const contextA = await browser.newContext();
     const contextB = await browser.newContext();
+    const contextC = await browser.newContext();
 
-    await seedIdentity(contextA, 'March Ten', '#ff6b35');
-    await seedIdentity(contextB, 'March Eleven', '#1ea896');
+    await seedIdentity(contextA, 'Room Alpha', '#ff6b35');
+    await seedIdentity(contextB, 'Room Beta', '#1ea896');
+    await seedIdentity(contextC, 'Alpha Partner', '#3a86ff');
 
     const pageA = await contextA.newPage();
     const pageB = await contextB.newPage();
+    const pageC = await contextC.newPage();
 
-    await openDemo(pageA, relayUrl, '?day=2026-03-10');
+    // A and B share one relay but sit in different rooms; C joins A's room.
+    await openDemo(pageA, relayUrl, { room: 'demo-room-alpha' });
+    await openDemo(pageB, relayUrl, { room: 'demo-room-beta' });
+    await openDemo(pageC, relayUrl, { room: 'demo-room-alpha' });
+
+    // Same ?room => shared presence; different ?room stays isolated.
+    await expect(pageA.getByTestId('presence-count-value')).toHaveText('2');
+    await expect(pageC.getByTestId('presence-count-value')).toHaveText('2');
+    await expect(pageB.getByTestId('presence-count-value')).toHaveText('1');
+
     await drawStroke(pageA);
-    await expect(pageA.getByTestId('stroke-count-value')).toHaveText('1');
 
-    await openDemo(pageB, relayUrl, '?day=2026-03-11');
+    // C is in A's room and sees the stroke; B is isolated and never does.
+    await expect(pageC.getByTestId('stroke-count-value')).toHaveText('1');
+    await expect(pageA.getByTestId('stroke-count-value')).toHaveText('1');
     await expect(pageB.getByTestId('stroke-count-value')).toHaveText('0');
 
     await contextA.close();
     await contextB.close();
+    await contextC.close();
   });
 });
