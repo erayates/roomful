@@ -14,8 +14,10 @@ import {
   usePresence,
   useRoom,
   useSharedState,
+  type UseViewportResult,
+  useViewport,
 } from '..';
-import type { Peer, PresenceData, Room, RoomStatus } from '@roomful/core';
+import type { Peer, PresenceData, Room, RoomStatus, ViewportState } from '@roomful/core';
 
 const provider = RoomfulProvider({
   children: null,
@@ -55,6 +57,13 @@ expectType<(payload: { text: string }) => void>(emitMessage);
 const awareness = useAwareness();
 expectType<UseAwarenessResult>(awareness);
 expectType<boolean | undefined>(awareness.others[0]?.typing);
+
+const viewport = useViewport();
+expectType<UseViewportResult>(viewport);
+expectType<ViewportState[]>(viewport.states);
+expectType<number | undefined>(viewport.states[0]?.scrollX);
+viewport.follow('peer-id');
+viewport.broadcast();
 
 const peers = usePeers<{ role: 'editor' | 'viewer' }>();
 expectType<Peer<{ role: 'editor' | 'viewer' }>[]>(peers);

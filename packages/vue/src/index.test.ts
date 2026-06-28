@@ -17,13 +17,20 @@ import type {
   RoomStatus,
   StateChangeMeta,
   StateEngine,
+  ViewportEngine,
+  ViewportState,
 } from '@roomful/core';
 import { RoomfulError } from '@roomful/core';
 import { mount } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, nextTick, watchEffect } from 'vue';
 
-import type { UseAwarenessResult, UseCursorsResult, UsePresenceResult } from './index';
+import type {
+  UseAwarenessResult,
+  UseCursorsResult,
+  UsePresenceResult,
+  UseViewportResult,
+} from './index';
 import {
   RoomfulPlugin,
   useAwareness,
@@ -32,6 +39,7 @@ import {
   useEvent,
   usePresence,
   useSharedState,
+  useViewport,
 } from './index';
 
 const { createRoomMock } = vi.hoisted(() => {
@@ -56,6 +64,7 @@ type CursorSubscriber = (positions: CursorPosition<CursorData>[]) => void;
 type EventSubscriber = (payload: unknown, from: Peer<PresenceData>) => void;
 type PresenceSubscriber = (peers: Peer<PresenceData>[]) => void;
 type StateSubscriber<T> = (value: T, meta: StateChangeMeta) => void;
+type ViewportSubscriber = (states: ViewportState[]) => void;
 
 type TestPresenceEngine = PresenceEngine<PresenceData> & {
   emit(peers: Peer<PresenceData>[]): void;
@@ -69,6 +78,19 @@ type TestCursorEngine = CursorEngine<CursorData> & {
   subscriberCount(): number;
   mount: ReturnType<typeof vi.fn<(element: HTMLElement) => void>>;
   unmount: ReturnType<typeof vi.fn<() => void>>;
+};
+
+type TestViewportEngine = ViewportEngine & {
+  emit(states: ViewportState[]): void;
+  subscriberCount(): number;
+  mount: ReturnType<typeof vi.fn<(element: HTMLElement) => void>>;
+  unmount: ReturnType<typeof vi.fn<() => void>>;
+  broadcast: ReturnType<typeof vi.fn<() => void>>;
+  stopBroadcast: ReturnType<typeof vi.fn<() => void>>;
+  present: ReturnType<typeof vi.fn<() => void>>;
+  stopPresenting: ReturnType<typeof vi.fn<() => void>>;
+  follow: ReturnType<typeof vi.fn<(peerId: string) => void>>;
+  unfollow: ReturnType<typeof vi.fn<() => void>>;
 };
 
 type TestAwarenessEngine = AwarenessEngine & {
@@ -107,6 +129,7 @@ type TestRoom = Room<PresenceData> & {
   eventEngine: TestEventEngine;
   presenceEngine: TestPresenceEngine;
   stateEngine: TestStateEngine<unknown>;
+  viewportEngine: TestViewportEngine;
 };
 
 function createPeer(id: string, overrides: Partial<Peer<PresenceData>> = {}): Peer<PresenceData> {
@@ -220,6 +243,61 @@ function createMockCursorEngine(positions: CursorPosition<CursorData>[] = []): T
       return subscribers.size;
     },
   } satisfies TestCursorEngine;
+
+  return engine;
+}
+
+function createViewport(peerId: string, overrides: Partial<ViewportState> = {}): ViewportState {
+  return {
+    peerId,
+    scrollX: 0,
+    scrollY: 0,
+    zoom: 1,
+    viewportWidth: 200,
+    viewportHeight: 200,
+    focusedElement: null,
+    ...overrides,
+  };
+}
+
+function createMockViewportEngine(states: ViewportState[] = []): TestViewportEngine {
+  const subscribers = new Set<ViewportSubscriber>();
+  let currentStates = states;
+
+  const engine = {
+    mount: vi.fn(),
+    unmount: vi.fn(),
+    broadcast: vi.fn(),
+    stopBroadcast: vi.fn(),
+    present: vi.fn(),
+    stopPresenting: vi.fn(),
+    follow: vi.fn(),
+    unfollow: vi.fn(),
+    getAll() {
+      return currentStates;
+    },
+    get(peerId: string) {
+      return currentStates.find((state) => {
+        return state.peerId === peerId;
+      });
+    },
+    subscribe(callback: ViewportSubscriber) {
+      subscribers.add(callback);
+      callback(currentStates);
+      return () => {
+        subscribers.delete(callback);
+      };
+    },
+    emit(nextStates: ViewportState[]) {
+      currentStates = nextStates;
+      for (const subscriber of subscribers) {
+        subscriber(currentStates);
+      }
+    },
+    subscriberCount() {
+      return subscribers.size;
+    },
+  } satisfies TestViewportEngine;
 
   return engine;
 }
@@ -367,6 +445,7 @@ function createMockRoom(
     peerId?: string;
     presenceEngine?: TestPresenceEngine;
     stateEngine?: TestStateEngine<unknown>;
+    viewportEngine?: TestViewportEngine;
   } = {},
 ): TestRoom {
   const handlers = new Map<RoomEventName, Set<RoomEventHandler>>();
@@ -375,6 +454,7 @@ function createMockRoom(
   const cursorEngine = config.cursorEngine ?? createMockCursorEngine();
   const eventEngine = config.eventEngine ?? createMockEventEngine();
   const stateEngine = config.stateEngine ?? createMockStateEngine({});
+  const viewportEngine = config.viewportEngine ?? createMockViewportEngine();
   const presenceEngine =
     config.presenceEngine ?? createMockPresenceEngine(peerId, [createPeer(peerId)]);
   let currentStatus: RoomStatus = 'idle';
@@ -464,6 +544,9 @@ function createMockRoom(
     useAwareness: vi.fn(() => {
       return awarenessEngine;
     }),
+    useViewport: vi.fn(() => {
+      return viewportEngine;
+    }),
     useEvents: vi.fn(() => {
       return eventEngine;
     }),
@@ -513,6 +596,7 @@ function createMockRoom(
     eventEngine,
     presenceEngine,
     stateEngine,
+    viewportEngine,
   } satisfies TestRoom;
 
   createRoomMock.mockImplementationOnce(
@@ -902,6 +986,79 @@ describe('useCursors and v-roomful-cursors', () => {
     wrapper.unmount();
 
     expect(secondCursorEngine.unmount).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('useViewport', () => {
+  it('tracks a template ref, mounts automatically, exposes reactive states, and forwards controls', async () => {
+    const remoteViewport = createViewport('viewport-peer', {
+      scrollY: 0.5,
+    });
+    const viewportEngine = createMockViewportEngine([remoteViewport]);
+    createMockRoom(
+      'viewport-room',
+      {},
+      {
+        viewportEngine,
+      },
+    );
+    let observedViewport: UseViewportResult | null = null;
+
+    const wrapper = mount(
+      defineComponent({
+        setup() {
+          observedViewport = useViewport();
+          return {
+            boardRef: observedViewport.ref,
+            states: observedViewport.states,
+          };
+        },
+        template:
+          '<div><div id="viewport-board" ref="boardRef"></div><span>{{ states.length }}</span></div>',
+      }),
+      {
+        attachTo: document.body,
+        global: {
+          plugins: [[RoomfulPlugin, { roomId: 'viewport-room' }]],
+        },
+      },
+    );
+    const board = document.getElementById('viewport-board');
+
+    expect(viewportEngine.mount).toHaveBeenCalledWith(board);
+    expect(wrapper.text()).toContain('1');
+
+    viewportEngine.emit([
+      createViewport('viewport-peer', {
+        scrollY: 0.9,
+      }),
+      createViewport('viewport-peer-b', {
+        scrollY: 0.25,
+      }),
+    ]);
+    await nextTick();
+
+    expect(wrapper.text()).toContain('2');
+
+    observedViewport?.broadcast();
+    observedViewport?.stopBroadcast();
+    observedViewport?.present();
+    observedViewport?.stopPresenting();
+    observedViewport?.follow('viewport-peer');
+    observedViewport?.unfollow();
+
+    expect(viewportEngine.broadcast).toHaveBeenCalledTimes(1);
+    expect(viewportEngine.stopBroadcast).toHaveBeenCalledTimes(1);
+    expect(viewportEngine.present).toHaveBeenCalledTimes(1);
+    expect(viewportEngine.stopPresenting).toHaveBeenCalledTimes(1);
+    expect(viewportEngine.follow).toHaveBeenCalledWith('viewport-peer');
+    expect(viewportEngine.unfollow).toHaveBeenCalledTimes(1);
+
+    observedViewport?.unmount();
+
+    expect(viewportEngine.unmount).toHaveBeenCalledTimes(1);
+
+    wrapper.unmount();
   });
 });
 

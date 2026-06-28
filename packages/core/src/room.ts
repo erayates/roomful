@@ -13,6 +13,11 @@ import { createEventEngine } from './engines/events';
 import { createPresenceEngine } from './engines/presence';
 import { createStateEngine, type StateEngineContext } from './engines/state';
 import { createCrdtStateEngine as createCrdtStateEngineRuntime } from './engines/state.crdt';
+import {
+  createViewportEngine,
+  type ViewportBroadcastMode,
+  type ViewportFrame,
+} from './engines/viewport';
 import { TypedEventEmitter } from './event-emitter';
 import {
   DEVTOOLS_BRIDGE_VERSION,
@@ -31,7 +36,7 @@ import {
 } from './internal/devtools';
 import { registerRoomDevtoolsAdapter } from './internal/devtools-bridge';
 import { createRuntimePeerId, getWindowEventTarget, type WindowEventTarget } from './internal/env';
-import { isObject, readString } from './internal/guards';
+import { isObject, readNumber, readRecord, readString } from './internal/guards';
 import { createStructuredLogger, type StructuredLogger } from './internal/logger';
 import { normalizeMaxPeers } from './internal/max-peers';
 import {
@@ -106,6 +111,9 @@ import type {
   StateEngine,
   StateOptions,
   Unsubscribe,
+  ViewportEngine,
+  ViewportOptions,
+  ViewportState,
 } from './types';
 import { RoomYjsController } from './yjs/controller';
 
@@ -116,6 +124,8 @@ const MESSAGE_RATE_WINDOW_MS = 5_000;
 const MAX_LATENCY_SAMPLE_MS = 60_000;
 const DIAGNOSTIC_PING_EVENT = '__roomful:diag:ping__';
 const DIAGNOSTIC_PONG_EVENT = '__roomful:diag:pong__';
+const VIEWPORT_UPDATE_EVENT = '__roomful:viewport:update__';
+const VIEWPORT_STOP_EVENT = '__roomful:viewport:stop__';
 
 interface ConnectContext {
   isReconnectAttempt: boolean;
@@ -129,6 +139,7 @@ type PeerEventCallback<TPresence extends PresenceData> = (peers: Peer<TPresence>
 type CursorCallback = (positions: CursorPosition[]) => void;
 type StateSnapshotCallback = (snapshot: StateSnapshot) => void;
 type AwarenessCallback = (peers: AwarenessState[]) => void;
+type ViewportCallback = (states: ViewportState[]) => void;
 type InternalEventCallback<TPresence extends PresenceData> = {
   bivarianceHack(payload: unknown, from: Peer<TPresence>): void;
 }['bivarianceHack'];
@@ -151,6 +162,44 @@ function readDiagnosticSentAt(payload: unknown): number | null {
 
   const value: unknown = Reflect.get(payload, 'sentAt');
   return typeof value === 'number' ? value : null;
+}
+
+function readViewportState(payload: unknown, fromPeerId: string): ViewportState | null {
+  if (!isObject(payload)) {
+    return null;
+  }
+
+  const viewport = readRecord(payload, 'viewport');
+  if (!viewport) {
+    return null;
+  }
+
+  const scrollX = readNumber(viewport, 'scrollX');
+  const scrollY = readNumber(viewport, 'scrollY');
+  const zoom = readNumber(viewport, 'zoom');
+  const viewportWidth = readNumber(viewport, 'viewportWidth');
+  const viewportHeight = readNumber(viewport, 'viewportHeight');
+  if (
+    scrollX === undefined ||
+    scrollY === undefined ||
+    zoom === undefined ||
+    viewportWidth === undefined ||
+    viewportHeight === undefined
+  ) {
+    return null;
+  }
+
+  const focusedElement = readString(viewport, 'focusedElement');
+
+  return {
+    peerId: fromPeerId,
+    scrollX,
+    scrollY,
+    zoom,
+    viewportWidth,
+    viewportHeight,
+    focusedElement: focusedElement ?? null,
+  };
 }
 
 function isRoomfulError(value: unknown): value is RoomfulError {
@@ -409,6 +458,12 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
 
   private readonly awarenessSubscribers = new Set<AwarenessCallback>();
 
+  private readonly viewportByPeer = new Map<string, ViewportState>();
+
+  private readonly viewportSubscribers = new Set<ViewportCallback>();
+
+  private presentingPeerId: string | null = null;
+
   private readonly customEventHandlers = new Map<string, Set<InternalEventCallback<TPresence>>>();
 
   private presenceEngineInstance: PresenceEngine<TPresence> | null = null;
@@ -418,6 +473,8 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
   private stateEngineInstance: unknown = null;
 
   private awarenessEngineInstance: AwarenessEngine | null = null;
+
+  private viewportEngineInstance: ViewportEngine | null = null;
 
   private yjsController: RoomYjsController<TPresence> | null = null;
 
@@ -1111,6 +1168,38 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     return this.awarenessEngineInstance;
   }
 
+  public useViewport(options?: ViewportOptions): ViewportEngine {
+    if (!this.viewportEngineInstance) {
+      this.viewportEngineInstance = createViewportEngine(
+        {
+          broadcastViewport: (frame, mode) => {
+            this.broadcastSelfViewport(frame, mode);
+          },
+          stopViewport: () => {
+            this.stopSelfViewport();
+          },
+          getStates: () => {
+            return this.getRemoteViewportSnapshot();
+          },
+          subscribe: (callback) => {
+            this.viewportSubscribers.add(callback);
+            callback(this.getRemoteViewportSnapshot());
+
+            return () => {
+              this.viewportSubscribers.delete(callback);
+            };
+          },
+          getPresentingPeerId: () => {
+            return this.presentingPeerId;
+          },
+        },
+        options,
+      );
+    }
+
+    return this.viewportEngineInstance;
+  }
+
   public useEvents(options?: EventOptions): EventEngine<TPresence> {
     return createEventEngine(
       {
@@ -1659,6 +1748,7 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
   private clearPeerRuntimeState(peerId: string): void {
     const cursorDeleted = this.cursorPositions.delete(peerId);
     const awarenessDeleted = this.awarenessByPeer.delete(peerId);
+    const viewportDeleted = this.forgetPeerViewport(peerId);
     this.latencyByPeerId.delete(peerId);
     this.yjsController?.handlePeerLeft(peerId);
 
@@ -1669,6 +1759,19 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     if (awarenessDeleted) {
       this.notifyAwarenessSubscribers();
     }
+
+    if (viewportDeleted) {
+      this.notifyViewportSubscribers();
+    }
+  }
+
+  private forgetPeerViewport(peerId: string): boolean {
+    const deleted = this.viewportByPeer.delete(peerId);
+    if (this.presentingPeerId === peerId) {
+      this.presentingPeerId = null;
+    }
+
+    return deleted;
   }
 
   private createMalformedEncryptedSignalError(
@@ -2138,6 +2241,16 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
       return;
     }
 
+    if (signal.payload.name === VIEWPORT_UPDATE_EVENT) {
+      this.handleViewportUpdateEvent(signal.fromPeerId, signal.payload.payload);
+      return;
+    }
+
+    if (signal.payload.name === VIEWPORT_STOP_EVENT) {
+      this.handleViewportStopEvent(signal.fromPeerId);
+      return;
+    }
+
     this.customEventMessagesReceived += 1;
     this.recordDevtoolsEvent(
       'incoming',
@@ -2425,6 +2538,16 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     }
   }
 
+  private broadcastInternalEvent(name: string, payload: unknown): void {
+    const outboundSignal = this.createOutboundSignal({
+      type: 'event',
+      payload: { name, payload },
+    });
+    if (outboundSignal?.type === 'event' && this.transport) {
+      this.dispatchRoomSignal(outboundSignal);
+    }
+  }
+
   private sendDiagnosticPing(toPeerId: string): void {
     this.sendInternalEvent(DIAGNOSTIC_PING_EVENT, { sentAt: Date.now() }, toPeerId);
   }
@@ -2485,12 +2608,24 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     this.cursorPositions.clear();
     this.awarenessByPeer.clear();
     this.awarenessByPeer.set(this.peerId, { peerId: this.peerId });
+    this.clearRemoteViewports();
     this.latencyByPeerId.clear();
     this.incompatibleEncryptionPeers.clear();
     this.decryptionErrorPeers.clear();
 
     this.notifyCursorSubscribers();
     this.notifyAwarenessSubscribers();
+    this.notifyViewportSubscribers();
+  }
+
+  private clearRemoteViewports(): void {
+    const selfViewport = this.viewportByPeer.get(this.peerId);
+    this.viewportByPeer.clear();
+    if (selfViewport) {
+      this.viewportByPeer.set(this.peerId, selfViewport);
+    }
+
+    this.presentingPeerId = null;
   }
 
   private updateSelfPresence(data: Partial<TPresence>): void {
@@ -3076,6 +3211,7 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     this.decryptionErrorPeers.delete(peer.id);
     this.cursorPositions.delete(peer.id);
     this.awarenessByPeer.delete(peer.id);
+    this.forgetPeerViewport(peer.id);
     this.yjsController?.handlePeerLeft(peer.id);
 
     this.roomEventEmitter.emit('peer:leave', peer);
@@ -3086,6 +3222,7 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
 
     this.notifyCursorSubscribers();
     this.notifyAwarenessSubscribers();
+    this.notifyViewportSubscribers();
   }
 
   private setSelfCursorPosition(position: Partial<CursorPosition>): void {
@@ -3115,6 +3252,71 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     const positions = Array.from(this.cursorPositions.values());
     for (const subscriber of this.cursorSubscribers) {
       subscriber(positions);
+    }
+  }
+
+  private broadcastSelfViewport(frame: ViewportFrame, mode: ViewportBroadcastMode): void {
+    const next: ViewportState = {
+      ...frame,
+      peerId: this.peerId,
+    };
+
+    this.viewportByPeer.set(this.peerId, next);
+    this.broadcastInternalEvent(VIEWPORT_UPDATE_EVENT, {
+      viewport: next,
+      present: mode === 'present',
+    });
+    this.notifyViewportSubscribers();
+  }
+
+  private stopSelfViewport(): void {
+    const removed = this.viewportByPeer.delete(this.peerId);
+    this.broadcastInternalEvent(VIEWPORT_STOP_EVENT, {});
+
+    if (removed) {
+      this.notifyViewportSubscribers();
+    }
+  }
+
+  private handleViewportUpdateEvent(fromPeerId: string, payload: unknown): void {
+    const viewport = readViewportState(payload, fromPeerId);
+    if (!viewport) {
+      return;
+    }
+
+    this.viewportByPeer.set(fromPeerId, viewport);
+
+    const presenting = isObject(payload) && Reflect.get(payload, 'present') === true;
+    if (presenting) {
+      this.presentingPeerId = fromPeerId;
+    } else if (this.presentingPeerId === fromPeerId) {
+      this.presentingPeerId = null;
+    }
+
+    this.notifyViewportSubscribers();
+  }
+
+  private handleViewportStopEvent(fromPeerId: string): void {
+    const removed = this.viewportByPeer.delete(fromPeerId);
+    if (this.presentingPeerId === fromPeerId) {
+      this.presentingPeerId = null;
+    }
+
+    if (removed) {
+      this.notifyViewportSubscribers();
+    }
+  }
+
+  private getRemoteViewportSnapshot(): ViewportState[] {
+    return Array.from(this.viewportByPeer.values()).filter((viewport) => {
+      return viewport.peerId !== this.peerId;
+    });
+  }
+
+  private notifyViewportSubscribers(): void {
+    const snapshot = this.getRemoteViewportSnapshot();
+    for (const subscriber of this.viewportSubscribers) {
+      subscriber(snapshot);
     }
   }
 

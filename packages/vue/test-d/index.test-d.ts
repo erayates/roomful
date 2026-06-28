@@ -14,8 +14,10 @@ import {
   useEvent,
   usePresence,
   useSharedState,
+  type UseViewportResult,
+  useViewport,
 } from '..';
-import type { Peer, PresenceData, RoomfulError, RoomStatus } from '@roomful/core';
+import type { Peer, PresenceData, RoomfulError, RoomStatus, ViewportState } from '@roomful/core';
 
 const presence = usePresence<{ role: 'editor' | 'viewer' }>();
 expectType<'editor' | 'viewer' | undefined>(presence.self.value.role);
@@ -55,6 +57,14 @@ expectType<(payload: { text: string }) => void>(emitMessage);
 const awareness = useAwareness();
 expectType<UseAwarenessResult>(awareness);
 expectType<boolean | undefined>(awareness.others.value[0]?.typing);
+
+const viewport = useViewport();
+expectType<UseViewportResult>(viewport);
+expectType<HTMLElement | null>(viewport.ref.value);
+expectType<ViewportState[]>(viewport.states.value);
+expectType<number | undefined>(viewport.states.value[0]?.scrollX);
+viewport.follow('peer-id');
+viewport.broadcast();
 
 const [votes, setVotes] = useSharedState('votes', {
   initialValue: {

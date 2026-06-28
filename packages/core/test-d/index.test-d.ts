@@ -12,6 +12,8 @@ import {
   type RoomStatus,
   type StateChangeMeta,
   type Unsubscribe,
+  type ViewportEngine,
+  type ViewportState,
 } from '..';
 
 const room = createRoom('room-id', {
@@ -30,6 +32,16 @@ expectType<Peer<{ displayName: string; role: 'editor' }>[]>(presence.getAll());
 const cursors = room.useCursors<{ tool: 'eraser' | 'pen' }>();
 expectType<CursorPosition<{ tool: 'eraser' | 'pen' }>[]>(cursors.getPositions());
 expectType<'eraser' | 'pen' | undefined>(cursors.getPositions()[0]?.tool);
+
+const viewport: ViewportEngine = room.useViewport();
+expectType<ViewportState[]>(viewport.getAll());
+expectType<ViewportState | undefined>(viewport.get('peer-id'));
+const unsubscribeViewport = viewport.subscribe((states) => {
+  expectType<ViewportState[]>(states);
+});
+expectType<Unsubscribe>(unsubscribeViewport);
+expectType<number | undefined>(viewport.get('peer-id')?.scrollX);
+expectType<string | null | undefined>(viewport.get('peer-id')?.focusedElement);
 
 const state = room.useState({
   initialValue: {
