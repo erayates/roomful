@@ -43,10 +43,12 @@ v2 takes Roomful from a collaboration SDK to collaboration infrastructure. The f
 
 ### Release Milestones
 
+The **Ecosystem (v1.1)** milestone shipped on 2026-06-28: `@roomful/solid`, `@roomful/angular`, and `@roomful/next` (server-issued relay auth tokens) are published to npm.
+
 | Milestone          | Version   | Key Deliverables                                                   | Status      |
 | ------------------ | --------- | ------------------------------------------------------------------ | ----------- |
 | Stable Foundation  | v1.0      | All v1.0 primitives, React/Vue/Svelte adapters, relay server       | ✅ Released |
-| Ecosystem          | v1.1      | Angular adapter, SolidJS adapter, Next.js middleware               | Planned     |
+| Ecosystem          | v1.1      | SolidJS adapter, Angular adapter, Next.js auth tokens              | ✅ Released |
 | New Primitives I   | v1.5      | Viewport Sync, Locking, History/Undo, Pointer, Comments            | Planned     |
 | AI & Recording     | v2.0-beta | AI Peer, Session Recording, WebTransport, Edge Relay               | Planned     |
 | Platform           | v2.0      | React Native adapter, CLI tool, Plugin System, ZK Rooms, Ephemeral | Planned     |
