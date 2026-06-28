@@ -1,5 +1,5 @@
 import type { EnvironmentProviders, Signal } from '@angular/core';
-import type { Peer, PresenceData, Room, RoomStatus } from '@roomful/core';
+import type { Peer, PresenceData, Room, RoomStatus, ViewportState } from '@roomful/core';
 import { expectType } from 'tsd';
 
 import {
@@ -11,7 +11,9 @@ import {
   injectPresence,
   injectRoom,
   injectSharedState,
+  injectViewport,
   type InjectAwarenessResult,
+  type InjectViewportResult,
   provideRoomful,
   type RoomfulProviderOptions,
   type SharedStateSetter,
@@ -59,6 +61,13 @@ expectType<(payload: { text: string }) => void>(emitMessage);
 const awareness = injectAwareness();
 expectType<InjectAwarenessResult>(awareness);
 expectType<boolean | undefined>(awareness.others()[0]?.typing);
+
+const viewport = injectViewport();
+expectType<InjectViewportResult>(viewport);
+expectType<Signal<ViewportState[]>>(viewport.states);
+expectType<number | undefined>(viewport.states()[0]?.scrollX);
+viewport.follow('peer-id');
+viewport.broadcast();
 
 const peers = injectPeers<{ role: 'editor' | 'viewer' }>();
 expectType<Signal<Peer<{ role: 'editor' | 'viewer' }>[]>>(peers);

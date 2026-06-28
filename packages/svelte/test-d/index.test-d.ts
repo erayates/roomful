@@ -1,4 +1,4 @@
-import type { RoomfulError, RoomStatus } from '@roomful/core';
+import type { RoomfulError, RoomStatus, ViewportState } from '@roomful/core';
 import type { Action } from 'svelte/action';
 import { get, type Readable, type Writable } from 'svelte/store';
 
@@ -77,3 +77,9 @@ adapter.events.emitTo('peer-2', 'reaction', {
   emoji: '🔥',
 });
 expectType<Action<HTMLElement, undefined>>(adapter.cursors.mount);
+
+expectType<ViewportState[]>(get(adapter.viewport));
+expectType<number | undefined>(get(adapter.viewport)[0]?.scrollX);
+expectType<Action<HTMLElement, undefined>>(adapter.viewport.mount);
+adapter.viewport.follow('peer-id');
+adapter.viewport.broadcast();

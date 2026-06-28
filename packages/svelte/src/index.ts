@@ -16,6 +16,8 @@ import type {
   StateEngine,
   StateOptions,
   Unsubscribe,
+  ViewportEngine,
+  ViewportState,
 } from '@roomful/core';
 import { createRoom, RoomfulError } from '@roomful/core';
 import {
@@ -72,6 +74,12 @@ interface AwarenessSnapshotCache<TPresence extends PresenceData> {
   engine: AwarenessEngine;
   room: Room<TPresence>;
   snapshot: AwarenessStoreValue;
+}
+
+interface ViewportSnapshotCache<TPresence extends PresenceData> {
+  engine: ViewportEngine;
+  room: Room<TPresence>;
+  snapshot: ViewportState[];
 }
 
 interface SharedStateSnapshotCache<TPresence extends PresenceData, T> {
@@ -233,6 +241,53 @@ export interface CursorStore<TCursor extends CursorData = CursorData> extends Re
    * @returns Nothing.
    */
   update(updater: Updater<Partial<CursorPosition<TCursor>>>): void;
+}
+
+/**
+ * Readable viewport store augmented with DOM and follow helpers.
+ */
+export interface ViewportStore extends Readable<ViewportState[]> {
+  /**
+   * Svelte action that mounts viewport tracking on a scrollable container.
+   */
+  mount: Action<HTMLElement, undefined>;
+
+  /**
+   * Unmounts viewport tracking.
+   *
+   * @returns Nothing.
+   */
+  unmount(): void;
+
+  /**
+   * Starts streaming the local viewport to all peers.
+   */
+  broadcast: ViewportEngine['broadcast'];
+
+  /**
+   * Stops streaming the local viewport.
+   */
+  stopBroadcast: ViewportEngine['stopBroadcast'];
+
+  /**
+   * Enters present mode, forcing peers to follow the local viewport.
+   */
+  present: ViewportEngine['present'];
+
+  /**
+   * Leaves present mode and releases following peers.
+   */
+  stopPresenting: ViewportEngine['stopPresenting'];
+
+  /**
+   * Follows a specific peer's viewport.
+   */
+  follow: ViewportEngine['follow'];
+
+  /**
+   * Stops following any peer and resumes independent scrolling.
+   */
+  unfollow: ViewportEngine['unfollow'];
 }
 
 /**
@@ -457,6 +512,11 @@ export interface RoomfulAdapter<
    * Exposes the room connection status store.
    */
   status: Readable<RoomStatus>;
+
+  /**
+   * Exposes the viewport store.
+   */
+  viewport: ViewportStore;
 }
 
 /**
@@ -477,16 +537,19 @@ export function roomful<
   const presenceEngine = room.usePresence();
   const cursorEngine = room.useCursors<TCursor>();
   const awarenessEngine = room.useAwareness();
+  const viewportEngine = room.useViewport();
   const eventEngine = room.useEvents();
 
   let destroyed = false;
   let mounted = false;
   let runtimeStarted = false;
   let trackedCursorElement: HTMLElement | null = null;
+  let trackedViewportElement: HTMLElement | null = null;
   let localCursorValue: Partial<CursorPosition<TCursor>> = {};
   let presenceCache: PresenceSnapshotCache<TPresence> | null = null;
   let cursorCache: CursorSnapshotCache<TPresence, TCursor> | null = null;
   let awarenessCache: AwarenessSnapshotCache<TPresence> | null = null;
+  let viewportCache: ViewportSnapshotCache<TPresence> | null = null;
   let sharedStateController: SharedStateController<TPresence, unknown> | null = null;
 
   const cleanupRegistry = new Set<() => void>();
@@ -525,6 +588,14 @@ export function roomful<
       },
     }),
   );
+  const viewportStore = createValueStore(
+    readViewportSnapshot(room, viewportEngine, {
+      current: viewportCache,
+      set(nextCache) {
+        viewportCache = nextCache;
+      },
+    }),
+  );
   const statusStore = createValueStore<RoomStatus>(room.status);
 
   const refreshStatus = (): void => {
@@ -559,6 +630,17 @@ export function roomful<
         current: awarenessCache,
         set(nextCache) {
           awarenessCache = nextCache;
+        },
+      }),
+    );
+  };
+
+  const refreshViewport = (): void => {
+    viewportStore.publish(
+      readViewportSnapshot(room, viewportEngine, {
+        current: viewportCache,
+        set(nextCache) {
+          viewportCache = nextCache;
         },
       }),
     );
@@ -645,6 +727,20 @@ export function roomful<
     });
   };
 
+  const attachViewportSubscription = (): void => {
+    if (!runtimeStarted) {
+      return;
+    }
+
+    const unsubscribe = viewportEngine.subscribe(() => {
+      refreshViewport();
+    });
+
+    registerCleanup(() => {
+      unsubscribe();
+    });
+  };
+
   const attachSharedStateSubscription = (): void => {
     if (!runtimeStarted || !sharedStateController || sharedStateController.cleanup) {
       return;
@@ -708,6 +804,7 @@ export function roomful<
     attachPresenceSubscription();
     attachCursorSubscription();
     attachAwarenessSubscription();
+    attachViewportSubscription();
     attachSharedStateSubscription();
 
     for (const record of eventListeners) {
@@ -741,6 +838,30 @@ export function roomful<
 
     trackedCursorElement = element;
     cursorEngine.mount(element);
+  };
+
+  const unmountTrackedViewport = (): void => {
+    if (!trackedViewportElement) {
+      return;
+    }
+
+    viewportEngine.unmount();
+    trackedViewportElement = null;
+  };
+
+  const mountViewport = (element: HTMLElement): void => {
+    assertAvailable('viewport.mount');
+
+    if (trackedViewportElement === element) {
+      return;
+    }
+
+    if (trackedViewportElement) {
+      viewportEngine.unmount();
+    }
+
+    trackedViewportElement = element;
+    viewportEngine.mount(element);
   };
 
   const presence: PresenceStore<TPresence> = {
@@ -819,6 +940,50 @@ export function roomful<
 
       localCursorValue = cloneStructuredValue(nextValue);
       cursorEngine.setPosition(nextValue);
+    },
+  };
+
+  const viewport: ViewportStore = {
+    subscribe(run, invalidate) {
+      return viewportStore.subscribe(run, invalidate);
+    },
+    mount(node) {
+      mountViewport(node);
+
+      return {
+        destroy() {
+          if (trackedViewportElement === node) {
+            unmountTrackedViewport();
+          }
+        },
+      };
+    },
+    unmount() {
+      unmountTrackedViewport();
+    },
+    broadcast() {
+      assertAvailable('viewport.broadcast');
+      viewportEngine.broadcast();
+    },
+    stopBroadcast() {
+      assertAvailable('viewport.stopBroadcast');
+      viewportEngine.stopBroadcast();
+    },
+    present() {
+      assertAvailable('viewport.present');
+      viewportEngine.present();
+    },
+    stopPresenting() {
+      assertAvailable('viewport.stopPresenting');
+      viewportEngine.stopPresenting();
+    },
+    follow(peerId) {
+      assertAvailable('viewport.follow');
+      viewportEngine.follow(peerId);
+    },
+    unfollow() {
+      assertAvailable('viewport.unfollow');
+      viewportEngine.unfollow();
     },
   };
 
@@ -1062,6 +1227,7 @@ export function roomful<
     }
 
     unmountTrackedCursor();
+    unmountTrackedViewport();
     eventListeners.clear();
     for (const record of eventChannels.values()) {
       record.store.clear();
@@ -1070,6 +1236,7 @@ export function roomful<
     presenceStore.clear();
     cursorStore.clear();
     awarenessStore.clear();
+    viewportStore.clear();
     statusStore.clear();
     sharedStateController?.valueStore.clear();
 
@@ -1094,6 +1261,7 @@ export function roomful<
     presence,
     state,
     status,
+    viewport,
   };
 }
 
@@ -1296,6 +1464,67 @@ function readAwarenessSnapshot<TPresence extends PresenceData>(
   });
 
   return snapshot;
+}
+
+function areViewportArraysEqual(
+  previous: readonly ViewportState[],
+  next: readonly ViewportState[],
+): boolean {
+  if (previous === next) {
+    return true;
+  }
+
+  if (previous.length !== next.length) {
+    return false;
+  }
+
+  for (let index = 0; index < previous.length; index += 1) {
+    const previousEntry = previous[index];
+    const nextEntry = next[index];
+
+    if (!previousEntry || !nextEntry || !areStructuredValuesEqual(previousEntry, nextEntry)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function readViewportSnapshot<TPresence extends PresenceData>(
+  room: Room<TPresence>,
+  viewport: ViewportEngine,
+  cacheRef: {
+    current: ViewportSnapshotCache<TPresence> | null;
+    set(nextCache: ViewportSnapshotCache<TPresence>): void;
+  },
+): ViewportState[] {
+  const nextSnapshot = viewport.getAll();
+  const previous = cacheRef.current;
+
+  if (previous && previous.room === room && previous.engine === viewport) {
+    const previousSnapshot = previous.snapshot;
+    if (areViewportArraysEqual(previousSnapshot, nextSnapshot)) {
+      return previousSnapshot;
+    }
+
+    const stableSnapshot = nextSnapshot.map((state, index) => {
+      const previousState = previousSnapshot[index];
+      if (previousState && areStructuredValuesEqual(previousState, state)) {
+        return previousState;
+      }
+
+      return state;
+    });
+    previous.snapshot = stableSnapshot;
+    return stableSnapshot;
+  }
+
+  cacheRef.set({
+    engine: viewport,
+    room,
+    snapshot: nextSnapshot,
+  });
+  return nextSnapshot;
 }
 
 function readSharedStateSnapshot<TPresence extends PresenceData, T>(

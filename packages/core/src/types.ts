@@ -982,6 +982,66 @@ export interface AwarenessState {
 }
 
 /**
+ * Describes a peer's viewport — scroll position, zoom, and dimensions of the
+ * tracked container — shared so peers can follow one another.
+ *
+ * Scroll coordinates are normalized to the `0`–`1` range (a fraction of the
+ * scrollable area) so they stay consistent across different screen sizes.
+ */
+export interface ViewportState {
+  /**
+   * Identifies the peer that owns this viewport state.
+   */
+  peerId: string;
+
+  /**
+   * Reports the horizontal scroll position as a fraction of the scrollable
+   * width, from `0` (fully left) to `1` (fully right). `0` when the tracked
+   * element cannot scroll horizontally.
+   */
+  scrollX: number;
+
+  /**
+   * Reports the vertical scroll position as a fraction of the scrollable
+   * height, from `0` (fully top) to `1` (fully bottom). `0` when the tracked
+   * element cannot scroll vertically.
+   */
+  scrollY: number;
+
+  /**
+   * Reports the peer's zoom level, where `1` represents 100%. Zoom is carried
+   * for the consuming app to apply, since how zoom is applied is app-specific.
+   */
+  zoom: number;
+
+  /**
+   * Reports the tracked element's viewport width in CSS pixels.
+   */
+  viewportWidth: number;
+
+  /**
+   * Reports the tracked element's viewport height in CSS pixels.
+   */
+  viewportHeight: number;
+
+  /**
+   * Identifies the peer's focused element as a CSS selector, or `null` when
+   * none is reported.
+   */
+  focusedElement: string | null;
+}
+
+/**
+ * Configures viewport tracking behavior.
+ */
+export interface ViewportOptions {
+  /**
+   * Throttles viewport broadcasts in milliseconds.
+   */
+  throttleMs?: number;
+}
+
+/**
  * Exposes presence operations for a room.
  *
  * @typeParam TPresence - The custom peer presence shape.
@@ -1192,6 +1252,99 @@ export interface AwarenessEngine {
 }
 
 /**
+ * Exposes viewport synchronization for a room. A viewport engine streams this
+ * peer's scroll/zoom/dimensions and applies a followed peer's viewport to the
+ * mounted container.
+ */
+export interface ViewportEngine {
+  /**
+   * Observes the element's scroll, zoom, and dimensions, and broadcasts them as
+   * the local viewport while broadcasting is active. The engine mounts on a
+   * scrollable container element (not `window`).
+   *
+   * @param element - The container element to observe.
+   * @returns Nothing.
+   */
+  mount(element: HTMLElement): void;
+
+  /**
+   * Stops observing the element and applies pending teardown.
+   *
+   * @returns Nothing.
+   */
+  unmount(): void;
+
+  /**
+   * Starts streaming the local viewport to all peers.
+   *
+   * @returns Nothing.
+   */
+  broadcast(): void;
+
+  /**
+   * Stops streaming the local viewport.
+   *
+   * @returns Nothing.
+   */
+  stopBroadcast(): void;
+
+  /**
+   * Enters present mode: broadcasts the local viewport and signals peers to
+   * follow it until {@link ViewportEngine.stopPresenting} is called.
+   *
+   * @returns Nothing.
+   */
+  present(): void;
+
+  /**
+   * Leaves present mode and releases peers that were following.
+   *
+   * @returns Nothing.
+   */
+  stopPresenting(): void;
+
+  /**
+   * Follows a specific peer's viewport, applying their scroll position to the
+   * mounted element as their viewport changes. Zoom is exposed in state for the
+   * app to apply.
+   *
+   * @param peerId - The peer whose viewport to follow.
+   * @returns Nothing.
+   */
+  follow(peerId: string): void;
+
+  /**
+   * Stops following any peer and resumes independent scrolling.
+   *
+   * @returns Nothing.
+   */
+  unfollow(): void;
+
+  /**
+   * Subscribes to remote viewport updates.
+   *
+   * @param cb - The callback invoked with the current remote viewport states.
+   * @returns A function that removes the listener.
+   */
+  subscribe(cb: (states: ViewportState[]) => void): Unsubscribe;
+
+  /**
+   * Returns all remote viewport states.
+   *
+   * @returns The current remote viewport states.
+   */
+  getAll(): ViewportState[];
+
+  /**
+   * Looks up a single peer's viewport state.
+   *
+   * @param peerId - The peer identifier to resolve.
+   * @returns The matching viewport state, or `undefined` when none is known.
+   */
+  get(peerId: string): ViewportState | undefined;
+}
+
+/**
  * Exposes custom event operations for a room.
  *
  * @typeParam TPresence - The custom peer presence shape.
@@ -1330,6 +1483,14 @@ export interface Room<TPresence extends PresenceData = PresenceData> {
    * @returns The awareness engine.
    */
   useAwareness(): AwarenessEngine;
+
+  /**
+   * Accesses the viewport synchronization engine for this room.
+   *
+   * @param options - Optional viewport tracking configuration.
+   * @returns The viewport engine.
+   */
+  useViewport(options?: ViewportOptions): ViewportEngine;
 
   /**
    * Accesses the custom event engine for this room.

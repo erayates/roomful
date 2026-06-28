@@ -335,6 +335,29 @@ function createMockRoom(
     useAwareness: vi.fn(() => {
       return awarenessEngine;
     }),
+    useViewport: vi.fn(() => {
+      return {
+        mount: vi.fn(),
+        unmount: vi.fn(),
+        broadcast: vi.fn(),
+        stopBroadcast: vi.fn(),
+        present: vi.fn(),
+        stopPresenting: vi.fn(),
+        follow: vi.fn(),
+        unfollow: vi.fn(),
+        subscribe: vi.fn(() => {
+          return () => {
+            return undefined;
+          };
+        }),
+        getAll: vi.fn(() => {
+          return [];
+        }),
+        get: vi.fn(() => {
+          return undefined;
+        }),
+      };
+    }),
     useEvents: vi.fn(() => {
       return eventEngine;
     }),

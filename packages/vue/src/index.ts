@@ -13,6 +13,9 @@ import type {
   RoomStatus,
   StateEngine,
   StateOptions,
+  ViewportEngine,
+  ViewportOptions,
+  ViewportState,
 } from '@roomful/core';
 import { createRoom, RoomfulError } from '@roomful/core';
 import {
@@ -132,6 +135,66 @@ export interface UseCursorsResult<TCursor extends CursorData = CursorData> {
 }
 
 /**
+ * Describes the return value of `useViewport`.
+ */
+export interface UseViewportResult {
+  /**
+   * Holds the mounted viewport host element.
+   */
+  ref: ShallowRef<HTMLElement | null>;
+
+  /**
+   * Exposes remote peer viewport states only.
+   */
+  states: ReadonlyRef<ViewportState[]>;
+
+  /**
+   * Mounts viewport tracking on a scrollable container.
+   *
+   * @param element - The element to observe.
+   * @returns Nothing.
+   */
+  mount(element: HTMLElement): void;
+
+  /**
+   * Unmounts viewport tracking.
+   *
+   * @returns Nothing.
+   */
+  unmount(): void;
+
+  /**
+   * Starts streaming the local viewport to all peers.
+   */
+  broadcast: ViewportEngine['broadcast'];
+
+  /**
+   * Stops streaming the local viewport.
+   */
+  stopBroadcast: ViewportEngine['stopBroadcast'];
+
+  /**
+   * Enters present mode, forcing peers to follow the local viewport.
+   */
+  present: ViewportEngine['present'];
+
+  /**
+   * Leaves present mode and releases following peers.
+   */
+  stopPresenting: ViewportEngine['stopPresenting'];
+
+  /**
+   * Follows a specific peer's viewport.
+   */
+  follow: ViewportEngine['follow'];
+
+  /**
+   * Stops following any peer and resumes independent scrolling.
+   */
+  unfollow: ViewportEngine['unfollow'];
+}
+
+/**
  * Describes the return value of `useAwareness`.
  */
 export interface UseAwarenessResult {
@@ -206,6 +269,12 @@ interface AwarenessSnapshotCache<TPresence extends PresenceData> {
   room: Room<TPresence>;
   engine: AwarenessEngine;
   snapshot: AwarenessState[];
+}
+
+interface ViewportSnapshotCache<TPresence extends PresenceData> {
+  room: Room<TPresence>;
+  engine: ViewportEngine;
+  snapshot: ViewportState[];
 }
 
 interface SharedStateSnapshotCache<TPresence extends PresenceData, T> {
@@ -470,6 +539,131 @@ export function useCursors<
     unmount() {
       ref.value = null;
       syncMountedCursorEngine();
+    },
+  };
+}
+
+/**
+ * Subscribes to viewport snapshots and returns mounting and control helpers.
+ *
+ * @typeParam TPresence - The room presence shape.
+ * @param options - Optional viewport tracking configuration.
+ * @returns The remote viewport states plus mounting and follow controls.
+ */
+export function useViewport<TPresence extends PresenceData = PresenceData>(
+  options?: ViewportOptions,
+): UseViewportResult {
+  const context = useRoomfulContext('useViewport');
+  const initialRoom = requireTypedRoom<TPresence>(context.room.value, 'useViewport');
+  const initialEngine = initialRoom.useViewport(options);
+  const cacheRef: { current: ViewportSnapshotCache<TPresence> | null } = {
+    current: null,
+  };
+  const ref = shallowRef<HTMLElement | null>(null);
+  const states = shallowRef(readViewportSnapshot(initialRoom, initialEngine, cacheRef));
+  const engineRef = shallowRef(initialEngine);
+  let mountedEngine: ViewportEngine | null = null;
+  let mountedElement: HTMLElement | null = null;
+
+  const syncMountedViewportEngine = (): void => {
+    const element = ref.value;
+    const engine = engineRef.value;
+
+    if (element === null) {
+      if (mountedEngine !== null) {
+        mountedEngine.unmount();
+        mountedEngine = null;
+        mountedElement = null;
+      }
+      return;
+    }
+
+    if (mountedEngine === engine && mountedElement === element) {
+      return;
+    }
+
+    mountedEngine?.unmount();
+    engine.mount(element);
+    mountedEngine = engine;
+    mountedElement = element;
+  };
+
+  watch(
+    ref,
+    () => {
+      syncMountedViewportEngine();
+    },
+    {
+      flush: 'sync',
+    },
+  );
+
+  watch(
+    context.room,
+    (room, _previousRoom, onCleanup) => {
+      const typedRoom = requireTypedRoom<TPresence>(room, 'useViewport');
+      const engine = typedRoom.useViewport(options);
+      engineRef.value = engine;
+
+      const syncSnapshot = (): void => {
+        const nextSnapshot = readViewportSnapshot(typedRoom, engine, cacheRef);
+        if (states.value === nextSnapshot) {
+          return;
+        }
+
+        states.value = nextSnapshot;
+      };
+
+      syncMountedViewportEngine();
+      syncSnapshot();
+
+      const unsubscribe = engine.subscribe(() => {
+        syncSnapshot();
+      });
+
+      onCleanup(() => {
+        unsubscribe();
+
+        if (mountedEngine === engine) {
+          engine.unmount();
+          mountedEngine = null;
+          mountedElement = null;
+        }
+      });
+    },
+    {
+      immediate: true,
+    },
+  );
+
+  return {
+    ref,
+    states,
+    mount(element) {
+      ref.value = element;
+      syncMountedViewportEngine();
+    },
+    unmount() {
+      ref.value = null;
+      syncMountedViewportEngine();
+    },
+    broadcast() {
+      engineRef.value.broadcast();
+    },
+    stopBroadcast() {
+      engineRef.value.stopBroadcast();
+    },
+    present() {
+      engineRef.value.present();
+    },
+    stopPresenting() {
+      engineRef.value.stopPresenting();
+    },
+    follow(peerId) {
+      engineRef.value.follow(peerId);
+    },
+    unfollow() {
+      engineRef.value.unfollow();
     },
   };
 }
@@ -941,6 +1135,63 @@ function readCursorSnapshot<TPresence extends PresenceData, TCursor extends Curs
   return nextSnapshot;
 }
 
+function areViewportArraysEqual(
+  previous: readonly ViewportState[],
+  next: readonly ViewportState[],
+): boolean {
+  if (previous === next) {
+    return true;
+  }
+
+  if (previous.length !== next.length) {
+    return false;
+  }
+
+  for (let index = 0; index < previous.length; index += 1) {
+    const previousEntry = previous[index];
+    const nextEntry = next[index];
+
+    if (!previousEntry || !nextEntry || !areStructuredValuesEqual(previousEntry, nextEntry)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function readViewportSnapshot<TPresence extends PresenceData>(
+  room: Room<TPresence>,
+  viewport: ViewportEngine,
+  cacheRef: { current: ViewportSnapshotCache<TPresence> | null },
+): ViewportState[] {
+  const nextSnapshot = viewport.getAll();
+  const previous = cacheRef.current;
+
+  if (previous !== null && previous.room === room && previous.engine === viewport) {
+    const previousSnapshot = previous.snapshot;
+    if (areViewportArraysEqual(previousSnapshot, nextSnapshot)) {
+      return previousSnapshot;
+    }
+
+    previous.snapshot = nextSnapshot.map((state, index) => {
+      const previousState = previousSnapshot[index];
+      if (previousState !== undefined && areStructuredValuesEqual(previousState, state)) {
+        return previousState;
+      }
+
+      return state;
+    });
+    return previous.snapshot;
+  }
+
+  cacheRef.current = {
+    room,
+    engine: viewport,
+    snapshot: nextSnapshot,
+  };
+  return nextSnapshot;
+}
+
 function readAwarenessSnapshot<TPresence extends PresenceData>(
   room: Room<TPresence>,
   awareness: AwarenessEngine,
@@ -1059,6 +1310,7 @@ function isRoom<TPresence extends PresenceData = PresenceData>(
     hasFunction(value, 'useCursors') &&
     hasFunction(value, 'useState') &&
     hasFunction(value, 'useAwareness') &&
+    hasFunction(value, 'useViewport') &&
     hasFunction(value, 'useEvents') &&
     hasFunction(value, 'getYDoc') &&
     hasFunction(value, 'getYProvider') &&

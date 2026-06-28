@@ -17,6 +17,8 @@ import type {
   RoomStatus,
   StateChangeMeta,
   StateEngine,
+  ViewportEngine,
+  ViewportState,
 } from '@roomful/core';
 import { RoomfulError } from '@roomful/core';
 import type { Dispatch, ReactNode, SetStateAction } from 'react';
@@ -40,7 +42,12 @@ vi.mock('@roomful/core', async () => {
   };
 });
 
-import type { UseAwarenessResult, UseCursorsResult, UsePresenceResult } from './index';
+import type {
+  UseAwarenessResult,
+  UseCursorsResult,
+  UsePresenceResult,
+  UseViewportResult,
+} from './index';
 import {
   RoomfulProvider,
   useAwareness,
@@ -51,6 +58,7 @@ import {
   usePresence,
   useRoom,
   useSharedState,
+  useViewport,
 } from './index';
 
 Reflect.set(globalThis, 'IS_REACT_ACT_ENVIRONMENT', true);
@@ -62,6 +70,7 @@ type CursorSubscriber = (positions: CursorPosition<CursorData>[]) => void;
 type EventSubscriber = (payload: unknown, from: Peer<PresenceData>) => void;
 type PresenceSubscriber = (peers: Peer<PresenceData>[]) => void;
 type StateSubscriber<T> = (value: T, meta: StateChangeMeta) => void;
+type ViewportSubscriber = (states: ViewportState[]) => void;
 
 interface RenderHarness {
   rerender(element: ReactNode): Promise<void>;
@@ -84,6 +93,21 @@ type TestCursorEngine = CursorEngine<CursorData> & {
   unmount: ReturnType<typeof vi.fn<() => void>>;
   getPositions: ReturnType<typeof vi.fn<() => CursorPosition<CursorData>[]>>;
   setPosition: ReturnType<typeof vi.fn<(position: Partial<CursorPosition<CursorData>>) => void>>;
+};
+
+type TestViewportEngine = ViewportEngine & {
+  emit(states: ViewportState[]): void;
+  subscriberCount(): number;
+  subscribe: ReturnType<typeof vi.fn<(cb: ViewportSubscriber) => () => void>>;
+  mount: ReturnType<typeof vi.fn<(element: HTMLElement) => void>>;
+  unmount: ReturnType<typeof vi.fn<() => void>>;
+  getAll: ReturnType<typeof vi.fn<() => ViewportState[]>>;
+  broadcast: ReturnType<typeof vi.fn<() => void>>;
+  stopBroadcast: ReturnType<typeof vi.fn<() => void>>;
+  present: ReturnType<typeof vi.fn<() => void>>;
+  stopPresenting: ReturnType<typeof vi.fn<() => void>>;
+  follow: ReturnType<typeof vi.fn<(peerId: string) => void>>;
+  unfollow: ReturnType<typeof vi.fn<() => void>>;
 };
 
 type TestAwarenessEngine = AwarenessEngine & {
@@ -128,6 +152,7 @@ type TestRoom = Room<PresenceData> & {
   eventEngine: TestEventEngine;
   presenceEngine: TestPresenceEngine;
   stateEngine: TestStateEngine<unknown>;
+  viewportEngine: TestViewportEngine;
 };
 
 function createPeer(id: string, overrides: Partial<Peer<PresenceData>> = {}): Peer<PresenceData> {
@@ -281,6 +306,62 @@ function createMockCursorEngine(positions: CursorPosition<CursorData>[] = []): T
   return engine;
 }
 
+function createViewport(peerId: string, overrides: Partial<ViewportState> = {}): ViewportState {
+  return {
+    peerId,
+    scrollX: 0,
+    scrollY: 0,
+    zoom: 1,
+    viewportWidth: 200,
+    viewportHeight: 200,
+    focusedElement: null,
+    ...overrides,
+  };
+}
+
+function createMockViewportEngine(states: ViewportState[] = []): TestViewportEngine {
+  const subscribers = new Set<ViewportSubscriber>();
+  let currentStates = states;
+
+  const engine = {
+    mount: vi.fn(),
+    unmount: vi.fn(),
+    broadcast: vi.fn(),
+    stopBroadcast: vi.fn(),
+    present: vi.fn(),
+    stopPresenting: vi.fn(),
+    follow: vi.fn(),
+    unfollow: vi.fn(),
+    getAll: vi.fn(() => {
+      return currentStates;
+    }),
+    get(peerId: string) {
+      return currentStates.find((state) => {
+        return state.peerId === peerId;
+      });
+    },
+    subscribe: vi.fn((callback: ViewportSubscriber) => {
+      subscribers.add(callback);
+      callback(currentStates);
+
+      return () => {
+        subscribers.delete(callback);
+      };
+    }),
+    emit(nextStates: ViewportState[]) {
+      currentStates = nextStates;
+      for (const subscriber of subscribers) {
+        subscriber(currentStates);
+      }
+    },
+    subscriberCount() {
+      return subscribers.size;
+    },
+  } as TestViewportEngine;
+
+  return engine;
+}
+
 function createMockEventEngine(): TestEventEngine {
   const subscribers = new Map<string, Set<EventSubscriber>>();
 
@@ -393,6 +474,7 @@ function createMockRoom(
     presenceEngine?: TestPresenceEngine;
     status?: RoomStatus;
     stateEngine?: TestStateEngine<unknown>;
+    viewportEngine?: TestViewportEngine;
   } = {},
 ): TestRoom {
   const handlers = new Map<RoomEventName, Set<RoomEventHandler>>();
@@ -401,6 +483,7 @@ function createMockRoom(
   const cursorEngine = config.cursorEngine ?? createMockCursorEngine();
   const eventEngine = config.eventEngine ?? createMockEventEngine();
   const stateEngine = config.stateEngine ?? createMockStateEngine({});
+  const viewportEngine = config.viewportEngine ?? createMockViewportEngine();
   const presenceEngine =
     config.presenceEngine ?? createMockPresenceEngine(peerId, [createPeer(peerId)]);
   let currentStatus = config.status ?? 'idle';
@@ -500,6 +583,9 @@ function createMockRoom(
     useAwareness: vi.fn(() => {
       return awarenessEngine;
     }),
+    useViewport: vi.fn(() => {
+      return viewportEngine;
+    }),
     useEvents: vi.fn(() => {
       return eventEngine;
     }),
@@ -553,6 +639,7 @@ function createMockRoom(
     eventEngine,
     presenceEngine,
     stateEngine,
+    viewportEngine,
   } as TestRoom;
 
   createRoomMock.mockImplementationOnce(
@@ -2097,6 +2184,188 @@ describe('useCursors', () => {
   it('throws a typed error when useCursors() is called outside the provider', () => {
     function MissingProviderConsumer(): null {
       useCursors();
+      return null;
+    }
+
+    expect(() => {
+      renderToString(createElement(MissingProviderConsumer));
+    }).toThrowError(RoomfulError);
+    expect(() => {
+      renderToString(createElement(MissingProviderConsumer));
+    }).toThrow('RoomfulProvider');
+  });
+});
+
+describe('useViewport', () => {
+  it('returns ref, states, and controls while auto-mounting the tracked element', async () => {
+    const remoteViewport = createViewport('viewport-peer', {
+      scrollY: 0.5,
+    });
+    const viewportEngine = createMockViewportEngine([remoteViewport]);
+    createMockRoom(
+      'viewport-room',
+      {},
+      {
+        viewportEngine,
+      },
+    );
+    let observed: UseViewportResult | null = null;
+
+    function ViewportConsumer(): ReactNode {
+      observed = useViewport();
+      return createElement('div', {
+        id: 'viewport-board',
+        ref: observed.ref,
+      });
+    }
+
+    const harness = await renderElement(
+      createElement(
+        RoomfulProvider,
+        {
+          roomId: 'viewport-room',
+        },
+        createElement(ViewportConsumer),
+      ),
+    );
+    const board = document.getElementById('viewport-board') as HTMLElement;
+
+    expect(observed?.states).toEqual([remoteViewport]);
+    expect(typeof observed?.ref).toBe('function');
+    expect(viewportEngine.mount).toHaveBeenCalledTimes(1);
+    expect(viewportEngine.mount).toHaveBeenLastCalledWith(board);
+
+    observed?.broadcast();
+    observed?.stopBroadcast();
+    observed?.present();
+    observed?.stopPresenting();
+    observed?.follow('viewport-peer');
+    observed?.unfollow();
+
+    expect(viewportEngine.broadcast).toHaveBeenCalledTimes(1);
+    expect(viewportEngine.stopBroadcast).toHaveBeenCalledTimes(1);
+    expect(viewportEngine.present).toHaveBeenCalledTimes(1);
+    expect(viewportEngine.stopPresenting).toHaveBeenCalledTimes(1);
+    expect(viewportEngine.follow).toHaveBeenCalledWith('viewport-peer');
+    expect(viewportEngine.unfollow).toHaveBeenCalledTimes(1);
+
+    await harness.unmount();
+
+    expect(viewportEngine.unmount).toHaveBeenCalled();
+  });
+
+  it('rerenders when viewport states change and skips deep-equal updates', async () => {
+    const viewportEngine = createMockViewportEngine([
+      createViewport('viewport-peer', {
+        scrollY: 0.25,
+      }),
+    ]);
+    createMockRoom(
+      'viewport-reactivity',
+      {},
+      {
+        viewportEngine,
+      },
+    );
+    const snapshots: ViewportState[][] = [];
+    let renderCount = 0;
+
+    function ViewportConsumer(): ReactNode {
+      const viewport = useViewport();
+      renderCount += 1;
+      snapshots.push(viewport.states);
+      return createElement('div', {
+        id: 'viewport-reactivity-board',
+        ref: viewport.ref,
+      });
+    }
+
+    const harness = await renderElement(
+      createElement(
+        RoomfulProvider,
+        {
+          roomId: 'viewport-reactivity',
+        },
+        createElement(ViewportConsumer),
+      ),
+    );
+
+    await act(async () => {
+      viewportEngine.emit([
+        createViewport('viewport-peer', {
+          scrollY: 0.25,
+        }),
+      ]);
+    });
+    await act(async () => {
+      viewportEngine.emit([
+        createViewport('viewport-peer', {
+          scrollY: 0.9,
+        }),
+      ]);
+    });
+
+    expect(renderCount).toBe(2);
+    expect(snapshots).toHaveLength(2);
+    expect(snapshots[1]?.[0]).toMatchObject({
+      scrollY: 0.9,
+    });
+    expect(viewportEngine.subscriberCount()).toBe(1);
+
+    await harness.unmount();
+  });
+
+  it('preserves stable control identities and keeps controls usable', async () => {
+    const viewportEngine = createMockViewportEngine();
+    createMockRoom(
+      'viewport-stability',
+      {},
+      {
+        viewportEngine,
+      },
+    );
+    const snapshots: UseViewportResult[] = [];
+
+    function ViewportConsumer(): ReactNode {
+      const viewport = useViewport();
+      snapshots.push(viewport);
+      return createElement('div', {
+        id: 'viewport-stability-board',
+        ref: viewport.ref,
+      });
+    }
+
+    const harness = await renderElement(
+      createElement(
+        RoomfulProvider,
+        {
+          roomId: 'viewport-stability',
+        },
+        createElement(ViewportConsumer),
+      ),
+    );
+
+    await harness.rerender(
+      createElement(
+        RoomfulProvider,
+        {
+          roomId: 'viewport-stability',
+        },
+        createElement(ViewportConsumer),
+      ),
+    );
+
+    expect(snapshots.length).toBeGreaterThanOrEqual(2);
+    expect(snapshots[1]?.broadcast).toBe(snapshots[0]?.broadcast);
+    expect(snapshots[1]?.follow).toBe(snapshots[0]?.follow);
+    expect(snapshots[1]?.present).toBe(snapshots[0]?.present);
+
+    await harness.unmount();
+  });
+
+  it('throws a typed error when useViewport() is called outside the provider', () => {
+    function MissingProviderConsumer(): null {
+      useViewport();
       return null;
     }
 

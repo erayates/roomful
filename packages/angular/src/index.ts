@@ -22,6 +22,9 @@ import type {
   RoomStatus,
   StateEngine,
   StateOptions,
+  ViewportEngine,
+  ViewportOptions,
+  ViewportState,
 } from '@roomful/core';
 import { createRoom, RoomfulError } from '@roomful/core';
 import {
@@ -138,6 +141,61 @@ export interface InjectCursorsResult<TCursor extends CursorData = CursorData> {
 }
 
 /**
+ * Describes the return value of {@link injectViewport}.
+ */
+export interface InjectViewportResult {
+  /**
+   * Exposes remote peer viewport states only.
+   */
+  states: Signal<ViewportState[]>;
+
+  /**
+   * Mounts viewport tracking on a scrollable container.
+   *
+   * @param element - The element to observe.
+   * @returns Nothing.
+   */
+  mount(element: HTMLElement): void;
+
+  /**
+   * Unmounts viewport tracking.
+   *
+   * @returns Nothing.
+   */
+  unmount(): void;
+
+  /**
+   * Starts streaming the local viewport to all peers.
+   */
+  broadcast: ViewportEngine['broadcast'];
+
+  /**
+   * Stops streaming the local viewport.
+   */
+  stopBroadcast: ViewportEngine['stopBroadcast'];
+
+  /**
+   * Enters present mode, forcing peers to follow the local viewport.
+   */
+  present: ViewportEngine['present'];
+
+  /**
+   * Leaves present mode and releases following peers.
+   */
+  stopPresenting: ViewportEngine['stopPresenting'];
+
+  /**
+   * Follows a specific peer's viewport.
+   */
+  follow: ViewportEngine['follow'];
+
+  /**
+   * Stops following any peer and resumes independent scrolling.
+   */
+  unfollow: ViewportEngine['unfollow'];
+}
+
+/**
  * Describes the return value of {@link injectAwareness}.
  */
 export interface InjectAwarenessResult {
@@ -189,6 +247,12 @@ interface AwarenessSnapshotCache<TPresence extends PresenceData> {
   room: Room<TPresence>;
   engine: AwarenessEngine;
   snapshot: AwarenessState[];
+}
+
+interface ViewportSnapshotCache<TPresence extends PresenceData> {
+  room: Room<TPresence>;
+  engine: ViewportEngine;
+  snapshot: ViewportState[];
 }
 
 interface PeerSnapshotCache<TPresence extends PresenceData> {
@@ -405,6 +469,94 @@ export function injectCursors<
     cursors,
     mount,
     unmount,
+  };
+}
+
+/**
+ * Subscribes to viewport snapshots and returns mounting and control helpers.
+ *
+ * Must be called in an injection context. Angular has no React-style callback
+ * ref, so mount the engine on an element from `afterNextRender` or
+ * `ngAfterViewInit` by calling {@link InjectViewportResult.mount}.
+ *
+ * @typeParam TPresence - The room presence shape.
+ * @param options - Optional viewport tracking configuration.
+ * @returns The remote viewport states signal plus mounting and follow controls.
+ */
+export function injectViewport<TPresence extends PresenceData = PresenceData>(
+  options?: ViewportOptions,
+): InjectViewportResult {
+  assertInInjectionContext(injectViewport);
+  const room = injectRoom<TPresence>();
+  const viewportEngine = room.useViewport(options);
+  const cacheRef: { current: ViewportSnapshotCache<TPresence> | null } = {
+    current: null,
+  };
+  const states = signal(readViewportSnapshot(room, viewportEngine, cacheRef));
+
+  let trackedElement: HTMLElement | null = null;
+  let mounted = false;
+
+  const mount = (element: HTMLElement): void => {
+    if (trackedElement === element) {
+      return;
+    }
+
+    if (trackedElement !== null) {
+      viewportEngine.unmount();
+    }
+
+    trackedElement = element;
+    viewportEngine.mount(element);
+    mounted = true;
+  };
+
+  const unmount = (): void => {
+    if (trackedElement === null) {
+      return;
+    }
+
+    viewportEngine.unmount();
+    trackedElement = null;
+    mounted = false;
+  };
+
+  const unsubscribe = viewportEngine.subscribe(() => {
+    states.set(readViewportSnapshot(room, viewportEngine, cacheRef));
+  });
+
+  inject(DestroyRef).onDestroy(() => {
+    unsubscribe();
+
+    if (mounted) {
+      viewportEngine.unmount();
+      trackedElement = null;
+      mounted = false;
+    }
+  });
+
+  return {
+    states,
+    mount,
+    unmount,
+    broadcast: () => {
+      viewportEngine.broadcast();
+    },
+    stopBroadcast: () => {
+      viewportEngine.stopBroadcast();
+    },
+    present: () => {
+      viewportEngine.present();
+    },
+    stopPresenting: () => {
+      viewportEngine.stopPresenting();
+    },
+    follow: (peerId) => {
+      viewportEngine.follow(peerId);
+    },
+    unfollow: () => {
+      viewportEngine.unfollow();
+    },
   };
 }
 
@@ -807,6 +959,63 @@ function readAwarenessSnapshot<TPresence extends PresenceData>(
   return nextOthers;
 }
 
+function areViewportArraysEqual(
+  previous: readonly ViewportState[],
+  next: readonly ViewportState[],
+): boolean {
+  if (previous === next) {
+    return true;
+  }
+
+  if (previous.length !== next.length) {
+    return false;
+  }
+
+  for (let index = 0; index < previous.length; index += 1) {
+    const previousEntry = previous[index];
+    const nextEntry = next[index];
+
+    if (!previousEntry || !nextEntry || !areStructuredValuesEqual(previousEntry, nextEntry)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function readViewportSnapshot<TPresence extends PresenceData>(
+  room: Room<TPresence>,
+  viewport: ViewportEngine,
+  cacheRef: { current: ViewportSnapshotCache<TPresence> | null },
+): ViewportState[] {
+  const nextSnapshot = viewport.getAll();
+  const previous = cacheRef.current;
+
+  if (previous !== null && previous.room === room && previous.engine === viewport) {
+    const previousSnapshot = previous.snapshot;
+    if (areViewportArraysEqual(previousSnapshot, nextSnapshot)) {
+      return previousSnapshot;
+    }
+
+    previous.snapshot = nextSnapshot.map((state, index) => {
+      const previousState = previousSnapshot[index];
+      if (previousState !== undefined && areStructuredValuesEqual(previousState, state)) {
+        return previousState;
+      }
+
+      return state;
+    });
+    return previous.snapshot;
+  }
+
+  cacheRef.current = {
+    room,
+    engine: viewport,
+    snapshot: nextSnapshot,
+  };
+  return nextSnapshot;
+}
+
 function readSharedStateSnapshot<TPresence extends PresenceData, T>(
   room: Room<TPresence>,
   state: StateEngine<T>,
@@ -852,6 +1061,7 @@ function isRoom<TPresence extends PresenceData = PresenceData>(
     hasFunction(value, 'useCursors') &&
     hasFunction(value, 'useState') &&
     hasFunction(value, 'useAwareness') &&
+    hasFunction(value, 'useViewport') &&
     hasFunction(value, 'useEvents') &&
     hasFunction(value, 'getYDoc') &&
     hasFunction(value, 'getYProvider') &&
