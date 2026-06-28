@@ -1445,13 +1445,23 @@ test.describe('multi-tab integration', () => {
       await first.connect();
       await second.connect();
 
+      // Probe real WebRTC establishment without throwing; some runtimes (e.g.
+      // headless CI) complete signaling over the relay but cannot finish an ICE
+      // handshake. Skip cleanly rather than fail and cascade the serial group.
+      const dataChannelsOpened = await waitForWebRtcDataChannels([first, second]);
+      test.skip(
+        !dataChannelsOpened,
+        'A real WebRTC data channel could not be established in this browser runtime.',
+      );
+
+      // The WebRTC connection is up, so the peer count resolves promptly.
       await expect
         .poll(
           async () => {
             return (await first.getSnapshot()).peerCount;
           },
           {
-            timeout: 40_000,
+            timeout: 15_000,
           },
         )
         .toBe(1);
@@ -1461,18 +1471,10 @@ test.describe('multi-tab integration', () => {
             return (await second.getSnapshot()).peerCount;
           },
           {
-            timeout: 40_000,
+            timeout: 15_000,
           },
         )
         .toBe(1);
-
-      const dataChannelsOpened = await waitForWebRtcDataChannels([first, second]);
-      // Signaling succeeds over the relay, but some runtimes cannot complete a
-      // real ICE handshake; skip rather than fail (and cascade under serial mode).
-      test.skip(
-        !dataChannelsOpened,
-        'A real WebRTC data channel could not be established in this browser runtime.',
-      );
 
       await first.emit('webrtc-first', { direction: 'first-to-second' });
       await expect
@@ -1809,6 +1811,16 @@ test.describe('multi-tab integration', () => {
       );
       await Promise.all(pages.map((page) => page.connect()));
 
+      // Probe real WebRTC establishment without throwing; some runtimes (e.g.
+      // headless CI) complete signaling over the relay but cannot finish an ICE
+      // handshake. Skip cleanly rather than fail and cascade the serial group.
+      const dataChannelsOpened = await waitForWebRtcDataChannels(pages);
+      test.skip(
+        !dataChannelsOpened,
+        'A real WebRTC data channel could not be established in this browser runtime.',
+      );
+
+      // The WebRTC mesh is up, so each peer count resolves promptly.
       await Promise.all(
         pages.map((page) => {
           return expect
@@ -1817,18 +1829,11 @@ test.describe('multi-tab integration', () => {
                 return (await page.getSnapshot()).peerCount;
               },
               {
-                timeout: 40_000,
+                timeout: 15_000,
               },
             )
             .toBe(2);
         }),
-      );
-      const dataChannelsOpened = await waitForWebRtcDataChannels(pages);
-      // Signaling succeeds over the relay, but some runtimes cannot complete a
-      // real ICE handshake; skip rather than fail (and cascade under serial mode).
-      test.skip(
-        !dataChannelsOpened,
-        'A real WebRTC data channel could not be established in this browser runtime.',
       );
 
       await Promise.all([
