@@ -145,7 +145,7 @@ Issue `EP-01 #001` scaffolds this repository as a `pnpm` + `turborepo` monorepo 
 ### Prerequisites
 
 - Node.js `20` for local development (pinned via `.nvmrc` and `.node-version`)
-- Runtime compatibility baseline for published packages: Node.js `18+`
+- Runtime compatibility baseline for published packages: Node.js `20+`
 - `pnpm`
 
 ### Install and Validate

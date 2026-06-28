@@ -30,7 +30,7 @@ interface MiniAppStageProps {
 }
 
 export function MiniAppStage({ app, identity, transportLabel }: MiniAppStageProps): ReactElement {
-  const { others, update } = usePresence<DemoPresence>();
+  const { all, others, update } = usePresence<DemoPresence>();
   const status = useConnectionStatus<DemoPresence>();
   const AppComponent = app.Component;
 
@@ -61,6 +61,9 @@ export function MiniAppStage({ app, identity, transportLabel }: MiniAppStageProp
       <div className="stage__presence">
         <PresenceBar<DemoPresence> maxVisible={8} showNames size="sm" />
         <span className="stage__hint">
+          <span data-testid="presence-count-value" hidden>
+            {all.length}
+          </span>
           {others.length === 0
             ? transportLabel
             : `${String(others.length)} other ${others.length === 1 ? 'person' : 'people'} here`}

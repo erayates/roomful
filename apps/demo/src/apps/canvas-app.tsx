@@ -433,6 +433,10 @@ export function CanvasApp({ identity }: MiniAppProps): ReactElement {
         </button>
       </div>
 
+      <span data-testid="stroke-count-value" hidden>
+        {canvasState.strokes.length}
+      </span>
+
       <div
         className="canvas-surface"
         data-testid="demo-canvas-surface"

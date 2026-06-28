@@ -4,7 +4,7 @@ Audience: contributors.
 
 ## Prerequisites
 
-- Node.js `20` locally (`18` and `20` are validated in CI)
+- Node.js `20` locally (validated in CI)
 - `pnpm`
 - `git`
 
@@ -90,7 +90,7 @@ ROOMFUL_REDIS_URL=redis://127.0.0.1:6379/0 pnpm --filter @roomful/relay start
 
 - PR workflow: `.github/workflows/ci.yml`
 - Release workflow: `.github/workflows/release.yml`
-- PR validation matrix: Node `18`, `20`
+- PR validation matrix: Node `20`
 - Validation order: install -> lint -> format -> typecheck -> test -> docs snippets -> build -> test:types -> verify:package-types -> publish smoke
 - Release trigger: push tag matching `v*`
 - Release output: npm packages, relay Docker image, and generated GitHub Release
