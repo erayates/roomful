@@ -35,7 +35,7 @@ Most TypeScript guidelines are written for applications. Roomful is a library. T
 |---|---|---|
 | Hard dependencies | Fine — you control the stack | Forbidden — you ship into unknown stacks |
 | Bundle size | Managed at app level | Every byte is your user's problem |
-| Target environment | Known — Next.js 14+ / Node 20+ | Unknown — Safari 14, Node 18, Chrome 80 |
+| Target environment | Known — Next.js 14+ / Node 20+ | Unknown — Safari 14, Node 20, Chrome 80 |
 | Zod | Use it | Do not add as dependency to core |
 | `typeof window` guards | Forbidden — environment is known | Sometimes required — environment is unknown |
 | Error messages | Internal, terse | Public API — must be developer-friendly |
@@ -371,7 +371,7 @@ addEventListener / removeEventListener  // browser only, guard before use
 ```typescript
 // ✅ CORRECT — guard with a comment explaining why
 const isSSR = typeof window === 'undefined';
-// Node.js 18 (SSR) supports BroadcastChannel but not WebRTC.
+// Node.js 20 (SSR) supports BroadcastChannel but not WebRTC.
 // Guard is required because the support matrix includes both environments.
 if (!isSSR) {
   this.transport = new WebRTCTransport(options);
@@ -394,18 +394,18 @@ Then use `env.*` everywhere. This is the single source of truth — not scattere
 
 ### `crypto.randomUUID()` — Requires a Guard in Roomful
 
-Unlike in Zyora (Node 20+ guaranteed), Roomful targets Node 18 and Safari 14 where `crypto.randomUUID()` may not exist.
+The `crypto` object itself is always available — on Node.js 20+ and in every supported browser. But the `crypto.randomUUID()` method is newer than Roomful's browser floor: it shipped in Chrome 92, Firefox 95, and Safari 15.4, while Roomful still supports Chrome 80, Firefox 75, and Safari 14. So the method needs a runtime check, even though the object does not.
 
 ```typescript
-// ❌ WRONG for Roomful — randomUUID is not available everywhere in the support matrix
+// ❌ WRONG for Roomful — randomUUID() is newer than the browser support floor
 const id = crypto.randomUUID();
 
-// ✅ CORRECT for Roomful — polyfill inline or detect
+// ✅ CORRECT for Roomful — the crypto object is always present; guard the method
 function generatePeerId(): string {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+  if (typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID();
   }
-  // Fallback for environments without randomUUID (Node 18, older Safari)
+  // Fallback for browsers without the method (Chrome < 92, Firefox < 95, Safari < 15.4)
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
     const r = Math.random() * 16 | 0;
     return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
@@ -729,7 +729,7 @@ Roomful is a zero-dependency, framework-agnostic TypeScript library.
 It is NOT an application. Application-level rules (Next.js, NestJS, Zod in core)
 do NOT apply here.
 
-Support matrix: Chrome 80+, Firefox 75+, Safari 14+, Node.js 18+ (limited).
+Support matrix: Chrome 80+, Firefox 75+, Safari 14+, Node.js 20+ (limited).
 
 DEPENDENCIES — ABSOLUTE RULES
 ───────────────────────────────
@@ -757,11 +757,11 @@ Inside the library, TypeScript types are trusted. Never re-check them.
 
 ENVIRONMENT GUARDS
 ──────────────────
-Roomful targets Safari 14 and Node 18 — environment guards ARE sometimes required.
+Roomful targets older browsers (Chrome 80, Firefox 75, Safari 14) and Node 20 SSR — environment guards ARE sometimes required.
 Rules:
   - All environment detection lives in src/internal/env.ts
   - Use env.hasWebRTC, env.isBrowser, etc. — never inline typeof checks
-  - crypto.randomUUID() needs a fallback — Safari 14 and Node 18 don't have it
+  - crypto.randomUUID() needs a fallback — older browsers (Chrome < 92, Firefox < 95, Safari < 15.4) lack the method
   - Document every guard with a comment explaining which environment requires it
 
 DO NOT write environment guards for APIs that are universally available:
@@ -826,7 +826,7 @@ WHEN IN DOUBT
 
 ### Manual Review — Environment
 - [ ] Inline `typeof window/crypto/navigator`? → Move to `env.ts`
-- [ ] `crypto.randomUUID()` used without fallback? → Add fallback (Node 18, Safari 14)
+- [ ] `crypto.randomUUID()` used without fallback? → Add fallback (Chrome < 92, Firefox < 95, Safari < 15.4)
 - [ ] New environment assumption not in the support matrix? → Document or add a guard
 
 ### Manual Review — Public API
@@ -850,7 +850,7 @@ WHEN IN DOUBT
 | `unknown` from DataChannel / WebSocket | `isObject()` guard → typed |
 | Relay server incoming message | Zod `safeParse()` |
 | TypeScript-typed internal value | Trust it — no checks |
-| `crypto.randomUUID()` | Fallback required — Node 18, Safari 14 |
+| `crypto.randomUUID()` | Fallback required — Chrome < 92, Firefox < 95, Safari < 15.4 |
 | `typeof window/navigator/RTCPeerConnection` | Centralize in `env.ts`, add a comment |
 | JSON.parse, Promise, Array.from | No guard needed — universally available |
 | Adding a runtime dependency to core | Don't. Write the function inline. |
