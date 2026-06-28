@@ -24,10 +24,10 @@ async function closeMobileMenuIfNeeded(page: Page, testInfo: TestInfo) {
 async function getVisibleVersionSelect(page: Page, testInfo: TestInfo) {
   if (testInfo.project.use.isMobile) {
     await openMobileMenuIfNeeded(page, testInfo);
-    return page.locator('.mobile-preferences [data-version-switcher]').first();
+    return page.locator('.mobile-preferences [data-testid="version-switcher"]').first();
   }
 
-  return page.locator('.roomful-toolbar-controls [data-version-switcher]').first();
+  return page.locator('.roomful-toolbar-controls [data-testid="version-switcher"]').first();
 }
 
 test('docs home exposes navigation, search, theme, and version controls', async ({
@@ -38,13 +38,15 @@ test('docs home exposes navigation, search, theme, and version controls', async 
   await expect(
     page.getByRole('heading', {
       level: 1,
-      name: /Realtime collaboration primitives for product teams/i,
+      name: /Realtime collaboration, documented/i,
     }),
   ).toBeVisible();
 
+  // The docs are committed dark-only — no theme toggle, the theme is pinned to dark.
+  expect(await page.evaluate(() => document.documentElement.dataset.theme)).toBe('dark');
+
   await expect(page.locator('button[data-open-modal]:visible')).toBeVisible();
   await expect(await getVisibleVersionSelect(page, testInfo)).toBeVisible();
-  await expect(page.locator('starlight-theme-select select:visible').first()).toBeVisible();
   await closeMobileMenuIfNeeded(page, testInfo);
 
   await page.getByRole('link', { name: 'Install Roomful' }).click();
@@ -52,19 +54,13 @@ test('docs home exposes navigation, search, theme, and version controls', async 
   await expect(page.getByRole('heading', { level: 1, name: /Installation/i })).toBeVisible();
 });
 
-test('theme toggle and search modal work', async ({ page }, testInfo) => {
+test('dark theme is pinned and the search modal opens', async ({ page }, testInfo) => {
   await page.goto('/');
 
-  await openMobileMenuIfNeeded(page, testInfo);
-  const themeSelect = page.locator('starlight-theme-select select:visible').first();
-  await expect(themeSelect).toBeVisible();
-  await themeSelect.selectOption('dark');
+  // Dark-only site: the theme stays dark with no toggle to flip it.
   await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme)).toBe('dark');
 
-  if (testInfo.project.use.isMobile) {
-    await page.goto('/');
-  }
-
+  await openMobileMenuIfNeeded(page, testInfo);
   const searchButton = page.locator('button[data-open-modal]:visible');
   await expect(searchButton).toBeEnabled();
   await searchButton.click();

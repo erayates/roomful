@@ -19,6 +19,7 @@ function buildVersionPath(slug: string) {
   <span class="sr-only">Version</span>
   <select
     aria-label="Documentation version"
+    data-testid="version-switcher"
     data-version-switcher
     onchange="window.location.assign(this.selectedOptions[0]?.dataset.path || '/')"
   >

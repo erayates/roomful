@@ -55,6 +55,15 @@ body {
   background-attachment: fixed;
 }
 
+/* Decorative glows bleed past the right edge (e.g. `.roomful-hero::before` at right: -6rem),
+   which on narrow viewports widens the document and shoves the fixed mobile menu toggle
+   off-screen. Clip horizontal overflow site-wide. `clip` (not `hidden`/`auto`) avoids
+   creating a scroll container, so `position: fixed` chrome keeps working. */
+html,
+body {
+  overflow-x: clip;
+}
+
 /* Film-grain overlay — the landing texture, kept very subtle over reading content. */
 body::before {
   content: '';
@@ -77,11 +86,19 @@ h4,
   letter-spacing: -0.025em;
 }
 
-/* Glassy top nav for product-grade chrome. */
-.header {
+/* Glassy top nav for product-grade chrome. Scope the blur to the fixed nav `<header>`
+   only: applying `backdrop-filter` to the inner `.header` flex row too spawns a second
+   stacking context that composites over the fixed mobile menu toggle and swallows its
+   taps. `header.header` is Starlight's actual nav bar; the inner div stays plain. */
+header.header {
   backdrop-filter: blur(14px) saturate(1.3);
   -webkit-backdrop-filter: blur(14px) saturate(1.3);
   border-bottom: 1px solid var(--roomful-border);
+}
+
+/* Keep the fixed mobile menu toggle above the glassy nav chrome so it stays clickable. */
+starlight-menu-button button {
+  z-index: calc(var(--sl-z-index-navbar) + 1);
 }
 
 /* Public-beta banner (site-wide via route middleware). */
