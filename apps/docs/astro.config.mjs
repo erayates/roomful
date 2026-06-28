@@ -11,7 +11,18 @@ const hasDocSearch =
   Boolean(process.env.PUBLIC_DOCSEARCH_INDEX_NAME);
 
 const packageAliases = Object.fromEntries(
-  ['core', 'react', 'vue', 'svelte', 'cursors', 'relay', 'devtools'].map((name) => [
+  [
+    'core',
+    'react',
+    'vue',
+    'svelte',
+    'cursors',
+    'relay',
+    'devtools',
+    'solid',
+    'angular',
+    'next',
+  ].map((name) => [
     `@roomful/${name}`,
     fileURLToPath(new URL(`../../packages/${name}/src`, import.meta.url)),
   ]),

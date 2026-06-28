@@ -103,9 +103,9 @@ The core package must have **zero `dependencies`** in `package.json`. Every exte
 
 **No Zod in core.** Validate with manual type guards (see Section 5). The relay server (`@roomful/relay`) runs on Node.js where bundle size is irrelevant — Zod is fine there.
 
-### Framework Adapters (`@roomful/react`, `@roomful/vue`, `@roomful/svelte`)
+### Framework Adapters (`@roomful/react`, `@roomful/vue`, `@roomful/svelte`, `@roomful/solid`, `@roomful/angular`)
 
-Framework packages declare the framework as a `peerDependency`, not a `dependency`. Users already have React/Vue/Svelte installed — don't ship a second copy.
+Framework packages declare the framework as a `peerDependency`, not a `dependency`. Users already have React/Vue/Svelte/Solid/Angular installed — don't ship a second copy.
 
 ```json
 // package.json — @roomful/react
@@ -734,7 +734,7 @@ Support matrix: Chrome 80+, Firefox 75+, Safari 14+, Node.js 18+ (limited).
 DEPENDENCIES — ABSOLUTE RULES
 ───────────────────────────────
 - @roomful/core → zero runtime dependencies. Period.
-- @roomful/react/vue/svelte → framework as peerDependency only.
+- @roomful/react/vue/svelte/solid/angular → framework as peerDependency only.
 - @roomful/relay → Node.js only, Zod and ws are fine here.
 - Never add a dependency to core without explicit team discussion.
 

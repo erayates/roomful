@@ -13,11 +13,14 @@
     "clean": "rimraf dist .astro"
   },
   "dependencies": {
+    "@roomful/angular": "workspace:*",
     "@roomful/core": "workspace:*",
     "@roomful/cursors": "workspace:*",
     "@roomful/devtools": "workspace:*",
+    "@roomful/next": "workspace:*",
     "@roomful/react": "workspace:*",
     "@roomful/relay": "workspace:*",
+    "@roomful/solid": "workspace:*",
     "@roomful/svelte": "workspace:*",
     "@roomful/vue": "workspace:*"
   },

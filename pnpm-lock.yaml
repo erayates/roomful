@@ -126,6 +126,9 @@ importers:
 
   apps/docs:
     dependencies:
+      '@roomful/angular':
+        specifier: workspace:*
+        version: link:../../packages/angular
       '@roomful/core':
         specifier: workspace:*
         version: link:../../packages/core
@@ -135,12 +138,18 @@ importers:
       '@roomful/devtools':
         specifier: workspace:*
         version: link:../../packages/devtools
+      '@roomful/next':
+        specifier: workspace:*
+        version: link:../../packages/next
       '@roomful/react':
         specifier: workspace:*
         version: link:../../packages/react
       '@roomful/relay':
         specifier: workspace:*
         version: link:../../packages/relay
+      '@roomful/solid':
+        specifier: workspace:*
+        version: link:../../packages/solid
       '@roomful/svelte':
         specifier: workspace:*
         version: link:../../packages/svelte
