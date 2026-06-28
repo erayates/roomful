@@ -57,7 +57,7 @@ Hi HN,
 
 We built Roomful, an open-source TypeScript SDK for adding multiplayer collaboration to web apps without starting from a backend-first architecture.
 
-It includes room lifecycle, presence, live cursors, shared state, awareness, events, CRDT/Yjs support, optional end-to-end encryption, offline queueing, framework adapters for React/Vue/Svelte, prebuilt collaboration UI components, browser DevTools, and a self-hostable relay server with Docker and Redis support.
+It includes room lifecycle, presence, live cursors, shared state, awareness, events, CRDT/Yjs support, optional end-to-end encryption, offline queueing, framework adapters for React/Vue/Svelte/Solid/Angular, a Next.js server-side auth package, prebuilt collaboration UI components, browser DevTools, and a self-hostable relay server with Docker and Redis support.
 
 The default path is zero-backend for small rooms, using browser transports where possible. For larger or production deployments, teams can run the relay themselves instead of paying for a hosted collaboration platform.
 
@@ -87,7 +87,8 @@ Roomful packages those pieces as a framework-agnostic TypeScript SDK.
 - CRDT/Yjs support for conflict-heavy shared state
 - Optional AES-GCM end-to-end encryption
 - Offline mutation queueing and reconnection behavior
-- React, Vue, and Svelte adapters
+- React, Vue, Svelte, Solid, and Angular adapters
+- Next.js server-side auth package for issuing room tokens
 - Prebuilt cursor and presence UI components
 - Browser DevTools extension assets
 - Self-hostable WebSocket relay with Docker and Redis support
@@ -126,7 +127,7 @@ Explore the docs and demo:
 ## What we want feedback on
 
 - Is the room and engine API intuitive?
-- Are the React, Vue, and Svelte adapter APIs idiomatic enough?
+- Are the React, Vue, Svelte, Solid, and Angular adapter APIs idiomatic enough?
 - What deployment examples would help you trust the relay in production?
 - Which collaboration examples should we add next?
 ````
@@ -140,7 +141,7 @@ Add presence, live cursors, shared state, awareness, events, CRDT/Yjs sync, opti
 
 2/ The default path is lightweight: create a room, connect peers, and use the collaboration engines from vanilla TypeScript or framework adapters.
 
-React, Vue, and Svelte packages are included.
+React, Vue, Svelte, Solid, and Angular packages are included, plus a Next.js server-side auth package.
 
 3/ For production scale, Roomful includes @roomful/relay: a WebSocket relay with Docker, CLI support, auth hooks, health checks, and Redis coordination for multi-instance deployments.
 
@@ -159,7 +160,7 @@ Feedback welcome, especially on API ergonomics and deployment examples.
 ```text
 We launched Roomful, an open-source TypeScript SDK for adding real-time collaboration to web apps.
 
-It includes room lifecycle, presence, live cursors, shared state, awareness, event broadcast, CRDT/Yjs support, optional encryption, offline queueing, framework adapters for React/Vue/Svelte, prebuilt collaboration UI components, DevTools assets, and a self-hostable relay server.
+It includes room lifecycle, presence, live cursors, shared state, awareness, event broadcast, CRDT/Yjs support, optional encryption, offline queueing, framework adapters for React/Vue/Svelte/Solid/Angular, a Next.js server-side auth package, prebuilt collaboration UI components, DevTools assets, and a self-hostable relay server.
 
 The goal is to make multiplayer features practical for teams that want open-source primitives and deployment control instead of starting with a hosted collaboration platform.
 
@@ -173,7 +174,7 @@ GitHub: https://github.com/erayates/roomful
 ```text
 Roomful is live.
 
-Roomful is an open-source TypeScript SDK for real-time collaboration: presence, live cursors, shared state, awareness, events, CRDT/Yjs support, optional encryption, offline queueing, React/Vue/Svelte adapters, UI components, DevTools assets, and a self-hostable relay.
+Roomful is an open-source TypeScript SDK for real-time collaboration: presence, live cursors, shared state, awareness, events, CRDT/Yjs support, optional encryption, offline queueing, React/Vue/Svelte/Solid/Angular adapters, a Next.js server-side auth package, UI components, DevTools assets, and a self-hostable relay.
 
 Docs: https://docs.roomful.dev
 Demo: https://demo.roomful.dev

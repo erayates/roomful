@@ -96,6 +96,27 @@ const apiPackages = [
     order: 8,
     tsconfig: 'packages/devtools/tsconfig.json',
   },
+  {
+    slug: 'solid',
+    packageName: '@roomful/solid',
+    entryPoint: 'packages/solid/src/index.ts',
+    order: 9,
+    tsconfig: 'packages/solid/tsconfig.json',
+  },
+  {
+    slug: 'angular',
+    packageName: '@roomful/angular',
+    entryPoint: 'packages/angular/src/index.ts',
+    order: 10,
+    tsconfig: 'packages/angular/tsconfig.json',
+  },
+  {
+    slug: 'next',
+    packageName: '@roomful/next',
+    entryPoint: 'packages/next/src/index.ts',
+    order: 11,
+    tsconfig: 'packages/next/tsconfig.json',
+  },
 ];
 
 await prepareDocsSite();
