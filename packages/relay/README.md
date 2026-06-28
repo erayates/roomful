@@ -2,20 +2,20 @@
 
 Self-hosted relay server for Roomful WebRTC signaling and WebSocket room transport.
 
-> **Public beta** — install with the `@beta` tag; the API is stable but may still change before 1.0.
+> **Stable — v1.0.** The API is stable and ready for production.
 
 ## Install
 
 Library usage:
 
 ```bash
-npm install @roomful/relay@beta
+npm install @roomful/relay
 ```
 
 Global CLI usage:
 
 ```bash
-npm install -g @roomful/relay@beta
+npm install -g @roomful/relay
 ```
 
 ## Run
@@ -53,7 +53,7 @@ Environment variables:
 | `ROOMFUL_MAX_ROOM_SIZE`    | unset       | Hard per-room peer cap                                                                                                                     |
 | `ROOMFUL_CORS_ORIGIN`      | unset       | Allowed browser origin; adds CORS headers on HTTP responses and rejects WebSocket upgrades from other origins. Use `*` to allow any origin |
 | `ROOMFUL_AUTH_SECRET`      | unset       | Enables built-in HS256 JWT authorization; peers must present a valid token signed with this secret                                         |
-| `ROOMFUL_REDIS_URL`        | unset       | _Experimental._ Optional Redis URL for multi-instance coordination; coordination semantics may change before 1.0                           |
+| `ROOMFUL_REDIS_URL`        | unset       | _Experimental._ Optional Redis URL for multi-instance coordination; coordination semantics may change in a future release                  |
 
 Health check:
 
@@ -63,11 +63,11 @@ curl http://127.0.0.1:8787/health
 
 ## Docker
 
-Published image (`erayatesdev/roomful` — versions are pinned; prereleases get no `:latest` tag until the stable `1.0.0`):
+Published image — `erayatesdev/roomful` (`:latest` tracks the newest release; pin a version with `:1.0.0`):
 
 ```bash
-docker pull erayatesdev/roomful:1.0.0-beta.7
-docker run --rm -p 8787:8787 -e HOST=0.0.0.0 erayatesdev/roomful:1.0.0-beta.7
+docker pull erayatesdev/roomful:latest
+docker run --rm -p 8787:8787 -e HOST=0.0.0.0 erayatesdev/roomful:latest
 ```
 
 Local and production Compose examples live at the repository root in `docker-compose.yml` and
@@ -95,4 +95,4 @@ different instances can find each other. Point each instance at the same Redis w
 `ROOMFUL_REDIS_URL` (or `--redis-url`).
 
 > **Experimental.** Multi-instance Redis coordination is experimental and its semantics — for
-> example, rejecting joins while Redis is unavailable — may change before the stable 1.0.
+> example, rejecting joins while Redis is unavailable — may change in a future release.

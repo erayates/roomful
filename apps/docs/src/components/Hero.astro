@@ -10,7 +10,7 @@ const { title = data.title, tagline, actions = [] } = data.hero ?? {};
   <div class="roomful-hero__copy">
     <span class="roomful-hero__eyebrow">
       <span class="roomful-hero__dot"></span>
-      Public beta · open source
+      v1.0 · open source
     </span>
     <h1 id="_top" data-page-title set:html={title} />
     {tagline && <p class="roomful-hero__tagline" set:html={tagline} />}
@@ -35,8 +35,8 @@ const { title = data.title, tagline, actions = [] } = data.hero ?? {};
       )
     }
     <div class="roomful-hero__install">
-      <span><span class="roomful-hero__prompt">$</span> npm i @roomful/core@beta</span>
-      <button type="button" data-roomful-copy="npm i @roomful/core@beta">Copy</button>
+      <span><span class="roomful-hero__prompt">$</span> npm i @roomful/core</span>
+      <button type="button" data-roomful-copy="npm i @roomful/core">Copy</button>
     </div>
   </div>
 </div>

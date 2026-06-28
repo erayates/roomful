@@ -11,7 +11,7 @@ import { createAwarenessEngine } from './engines/awareness';
 import { createCursorEngine } from './engines/cursors';
 import { createEventEngine } from './engines/events';
 import { createPresenceEngine } from './engines/presence';
-import { createStateEngine } from './engines/state';
+import { createStateEngine, type StateEngineContext } from './engines/state';
 import { createCrdtStateEngine as createCrdtStateEngineRuntime } from './engines/state.crdt';
 import { TypedEventEmitter } from './event-emitter';
 import {
@@ -432,6 +432,8 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
   private statePersistenceEnabled = false;
 
   private stateInitialValue: unknown = undefined;
+
+  private customStateMerge: ((local: unknown, remote: unknown) => unknown) | null = null;
 
   private offlineQueue: OfflineQueueEntry[] = [];
 
@@ -1235,9 +1237,8 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     };
   }
 
-  private createLwwStateEngine<T>(options: StateOptions<T>): StateEngine<T> {
-    this.configureLwwState(options);
-    const baseStateEngine = createStateEngine<T>(options, {
+  private createSyncedStateEngineContext<T>(): StateEngineContext<T> {
+    return {
       actorId: this.peerId,
       getInitialValue: () => {
         return readTypedStateStoredValue<T>(this.stateInitialValue);
@@ -1287,7 +1288,12 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
 
         this.sendStateSnapshot(snapshot);
       },
-    });
+    };
+  }
+
+  private createLwwStateEngine<T>(options: StateOptions<T>): StateEngine<T> {
+    this.configureLwwState(options);
+    const baseStateEngine = createStateEngine<T>(options, this.createSyncedStateEngineContext<T>());
 
     this.logger.info('state', 'state', 'State engine configured', {
       persistenceEnabled: this.statePersistenceEnabled,
@@ -1326,9 +1332,8 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
       );
     }
 
-    const baseStateEngine = createStateEngine<T>(options);
-
-    this.stateStrategy = 'custom';
+    this.configureCustomState(options, merge);
+    const baseStateEngine = createStateEngine<T>(options, this.createSyncedStateEngineContext<T>());
 
     this.logger.info('state', 'state', 'State engine configured', {
       persistenceEnabled: this.statePersistenceEnabled,
@@ -2006,6 +2011,13 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
 
   private handleStateSignal(signal: Extract<RoomTransportSignal, { type: 'state:update' }>): void {
     const incomingSnapshot = cloneStateSnapshot(signal.payload);
+
+    if (this.stateStrategy === 'custom' && this.customStateMerge) {
+      this.applyCustomRemoteStateSnapshot(incomingSnapshot, signal.fromPeerId);
+      this.scheduleOfflineQueueReplay();
+      return;
+    }
+
     const comparisonSnapshot = this.syncedStateSnapshot ?? this.stateSnapshot;
     if (!comparisonSnapshot || compareStateSnapshots(incomingSnapshot, comparisonSnapshot) > 0) {
       this.setSyncedStateSnapshot(incomingSnapshot);
@@ -2038,6 +2050,50 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     }
 
     this.scheduleOfflineQueueReplay();
+  }
+
+  private applyCustomRemoteStateSnapshot(
+    incomingSnapshot: StateSnapshot,
+    fromPeerId: string,
+  ): void {
+    const merge = this.customStateMerge;
+    if (!merge) {
+      return;
+    }
+
+    // Resolve the conflict with the user-provided merge(local, remote) instead of
+    // the vector-clock comparison the LWW path uses. The merged value rides on the
+    // remote snapshot's metadata (changedBy/timestamp/reason/clock) so subscribers
+    // see the remote origin — exactly as the LWW path reports an accepted remote
+    // snapshot — and so a re-broadcast of the same snapshot compares as non-newer.
+    const localValue = cloneStateValue(this.requireStateSnapshot().value);
+    const mergedValue = cloneStateValue(merge(localValue, cloneStateValue(incomingSnapshot.value)));
+    const mergedSnapshot: StateSnapshot = {
+      ...cloneStateSnapshot(incomingSnapshot),
+      value: mergedValue,
+    };
+
+    this.setSyncedStateSnapshot(mergedSnapshot);
+    if (hasQueuedStateMutations(this.offlineQueue)) {
+      this.reconcileQueuedStateSnapshot();
+    } else {
+      this.setStateSnapshot(mergedSnapshot);
+    }
+
+    this.logger.info('state', 'state', 'Remote custom state snapshot merged', {
+      fromPeerId,
+      queuedMutationCount: this.getQueuedStateMutationCount(),
+      snapshotTimestamp: incomingSnapshot.timestamp,
+    });
+
+    const stateSizeBytes = computeSerializedStateSizeBytes(mergedSnapshot.value);
+    if (stateSizeBytes !== null) {
+      this.logger.info('performance', 'performance', 'State snapshot size recorded', {
+        fromPeerId,
+        source: 'remote',
+        stateSizeBytes,
+      });
+    }
   }
 
   private handleAwarenessSignal(
@@ -2530,6 +2586,36 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
 
     if (shouldBroadcastPersistedSnapshot && this.currentStatus === 'connected') {
       this.sendStateSnapshot(configuredSnapshot);
+    }
+  }
+
+  private configureCustomState<T>(options: StateOptions<T>, merge: (a: T, b: T) => T): void {
+    // The merge function is captured even when state was already configured so a
+    // later useState() call cannot silently drop the resolver.
+    // Partial<T> is the patch shape; the user's merge resolves full snapshots.
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+    this.customStateMerge = merge as (local: unknown, remote: unknown) => unknown;
+
+    if (this.stateConfigured) {
+      return;
+    }
+
+    this.stateConfigured = true;
+    this.stateStrategy = 'custom';
+    this.stateInitialValue = cloneStateValue(options.initialValue);
+
+    if (!this.stateSnapshot) {
+      const initialSnapshot = createInitialStateSnapshot(
+        this.stateInitialValue,
+        this.peerId,
+        Date.now(),
+      );
+      this.stateSnapshot = cloneStateSnapshot(initialSnapshot);
+      this.syncedStateSnapshot = cloneStateSnapshot(initialSnapshot);
+    }
+
+    if (!this.syncedStateSnapshot) {
+      this.syncedStateSnapshot = cloneStateSnapshot(this.requireStateSnapshot());
     }
   }
 

@@ -2,13 +2,13 @@
 
 Audience: users.
 
-This section documents the **intended API contract** for the pre-`v1.0` phase.
+This section documents the **API contract** for the stable `v1.0` release.
 
 ## Contract Scope
 
 - Package namespace: `@roomful/*`
 - Source of truth for documented signatures: this `reference/` section
-- Stability: contract may evolve before `v1.0`
+- Stability: stable as of `v1.0`
 
 When implementation and docs differ, open an issue with:
 

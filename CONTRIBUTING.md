@@ -170,7 +170,7 @@ Expected quality bar for merged changes:
 
 Core package target:
 
-- Coverage goal: `>= 80%` before `v1.0`
+- Coverage goal: `>= 80%`
 
 ## Versioning and Releases
 

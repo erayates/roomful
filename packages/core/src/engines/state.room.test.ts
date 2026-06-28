@@ -232,3 +232,127 @@ describe('StateEngine with mock transport', () => {
     await harness.waitFor(() => tieState.get().count === 5);
   });
 });
+
+interface CustomMergeState {
+  count: number;
+  tags: string[];
+}
+
+// A commutative + idempotent resolver: field-wise max and a sorted set-union.
+// merge(a, b) === merge(b, a) and merge(x, x) === x, which is the contract the
+// "custom" strategy needs to converge under concurrent gossip.
+function unionMerge(a: CustomMergeState, b: CustomMergeState): CustomMergeState {
+  return {
+    count: Math.max(a.count, b.count),
+    tags: Array.from(new Set([...a.tags, ...b.tags])).sort(),
+  };
+}
+
+describe('Custom-strategy state with mock transport', () => {
+  it('converges concurrent edits across peers via the merge function', async () => {
+    harness = await createMockRoomHarness();
+
+    const mergeA = vi.fn(unionMerge);
+    const mergeB = vi.fn(unionMerge);
+
+    const roomA = harness.createRoom('custom-state-converge');
+    const roomB = harness.createRoom('custom-state-converge');
+
+    const stateA = roomA.useState<CustomMergeState>({
+      initialValue: { count: 0, tags: [] },
+      strategy: 'custom',
+      merge: mergeA,
+    });
+    const stateB = roomB.useState<CustomMergeState>({
+      initialValue: { count: 0, tags: [] },
+      strategy: 'custom',
+      merge: mergeB,
+    });
+
+    await Promise.all([roomA.connect(), roomB.connect()]);
+    await harness.waitFor(() => roomA.peerCount === 1 && roomB.peerCount === 1);
+
+    // Concurrent edits: each peer sets before it has seen the other's value.
+    stateA.set({ count: 2, tags: ['alpha'] });
+    stateB.set({ count: 5, tags: ['beta'] });
+
+    const expected: CustomMergeState = { count: 5, tags: ['alpha', 'beta'] };
+    await harness.waitFor(() => {
+      return (
+        stateA.get().count === 5 &&
+        stateA.get().tags.length === 2 &&
+        stateB.get().count === 5 &&
+        stateB.get().tags.length === 2
+      );
+    });
+
+    // Both peers resolve to the identical merged value.
+    expect(stateA.get()).toEqual(expected);
+    expect(stateB.get()).toEqual(expected);
+
+    // merge() ran on the remote-received state on each peer: peer A merged in
+    // peer B's {beta} edit, and peer B merged in peer A's {alpha} edit.
+    expect(
+      mergeA.mock.calls.some(([, remote]) => {
+        return remote.tags.includes('beta');
+      }),
+    ).toBe(true);
+    expect(
+      mergeB.mock.calls.some(([, remote]) => {
+        return remote.tags.includes('alpha');
+      }),
+    ).toBe(true);
+  });
+
+  it('invokes merge on a remote snapshot and notifies subscribers with remote meta', async () => {
+    harness = await createMockRoomHarness();
+
+    const merge = vi.fn(unionMerge);
+    const room = harness.createRoom('custom-state-remote');
+    const state = room.useState<CustomMergeState>({
+      initialValue: { count: 1, tags: ['local'] },
+      strategy: 'custom',
+      merge,
+    });
+
+    const subscriber = vi.fn();
+    state.subscribe(subscriber);
+
+    await room.connect();
+
+    // A remote peer publishes a concurrent snapshot.
+    harness.emit(room, {
+      type: 'state:update',
+      roomId: room.id,
+      fromPeerId: 'peer-remote',
+      timestamp: 42,
+      payload: setStateSnapshot(
+        createInitialStateSnapshot({ count: 1, tags: ['local'] }, 'peer-remote', 1),
+        { count: 9, tags: ['remote'] },
+        'peer-remote',
+        42,
+      ),
+    });
+
+    await harness.waitFor(() => state.get().count === 9);
+
+    // merge(local, remote) was invoked with the locally-held value and the
+    // remote-received value, and the resolved state is the union of both.
+    expect(merge).toHaveBeenCalledWith(
+      { count: 1, tags: ['local'] },
+      { count: 9, tags: ['remote'] },
+    );
+    expect(state.get()).toEqual({ count: 9, tags: ['local', 'remote'] });
+
+    // Subscribers see the remote origin metadata (changedBy/timestamp/reason),
+    // mirroring how the LWW path reports an accepted remote snapshot.
+    expect(subscriber).toHaveBeenLastCalledWith(
+      { count: 9, tags: ['local', 'remote'] },
+      expect.objectContaining({
+        changedBy: 'peer-remote',
+        timestamp: 42,
+        reason: 'set',
+      }),
+    );
+  });
+});

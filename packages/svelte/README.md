@@ -2,12 +2,12 @@
 
 Svelte bindings for [Roomful](https://github.com/erayates/roomful) — Svelte-native stores and actions for real-time collaboration.
 
-> **Public beta** — install with the `@beta` tag; the API is stable but may still change before 1.0.
+> **Stable — v1.0.** The API is stable and ready for production.
 
 ## Install
 
 ```bash
-npm install @roomful/core@beta @roomful/svelte@beta
+npm install @roomful/core @roomful/svelte
 ```
 
 ## Usage

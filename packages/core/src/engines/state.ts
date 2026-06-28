@@ -33,7 +33,7 @@ interface StateEngineCommit<T> {
   snapshot: StateSnapshot;
 }
 
-interface StateEngineContext<T> {
+export interface StateEngineContext<T> {
   actorId: string;
   getInitialValue(): T;
   getValue(): T;

@@ -2,7 +2,7 @@
 
 Audience: users and contributors.
 
-Canonical type contracts for the pre-`v1.0` API surface.
+Canonical type contracts for the stable `v1.0` API surface.
 
 ## Core Types
 

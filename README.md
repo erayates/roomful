@@ -2,7 +2,7 @@
 
 <img width="2172" height="724" alt="image" src="https://github.com/user-attachments/assets/9a5d00dd-6320-48db-b082-6c531113f18e" />
 
-[![npm](https://img.shields.io/npm/v/@roomful/core/beta?color=0f766e&label=%40roomful%2Fcore)](https://www.npmjs.com/package/@roomful/core) [![CI](https://github.com/erayates/roomful/actions/workflows/ci.yml/badge.svg)](https://github.com/erayates/roomful/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/license-MIT-0f766e.svg)](LICENSE) [![Status: public beta](https://img.shields.io/badge/status-public%20beta-f59e0b.svg)](https://github.com/erayates/roomful/releases)
+[![npm](https://img.shields.io/npm/v/@roomful/core?color=0f766e&label=%40roomful%2Fcore)](https://www.npmjs.com/package/@roomful/core) [![CI](https://github.com/erayates/roomful/actions/workflows/ci.yml/badge.svg)](https://github.com/erayates/roomful/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/license-MIT-0f766e.svg)](LICENSE) [![Status: stable](https://img.shields.io/badge/status-stable-0f766e.svg)](https://github.com/erayates/roomful/releases)
 
 **[Website](https://roomful.dev)** · **[Docs](https://docs.roomful.dev)** · **[Live demo](https://demo.roomful.dev)** · **[Storybook](https://storybook.roomful.dev)** · **[GitHub](https://github.com/erayates/roomful)** · **[npm](https://www.npmjs.com/package/@roomful/core)**
 
@@ -10,7 +10,7 @@ Roomful is an open-source, framework-agnostic SDK designed to help frontend team
 
 ## Project Status
 
-> **Public beta.** Roomful is feature-complete and tested across 7 public packages, but its APIs are not yet battle-tested in production. Install with the `@beta` tag (`npm install @roomful/core@beta`) and please [open an issue](https://github.com/erayates/roomful/issues) with feedback — it shapes the stable 1.0.
+> **Stable — v1.0.** Roomful is feature-complete and tested across 7 public packages. Install with `npm install @roomful/core` and please [open an issue](https://github.com/erayates/roomful/issues) with any feedback.
 
 All major features are implemented and tested across 7 public packages.
 
@@ -51,7 +51,7 @@ CRDT note: `strategy: 'crdt'`, `room.getYDoc()`, and `room.getYProvider()` requi
 ## Quick Start
 
 ```bash
-npm install @roomful/core@beta
+npm install @roomful/core
 
 # Add these only if you use CRDT/Yjs features
 npm install yjs y-protocols
@@ -105,7 +105,7 @@ window.addEventListener('beforeunload', () => {
 Install the relay as a global CLI:
 
 ```bash
-npm install -g @roomful/relay@beta
+npm install -g @roomful/relay
 roomful-relay --port 8080
 ```
 
@@ -118,11 +118,11 @@ Relay runtime environment variables:
 | `MAX_CONNECTIONS`   | unset       | Optional concurrent WebSocket connection cap                             |
 | `ROOMFUL_REDIS_URL` | unset       | Optional Redis URL used to coordinate multiple relay instances           |
 
-Docker image (`erayatesdev/roomful` — pinned per release; no `:latest` until the stable `1.0.0`):
+Docker image — `erayatesdev/roomful` (`:latest` tracks the newest release; pin a version with `:1.0.0`):
 
 ```bash
-docker pull erayatesdev/roomful:1.0.0-beta.7
-docker run --rm -p 8787:8787 -e HOST=0.0.0.0 erayatesdev/roomful:1.0.0-beta.7
+docker pull erayatesdev/roomful:latest
+docker run --rm -p 8787:8787 -e HOST=0.0.0.0 erayatesdev/roomful:latest
 ```
 
 Compose examples:

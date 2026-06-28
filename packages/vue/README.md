@@ -2,12 +2,12 @@
 
 Vue 3 bindings for [Roomful](https://github.com/erayates/roomful) — a plugin and composables that integrate real-time collaboration with Vue's reactivity system.
 
-> **Public beta** — install with the `@beta` tag; the API is stable but may still change before 1.0.
+> **Stable — v1.0.** The API is stable and ready for production.
 
 ## Install
 
 ```bash
-npm install @roomful/core@beta @roomful/vue@beta
+npm install @roomful/core @roomful/vue
 ```
 
 ## Usage
