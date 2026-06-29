@@ -144,7 +144,11 @@ describe('createRecordingEngine', () => {
       const session = engine.replay();
       const seen: Array<{ cursor: number; playing: boolean; hasFrame: boolean }> = [];
       session.subscribe((event) => {
-        seen.push({ cursor: event.cursor, playing: event.isPlaying, hasFrame: event.frame !== null });
+        seen.push({
+          cursor: event.cursor,
+          playing: event.isPlaying,
+          hasFrame: event.frame !== null,
+        });
       });
 
       session.play();
