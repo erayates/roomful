@@ -5,6 +5,7 @@ import { type ReactElement, useEffect } from 'react';
 
 import type { MiniAppDefinition } from '../apps/registry';
 import type { DemoIdentity, DemoPresence } from '../demo-types';
+import { SessionRecorder } from './session-recorder';
 
 function statusLabel(status: RoomStatus): string {
   switch (status) {
@@ -73,6 +74,8 @@ export function MiniAppStage({ app, identity, transportLabel }: MiniAppStageProp
       <div className="stage__app" data-app={app.id}>
         <AppComponent identity={identity} />
       </div>
+
+      <SessionRecorder />
     </section>
   );
 }

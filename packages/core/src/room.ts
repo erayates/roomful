@@ -21,6 +21,7 @@ import {
 } from './engines/locks';
 import { createPointerEngine, type PointerFrame } from './engines/pointer';
 import { createPresenceEngine } from './engines/presence';
+import { createRecordingEngine } from './engines/recording';
 import { createStateEngine, type StateEngineContext } from './engines/state';
 import { createCrdtStateEngine as createCrdtStateEngineRuntime } from './engines/state.crdt';
 import {
@@ -119,6 +120,7 @@ import type {
   PointerOptions,
   PresenceData,
   PresenceEngine,
+  RecordingEngine,
   Room,
   RoomDiagnostics,
   RoomEventHandler,
@@ -539,6 +541,8 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
   private commentsEngineInstance: CommentsEngine | null = null;
 
   private historyEngineInstance: HistoryEngine | null = null;
+
+  private recordingEngineInstance: RecordingEngine | null = null;
 
   private yjsController: RoomYjsController<TPresence> | null = null;
 
@@ -1403,6 +1407,23 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     });
 
     return historyEngine;
+  }
+
+  public useRecording(): RecordingEngine {
+    if (this.recordingEngineInstance) {
+      return this.recordingEngineInstance;
+    }
+
+    const recordingEngine = createRecordingEngine({
+      roomId: this.id,
+      peerId: this.peerId,
+    });
+
+    this.recordingEngineInstance = recordingEngine;
+
+    this.logger.info('state', 'state', 'Recording engine configured', {});
+
+    return recordingEngine;
   }
 
   // Hydrates the comments engine from local persistence, seeding any thread the
@@ -2350,6 +2371,7 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
 
   private handleRoomSignal(signal: RoomTransportSignal): void {
     this.recordMessageActivity();
+    this.recordingEngineInstance?.ingest('inbound', signal);
     switch (signal.type) {
       case 'hello':
         this.handleHelloSignal(signal);
@@ -2878,6 +2900,7 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     }
 
     this.recordMessageActivity();
+    this.recordingEngineInstance?.ingest('outbound', signal);
     this.queueOutboundSignal(signal);
   }
 

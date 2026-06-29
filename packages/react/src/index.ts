@@ -18,6 +18,7 @@ import type {
   PointerOptions,
   PresenceData,
   PresenceEngine,
+  RecordingEngine,
   Room,
   RoomOptions,
   RoomStatus,
@@ -385,6 +386,48 @@ export interface UseHistoryResult {
   redo: HistoryEngine['redo'];
 }
 
+/**
+ * Describes the return value of `useRecording`.
+ */
+export interface UseRecordingResult {
+  /**
+   * Whether the recorder is currently capturing wire signals. Reactive.
+   */
+  isRecording: boolean;
+
+  /**
+   * How many signals the current take has captured. Reactive: increments as
+   * traffic flows while recording.
+   */
+  frameCount: number;
+
+  /**
+   * The span of the current take in milliseconds. Reactive.
+   */
+  durationMs: number;
+
+  /**
+   * Begins capturing, discarding any previous take.
+   */
+  start: RecordingEngine['start'];
+
+  /**
+   * Stops capturing; the captured frames remain available.
+   */
+  stop: RecordingEngine['stop'];
+
+  /**
+   * Builds a timed playback session for a recording, or the current take.
+   */
+  replay: RecordingEngine['replay'];
+
+  /**
+   * Serializes the current take into a portable recording (named to stay
+   * destructurable, since `export` is a reserved word).
+   */
+  exportRecording: RecordingEngine['export'];
+}
+
 interface RoomDefinition<TPresence extends PresenceData> {
   roomId: string;
   options: RoomOptions<TPresence>;
@@ -454,6 +497,12 @@ interface HistorySnapshotCache<TPresence extends PresenceData> {
   room: Room<TPresence>;
   engine: HistoryEngine;
   snapshot: UseHistoryResult;
+}
+
+interface RecordingSnapshotCache<TPresence extends PresenceData> {
+  room: Room<TPresence>;
+  engine: RecordingEngine;
+  snapshot: UseRecordingResult;
 }
 
 interface PeerSnapshotCache<TPresence extends PresenceData> {
@@ -1194,6 +1243,65 @@ export function useHistory<TPresence extends PresenceData = PresenceData>(
 }
 
 /**
+ * Subscribes to the session-recording engine: reactive `isRecording`,
+ * `frameCount`, and `durationMs`, with stable start/stop/replay/export controls.
+ * Capture is local to this peer; replay re-emits the captured frames at their
+ * original tempo.
+ *
+ * @typeParam TPresence - The room presence shape.
+ * @returns The recorder state and controls.
+ */
+export function useRecording<TPresence extends PresenceData = PresenceData>(): UseRecordingResult {
+  const room = useRoom<TPresence>();
+  const recordingEngine = room.useRecording();
+  const engineRef = useRef(recordingEngine);
+  engineRef.current = recordingEngine;
+
+  const snapshotCacheRef = useRef<RecordingSnapshotCache<TPresence> | null>(null);
+
+  const start = useCallback<RecordingEngine['start']>(() => {
+    engineRef.current.start();
+  }, []);
+  const stop = useCallback<RecordingEngine['stop']>(() => {
+    engineRef.current.stop();
+  }, []);
+  const replay = useCallback<RecordingEngine['replay']>((recording) => {
+    return engineRef.current.replay(recording);
+  }, []);
+  const exportRecording = useCallback<RecordingEngine['export']>(() => {
+    return engineRef.current.export();
+  }, []);
+
+  const subscribe = useCallback(
+    (onStoreChange: () => void) => {
+      return recordingEngine.subscribe(() => {
+        const previousSnapshot = snapshotCacheRef.current?.snapshot ?? null;
+        const nextSnapshot = readRecordingSnapshot(room, recordingEngine, snapshotCacheRef, {
+          start,
+          stop,
+          replay,
+          exportRecording,
+        });
+        if (nextSnapshot !== previousSnapshot) {
+          onStoreChange();
+        }
+      });
+    },
+    [exportRecording, recordingEngine, replay, room, start, stop],
+  );
+  const getSnapshot = useCallback(() => {
+    return readRecordingSnapshot(room, recordingEngine, snapshotCacheRef, {
+      start,
+      stop,
+      replay,
+      exportRecording,
+    });
+  }, [exportRecording, recordingEngine, replay, room, start, stop]);
+
+  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+}
+
+/**
  * Subscribes to a custom event channel and returns an emitter for that channel.
  *
  * @typeParam TPayload - The payload type for the channel.
@@ -1868,6 +1976,55 @@ function readHistorySnapshot<TPresence extends PresenceData>(
   cacheRef.current = {
     room,
     engine: history,
+    snapshot,
+  };
+  return snapshot;
+}
+
+function readRecordingSnapshot<TPresence extends PresenceData>(
+  room: Room<TPresence>,
+  recording: RecordingEngine,
+  cacheRef: { current: RecordingSnapshotCache<TPresence> | null },
+  handlers: Pick<UseRecordingResult, 'start' | 'stop' | 'replay' | 'exportRecording'>,
+): UseRecordingResult {
+  const state = recording.getState();
+  const previous = cacheRef.current;
+
+  if (previous && previous.room === room && previous.engine === recording) {
+    const previousSnapshot = previous.snapshot;
+    if (
+      previousSnapshot.isRecording === state.isRecording &&
+      previousSnapshot.frameCount === state.frameCount &&
+      previousSnapshot.durationMs === state.durationMs
+    ) {
+      return previousSnapshot;
+    }
+
+    previous.snapshot = {
+      isRecording: state.isRecording,
+      frameCount: state.frameCount,
+      durationMs: state.durationMs,
+      start: previousSnapshot.start,
+      stop: previousSnapshot.stop,
+      replay: previousSnapshot.replay,
+      exportRecording: previousSnapshot.exportRecording,
+    };
+    return previous.snapshot;
+  }
+
+  const snapshot: UseRecordingResult = {
+    isRecording: state.isRecording,
+    frameCount: state.frameCount,
+    durationMs: state.durationMs,
+    start: handlers.start,
+    stop: handlers.stop,
+    replay: handlers.replay,
+    exportRecording: handlers.exportRecording,
+  };
+
+  cacheRef.current = {
+    room,
+    engine: recording,
     snapshot,
   };
   return snapshot;
