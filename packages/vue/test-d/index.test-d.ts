@@ -14,6 +14,8 @@ import {
   useConnectionStatus,
   useCursors,
   useEvent,
+  useHistory,
+  type UseHistoryResult,
   useLocks,
   type UseLocksResult,
   useLockState,
@@ -32,6 +34,7 @@ import type {
   PresenceData,
   RoomfulError,
   RoomStatus,
+  TimelineEntry,
   Unsubscribe,
   ViewportState,
 } from '@roomful/core';
@@ -120,6 +123,22 @@ expectType<CommentThread[]>(comments.getOpen());
 
 const commentsWithOptions = useComments({ storage: 'indexeddb' });
 expectType<UseCommentsResult>(commentsWithOptions);
+
+const history = useHistory();
+expectType<UseHistoryResult>(history);
+expectType<ReadonlyRef<TimelineEntry[]>>(history.timeline);
+expectType<TimelineEntry[]>(history.timeline.value);
+expectType<string | undefined>(history.timeline.value[0]?.action);
+expectType<ReadonlyRef<boolean>>(history.canUndo);
+expectType<boolean>(history.canUndo.value);
+expectType<ReadonlyRef<boolean>>(history.canRedo);
+history.capture('draw', 'Drew a circle');
+history.transaction('add-shape', () => undefined);
+expectType<Promise<void>>(history.undo());
+expectType<Promise<void>>(history.redo());
+
+const historyWithOptions = useHistory({ maxEntries: 50 });
+expectType<UseHistoryResult>(historyWithOptions);
 
 const [votes, setVotes] = useSharedState('votes', {
   initialValue: {

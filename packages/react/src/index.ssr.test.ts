@@ -441,6 +441,32 @@ function createMockRoom(
         }),
       };
     }),
+    useHistory: vi.fn(() => {
+      return {
+        capture: vi.fn(),
+        transaction: vi.fn(),
+        undo: vi.fn(async () => {
+          return undefined;
+        }),
+        redo: vi.fn(async () => {
+          return undefined;
+        }),
+        canUndo: vi.fn(() => {
+          return false;
+        }),
+        canRedo: vi.fn(() => {
+          return false;
+        }),
+        timeline: vi.fn(() => {
+          return [];
+        }),
+        subscribe: vi.fn(() => {
+          return () => {
+            return undefined;
+          };
+        }),
+      };
+    }),
     useEvents: vi.fn(() => {
       return eventEngine;
     }),

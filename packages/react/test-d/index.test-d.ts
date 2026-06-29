@@ -10,6 +10,8 @@ import {
   useConnectionStatus,
   useCursors,
   useEvent,
+  useHistory,
+  type UseHistoryResult,
   useLocks,
   type UseLocksResult,
   useLockState,
@@ -29,6 +31,7 @@ import type {
   PresenceData,
   Room,
   RoomStatus,
+  TimelineEntry,
   Unsubscribe,
   ViewportState,
 } from '@roomful/core';
@@ -99,6 +102,16 @@ locks.releaseAll();
 const lockState = useLockState('cell-1');
 expectType<LockState | null>(lockState);
 expectType<Peer | null | undefined>(lockState?.holder);
+
+const history = useHistory();
+expectType<UseHistoryResult>(history);
+expectType<TimelineEntry[]>(history.timeline);
+expectType<boolean>(history.canUndo);
+expectType<boolean>(history.canRedo);
+history.capture('draw', 'Drew a circle');
+history.transaction('add-shape', () => undefined);
+expectType<Promise<void>>(history.undo());
+expectType<Promise<void>>(history.redo());
 
 const peers = usePeers<{ role: 'editor' | 'viewer' }>();
 expectType<Peer<{ role: 'editor' | 'viewer' }>[]>(peers);

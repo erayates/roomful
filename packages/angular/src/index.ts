@@ -19,6 +19,8 @@ import type {
   CursorEngine,
   CursorOptions,
   CursorPosition,
+  HistoryEngine,
+  HistoryOptions,
   LockAcquireOptions,
   LockEngine,
   LockState,
@@ -33,6 +35,7 @@ import type {
   RoomStatus,
   StateEngine,
   StateOptions,
+  TimelineEntry,
   ViewportEngine,
   ViewportOptions,
   ViewportState,
@@ -369,9 +372,55 @@ export interface InjectCommentsResult {
 }
 
 /**
+ * Describes the return value of {@link injectHistory}.
+ */
+export interface InjectHistoryResult {
+  /**
+   * Exposes the shared timeline of every peer's entries, oldest first. Reactive:
+   * updates on any local or remote timeline change.
+   */
+  timeline: Signal<TimelineEntry[]>;
+
+  /**
+   * Reports whether the local peer has a tracked transaction to undo. Reactive.
+   */
+  canUndo: Signal<boolean>;
+
+  /**
+   * Reports whether the local peer has an undone transaction to redo. Reactive.
+   */
+  canRedo: Signal<boolean>;
+
+  /**
+   * Records a timeline entry without wrapping a mutation.
+   */
+  capture: HistoryEngine['capture'];
+
+  /**
+   * Runs a function, capturing its shared-CRDT mutations as one undoable entry.
+   */
+  transaction: HistoryEngine['transaction'];
+
+  /**
+   * Undoes the local peer's most recent tracked transaction.
+   */
+  undo: HistoryEngine['undo'];
+
+  /**
+   * Redoes the local peer's most recently undone transaction.
+   */
+  redo: HistoryEngine['redo'];
+}
+
+/**
  * Re-exports the collaborative comment types for adapter consumers.
  */
 export type { Comment, CommentAnchor, CommentsOptions, CommentThread };
+
+/**
+ * Re-exports the collaborative history types for adapter consumers.
+ */
+export type { HistoryEngine, HistoryOptions, TimelineEntry };
 
 interface PresenceSnapshot<TPresence extends PresenceData> {
   self: Peer<TPresence>;
@@ -438,6 +487,12 @@ interface CommentsSnapshotCache<TPresence extends PresenceData> {
   room: Room<TPresence>;
   engine: CommentsEngine;
   snapshot: CommentThread[];
+}
+
+interface HistorySnapshotCache<TPresence extends PresenceData> {
+  room: Room<TPresence>;
+  engine: HistoryEngine;
+  snapshot: TimelineEntry[];
 }
 
 type EventHandlerRef<TPayload, TPresence extends PresenceData> = {
@@ -900,6 +955,56 @@ export function injectComments<TPresence extends PresenceData = PresenceData>(
     },
     getOpen: () => {
       return commentsEngine.getOpen();
+    },
+  };
+}
+
+/**
+ * Subscribes to the collaborative history engine: a reactive shared timeline
+ * plus reactive `canUndo`/`canRedo`, with capture/transaction/undo/redo controls.
+ *
+ * Must be called in an injection context.
+ *
+ * @typeParam TPresence - The room presence shape.
+ * @param options - Optional history configuration.
+ * @returns The timeline and undo/redo availability signals plus controls.
+ */
+export function injectHistory<TPresence extends PresenceData = PresenceData>(
+  options?: HistoryOptions,
+): InjectHistoryResult {
+  assertInInjectionContext(injectHistory);
+  const room = injectRoom<TPresence>();
+  const historyEngine = room.useHistory(options);
+  const cacheRef: { current: HistorySnapshotCache<TPresence> | null } = {
+    current: null,
+  };
+  const timeline = signal(readHistorySnapshot(room, historyEngine, cacheRef));
+  const canUndo = signal(historyEngine.canUndo());
+  const canRedo = signal(historyEngine.canRedo());
+
+  const unsubscribe = historyEngine.subscribe(() => {
+    timeline.set(readHistorySnapshot(room, historyEngine, cacheRef));
+    canUndo.set(historyEngine.canUndo());
+    canRedo.set(historyEngine.canRedo());
+  });
+
+  inject(DestroyRef).onDestroy(unsubscribe);
+
+  return {
+    timeline,
+    canUndo,
+    canRedo,
+    capture: (action, payload) => {
+      historyEngine.capture(action, payload);
+    },
+    transaction: (name, fn) => {
+      historyEngine.transaction(name, fn);
+    },
+    undo: () => {
+      return historyEngine.undo();
+    },
+    redo: () => {
+      return historyEngine.redo();
     },
   };
 }
@@ -1558,6 +1663,63 @@ function readCommentsSnapshot<TPresence extends PresenceData>(
   return nextSnapshot;
 }
 
+function areTimelineArraysEqual(
+  previous: readonly TimelineEntry[],
+  next: readonly TimelineEntry[],
+): boolean {
+  if (previous === next) {
+    return true;
+  }
+
+  if (previous.length !== next.length) {
+    return false;
+  }
+
+  for (let index = 0; index < previous.length; index += 1) {
+    const previousEntry = previous[index];
+    const nextEntry = next[index];
+
+    if (!previousEntry || !nextEntry || !areStructuredValuesEqual(previousEntry, nextEntry)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function readHistorySnapshot<TPresence extends PresenceData>(
+  room: Room<TPresence>,
+  history: HistoryEngine,
+  cacheRef: { current: HistorySnapshotCache<TPresence> | null },
+): TimelineEntry[] {
+  const nextSnapshot = history.timeline();
+  const previous = cacheRef.current;
+
+  if (previous !== null && previous.room === room && previous.engine === history) {
+    const previousSnapshot = previous.snapshot;
+    if (areTimelineArraysEqual(previousSnapshot, nextSnapshot)) {
+      return previousSnapshot;
+    }
+
+    previous.snapshot = nextSnapshot.map((entry, index) => {
+      const previousEntry = previousSnapshot[index];
+      if (previousEntry !== undefined && areStructuredValuesEqual(previousEntry, entry)) {
+        return previousEntry;
+      }
+
+      return entry;
+    });
+    return previous.snapshot;
+  }
+
+  cacheRef.current = {
+    room,
+    engine: history,
+    snapshot: nextSnapshot,
+  };
+  return nextSnapshot;
+}
+
 function resolveSingleLockState(locks: LockEngine, key: string): LockState | null {
   const holder = locks.getHolder(key);
   if (!holder) {
@@ -1678,6 +1840,7 @@ function isRoom<TPresence extends PresenceData = PresenceData>(
     hasFunction(value, 'usePointer') &&
     hasFunction(value, 'useLocks') &&
     hasFunction(value, 'useComments') &&
+    hasFunction(value, 'useHistory') &&
     hasFunction(value, 'useEvents') &&
     hasFunction(value, 'getYDoc') &&
     hasFunction(value, 'getYProvider') &&

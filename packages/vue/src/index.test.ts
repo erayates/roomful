@@ -10,6 +10,7 @@ import type {
   CursorEngine,
   CursorPosition,
   EventEngine,
+  HistoryEngine,
   LockEngine,
   LockState,
   Peer,
@@ -24,6 +25,7 @@ import type {
   RoomStatus,
   StateChangeMeta,
   StateEngine,
+  TimelineEntry,
   ViewportEngine,
   ViewportState,
 } from '@roomful/core';
@@ -36,6 +38,7 @@ import type {
   UseAwarenessResult,
   UseCommentsResult,
   UseCursorsResult,
+  UseHistoryResult,
   UseLocksResult,
   UsePointerResult,
   UsePresenceResult,
@@ -48,6 +51,7 @@ import {
   useConnectionStatus,
   useCursors,
   useEvent,
+  useHistory,
   useLocks,
   useLockState,
   usePointer,
@@ -83,6 +87,7 @@ type PointerSubscriber = (beams: PointerBeam[]) => void;
 type LockStateSubscriber = (state: LockState) => void;
 type LocksSubscriber = (states: LockState[]) => void;
 type CommentsSubscriber = (threads: CommentThread[]) => void;
+type HistorySubscriber = (timeline: TimelineEntry[]) => void;
 
 type TestPresenceEngine = PresenceEngine<PresenceData> & {
   emit(peers: Peer<PresenceData>[]): void;
@@ -152,6 +157,17 @@ type TestCommentsEngine = CommentsEngine & {
   reopen: ReturnType<typeof vi.fn<(threadId: string) => Promise<CommentThread>>>;
 };
 
+type TestHistoryEngine = HistoryEngine & {
+  emit(timeline: TimelineEntry[]): void;
+  setCanUndo(value: boolean): void;
+  setCanRedo(value: boolean): void;
+  subscriberCount(): number;
+  capture: ReturnType<typeof vi.fn<(action: string, payload?: unknown) => void>>;
+  transaction: ReturnType<typeof vi.fn<(name: string, fn: () => void) => void>>;
+  undo: ReturnType<typeof vi.fn<() => Promise<void>>>;
+  redo: ReturnType<typeof vi.fn<() => Promise<void>>>;
+};
+
 type TestEventEngine = EventEngine<PresenceData> & {
   deliver(name: string, payload: unknown, from?: Peer<PresenceData>): void;
   subscriberCount(name: string): number;
@@ -178,6 +194,7 @@ type TestRoom = Room<PresenceData> & {
   commentsEngine: TestCommentsEngine;
   cursorEngine: TestCursorEngine;
   eventEngine: TestEventEngine;
+  historyEngine: TestHistoryEngine;
   lockEngine: TestLockEngine;
   pointerEngine: TestPointerEngine;
   presenceEngine: TestPresenceEngine;
@@ -640,6 +657,100 @@ function createMockCommentsEngine(threads: CommentThread[] = []): TestCommentsEn
   return engine;
 }
 
+function createTimelineEntry(id: string, overrides: Partial<TimelineEntry> = {}): TimelineEntry {
+  return {
+    id,
+    peerId: `peer-${id}`,
+    peerName: `Peer ${id}`,
+    action: id,
+    timestamp: 1,
+    description: id,
+    ...overrides,
+  };
+}
+
+function createMockHistoryEngine(timeline: TimelineEntry[] = []): TestHistoryEngine {
+  const subscribers = new Set<HistorySubscriber>();
+  let currentTimeline = timeline;
+  let currentCanUndo = false;
+  let currentCanRedo = false;
+
+  const notify = (): void => {
+    for (const subscriber of subscribers) {
+      subscriber(currentTimeline);
+    }
+  };
+
+  const engine = {
+    capture: vi.fn((action: string, payload?: unknown) => {
+      currentTimeline = [
+        ...currentTimeline,
+        createTimelineEntry(`entry-${currentTimeline.length + 1}`, {
+          action,
+          description: typeof payload === 'string' && payload.length > 0 ? payload : action,
+        }),
+      ];
+      notify();
+    }),
+    transaction: vi.fn((name: string, fn: () => void) => {
+      fn();
+      currentCanUndo = true;
+      currentCanRedo = false;
+      currentTimeline = [
+        ...currentTimeline,
+        createTimelineEntry(`entry-${currentTimeline.length + 1}`, {
+          action: name,
+          description: name,
+        }),
+      ];
+      notify();
+    }),
+    undo: vi.fn(async () => {
+      currentCanUndo = false;
+      currentCanRedo = true;
+      notify();
+    }),
+    redo: vi.fn(async () => {
+      currentCanUndo = true;
+      currentCanRedo = false;
+      notify();
+    }),
+    canUndo() {
+      return currentCanUndo;
+    },
+    canRedo() {
+      return currentCanRedo;
+    },
+    timeline() {
+      return currentTimeline;
+    },
+    subscribe(callback: HistorySubscriber) {
+      subscribers.add(callback);
+      callback(currentTimeline);
+      return () => {
+        subscribers.delete(callback);
+      };
+    },
+    emit(nextTimeline: TimelineEntry[]) {
+      currentTimeline = nextTimeline;
+      notify();
+    },
+    setCanUndo(value: boolean) {
+      currentCanUndo = value;
+      notify();
+    },
+    setCanRedo(value: boolean) {
+      currentCanRedo = value;
+      notify();
+    },
+    subscriberCount() {
+      return subscribers.size;
+    },
+  } as TestHistoryEngine;
+
+  return engine;
+}
+
 function createMockEventEngine(): TestEventEngine {
   const subscribers = new Map<string, Set<EventSubscriber>>();
 
@@ -748,6 +859,7 @@ function createMockRoom(
     commentsEngine?: TestCommentsEngine;
     cursorEngine?: TestCursorEngine;
     eventEngine?: TestEventEngine;
+    historyEngine?: TestHistoryEngine;
     lockEngine?: TestLockEngine;
     peerId?: string;
     pointerEngine?: TestPointerEngine;
@@ -762,6 +874,7 @@ function createMockRoom(
   const commentsEngine = config.commentsEngine ?? createMockCommentsEngine();
   const cursorEngine = config.cursorEngine ?? createMockCursorEngine();
   const eventEngine = config.eventEngine ?? createMockEventEngine();
+  const historyEngine = config.historyEngine ?? createMockHistoryEngine();
   const lockEngine = config.lockEngine ?? createMockLockEngine();
   const stateEngine = config.stateEngine ?? createMockStateEngine({});
   const viewportEngine = config.viewportEngine ?? createMockViewportEngine();
@@ -867,6 +980,9 @@ function createMockRoom(
     useComments: vi.fn(() => {
       return commentsEngine;
     }),
+    useHistory: vi.fn(() => {
+      return historyEngine;
+    }),
     useEvents: vi.fn(() => {
       return eventEngine;
     }),
@@ -915,6 +1031,7 @@ function createMockRoom(
     commentsEngine,
     cursorEngine,
     eventEngine,
+    historyEngine,
     lockEngine,
     pointerEngine,
     presenceEngine,
@@ -1599,6 +1716,97 @@ describe('useComments', () => {
         defineComponent({
           setup() {
             useComments();
+            return {};
+          },
+          template: '<div />',
+        }),
+      );
+    }).toThrowError(RoomfulError);
+  });
+});
+
+describe('useHistory', () => {
+  it('exposes the timeline reactively and forwards capture/transaction/undo/redo controls', async () => {
+    const historyEngine = createMockHistoryEngine([
+      createTimelineEntry('seed', { action: 'draw' }),
+    ]);
+    createMockRoom(
+      'history-room',
+      {},
+      {
+        historyEngine,
+      },
+    );
+    let observedHistory: UseHistoryResult | null = null;
+
+    const wrapper = mount(
+      defineComponent({
+        setup() {
+          observedHistory = useHistory();
+          return {
+            timeline: observedHistory.timeline,
+          };
+        },
+        template: '<span>{{ timeline.length }}</span>',
+      }),
+      {
+        global: {
+          plugins: [[RoomfulPlugin, { roomId: 'history-room' }]],
+        },
+      },
+    );
+
+    expect(wrapper.text()).toContain('1');
+    expect(observedHistory?.timeline.value).toEqual([expect.objectContaining({ id: 'seed' })]);
+    expect(observedHistory?.canUndo.value).toBe(false);
+    expect(observedHistory?.canRedo.value).toBe(false);
+
+    // capture appends a timeline entry reactively.
+    observedHistory?.capture('move', 'Moved a shape');
+    await nextTick();
+
+    expect(wrapper.text()).toContain('2');
+    expect(historyEngine.capture).toHaveBeenCalledWith('move', 'Moved a shape');
+
+    // transaction wraps a mutation and flips canUndo.
+    const wrapped = vi.fn();
+    observedHistory?.transaction('add-shape', wrapped);
+    await nextTick();
+
+    expect(wrapped).toHaveBeenCalledTimes(1);
+    expect(historyEngine.transaction).toHaveBeenCalledWith('add-shape', wrapped);
+    expect(observedHistory?.canUndo.value).toBe(true);
+
+    await observedHistory?.undo();
+    await nextTick();
+    expect(historyEngine.undo).toHaveBeenCalledTimes(1);
+    expect(observedHistory?.canUndo.value).toBe(false);
+    expect(observedHistory?.canRedo.value).toBe(true);
+
+    await observedHistory?.redo();
+    await nextTick();
+    expect(historyEngine.redo).toHaveBeenCalledTimes(1);
+    expect(observedHistory?.canUndo.value).toBe(true);
+
+    // A remote timeline change is reflected in the reactive list.
+    historyEngine.emit([
+      createTimelineEntry('seed', { action: 'draw' }),
+      createTimelineEntry('remote', { action: 'erase' }),
+    ]);
+    await nextTick();
+
+    expect(wrapper.text()).toContain('2');
+
+    wrapper.unmount();
+    expect(historyEngine.subscriberCount()).toBe(0);
+  });
+
+  it('throws a typed error when useHistory() is called outside the plugin', () => {
+    expect(() => {
+      mount(
+        defineComponent({
+          setup() {
+            useHistory();
             return {};
           },
           template: '<div />',

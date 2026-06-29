@@ -12,6 +12,8 @@ import type {
   CursorPosition,
   CursorRenderOptions,
   EventEngine,
+  HistoryEngine,
+  HistoryOptions,
   LockAcquireOptions,
   LockEngine,
   LockState,
@@ -25,6 +27,7 @@ import type {
   RoomStatus,
   StateEngine,
   StateOptions,
+  TimelineEntry,
   Unsubscribe,
   ViewportEngine,
   ViewportState,
@@ -108,6 +111,12 @@ interface CommentsSnapshotCache<TPresence extends PresenceData> {
   engine: CommentsEngine;
   room: Room<TPresence>;
   snapshot: CommentThread[];
+}
+
+interface HistorySnapshotCache<TPresence extends PresenceData> {
+  engine: HistoryEngine;
+  room: Room<TPresence>;
+  snapshot: TimelineEntry[];
 }
 
 interface LockStateSnapshotCache<TPresence extends PresenceData> {
@@ -452,9 +461,54 @@ export interface CommentsStore extends Readable<CommentThread[]> {
 }
 
 /**
+ * Readable store of the shared collaborative history timeline augmented with
+ * reactive `canUndo`/`canRedo` stores and the undo/redo controls. The store's
+ * own value is the timeline (oldest first), updating on any local or remote
+ * timeline change.
+ */
+export interface HistoryStore extends Readable<TimelineEntry[]> {
+  /**
+   * A readable store reporting whether the local peer has a tracked transaction
+   * to undo.
+   */
+  canUndo: Readable<boolean>;
+
+  /**
+   * A readable store reporting whether the local peer has an undone transaction
+   * to redo.
+   */
+  canRedo: Readable<boolean>;
+
+  /**
+   * Records a timeline entry without wrapping a mutation.
+   */
+  capture: HistoryEngine['capture'];
+
+  /**
+   * Runs a function, capturing its shared-CRDT mutations as one undoable entry.
+   */
+  transaction: HistoryEngine['transaction'];
+
+  /**
+   * Undoes the local peer's most recent tracked transaction.
+   */
+  undo: HistoryEngine['undo'];
+
+  /**
+   * Redoes the local peer's most recently undone transaction.
+   */
+  redo: HistoryEngine['redo'];
+}
+
+/**
  * Re-exports the collaborative comment types for adapter consumers.
  */
 export type { Comment, CommentAnchor, CommentsOptions, CommentThread };
+
+/**
+ * Re-exports the collaborative history types for adapter consumers.
+ */
+export type { HistoryEngine, HistoryOptions, TimelineEntry };
 
 /**
  * Readable awareness store augmented with write helpers.
@@ -608,6 +662,11 @@ export interface RoomfulOptions<
   comments?: CommentsOptions;
 
   /**
+   * Configures the history store (timeline cap and capture debounce).
+   */
+  history?: HistoryOptions;
+
+  /**
    * Runs after the room connects.
    */
   onConnect?: () => void;
@@ -675,6 +734,12 @@ export interface RoomfulAdapter<
   events: EventsNamespace<TPresence>;
 
   /**
+   * Exposes the collaborative history store: the timeline plus reactive
+   * `canUndo`/`canRedo` stores and the undo/redo controls.
+   */
+  history: HistoryStore;
+
+  /**
    * Exposes the store of all held locks plus acquire/release controls.
    */
   locks: LocksStore;
@@ -726,7 +791,14 @@ export function roomful<
   TPresence extends PresenceData = PresenceData,
   TCursor extends CursorData = CursorData,
 >(roomId: string, options: RoomfulOptions<TPresence> = {}): RoomfulAdapter<TPresence, TCursor> {
-  const { comments: commentsOptions, onConnect, onDisconnect, onError, ...roomOptions } = options;
+  const {
+    comments: commentsOptions,
+    history: historyOptions,
+    onConnect,
+    onDisconnect,
+    onError,
+    ...roomOptions
+  } = options;
   const room = createRoom(roomId, roomOptions);
   const presenceEngine = room.usePresence();
   const cursorEngine = room.useCursors<TCursor>();
@@ -735,6 +807,7 @@ export function roomful<
   const pointerEngine = room.usePointer();
   const lockEngine = room.useLocks();
   const commentsEngine = room.useComments(commentsOptions);
+  const historyEngine = room.useHistory(historyOptions);
   const eventEngine = room.useEvents();
 
   let destroyed = false;
@@ -751,6 +824,7 @@ export function roomful<
   let pointerCache: PointerSnapshotCache<TPresence> | null = null;
   let locksCache: LocksSnapshotCache<TPresence> | null = null;
   let commentsCache: CommentsSnapshotCache<TPresence> | null = null;
+  let historyCache: HistorySnapshotCache<TPresence> | null = null;
   let sharedStateController: SharedStateController<TPresence, unknown> | null = null;
 
   const cleanupRegistry = new Set<() => void>();
@@ -822,6 +896,16 @@ export function roomful<
       },
     }),
   );
+  const historyStore = createValueStore(
+    readHistorySnapshot(room, historyEngine, {
+      current: historyCache,
+      set(nextCache) {
+        historyCache = nextCache;
+      },
+    }),
+  );
+  const historyCanUndoStore = createValueStore<boolean>(historyEngine.canUndo());
+  const historyCanRedoStore = createValueStore<boolean>(historyEngine.canRedo());
   const statusStore = createValueStore<RoomStatus>(room.status);
 
   const refreshStatus = (): void => {
@@ -903,6 +987,19 @@ export function roomful<
         },
       }),
     );
+  };
+
+  const refreshHistory = (): void => {
+    historyStore.publish(
+      readHistorySnapshot(room, historyEngine, {
+        current: historyCache,
+        set(nextCache) {
+          historyCache = nextCache;
+        },
+      }),
+    );
+    historyCanUndoStore.publish(historyEngine.canUndo());
+    historyCanRedoStore.publish(historyEngine.canRedo());
   };
 
   const registerCleanup = (callback: () => void): (() => void) => {
@@ -1042,6 +1139,20 @@ export function roomful<
     });
   };
 
+  const attachHistorySubscription = (): void => {
+    if (!runtimeStarted) {
+      return;
+    }
+
+    const unsubscribe = historyEngine.subscribe(() => {
+      refreshHistory();
+    });
+
+    registerCleanup(() => {
+      unsubscribe();
+    });
+  };
+
   const attachLockStateRecord = (record: LockStateRecord<TPresence>): void => {
     if (!runtimeStarted || record.cleanup) {
       return;
@@ -1133,6 +1244,7 @@ export function roomful<
     attachPointerSubscription();
     attachLocksSubscription();
     attachCommentsSubscription();
+    attachHistorySubscription();
     attachSharedStateSubscription();
 
     for (const record of eventListeners) {
@@ -1424,6 +1536,38 @@ export function roomful<
     },
     getOpen() {
       return commentsEngine.getOpen();
+    },
+  };
+
+  const history: HistoryStore = {
+    subscribe(run, invalidate) {
+      return historyStore.subscribe(run, invalidate);
+    },
+    canUndo: {
+      subscribe(run, invalidate) {
+        return historyCanUndoStore.subscribe(run, invalidate);
+      },
+    },
+    canRedo: {
+      subscribe(run, invalidate) {
+        return historyCanRedoStore.subscribe(run, invalidate);
+      },
+    },
+    capture(action, payload) {
+      assertAvailable('history.capture');
+      historyEngine.capture(action, payload);
+    },
+    transaction(name, fn) {
+      assertAvailable('history.transaction');
+      historyEngine.transaction(name, fn);
+    },
+    undo() {
+      assertAvailable('history.undo');
+      return historyEngine.undo();
+    },
+    redo() {
+      assertAvailable('history.redo');
+      return historyEngine.redo();
     },
   };
 
@@ -1723,6 +1867,9 @@ export function roomful<
     pointerStore.clear();
     locksStore.clear();
     commentsStore.clear();
+    historyStore.clear();
+    historyCanUndoStore.clear();
+    historyCanRedoStore.clear();
     statusStore.clear();
     sharedStateController?.valueStore.clear();
 
@@ -1745,6 +1892,7 @@ export function roomful<
     destroy,
     disconnect,
     events,
+    history,
     locks,
     lockState,
     pointer,
@@ -2191,6 +2339,67 @@ function readCommentsSnapshot<TPresence extends PresenceData>(
 
   cacheRef.set({
     engine: comments,
+    room,
+    snapshot: nextSnapshot,
+  });
+  return nextSnapshot;
+}
+
+function areTimelineArraysEqual(
+  previous: readonly TimelineEntry[],
+  next: readonly TimelineEntry[],
+): boolean {
+  if (previous === next) {
+    return true;
+  }
+
+  if (previous.length !== next.length) {
+    return false;
+  }
+
+  for (let index = 0; index < previous.length; index += 1) {
+    const previousEntry = previous[index];
+    const nextEntry = next[index];
+
+    if (!previousEntry || !nextEntry || !areStructuredValuesEqual(previousEntry, nextEntry)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function readHistorySnapshot<TPresence extends PresenceData>(
+  room: Room<TPresence>,
+  history: HistoryEngine,
+  cacheRef: {
+    current: HistorySnapshotCache<TPresence> | null;
+    set(nextCache: HistorySnapshotCache<TPresence>): void;
+  },
+): TimelineEntry[] {
+  const nextSnapshot = history.timeline();
+  const previous = cacheRef.current;
+
+  if (previous && previous.room === room && previous.engine === history) {
+    const previousSnapshot = previous.snapshot;
+    if (areTimelineArraysEqual(previousSnapshot, nextSnapshot)) {
+      return previousSnapshot;
+    }
+
+    const stableSnapshot = nextSnapshot.map((entry, index) => {
+      const previousEntry = previousSnapshot[index];
+      if (previousEntry && areStructuredValuesEqual(previousEntry, entry)) {
+        return previousEntry;
+      }
+
+      return entry;
+    });
+    previous.snapshot = stableSnapshot;
+    return stableSnapshot;
+  }
+
+  cacheRef.set({
+    engine: history,
     room,
     snapshot: nextSnapshot,
   });
