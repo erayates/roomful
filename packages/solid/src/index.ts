@@ -9,6 +9,9 @@ import type {
   LockEngine,
   LockState,
   Peer,
+  PointerBeam,
+  PointerEngine,
+  PointerOptions,
   PresenceData,
   PresenceEngine,
   Room,
@@ -225,6 +228,40 @@ export interface UseViewportResult {
 }
 
 /**
+ * Describes the return value of `usePointer`.
+ */
+export interface UsePointerResult {
+  /**
+   * Callback ref that mounts the pointer engine on a container element.
+   *
+   * @param element - The element to observe, or `null` to unmount.
+   * @returns Nothing.
+   */
+  ref(element: HTMLElement | null): void;
+
+  /**
+   * Exposes remote peers' pointer beams only.
+   */
+  beams: Accessor<PointerBeam[]>;
+
+  /**
+   * Starts broadcasting the local pointer beam to all peers.
+   */
+  activate: PointerEngine['activate'];
+
+  /**
+   * Stops broadcasting the local pointer beam so peers drop it.
+   */
+  deactivate: PointerEngine['deactivate'];
+
+  /**
+   * Renders the built-in pointer overlay over a container, returning a cleanup
+   * function.
+   */
+  render: PointerEngine['render'];
+}
+
+/**
  * Describes the return value of `useAwareness`.
  */
 export interface UseAwarenessResult {
@@ -322,6 +359,12 @@ interface ViewportSnapshotCache<TPresence extends PresenceData> {
   room: Room<TPresence>;
   engine: ViewportEngine;
   snapshot: ViewportState[];
+}
+
+interface PointerSnapshotCache<TPresence extends PresenceData> {
+  room: Room<TPresence>;
+  engine: PointerEngine;
+  snapshot: PointerBeam[];
 }
 
 interface LocksSnapshotCache<TPresence extends PresenceData> {
@@ -653,6 +696,97 @@ export function useViewport<TPresence extends PresenceData = PresenceData>(
     },
     unfollow: () => {
       viewportEngine.unfollow();
+    },
+  };
+}
+
+/**
+ * Subscribes to remote pointer beams and returns mounting and control helpers.
+ *
+ * @typeParam TPresence - The room presence shape.
+ * @param options - Optional pointer tracking configuration.
+ * @returns The remote beams plus a mounting ref and activate/deactivate/render controls.
+ */
+export function usePointer<TPresence extends PresenceData = PresenceData>(
+  options?: PointerOptions,
+): UsePointerResult {
+  const room = useRoom<TPresence>();
+  const pointerEngine = room.usePointer(options);
+  const cacheRef: { current: PointerSnapshotCache<TPresence> | null } = {
+    current: null,
+  };
+  const [beams, setBeams] = createSignal(readPointerSnapshot(room, pointerEngine, cacheRef));
+
+  let trackedElement: HTMLElement | null = null;
+  let mounted = false;
+
+  const mount = (element: HTMLElement): void => {
+    if (trackedElement === element) {
+      return;
+    }
+
+    if (trackedElement !== null) {
+      pointerEngine.unmount();
+    }
+
+    trackedElement = element;
+    pointerEngine.mount(element);
+    mounted = true;
+  };
+
+  const unmount = (): void => {
+    if (trackedElement === null) {
+      return;
+    }
+
+    pointerEngine.unmount();
+    trackedElement = null;
+    mounted = false;
+  };
+
+  const ref = (element: HTMLElement | null): void => {
+    if (element === null) {
+      unmount();
+      return;
+    }
+
+    mount(element);
+  };
+
+  onMount(() => {
+    const sync = (): void => {
+      const nextSnapshot = readPointerSnapshot(room, pointerEngine, cacheRef);
+      setBeams(() => nextSnapshot);
+    };
+
+    sync();
+
+    const unsubscribe = pointerEngine.subscribe(() => {
+      sync();
+    });
+
+    onCleanup(() => {
+      unsubscribe();
+
+      if (mounted) {
+        pointerEngine.unmount();
+        trackedElement = null;
+        mounted = false;
+      }
+    });
+  });
+
+  return {
+    ref,
+    beams,
+    activate: () => {
+      pointerEngine.activate();
+    },
+    deactivate: () => {
+      pointerEngine.deactivate();
+    },
+    render: (renderOptions) => {
+      return pointerEngine.render(renderOptions);
     },
   };
 }
@@ -1214,6 +1348,63 @@ function readViewportSnapshot<TPresence extends PresenceData>(
   return nextSnapshot;
 }
 
+function arePointerArraysEqual(
+  previous: readonly PointerBeam[],
+  next: readonly PointerBeam[],
+): boolean {
+  if (previous === next) {
+    return true;
+  }
+
+  if (previous.length !== next.length) {
+    return false;
+  }
+
+  for (let index = 0; index < previous.length; index += 1) {
+    const previousEntry = previous[index];
+    const nextEntry = next[index];
+
+    if (!previousEntry || !nextEntry || !areStructuredValuesEqual(previousEntry, nextEntry)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function readPointerSnapshot<TPresence extends PresenceData>(
+  room: Room<TPresence>,
+  pointer: PointerEngine,
+  cacheRef: { current: PointerSnapshotCache<TPresence> | null },
+): PointerBeam[] {
+  const nextSnapshot = pointer.getAll();
+  const previous = cacheRef.current;
+
+  if (previous !== null && previous.room === room && previous.engine === pointer) {
+    const previousSnapshot = previous.snapshot;
+    if (arePointerArraysEqual(previousSnapshot, nextSnapshot)) {
+      return previousSnapshot;
+    }
+
+    previous.snapshot = nextSnapshot.map((beam, index) => {
+      const previousBeam = previousSnapshot[index];
+      if (previousBeam !== undefined && areStructuredValuesEqual(previousBeam, beam)) {
+        return previousBeam;
+      }
+
+      return beam;
+    });
+    return previous.snapshot;
+  }
+
+  cacheRef.current = {
+    room,
+    engine: pointer,
+    snapshot: nextSnapshot,
+  };
+  return nextSnapshot;
+}
+
 function areLockArraysEqual(previous: readonly LockState[], next: readonly LockState[]): boolean {
   if (previous === next) {
     return true;
@@ -1385,6 +1576,7 @@ function isRoom<TPresence extends PresenceData = PresenceData>(
     hasFunction(value, 'useState') &&
     hasFunction(value, 'useAwareness') &&
     hasFunction(value, 'useViewport') &&
+    hasFunction(value, 'usePointer') &&
     hasFunction(value, 'useLocks') &&
     hasFunction(value, 'useEvents') &&
     hasFunction(value, 'getYDoc') &&

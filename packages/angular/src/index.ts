@@ -18,6 +18,9 @@ import type {
   LockEngine,
   LockState,
   Peer,
+  PointerBeam,
+  PointerEngine,
+  PointerOptions,
   PresenceData,
   PresenceEngine,
   Room,
@@ -199,6 +202,47 @@ export interface InjectViewportResult {
 }
 
 /**
+ * Describes the return value of {@link injectPointer}.
+ */
+export interface InjectPointerResult {
+  /**
+   * Exposes remote peers' pointer beams only.
+   */
+  beams: Signal<PointerBeam[]>;
+
+  /**
+   * Mounts pointer tracking on a container element.
+   *
+   * @param element - The element to observe.
+   * @returns Nothing.
+   */
+  mount(element: HTMLElement): void;
+
+  /**
+   * Unmounts pointer tracking.
+   *
+   * @returns Nothing.
+   */
+  unmount(): void;
+
+  /**
+   * Starts broadcasting the local pointer beam to all peers.
+   */
+  activate: PointerEngine['activate'];
+
+  /**
+   * Stops broadcasting the local pointer beam so peers drop it.
+   */
+  deactivate: PointerEngine['deactivate'];
+
+  /**
+   * Renders the built-in pointer overlay over a container, returning a cleanup
+   * function.
+   */
+  render: PointerEngine['render'];
+}
+
+/**
  * Describes the return value of {@link injectAwareness}.
  */
 export interface InjectAwarenessResult {
@@ -296,6 +340,12 @@ interface ViewportSnapshotCache<TPresence extends PresenceData> {
   room: Room<TPresence>;
   engine: ViewportEngine;
   snapshot: ViewportState[];
+}
+
+interface PointerSnapshotCache<TPresence extends PresenceData> {
+  room: Room<TPresence>;
+  engine: PointerEngine;
+  snapshot: PointerBeam[];
 }
 
 interface LocksSnapshotCache<TPresence extends PresenceData> {
@@ -612,6 +662,85 @@ export function injectViewport<TPresence extends PresenceData = PresenceData>(
     },
     unfollow: () => {
       viewportEngine.unfollow();
+    },
+  };
+}
+
+/**
+ * Subscribes to remote pointer beams and returns mounting and control helpers.
+ *
+ * Must be called in an injection context. Angular has no React-style callback
+ * ref, so mount the engine on an element from `afterNextRender` or
+ * `ngAfterViewInit` by calling {@link InjectPointerResult.mount}.
+ *
+ * @typeParam TPresence - The room presence shape.
+ * @param options - Optional pointer tracking configuration.
+ * @returns The remote beams signal plus mounting and activate/deactivate/render controls.
+ */
+export function injectPointer<TPresence extends PresenceData = PresenceData>(
+  options?: PointerOptions,
+): InjectPointerResult {
+  assertInInjectionContext(injectPointer);
+  const room = injectRoom<TPresence>();
+  const pointerEngine = room.usePointer(options);
+  const cacheRef: { current: PointerSnapshotCache<TPresence> | null } = {
+    current: null,
+  };
+  const beams = signal(readPointerSnapshot(room, pointerEngine, cacheRef));
+
+  let trackedElement: HTMLElement | null = null;
+  let mounted = false;
+
+  const mount = (element: HTMLElement): void => {
+    if (trackedElement === element) {
+      return;
+    }
+
+    if (trackedElement !== null) {
+      pointerEngine.unmount();
+    }
+
+    trackedElement = element;
+    pointerEngine.mount(element);
+    mounted = true;
+  };
+
+  const unmount = (): void => {
+    if (trackedElement === null) {
+      return;
+    }
+
+    pointerEngine.unmount();
+    trackedElement = null;
+    mounted = false;
+  };
+
+  const unsubscribe = pointerEngine.subscribe(() => {
+    beams.set(readPointerSnapshot(room, pointerEngine, cacheRef));
+  });
+
+  inject(DestroyRef).onDestroy(() => {
+    unsubscribe();
+
+    if (mounted) {
+      pointerEngine.unmount();
+      trackedElement = null;
+      mounted = false;
+    }
+  });
+
+  return {
+    beams,
+    mount,
+    unmount,
+    activate: () => {
+      pointerEngine.activate();
+    },
+    deactivate: () => {
+      pointerEngine.deactivate();
+    },
+    render: (renderOptions) => {
+      return pointerEngine.render(renderOptions);
     },
   };
 }
@@ -1145,6 +1274,63 @@ function readViewportSnapshot<TPresence extends PresenceData>(
   return nextSnapshot;
 }
 
+function arePointerArraysEqual(
+  previous: readonly PointerBeam[],
+  next: readonly PointerBeam[],
+): boolean {
+  if (previous === next) {
+    return true;
+  }
+
+  if (previous.length !== next.length) {
+    return false;
+  }
+
+  for (let index = 0; index < previous.length; index += 1) {
+    const previousEntry = previous[index];
+    const nextEntry = next[index];
+
+    if (!previousEntry || !nextEntry || !areStructuredValuesEqual(previousEntry, nextEntry)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function readPointerSnapshot<TPresence extends PresenceData>(
+  room: Room<TPresence>,
+  pointer: PointerEngine,
+  cacheRef: { current: PointerSnapshotCache<TPresence> | null },
+): PointerBeam[] {
+  const nextSnapshot = pointer.getAll();
+  const previous = cacheRef.current;
+
+  if (previous !== null && previous.room === room && previous.engine === pointer) {
+    const previousSnapshot = previous.snapshot;
+    if (arePointerArraysEqual(previousSnapshot, nextSnapshot)) {
+      return previousSnapshot;
+    }
+
+    previous.snapshot = nextSnapshot.map((beam, index) => {
+      const previousBeam = previousSnapshot[index];
+      if (previousBeam !== undefined && areStructuredValuesEqual(previousBeam, beam)) {
+        return previousBeam;
+      }
+
+      return beam;
+    });
+    return previous.snapshot;
+  }
+
+  cacheRef.current = {
+    room,
+    engine: pointer,
+    snapshot: nextSnapshot,
+  };
+  return nextSnapshot;
+}
+
 function areLockArraysEqual(previous: readonly LockState[], next: readonly LockState[]): boolean {
   if (previous === next) {
     return true;
@@ -1316,6 +1502,7 @@ function isRoom<TPresence extends PresenceData = PresenceData>(
     hasFunction(value, 'useState') &&
     hasFunction(value, 'useAwareness') &&
     hasFunction(value, 'useViewport') &&
+    hasFunction(value, 'usePointer') &&
     hasFunction(value, 'useLocks') &&
     hasFunction(value, 'useEvents') &&
     hasFunction(value, 'getYDoc') &&

@@ -10,6 +10,8 @@ import type {
   LockEngine,
   LockState,
   Peer,
+  PointerBeam,
+  PointerEngine,
   PresenceData,
   PresenceEngine,
   Room,
@@ -31,6 +33,7 @@ import type {
   UseAwarenessResult,
   UseCursorsResult,
   UseLocksResult,
+  UsePointerResult,
   UsePresenceResult,
   UseViewportResult,
 } from './index';
@@ -42,6 +45,7 @@ import {
   useEvent,
   useLocks,
   useLockState,
+  usePointer,
   usePresence,
   useSharedState,
   useViewport,
@@ -70,6 +74,7 @@ type EventSubscriber = (payload: unknown, from: Peer<PresenceData>) => void;
 type PresenceSubscriber = (peers: Peer<PresenceData>[]) => void;
 type StateSubscriber<T> = (value: T, meta: StateChangeMeta) => void;
 type ViewportSubscriber = (states: ViewportState[]) => void;
+type PointerSubscriber = (beams: PointerBeam[]) => void;
 type LockStateSubscriber = (state: LockState) => void;
 type LocksSubscriber = (states: LockState[]) => void;
 
@@ -98,6 +103,16 @@ type TestViewportEngine = ViewportEngine & {
   stopPresenting: ReturnType<typeof vi.fn<() => void>>;
   follow: ReturnType<typeof vi.fn<(peerId: string) => void>>;
   unfollow: ReturnType<typeof vi.fn<() => void>>;
+};
+
+type TestPointerEngine = PointerEngine & {
+  emit(beams: PointerBeam[]): void;
+  subscriberCount(): number;
+  mount: ReturnType<typeof vi.fn<(element: HTMLElement) => void>>;
+  unmount: ReturnType<typeof vi.fn<() => void>>;
+  activate: ReturnType<typeof vi.fn<() => void>>;
+  deactivate: ReturnType<typeof vi.fn<() => void>>;
+  render: ReturnType<typeof vi.fn<() => () => void>>;
 };
 
 type TestLockEngine = LockEngine & {
@@ -146,6 +161,7 @@ type TestRoom = Room<PresenceData> & {
   cursorEngine: TestCursorEngine;
   eventEngine: TestEventEngine;
   lockEngine: TestLockEngine;
+  pointerEngine: TestPointerEngine;
   presenceEngine: TestPresenceEngine;
   stateEngine: TestStateEngine<unknown>;
   viewportEngine: TestViewportEngine;
@@ -317,6 +333,54 @@ function createMockViewportEngine(states: ViewportState[] = []): TestViewportEng
       return subscribers.size;
     },
   } satisfies TestViewportEngine;
+
+  return engine;
+}
+
+function createBeam(peerId: string, overrides: Partial<PointerBeam> = {}): PointerBeam {
+  return {
+    peerId,
+    name: peerId,
+    color: '#22c55e',
+    x: 0.25,
+    y: 0.75,
+    active: true,
+    ...overrides,
+  };
+}
+
+function createMockPointerEngine(beams: PointerBeam[] = []): TestPointerEngine {
+  const subscribers = new Set<PointerSubscriber>();
+  let currentBeams = beams;
+
+  const engine = {
+    mount: vi.fn(),
+    unmount: vi.fn(),
+    activate: vi.fn(),
+    deactivate: vi.fn(),
+    render: vi.fn(() => {
+      return () => undefined;
+    }),
+    getAll() {
+      return currentBeams;
+    },
+    subscribe(callback: PointerSubscriber) {
+      subscribers.add(callback);
+      callback(currentBeams);
+      return () => {
+        subscribers.delete(callback);
+      };
+    },
+    emit(nextBeams: PointerBeam[]) {
+      currentBeams = nextBeams;
+      for (const subscriber of subscribers) {
+        subscriber(currentBeams);
+      }
+    },
+    subscriberCount() {
+      return subscribers.size;
+    },
+  } satisfies TestPointerEngine;
 
   return engine;
 }
@@ -553,6 +617,7 @@ function createMockRoom(
     eventEngine?: TestEventEngine;
     lockEngine?: TestLockEngine;
     peerId?: string;
+    pointerEngine?: TestPointerEngine;
     presenceEngine?: TestPresenceEngine;
     stateEngine?: TestStateEngine<unknown>;
     viewportEngine?: TestViewportEngine;
@@ -566,6 +631,7 @@ function createMockRoom(
   const lockEngine = config.lockEngine ?? createMockLockEngine();
   const stateEngine = config.stateEngine ?? createMockStateEngine({});
   const viewportEngine = config.viewportEngine ?? createMockViewportEngine();
+  const pointerEngine = config.pointerEngine ?? createMockPointerEngine();
   const presenceEngine =
     config.presenceEngine ?? createMockPresenceEngine(peerId, [createPeer(peerId)]);
   let currentStatus: RoomStatus = 'idle';
@@ -658,6 +724,9 @@ function createMockRoom(
     useViewport: vi.fn(() => {
       return viewportEngine;
     }),
+    usePointer: vi.fn(() => {
+      return pointerEngine;
+    }),
     useLocks: vi.fn(() => {
       return lockEngine;
     }),
@@ -709,6 +778,7 @@ function createMockRoom(
     cursorEngine,
     eventEngine,
     lockEngine,
+    pointerEngine,
     presenceEngine,
     stateEngine,
     viewportEngine,
@@ -1172,6 +1242,75 @@ describe('useViewport', () => {
     observedViewport?.unmount();
 
     expect(viewportEngine.unmount).toHaveBeenCalledTimes(1);
+
+    wrapper.unmount();
+  });
+});
+
+describe('usePointer', () => {
+  it('tracks a template ref, mounts automatically, exposes reactive beams, and forwards controls', async () => {
+    const remoteBeam = createBeam('pointer-peer', {
+      x: 0.4,
+      y: 0.6,
+    });
+    const pointerEngine = createMockPointerEngine([remoteBeam]);
+    createMockRoom(
+      'pointer-room',
+      {},
+      {
+        pointerEngine,
+      },
+    );
+    let observedPointer: UsePointerResult | null = null;
+
+    const wrapper = mount(
+      defineComponent({
+        setup() {
+          observedPointer = usePointer();
+          return {
+            boardRef: observedPointer.ref,
+            beams: observedPointer.beams,
+          };
+        },
+        template:
+          '<div><div id="pointer-board" ref="boardRef"></div><span>{{ beams.length }}</span></div>',
+      }),
+      {
+        attachTo: document.body,
+        global: {
+          plugins: [[RoomfulPlugin, { roomId: 'pointer-room' }]],
+        },
+      },
+    );
+    const board = document.getElementById('pointer-board');
+
+    expect(pointerEngine.mount).toHaveBeenCalledWith(board);
+    expect(wrapper.text()).toContain('1');
+
+    pointerEngine.emit([
+      createBeam('pointer-peer', {
+        x: 0.9,
+      }),
+      createBeam('pointer-peer-b', {
+        x: 0.1,
+      }),
+    ]);
+    await nextTick();
+
+    expect(wrapper.text()).toContain('2');
+
+    observedPointer?.activate();
+    observedPointer?.deactivate();
+    const cleanup = observedPointer?.render({ style: 'laser' });
+
+    expect(pointerEngine.activate).toHaveBeenCalledTimes(1);
+    expect(pointerEngine.deactivate).toHaveBeenCalledTimes(1);
+    expect(pointerEngine.render).toHaveBeenCalledWith({ style: 'laser' });
+    expect(typeof cleanup).toBe('function');
+
+    observedPointer?.unmount();
+
+    expect(pointerEngine.unmount).toHaveBeenCalledTimes(1);
 
     wrapper.unmount();
   });

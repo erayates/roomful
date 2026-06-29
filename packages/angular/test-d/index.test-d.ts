@@ -1,5 +1,14 @@
 import type { EnvironmentProviders, Signal } from '@angular/core';
-import type { LockState, Peer, PresenceData, Room, RoomStatus, ViewportState } from '@roomful/core';
+import type {
+  LockState,
+  Peer,
+  PointerBeam,
+  PresenceData,
+  Room,
+  RoomStatus,
+  Unsubscribe,
+  ViewportState,
+} from '@roomful/core';
 import { expectType } from 'tsd';
 
 import {
@@ -10,12 +19,14 @@ import {
   injectLocks,
   injectLockState,
   injectPeers,
+  injectPointer,
   injectPresence,
   injectRoom,
   injectSharedState,
   injectViewport,
   type InjectAwarenessResult,
   type InjectLocksResult,
+  type InjectPointerResult,
   type InjectViewportResult,
   provideRoomful,
   type RoomfulProviderOptions,
@@ -71,6 +82,15 @@ expectType<Signal<ViewportState[]>>(viewport.states);
 expectType<number | undefined>(viewport.states()[0]?.scrollX);
 viewport.follow('peer-id');
 viewport.broadcast();
+
+const pointer = injectPointer();
+expectType<InjectPointerResult>(pointer);
+expectType<Signal<PointerBeam[]>>(pointer.beams);
+expectType<number | undefined>(pointer.beams()[0]?.x);
+expectType<boolean | undefined>(pointer.beams()[0]?.active);
+pointer.activate();
+pointer.deactivate();
+expectType<Unsubscribe>(pointer.render({ style: 'laser' }));
 
 const locks = injectLocks();
 expectType<InjectLocksResult>(locks);

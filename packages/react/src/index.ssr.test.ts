@@ -358,6 +358,27 @@ function createMockRoom(
         }),
       };
     }),
+    usePointer: vi.fn(() => {
+      return {
+        mount: vi.fn(),
+        unmount: vi.fn(),
+        activate: vi.fn(),
+        deactivate: vi.fn(),
+        subscribe: vi.fn(() => {
+          return () => {
+            return undefined;
+          };
+        }),
+        getAll: vi.fn(() => {
+          return [];
+        }),
+        render: vi.fn(() => {
+          return () => {
+            return undefined;
+          };
+        }),
+      };
+    }),
     useLocks: vi.fn(() => {
       return {
         acquire: vi.fn(async () => {

@@ -10,6 +10,8 @@ import type {
   LockEngine,
   LockState,
   Peer,
+  PointerBeam,
+  PointerEngine,
   PresenceData,
   PresenceEngine,
   Room,
@@ -48,6 +50,7 @@ import type {
   UseAwarenessResult,
   UseCursorsResult,
   UseLocksResult,
+  UsePointerResult,
   UsePresenceResult,
   UseViewportResult,
 } from './index';
@@ -60,6 +63,7 @@ import {
   useLocks,
   useLockState,
   usePeers,
+  usePointer,
   usePresence,
   useRoom,
   useSharedState,
@@ -76,6 +80,7 @@ type EventSubscriber = (payload: unknown, from: Peer<PresenceData>) => void;
 type PresenceSubscriber = (peers: Peer<PresenceData>[]) => void;
 type StateSubscriber<T> = (value: T, meta: StateChangeMeta) => void;
 type ViewportSubscriber = (states: ViewportState[]) => void;
+type PointerSubscriber = (beams: PointerBeam[]) => void;
 
 interface RenderHarness {
   rerender(element: ReactNode): Promise<void>;
@@ -113,6 +118,18 @@ type TestViewportEngine = ViewportEngine & {
   stopPresenting: ReturnType<typeof vi.fn<() => void>>;
   follow: ReturnType<typeof vi.fn<(peerId: string) => void>>;
   unfollow: ReturnType<typeof vi.fn<() => void>>;
+};
+
+type TestPointerEngine = PointerEngine & {
+  emit(beams: PointerBeam[]): void;
+  subscriberCount(): number;
+  subscribe: ReturnType<typeof vi.fn<(cb: PointerSubscriber) => () => void>>;
+  mount: ReturnType<typeof vi.fn<(element: HTMLElement) => void>>;
+  unmount: ReturnType<typeof vi.fn<() => void>>;
+  getAll: ReturnType<typeof vi.fn<() => PointerBeam[]>>;
+  activate: ReturnType<typeof vi.fn<() => void>>;
+  deactivate: ReturnType<typeof vi.fn<() => void>>;
+  render: ReturnType<typeof vi.fn<() => () => void>>;
 };
 
 type LockStateSubscriber = (state: LockState) => void;
@@ -170,6 +187,7 @@ type TestRoom = Room<PresenceData> & {
   cursorEngine: TestCursorEngine;
   eventEngine: TestEventEngine;
   lockEngine: TestLockEngine;
+  pointerEngine: TestPointerEngine;
   presenceEngine: TestPresenceEngine;
   stateEngine: TestStateEngine<unknown>;
   viewportEngine: TestViewportEngine;
@@ -382,6 +400,55 @@ function createMockViewportEngine(states: ViewportState[] = []): TestViewportEng
   return engine;
 }
 
+function createBeam(peerId: string, overrides: Partial<PointerBeam> = {}): PointerBeam {
+  return {
+    peerId,
+    name: peerId,
+    color: '#22c55e',
+    x: 0.25,
+    y: 0.75,
+    active: true,
+    ...overrides,
+  };
+}
+
+function createMockPointerEngine(beams: PointerBeam[] = []): TestPointerEngine {
+  const subscribers = new Set<PointerSubscriber>();
+  let currentBeams = beams;
+
+  const engine = {
+    mount: vi.fn(),
+    unmount: vi.fn(),
+    activate: vi.fn(),
+    deactivate: vi.fn(),
+    render: vi.fn(() => {
+      return () => undefined;
+    }),
+    getAll: vi.fn(() => {
+      return currentBeams;
+    }),
+    subscribe: vi.fn((callback: PointerSubscriber) => {
+      subscribers.add(callback);
+      callback(currentBeams);
+
+      return () => {
+        subscribers.delete(callback);
+      };
+    }),
+    emit(nextBeams: PointerBeam[]) {
+      currentBeams = nextBeams;
+      for (const subscriber of subscribers) {
+        subscriber(currentBeams);
+      }
+    },
+    subscriberCount() {
+      return subscribers.size;
+    },
+  } as TestPointerEngine;
+
+  return engine;
+}
+
 function createLock(key: string, holder: Peer<PresenceData> | null = null): LockState {
   return {
     key,
@@ -582,6 +649,7 @@ function createMockRoom(
     eventEngine?: TestEventEngine;
     lockEngine?: TestLockEngine;
     peerId?: string;
+    pointerEngine?: TestPointerEngine;
     presenceEngine?: TestPresenceEngine;
     status?: RoomStatus;
     stateEngine?: TestStateEngine<unknown>;
@@ -596,6 +664,7 @@ function createMockRoom(
   const lockEngine = config.lockEngine ?? createMockLockEngine();
   const stateEngine = config.stateEngine ?? createMockStateEngine({});
   const viewportEngine = config.viewportEngine ?? createMockViewportEngine();
+  const pointerEngine = config.pointerEngine ?? createMockPointerEngine();
   const presenceEngine =
     config.presenceEngine ?? createMockPresenceEngine(peerId, [createPeer(peerId)]);
   let currentStatus = config.status ?? 'idle';
@@ -698,6 +767,9 @@ function createMockRoom(
     useViewport: vi.fn(() => {
       return viewportEngine;
     }),
+    usePointer: vi.fn(() => {
+      return pointerEngine;
+    }),
     useLocks: vi.fn(() => {
       return lockEngine;
     }),
@@ -753,6 +825,7 @@ function createMockRoom(
     cursorEngine,
     eventEngine,
     lockEngine,
+    pointerEngine,
     presenceEngine,
     stateEngine,
     viewportEngine,
@@ -2482,6 +2555,167 @@ describe('useViewport', () => {
   it('throws a typed error when useViewport() is called outside the provider', () => {
     function MissingProviderConsumer(): null {
       useViewport();
+      return null;
+    }
+
+    expect(() => {
+      renderToString(createElement(MissingProviderConsumer));
+    }).toThrowError(RoomfulError);
+    expect(() => {
+      renderToString(createElement(MissingProviderConsumer));
+    }).toThrow('RoomfulProvider');
+  });
+});
+
+describe('usePointer', () => {
+  it('returns ref, beams, and controls while auto-mounting the tracked element', async () => {
+    const remoteBeam = createBeam('pointer-peer', { x: 0.4, y: 0.6 });
+    const pointerEngine = createMockPointerEngine([remoteBeam]);
+    createMockRoom(
+      'pointer-room',
+      {},
+      {
+        pointerEngine,
+      },
+    );
+    let observed: UsePointerResult | null = null;
+
+    function PointerConsumer(): ReactNode {
+      observed = usePointer();
+      return createElement('div', {
+        id: 'pointer-board',
+        ref: observed.ref,
+      });
+    }
+
+    const harness = await renderElement(
+      createElement(
+        RoomfulProvider,
+        {
+          roomId: 'pointer-room',
+        },
+        createElement(PointerConsumer),
+      ),
+    );
+    const board = document.getElementById('pointer-board') as HTMLElement;
+
+    expect(observed?.beams).toEqual([remoteBeam]);
+    expect(typeof observed?.ref).toBe('function');
+    expect(pointerEngine.mount).toHaveBeenCalledTimes(1);
+    expect(pointerEngine.mount).toHaveBeenLastCalledWith(board);
+
+    observed?.activate();
+    observed?.deactivate();
+    const cleanup = observed?.render({ style: 'laser' });
+
+    expect(pointerEngine.activate).toHaveBeenCalledTimes(1);
+    expect(pointerEngine.deactivate).toHaveBeenCalledTimes(1);
+    expect(pointerEngine.render).toHaveBeenCalledWith({ style: 'laser' });
+    expect(typeof cleanup).toBe('function');
+
+    await harness.unmount();
+
+    expect(pointerEngine.unmount).toHaveBeenCalled();
+  });
+
+  it('rerenders when beams change and skips deep-equal updates', async () => {
+    const pointerEngine = createMockPointerEngine([createBeam('pointer-peer', { x: 0.1 })]);
+    createMockRoom(
+      'pointer-reactivity',
+      {},
+      {
+        pointerEngine,
+      },
+    );
+    const snapshots: PointerBeam[][] = [];
+    let renderCount = 0;
+
+    function PointerConsumer(): ReactNode {
+      const pointer = usePointer();
+      renderCount += 1;
+      snapshots.push(pointer.beams);
+      return createElement('div', {
+        id: 'pointer-reactivity-board',
+        ref: pointer.ref,
+      });
+    }
+
+    const harness = await renderElement(
+      createElement(
+        RoomfulProvider,
+        {
+          roomId: 'pointer-reactivity',
+        },
+        createElement(PointerConsumer),
+      ),
+    );
+
+    await act(async () => {
+      pointerEngine.emit([createBeam('pointer-peer', { x: 0.1 })]);
+    });
+    await act(async () => {
+      pointerEngine.emit([createBeam('pointer-peer', { x: 0.9 })]);
+    });
+
+    expect(renderCount).toBe(2);
+    expect(snapshots).toHaveLength(2);
+    expect(snapshots[1]?.[0]).toMatchObject({ x: 0.9 });
+    expect(pointerEngine.subscriberCount()).toBe(1);
+
+    await harness.unmount();
+  });
+
+  it('preserves stable control identities and keeps controls usable', async () => {
+    const pointerEngine = createMockPointerEngine();
+    createMockRoom(
+      'pointer-stability',
+      {},
+      {
+        pointerEngine,
+      },
+    );
+    const snapshots: UsePointerResult[] = [];
+
+    function PointerConsumer(): ReactNode {
+      const pointer = usePointer();
+      snapshots.push(pointer);
+      return createElement('div', {
+        id: 'pointer-stability-board',
+        ref: pointer.ref,
+      });
+    }
+
+    const harness = await renderElement(
+      createElement(
+        RoomfulProvider,
+        {
+          roomId: 'pointer-stability',
+        },
+        createElement(PointerConsumer),
+      ),
+    );
+
+    await harness.rerender(
+      createElement(
+        RoomfulProvider,
+        {
+          roomId: 'pointer-stability',
+        },
+        createElement(PointerConsumer),
+      ),
+    );
+
+    expect(snapshots.length).toBeGreaterThanOrEqual(2);
+    expect(snapshots[1]?.activate).toBe(snapshots[0]?.activate);
+    expect(snapshots[1]?.deactivate).toBe(snapshots[0]?.deactivate);
+    expect(snapshots[1]?.render).toBe(snapshots[0]?.render);
+
+    await harness.unmount();
+  });
+
+  it('throws a typed error when usePointer() is called outside the provider', () => {
+    function MissingProviderConsumer(): null {
+      usePointer();
       return null;
     }
 

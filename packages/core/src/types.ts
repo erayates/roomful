@@ -1042,6 +1042,89 @@ export interface ViewportOptions {
 }
 
 /**
+ * Describes a single peer's laser-pointer beam — a transient position broadcast
+ * only while that peer's pointer is active. `x`/`y` are normalized `0`–`1` of the
+ * tracked container (resolution-independent, like cursor and viewport coordinates),
+ * so each peer denormalizes them against its own container size.
+ */
+export interface PointerBeam {
+  /**
+   * Identifies the peer that owns the beam.
+   */
+  peerId: string;
+
+  /**
+   * Supplies the peer display name, resolved from the peer's presence.
+   */
+  name: string;
+
+  /**
+   * Supplies the peer color, resolved from the peer's presence.
+   */
+  color: string;
+
+  /**
+   * Reports the normalized X coordinate within the tracked container, from `0`
+   * (left edge) to `1` (right edge).
+   */
+  x: number;
+
+  /**
+   * Reports the normalized Y coordinate within the tracked container, from `0`
+   * (top edge) to `1` (bottom edge).
+   */
+  y: number;
+
+  /**
+   * Indicates whether the peer's pointer is currently broadcasting. An inactive
+   * beam is dropped by peers (the laser disappears).
+   */
+  active: boolean;
+}
+
+/**
+ * Configures pointer (laser pointer) tracking behavior.
+ */
+export interface PointerOptions {
+  /**
+   * Throttles pointer position broadcasts in milliseconds.
+   */
+  throttleMs?: number;
+}
+
+/**
+ * Selects how the built-in pointer overlay draws each remote beam.
+ *
+ * - `'laser'` — a colored dot with a soft glow (the default).
+ * - `'spotlight'` — a soft radial dim centered on the point.
+ * - `'crosshair'` — thin horizontal and vertical cross lines through the point.
+ * - `'dot'` — a plain colored dot.
+ */
+export type PointerStyle = 'laser' | 'spotlight' | 'crosshair' | 'dot';
+
+/**
+ * Configures the built-in DOM pointer overlay rendered by
+ * {@link PointerEngine.render}.
+ */
+export interface PointerRenderOptions {
+  /**
+   * Selects the container element or selector the overlay is drawn over.
+   * Defaults to the mounted element.
+   */
+  container?: string | HTMLElement;
+
+  /**
+   * Chooses how each remote beam is drawn. Defaults to `'laser'`.
+   */
+  style?: PointerStyle;
+
+  /**
+   * Sets the z-index applied to the overlay layer. Defaults to `9999`.
+   */
+  zIndex?: number;
+}
+
+/**
  * Describes the resolved state of a single advisory lock — who holds it (if
  * anyone) and when the claim was made and expires.
  *
@@ -1400,6 +1483,77 @@ export interface ViewportEngine {
 }
 
 /**
+ * Exposes the laser-pointer primitive for a room. A pointer engine broadcasts
+ * this peer's transient "beam" position while active and surfaces remote peers'
+ * beams so they can be drawn. It is close to the cursor engine, but a beam is
+ * only broadcast while {@link PointerEngine.activate} is in effect — deactivating
+ * (or unmounting/disconnecting) makes the beam disappear for every peer.
+ *
+ * Like cursors and viewport, it rides the room's event channel and uses
+ * normalized (`0`–`1`) coordinates, so no relay change is required.
+ */
+export interface PointerEngine {
+  /**
+   * Tracks `mousemove` on a container and broadcasts the normalized pointer
+   * position while active. Mounting also targets the built-in renderer.
+   *
+   * @param element - The container element to track.
+   * @returns Nothing.
+   */
+  mount(element: HTMLElement): void;
+
+  /**
+   * Stops tracking the element, broadcasts an inactive beam so peers drop it, and
+   * tears down the built-in overlay.
+   *
+   * @returns Nothing.
+   */
+  unmount(): void;
+
+  /**
+   * Starts broadcasting this peer's pointer beam. While active, pointer movement
+   * over the mounted element is broadcast to peers.
+   *
+   * @returns Nothing.
+   */
+  activate(): void;
+
+  /**
+   * Stops broadcasting and announces an inactive beam so peers drop it (the laser
+   * disappears).
+   *
+   * @returns Nothing.
+   */
+  deactivate(): void;
+
+  /**
+   * Subscribes to remote pointer beams.
+   *
+   * @param cb - The callback invoked with the current remote beams.
+   * @returns A function that removes the listener.
+   */
+  subscribe(cb: (beams: PointerBeam[]) => void): Unsubscribe;
+
+  /**
+   * Returns all remote pointer beams.
+   *
+   * @returns The current remote beams.
+   */
+  getAll(): PointerBeam[];
+
+  /**
+   * Renders a built-in, zero-config DOM overlay that draws every remote active
+   * beam over the container, updating as beams change. This is a convenience
+   * layer; apps that draw their own pointers can ignore it and use
+   * {@link PointerEngine.subscribe} instead.
+   *
+   * @param options - The overlay container and style.
+   * @returns A cleanup function that removes the overlay.
+   */
+  render(options?: PointerRenderOptions): Unsubscribe;
+}
+
+/**
  * Exposes a distributed advisory mutex over UI keys for a room. Use it to claim
  * exclusive ownership of an arbitrary key (an editable cell, a draggable block)
  * so peers can coordinate "only one editor at a time" interactions.
@@ -1642,6 +1796,14 @@ export interface Room<TPresence extends PresenceData = PresenceData> {
    * @returns The viewport engine.
    */
   useViewport(options?: ViewportOptions): ViewportEngine;
+
+  /**
+   * Accesses the laser-pointer engine for this room.
+   *
+   * @param options - Optional pointer tracking configuration.
+   * @returns The pointer engine.
+   */
+  usePointer(options?: PointerOptions): PointerEngine;
 
   /**
    * Accesses the distributed advisory lock engine for this room.

@@ -11,6 +11,8 @@ import type {
   LockEngine,
   LockState,
   Peer,
+  PointerBeam,
+  PointerEngine,
   PresenceData,
   PresenceEngine,
   Room,
@@ -83,6 +85,12 @@ interface ViewportSnapshotCache<TPresence extends PresenceData> {
   engine: ViewportEngine;
   room: Room<TPresence>;
   snapshot: ViewportState[];
+}
+
+interface PointerSnapshotCache<TPresence extends PresenceData> {
+  engine: PointerEngine;
+  room: Room<TPresence>;
+  snapshot: PointerBeam[];
 }
 
 interface LocksSnapshotCache<TPresence extends PresenceData> {
@@ -311,6 +319,39 @@ export interface ViewportStore extends Readable<ViewportState[]> {
    * Stops following any peer and resumes independent scrolling.
    */
   unfollow: ViewportEngine['unfollow'];
+}
+
+/**
+ * Readable pointer (laser pointer) store augmented with DOM and control helpers.
+ */
+export interface PointerStore extends Readable<PointerBeam[]> {
+  /**
+   * Svelte action that mounts pointer tracking on a container element.
+   */
+  mount: Action<HTMLElement, undefined>;
+
+  /**
+   * Unmounts pointer tracking.
+   *
+   * @returns Nothing.
+   */
+  unmount(): void;
+
+  /**
+   * Starts broadcasting the local pointer beam to all peers.
+   */
+  activate: PointerEngine['activate'];
+
+  /**
+   * Stops broadcasting the local pointer beam so peers drop it.
+   */
+  deactivate: PointerEngine['deactivate'];
+
+  /**
+   * Renders the built-in pointer overlay over a container, returning a cleanup
+   * function.
+   */
+  render: PointerEngine['render'];
 }
 
 /**
@@ -575,6 +616,11 @@ export interface RoomfulAdapter<
   lockState(key: string): LockStateStore;
 
   /**
+   * Exposes the pointer (laser pointer) store.
+   */
+  pointer: PointerStore;
+
+  /**
    * Exposes the presence store.
    */
   presence: PresenceStore<TPresence>;
@@ -614,6 +660,7 @@ export function roomful<
   const cursorEngine = room.useCursors<TCursor>();
   const awarenessEngine = room.useAwareness();
   const viewportEngine = room.useViewport();
+  const pointerEngine = room.usePointer();
   const lockEngine = room.useLocks();
   const eventEngine = room.useEvents();
 
@@ -622,11 +669,13 @@ export function roomful<
   let runtimeStarted = false;
   let trackedCursorElement: HTMLElement | null = null;
   let trackedViewportElement: HTMLElement | null = null;
+  let trackedPointerElement: HTMLElement | null = null;
   let localCursorValue: Partial<CursorPosition<TCursor>> = {};
   let presenceCache: PresenceSnapshotCache<TPresence> | null = null;
   let cursorCache: CursorSnapshotCache<TPresence, TCursor> | null = null;
   let awarenessCache: AwarenessSnapshotCache<TPresence> | null = null;
   let viewportCache: ViewportSnapshotCache<TPresence> | null = null;
+  let pointerCache: PointerSnapshotCache<TPresence> | null = null;
   let locksCache: LocksSnapshotCache<TPresence> | null = null;
   let sharedStateController: SharedStateController<TPresence, unknown> | null = null;
 
@@ -672,6 +721,14 @@ export function roomful<
       current: viewportCache,
       set(nextCache) {
         viewportCache = nextCache;
+      },
+    }),
+  );
+  const pointerStore = createValueStore(
+    readPointerSnapshot(room, pointerEngine, {
+      current: pointerCache,
+      set(nextCache) {
+        pointerCache = nextCache;
       },
     }),
   );
@@ -728,6 +785,17 @@ export function roomful<
         current: viewportCache,
         set(nextCache) {
           viewportCache = nextCache;
+        },
+      }),
+    );
+  };
+
+  const refreshPointer = (): void => {
+    pointerStore.publish(
+      readPointerSnapshot(room, pointerEngine, {
+        current: pointerCache,
+        set(nextCache) {
+          pointerCache = nextCache;
         },
       }),
     );
@@ -839,6 +907,20 @@ export function roomful<
     });
   };
 
+  const attachPointerSubscription = (): void => {
+    if (!runtimeStarted) {
+      return;
+    }
+
+    const unsubscribe = pointerEngine.subscribe(() => {
+      refreshPointer();
+    });
+
+    registerCleanup(() => {
+      unsubscribe();
+    });
+  };
+
   const attachLocksSubscription = (): void => {
     if (!runtimeStarted) {
       return;
@@ -941,6 +1023,7 @@ export function roomful<
     attachCursorSubscription();
     attachAwarenessSubscription();
     attachViewportSubscription();
+    attachPointerSubscription();
     attachLocksSubscription();
     attachSharedStateSubscription();
 
@@ -1003,6 +1086,30 @@ export function roomful<
 
     trackedViewportElement = element;
     viewportEngine.mount(element);
+  };
+
+  const unmountTrackedPointer = (): void => {
+    if (!trackedPointerElement) {
+      return;
+    }
+
+    pointerEngine.unmount();
+    trackedPointerElement = null;
+  };
+
+  const mountPointer = (element: HTMLElement): void => {
+    assertAvailable('pointer.mount');
+
+    if (trackedPointerElement === element) {
+      return;
+    }
+
+    if (trackedPointerElement) {
+      pointerEngine.unmount();
+    }
+
+    trackedPointerElement = element;
+    pointerEngine.mount(element);
   };
 
   const presence: PresenceStore<TPresence> = {
@@ -1125,6 +1232,38 @@ export function roomful<
     unfollow() {
       assertAvailable('viewport.unfollow');
       viewportEngine.unfollow();
+    },
+  };
+
+  const pointer: PointerStore = {
+    subscribe(run, invalidate) {
+      return pointerStore.subscribe(run, invalidate);
+    },
+    mount(node) {
+      mountPointer(node);
+
+      return {
+        destroy() {
+          if (trackedPointerElement === node) {
+            unmountTrackedPointer();
+          }
+        },
+      };
+    },
+    unmount() {
+      unmountTrackedPointer();
+    },
+    activate() {
+      assertAvailable('pointer.activate');
+      pointerEngine.activate();
+    },
+    deactivate() {
+      assertAvailable('pointer.deactivate');
+      pointerEngine.deactivate();
+    },
+    render(renderOptions) {
+      assertAvailable('pointer.render');
+      return pointerEngine.render(renderOptions);
     },
   };
 
@@ -1431,6 +1570,7 @@ export function roomful<
 
     unmountTrackedCursor();
     unmountTrackedViewport();
+    unmountTrackedPointer();
     eventListeners.clear();
     for (const record of eventChannels.values()) {
       record.store.clear();
@@ -1444,6 +1584,7 @@ export function roomful<
     cursorStore.clear();
     awarenessStore.clear();
     viewportStore.clear();
+    pointerStore.clear();
     locksStore.clear();
     statusStore.clear();
     sharedStateController?.valueStore.clear();
@@ -1468,6 +1609,7 @@ export function roomful<
     events,
     locks,
     lockState,
+    pointer,
     presence,
     state,
     status,
@@ -1731,6 +1873,67 @@ function readViewportSnapshot<TPresence extends PresenceData>(
 
   cacheRef.set({
     engine: viewport,
+    room,
+    snapshot: nextSnapshot,
+  });
+  return nextSnapshot;
+}
+
+function arePointerArraysEqual(
+  previous: readonly PointerBeam[],
+  next: readonly PointerBeam[],
+): boolean {
+  if (previous === next) {
+    return true;
+  }
+
+  if (previous.length !== next.length) {
+    return false;
+  }
+
+  for (let index = 0; index < previous.length; index += 1) {
+    const previousEntry = previous[index];
+    const nextEntry = next[index];
+
+    if (!previousEntry || !nextEntry || !areStructuredValuesEqual(previousEntry, nextEntry)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function readPointerSnapshot<TPresence extends PresenceData>(
+  room: Room<TPresence>,
+  pointer: PointerEngine,
+  cacheRef: {
+    current: PointerSnapshotCache<TPresence> | null;
+    set(nextCache: PointerSnapshotCache<TPresence>): void;
+  },
+): PointerBeam[] {
+  const nextSnapshot = pointer.getAll();
+  const previous = cacheRef.current;
+
+  if (previous && previous.room === room && previous.engine === pointer) {
+    const previousSnapshot = previous.snapshot;
+    if (arePointerArraysEqual(previousSnapshot, nextSnapshot)) {
+      return previousSnapshot;
+    }
+
+    const stableSnapshot = nextSnapshot.map((beam, index) => {
+      const previousBeam = previousSnapshot[index];
+      if (previousBeam && areStructuredValuesEqual(previousBeam, beam)) {
+        return previousBeam;
+      }
+
+      return beam;
+    });
+    previous.snapshot = stableSnapshot;
+    return stableSnapshot;
+  }
+
+  cacheRef.set({
+    engine: pointer,
     room,
     snapshot: nextSnapshot,
   });
