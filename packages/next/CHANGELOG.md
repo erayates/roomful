@@ -1,5 +1,13 @@
 # @roomful/next
 
+## 1.1.2
+
+### Patch Changes
+
+- 3055e9e: Refresh package metadata for the v1.5 line: add npm descriptions to the packages that were missing them and update the README stable badge to v1.5. Documentation and metadata only -- no code or API changes.
+- Updated dependencies [3055e9e]
+  - @roomful/core@1.1.1
+
 ## 1.1.1
 
 ### Patch Changes
