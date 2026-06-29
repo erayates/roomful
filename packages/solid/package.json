@@ -1,6 +1,6 @@
 {
   "name": "@roomful/solid",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "private": false,
   "type": "module",
   "main": "dist/index.js",
@@ -43,7 +43,6 @@
     "vite-plugin-solid": "^2.11.12"
   },
   "peerDependencies": {
-    "@roomful/core": "workspace:*",
     "solid-js": "^1.8.0"
   },
   "publishConfig": {
