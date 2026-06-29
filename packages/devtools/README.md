@@ -4,7 +4,7 @@ Developer tooling for [Roomful](https://github.com/erayates/roomful) — a debug
 
 The bridge powers a DevTools panel that shows connected peers and presence, a real-time state inspector with diff highlighting, an event log, room status and transport type, and simulated-peer injection for solo testing.
 
-> **Stable — v1.0.** The API is stable and ready for production.
+> **Stable — v1.5.** The API is stable and ready for production.
 
 ## Install
 

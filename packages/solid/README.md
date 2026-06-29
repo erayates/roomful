@@ -2,7 +2,7 @@
 
 SolidJS bindings for [Roomful](https://github.com/erayates/roomful) — a provider plus fine-grained primitives for real-time presence, cursors, shared state, awareness, events, viewport sync, laser pointer, locks, comments, and history.
 
-> **Stable — v1.0**, plus the v1.5 collaboration primitives. The API is stable and ready for production.
+> **Stable — v1.5.** Realtime presence, cursors, and shared state, plus the collaboration primitives (`useViewport`, `useLocks`, `usePointer`, `useComments`, `useHistory`). The API is stable and ready for production.
 
 ## Install
 

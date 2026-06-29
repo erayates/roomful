@@ -2,7 +2,7 @@
 
 Audience: contributors.
 
-This summary aligns implementation planning to 6 sprints and 9 epics. All six sprints and nine epics are **complete** — v1.0 shipped as Roomful 1.0.1 on 2026-06-28 (npm `latest`, Docker `:latest`, GitHub Releases). Forward work is planned as the v2 phases below; see the [Roadmap](https://github.com/erayates/roomful/blob/main/ROADMAP.md) for full detail.
+This summary aligns implementation planning to 6 sprints and 9 epics. All six sprints and nine epics are **complete** — v1.0 shipped as Roomful 1.0.1 on 2026-06-28 (npm `latest`, Docker `:latest`, GitHub Releases). Two further milestones have since shipped: **Ecosystem (v1.1)** on 2026-06-28 and **New Primitives I (v1.5)** on 2026-06-29, the current released milestone. Remaining forward work is planned as the v2 phases below; see the [Roadmap](https://github.com/erayates/roomful/blob/main/ROADMAP.md) for full detail.
 
 ## Sprint Timeline
 

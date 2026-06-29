@@ -2,7 +2,7 @@
 
 Vue 3 bindings for [Roomful](https://github.com/erayates/roomful) — a plugin and composables that integrate real-time collaboration (presence, cursors, shared state, awareness, events, viewport sync, laser pointer, locks, comments, and history) with Vue's reactivity system.
 
-> **Stable — v1.0**, plus the v1.5 collaboration primitives. The API is stable and ready for production.
+> **Stable — v1.5.** Realtime presence, cursors, and shared state, plus the collaboration primitives (`useViewport`, `useLocks`, `usePointer`, `useComments`, `useHistory`). The API is stable and ready for production.
 
 ## Install
 
