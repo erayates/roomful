@@ -7,6 +7,7 @@ import type {
   PresenceData,
   Room,
   RoomStatus,
+  TimelineEntry,
   Unsubscribe,
   ViewportState,
 } from '@roomful/core';
@@ -18,6 +19,7 @@ import {
   injectConnectionStatus,
   injectCursors,
   injectEvent,
+  injectHistory,
   injectLocks,
   injectLockState,
   injectPeers,
@@ -28,6 +30,7 @@ import {
   injectViewport,
   type InjectAwarenessResult,
   type InjectCommentsResult,
+  type InjectHistoryResult,
   type InjectLocksResult,
   type InjectPointerResult,
   type InjectViewportResult,
@@ -120,6 +123,21 @@ expectType<CommentThread[]>(comments.getOpen());
 
 const commentsWithOptions = injectComments({ storage: 'indexeddb' });
 expectType<InjectCommentsResult>(commentsWithOptions);
+
+const history = injectHistory();
+expectType<InjectHistoryResult>(history);
+expectType<Signal<TimelineEntry[]>>(history.timeline);
+expectType<string | undefined>(history.timeline()[0]?.action);
+expectType<Signal<boolean>>(history.canUndo);
+expectType<boolean>(history.canUndo());
+expectType<Signal<boolean>>(history.canRedo);
+history.capture('draw', 'Drew a circle');
+history.transaction('add-shape', () => undefined);
+expectType<Promise<void>>(history.undo());
+expectType<Promise<void>>(history.redo());
+
+const historyWithOptions = injectHistory({ maxEntries: 50, captureInterval: 0 });
+expectType<InjectHistoryResult>(historyWithOptions);
 
 const peers = injectPeers<{ role: 'editor' | 'viewer' }>();
 expectType<Signal<Peer<{ role: 'editor' | 'viewer' }>[]>>(peers);

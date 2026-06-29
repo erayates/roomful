@@ -1836,6 +1836,152 @@ export interface CommentsEngine {
 }
 
 /**
+ * A single entry in the shared collaborative history timeline. Every peer's
+ * {@link HistoryEngine.capture} and {@link HistoryEngine.transaction} appends
+ * one of these to a timeline that converges across all peers, so the whole room
+ * sees the same ordered activity log.
+ */
+export interface TimelineEntry {
+  /**
+   * Identifies the entry within the room.
+   */
+  id: string;
+
+  /**
+   * The id of the peer that produced the entry.
+   */
+  peerId: string;
+
+  /**
+   * The display name of the peer that produced the entry, resolved from
+   * presence at capture time. Falls back to the peer id when no name is set.
+   */
+  peerName: string;
+
+  /**
+   * The action label supplied to `capture`/`transaction` (for example
+   * `'draw'` or `'move-shape'`).
+   */
+  action: string;
+
+  /**
+   * The epoch-millisecond timestamp when the entry was captured.
+   */
+  timestamp: number;
+
+  /**
+   * An optional human-readable description of the entry. Defaults to the
+   * `action` when no explicit description is provided.
+   */
+  description: string;
+}
+
+/**
+ * Configures the collaborative history engine.
+ */
+export interface HistoryOptions {
+  /**
+   * Caps how many timeline entries are retained per peer (and bounds the local
+   * undo stack). Older entries beyond the cap are trimmed. Defaults to `100`.
+   */
+  maxEntries?: number;
+
+  /**
+   * Debounces rapid captures: mutations applied within this many milliseconds
+   * of the previous one are merged into a single undoable entry. Defaults to
+   * `500`.
+   */
+  captureInterval?: number;
+}
+
+/**
+ * Exposes collaborative undo/redo plus a shared activity timeline for a room.
+ *
+ * Undo/redo is **per-peer**: each peer only reverts and replays its own changes
+ * to the shared CRDT document, conflict-free, so one peer's undo never destroys
+ * another peer's concurrent work. The timeline, by contrast, is **shared**:
+ * every peer's captures converge into one ordered log that the whole room
+ * observes.
+ *
+ * Scope and limits (see the engine implementation for the full rationale):
+ * undo/redo act on the local peer's mutations to the shared CRDT `Y.Doc` — the
+ * data behind `useState({ strategy: 'crdt' })`. App-local React state and the
+ * `'lww'` state strategy are NOT auto-reverted; reverting those is the app's
+ * responsibility. A bare `capture()` records a timeline entry (metadata) and is
+ * only undoable when it is paired with `transaction()` mutations.
+ */
+export interface HistoryEngine {
+  /**
+   * Records a timeline entry without wrapping any mutation. Use this to log an
+   * action that the app applies itself; pair it with `transaction` when the
+   * action should also be undoable.
+   *
+   * @param action - The action label for the entry.
+   * @param payload - Optional metadata; a string is used as the entry
+   *   description, otherwise the description defaults to `action`.
+   * @returns Nothing.
+   */
+  capture(action: string, payload?: unknown): void;
+
+  /**
+   * Runs `fn`, capturing every shared-CRDT mutation it makes as a single
+   * undoable timeline entry. The mutations are committed under the local peer's
+   * tracked transaction origin so a later `undo()` reverts exactly this unit.
+   *
+   * @param name - The action label recorded on the timeline entry.
+   * @param fn - The function whose mutations form one undoable unit.
+   * @returns Nothing.
+   */
+  transaction(name: string, fn: () => void): void;
+
+  /**
+   * Undoes the local peer's most recent tracked transaction, reverting only
+   * that peer's changes to the shared CRDT document.
+   *
+   * @returns A promise that resolves once the undo is applied.
+   */
+  undo(): Promise<void>;
+
+  /**
+   * Redoes the local peer's most recently undone transaction.
+   *
+   * @returns A promise that resolves once the redo is applied.
+   */
+  redo(): Promise<void>;
+
+  /**
+   * Reports whether the local peer has a tracked transaction available to undo.
+   *
+   * @returns `true` when {@link HistoryEngine.undo} would have an effect.
+   */
+  canUndo(): boolean;
+
+  /**
+   * Reports whether the local peer has an undone transaction available to redo.
+   *
+   * @returns `true` when {@link HistoryEngine.redo} would have an effect.
+   */
+  canRedo(): boolean;
+
+  /**
+   * Returns the full shared timeline of every peer's entries, oldest first.
+   *
+   * @returns The current timeline entries.
+   */
+  timeline(): TimelineEntry[];
+
+  /**
+   * Subscribes to timeline changes. Fires immediately with the current
+   * timeline, then on every local or remote change (including undo/redo
+   * affecting `canUndo`/`canRedo`).
+   *
+   * @param callback - The callback invoked with the latest timeline.
+   * @returns A function that removes the listener.
+   */
+  subscribe(callback: (timeline: TimelineEntry[]) => void): Unsubscribe;
+}
+
+/**
  * Exposes custom event operations for a room.
  *
  * @typeParam TPresence - The custom peer presence shape.
@@ -2005,6 +2151,15 @@ export interface Room<TPresence extends PresenceData = PresenceData> {
    * @returns The comments engine.
    */
   useComments(options?: CommentsOptions): CommentsEngine;
+
+  /**
+   * Accesses the collaborative history (undo/redo plus shared timeline) engine
+   * for this room.
+   *
+   * @param options - Optional history configuration.
+   * @returns The history engine.
+   */
+  useHistory(options?: HistoryOptions): HistoryEngine;
 
   /**
    * Accesses the custom event engine for this room.

@@ -11,6 +11,7 @@ import { createAwarenessEngine } from './engines/awareness';
 import { createCommentsEngine } from './engines/comments';
 import { createCursorEngine } from './engines/cursors';
 import { createEventEngine } from './engines/events';
+import { createHistoryEngine } from './engines/history';
 import {
   createLockEngine,
   type LockClaimFrame,
@@ -109,6 +110,8 @@ import type {
   CursorPosition,
   EventEngine,
   EventOptions,
+  HistoryEngine,
+  HistoryOptions,
   LockEngine,
   Peer,
   PointerBeam,
@@ -534,6 +537,8 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
   private lockEngineInstance: LockEngine | null = null;
 
   private commentsEngineInstance: CommentsEngine | null = null;
+
+  private historyEngineInstance: HistoryEngine | null = null;
 
   private yjsController: RoomYjsController<TPresence> | null = null;
 
@@ -1369,6 +1374,35 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     });
 
     return commentsEngine;
+  }
+
+  public useHistory(options: HistoryOptions = {}): HistoryEngine {
+    if (this.historyEngineInstance) {
+      return this.historyEngineInstance;
+    }
+
+    const historyEngine = createHistoryEngine(
+      {
+        actorId: this.peerId,
+        doc: this.getOrCreateYjsController().doc,
+        getSelfPeer: () => {
+          return this.selfPeer;
+        },
+      },
+      () => {
+        return createRuntimePeerId();
+      },
+      options,
+    );
+
+    this.historyEngineInstance = historyEngine;
+
+    this.logger.info('state', 'state', 'History engine configured', {
+      maxEntries: options.maxEntries ?? null,
+      captureInterval: options.captureInterval ?? null,
+    });
+
+    return historyEngine;
   }
 
   // Hydrates the comments engine from local persistence, seeding any thread the

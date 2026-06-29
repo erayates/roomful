@@ -6,6 +6,7 @@ import type {
   PresenceData,
   Room,
   RoomStatus,
+  TimelineEntry,
   Unsubscribe,
   ViewportState,
 } from '@roomful/core';
@@ -23,6 +24,8 @@ import {
   useConnectionStatus,
   useCursors,
   useEvent,
+  useHistory,
+  type UseHistoryResult,
   useLocks,
   type UseLocksResult,
   useLockState,
@@ -117,6 +120,21 @@ expectType<CommentThread[]>(comments.getOpen());
 
 const commentsWithOptions = useComments({ storage: 'rest', restEndpoint: 'https://x' });
 expectType<UseCommentsResult>(commentsWithOptions);
+
+const history = useHistory();
+expectType<UseHistoryResult>(history);
+expectType<Accessor<TimelineEntry[]>>(history.timeline);
+expectType<string | undefined>(history.timeline()[0]?.action);
+expectType<Accessor<boolean>>(history.canUndo);
+expectType<boolean>(history.canUndo());
+expectType<Accessor<boolean>>(history.canRedo);
+history.capture('draw', 'Drew a circle');
+history.transaction('add-shape', () => undefined);
+expectType<Promise<void>>(history.undo());
+expectType<Promise<void>>(history.redo());
+
+const historyWithOptions = useHistory({ maxEntries: 50, captureInterval: 0 });
+expectType<UseHistoryResult>(historyWithOptions);
 
 const peers = usePeers<{ role: 'editor' | 'viewer' }>();
 expectType<Accessor<Peer<{ role: 'editor' | 'viewer' }>[]>>(peers);

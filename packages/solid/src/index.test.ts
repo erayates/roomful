@@ -10,6 +10,7 @@ import type {
   CursorEngine,
   CursorPosition,
   EventEngine,
+  HistoryEngine,
   LockEngine,
   LockState,
   Peer,
@@ -24,6 +25,7 @@ import type {
   RoomStatus,
   StateChangeMeta,
   StateEngine,
+  TimelineEntry,
   ViewportEngine,
   ViewportState,
 } from '@roomful/core';
@@ -55,6 +57,7 @@ import {
   useConnectionStatus,
   useCursors,
   useEvent,
+  useHistory,
   useLocks,
   useLockState,
   usePeers,
@@ -77,6 +80,7 @@ type PointerSubscriber = (beams: PointerBeam[]) => void;
 type LockStateSubscriber = (state: LockState) => void;
 type LocksSubscriber = (states: LockState[]) => void;
 type CommentsSubscriber = (threads: CommentThread[]) => void;
+type HistorySubscriber = (timeline: TimelineEntry[]) => void;
 
 type TestPresenceEngine = PresenceEngine<PresenceData> & {
   emit(peers: Peer<PresenceData>[]): void;
@@ -154,6 +158,18 @@ type TestCommentsEngine = CommentsEngine & {
   reopen: ReturnType<typeof vi.fn<(threadId: string) => Promise<CommentThread>>>;
 };
 
+type TestHistoryEngine = HistoryEngine & {
+  emit(timeline: TimelineEntry[]): void;
+  setCanUndo(value: boolean): void;
+  setCanRedo(value: boolean): void;
+  subscriberCount(): number;
+  subscribe: ReturnType<typeof vi.fn<(cb: HistorySubscriber) => () => void>>;
+  capture: ReturnType<typeof vi.fn<(action: string, payload?: unknown) => void>>;
+  transaction: ReturnType<typeof vi.fn<(name: string, fn: () => void) => void>>;
+  undo: ReturnType<typeof vi.fn<() => Promise<void>>>;
+  redo: ReturnType<typeof vi.fn<() => Promise<void>>>;
+};
+
 type TestEventEngine = EventEngine<PresenceData> & {
   deliver(name: string, payload: unknown, from?: Peer<PresenceData>): void;
   subscriberCount(name: string): number;
@@ -185,6 +201,7 @@ type TestRoom = Room<PresenceData> & {
   commentsEngine: TestCommentsEngine;
   cursorEngine: TestCursorEngine;
   eventEngine: TestEventEngine;
+  historyEngine: TestHistoryEngine;
   lockEngine: TestLockEngine;
   pointerEngine: TestPointerEngine;
   presenceEngine: TestPresenceEngine;
@@ -420,6 +437,101 @@ function createMockCommentsEngine(threads: CommentThread[] = []): TestCommentsEn
       return subscribers.size;
     },
   } as TestCommentsEngine;
+
+  return engine;
+}
+
+function createTimelineEntry(id: string, overrides: Partial<TimelineEntry> = {}): TimelineEntry {
+  return {
+    id,
+    peerId: `peer-${id}`,
+    peerName: `Peer ${id}`,
+    action: id,
+    timestamp: 1,
+    description: id,
+    ...overrides,
+  };
+}
+
+function createMockHistoryEngine(timeline: TimelineEntry[] = []): TestHistoryEngine {
+  const subscribers = new Set<HistorySubscriber>();
+  let currentTimeline = timeline;
+  let currentCanUndo = false;
+  let currentCanRedo = false;
+
+  const notify = (): void => {
+    for (const subscriber of subscribers) {
+      subscriber(currentTimeline);
+    }
+  };
+
+  const engine = {
+    capture: vi.fn((action: string, payload?: unknown) => {
+      currentTimeline = [
+        ...currentTimeline,
+        createTimelineEntry(`entry-${currentTimeline.length + 1}`, {
+          action,
+          description: typeof payload === 'string' && payload.length > 0 ? payload : action,
+        }),
+      ];
+      notify();
+    }),
+    transaction: vi.fn((name: string, fn: () => void) => {
+      fn();
+      currentCanUndo = true;
+      currentCanRedo = false;
+      currentTimeline = [
+        ...currentTimeline,
+        createTimelineEntry(`entry-${currentTimeline.length + 1}`, {
+          action: name,
+          description: name,
+        }),
+      ];
+      notify();
+    }),
+    undo: vi.fn(async () => {
+      currentCanUndo = false;
+      currentCanRedo = true;
+      notify();
+    }),
+    redo: vi.fn(async () => {
+      currentCanUndo = true;
+      currentCanRedo = false;
+      notify();
+    }),
+    canUndo() {
+      return currentCanUndo;
+    },
+    canRedo() {
+      return currentCanRedo;
+    },
+    timeline() {
+      return currentTimeline;
+    },
+    subscribe: vi.fn((callback: HistorySubscriber) => {
+      subscribers.add(callback);
+      callback(currentTimeline);
+
+      return () => {
+        subscribers.delete(callback);
+      };
+    }),
+    emit(nextTimeline: TimelineEntry[]) {
+      currentTimeline = nextTimeline;
+      notify();
+    },
+    setCanUndo(value: boolean) {
+      currentCanUndo = value;
+      notify();
+    },
+    setCanRedo(value: boolean) {
+      currentCanRedo = value;
+      notify();
+    },
+    subscriberCount() {
+      return subscribers.size;
+    },
+  } as TestHistoryEngine;
 
   return engine;
 }
@@ -762,6 +874,7 @@ function createMockRoom(
     commentsEngine?: TestCommentsEngine;
     cursorEngine?: TestCursorEngine;
     eventEngine?: TestEventEngine;
+    historyEngine?: TestHistoryEngine;
     lockEngine?: TestLockEngine;
     peerId?: string;
     pointerEngine?: TestPointerEngine;
@@ -777,6 +890,7 @@ function createMockRoom(
   const commentsEngine = config.commentsEngine ?? createMockCommentsEngine();
   const cursorEngine = config.cursorEngine ?? createMockCursorEngine();
   const eventEngine = config.eventEngine ?? createMockEventEngine();
+  const historyEngine = config.historyEngine ?? createMockHistoryEngine();
   const lockEngine = config.lockEngine ?? createMockLockEngine();
   const stateEngine = config.stateEngine ?? createMockStateEngine({});
   const viewportEngine = config.viewportEngine ?? createMockViewportEngine();
@@ -892,6 +1006,9 @@ function createMockRoom(
     useComments: vi.fn(() => {
       return commentsEngine;
     }),
+    useHistory: vi.fn(() => {
+      return historyEngine;
+    }),
     useEvents: vi.fn(() => {
       return eventEngine;
     }),
@@ -944,6 +1061,7 @@ function createMockRoom(
     commentsEngine,
     cursorEngine,
     eventEngine,
+    historyEngine,
     lockEngine,
     pointerEngine,
     presenceEngine,
@@ -1744,6 +1862,85 @@ describe('useComments', () => {
   it('throws a typed error when useComments() is called outside the provider', () => {
     expect(() => {
       renderHook(useComments, {});
+    }).toThrowError(RoomfulError);
+  });
+});
+
+describe('useHistory', () => {
+  it('returns a timeline accessor and controls and reflects captures and remote entries', async () => {
+    const historyEngine = createMockHistoryEngine([
+      createTimelineEntry('seed', { action: 'draw' }),
+    ]);
+    createMockRoom(
+      'history-room',
+      {},
+      {
+        historyEngine,
+      },
+    );
+
+    const { result } = renderHook(useHistory, {
+      wrapper: createProviderWrapper('history-room'),
+    });
+
+    expect(result.timeline()).toEqual([expect.objectContaining({ id: 'seed' })]);
+    expect(result.canUndo()).toBe(false);
+    expect(result.canRedo()).toBe(false);
+    expect(typeof result.capture).toBe('function');
+
+    // capture appends a timeline entry reactively.
+    result.capture('move', 'Moved a shape');
+    expect(historyEngine.capture).toHaveBeenCalledWith('move', 'Moved a shape');
+    expect(result.timeline().map((entry) => entry.id)).toEqual(['seed', 'entry-2']);
+
+    // transaction wraps a mutation and flips canUndo.
+    const wrapped = vi.fn();
+    result.transaction('add-shape', wrapped);
+    expect(wrapped).toHaveBeenCalledTimes(1);
+    expect(historyEngine.transaction).toHaveBeenCalledWith('add-shape', wrapped);
+    expect(result.canUndo()).toBe(true);
+
+    await result.undo();
+    expect(historyEngine.undo).toHaveBeenCalledTimes(1);
+    expect(result.canUndo()).toBe(false);
+    expect(result.canRedo()).toBe(true);
+
+    await result.redo();
+    expect(historyEngine.redo).toHaveBeenCalledTimes(1);
+    expect(result.canUndo()).toBe(true);
+
+    // A remote timeline change is reflected in the accessor.
+    historyEngine.emit([
+      createTimelineEntry('seed', { action: 'draw' }),
+      createTimelineEntry('remote', { action: 'erase' }),
+    ]);
+    expect(result.timeline().map((entry) => entry.id)).toEqual(['seed', 'remote']);
+    expect(historyEngine.subscriberCount()).toBe(1);
+  });
+
+  it('skips deep-equal timeline snapshots', () => {
+    const historyEngine = createMockHistoryEngine([createTimelineEntry('seed')]);
+    createMockRoom(
+      'history-reactivity',
+      {},
+      {
+        historyEngine,
+      },
+    );
+
+    const { result } = renderHook(useHistory, {
+      wrapper: createProviderWrapper('history-reactivity'),
+    });
+
+    const initialSnapshot = result.timeline();
+
+    historyEngine.emit([createTimelineEntry('seed')]);
+    expect(result.timeline()).toBe(initialSnapshot);
+  });
+
+  it('throws a typed error when useHistory() is called outside the provider', () => {
+    expect(() => {
+      renderHook(useHistory, {});
     }).toThrowError(RoomfulError);
   });
 });

@@ -5,6 +5,7 @@ import type {
   PointerBeam,
   RoomfulError,
   RoomStatus,
+  TimelineEntry,
   Unsubscribe,
   ViewportState,
 } from '@roomful/core';
@@ -15,6 +16,7 @@ import { expectType } from 'tsd';
 
 import {
   type CommentsStore,
+  type HistoryStore,
   type LocksStore,
   type LockStateStore,
   type PointerStore,
@@ -138,3 +140,20 @@ const commentsConfiguredAdapter = roomful('comments-room', {
   comments: { storage: 'indexeddb' },
 });
 expectType<CommentsStore>(commentsConfiguredAdapter.comments);
+
+expectType<HistoryStore>(adapter.history);
+expectType<TimelineEntry[]>(get(adapter.history));
+expectType<string | undefined>(get(adapter.history)[0]?.action);
+expectType<Readable<boolean>>(adapter.history.canUndo);
+expectType<boolean>(get(adapter.history.canUndo));
+expectType<Readable<boolean>>(adapter.history.canRedo);
+expectType<boolean>(get(adapter.history.canRedo));
+adapter.history.capture('draw', 'Drew a circle');
+adapter.history.transaction('add-shape', () => undefined);
+expectType<Promise<void>>(adapter.history.undo());
+expectType<Promise<void>>(adapter.history.redo());
+
+const historyConfiguredAdapter = roomful('history-room', {
+  history: { maxEntries: 50 },
+});
+expectType<HistoryStore>(historyConfiguredAdapter.history);
