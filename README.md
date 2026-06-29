@@ -30,6 +30,7 @@ Building collaboration features usually requires you to stitch together transpor
 - `state` for synchronized shared data
 - `awareness` for ephemeral UI context
 - `events` for fire-and-forget signals
+- v1.5 primitives: `viewport` sync, `locks`, laser `pointer`, `comments`, and `history` (undo/redo + timeline)
 
 ## Feature Overview
 
@@ -41,6 +42,11 @@ Building collaboration features usually requires you to stitch together transpor
 | Shared state engine | `lww`, `crdt`, `custom` merge strategies      | Available |
 | Awareness engine    | transient focus/typing/selection state        | Available |
 | Event engine        | ephemeral room and peer-targeted events       | Available |
+| Viewport sync       | scroll/zoom follow and present mode (v1.5)    | Available |
+| Locking engine      | distributed advisory locks (v1.5)             | Available |
+| Pointer engine      | laser-pointer beams + overlay (v1.5)          | Available |
+| Comments engine     | anchored collaborative threads (v1.5)         | Available |
+| History engine      | per-peer undo/redo + shared timeline (v1.5)   | Available |
 | React adapter       | provider + hooks API                          | Available |
 | Vue adapter         | plugin + composables                          | Available |
 | Svelte adapter      | stores + actions                              | Available |
