@@ -23,11 +23,25 @@ When implementation and docs differ, open an issue with:
 - [Presence engine](engines-presence.md)
 - [Cursor engine](engines-cursors.md)
 - [State, awareness, events](engines-state-awareness-events.md)
+
+### Collaboration primitives (v1.5)
+
+- [Viewport engine](engines-viewport.md)
+- [Locking engine](engines-locks.md)
+- [Pointer engine](engines-pointer.md)
+- [Comments engine](engines-comments.md)
+- [History engine](engines-history.md)
+
+### Adapters
+
 - [React adapter](adapters-react.md)
 - [Vue adapter](adapters-vue.md)
 - [Svelte adapter](adapters-svelte.md)
 - [Solid adapter](adapters-solid.md)
 - [Angular adapter](adapters-angular.md)
+
+### Additional reference
+
 - [Advanced features](advanced.md)
 - [Next.js auth tokens](auth-nextjs.md)
 - [UI components](ui-components.md)
