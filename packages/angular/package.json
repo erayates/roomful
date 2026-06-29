@@ -1,6 +1,6 @@
 {
   "name": "@roomful/angular",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "private": false,
   "type": "module",
   "main": "dist/index.js",
@@ -46,8 +46,7 @@
     "zone.js": "~0.15.0"
   },
   "peerDependencies": {
-    "@angular/core": ">=17",
-    "@roomful/core": "workspace:*"
+    "@angular/core": ">=17"
   },
   "publishConfig": {
     "access": "public"
