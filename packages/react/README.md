@@ -1,8 +1,8 @@
 # @roomful/react
 
-React bindings for [Roomful](https://github.com/erayates/roomful) — a provider plus idiomatic hooks for real-time presence, cursors, shared state, awareness, and events.
+React bindings for [Roomful](https://github.com/erayates/roomful) — a provider plus idiomatic hooks for real-time presence, cursors, shared state, awareness, events, viewport sync, laser pointer, locks, comments, and history.
 
-> **Stable — v1.0.** The API is stable and ready for production.
+> **Stable — v1.0**, plus the v1.5 collaboration primitives. The API is stable and ready for production.
 
 ## Install
 
@@ -34,7 +34,7 @@ function Room() {
 }
 ```
 
-Hooks: `useRoom`, `usePresence`, `useCursors`, `useSharedState`, `useAwareness`, `useEvent`, `usePeers`, `useConnectionStatus`.
+Hooks: `useRoom`, `usePresence`, `useCursors`, `useSharedState`, `useAwareness`, `useEvent`, `usePeers`, `useConnectionStatus`. v1.5 collaboration primitives: `useViewport`, `useLocks` (plus `useLockState`), `usePointer`, `useComments`, `useHistory` — see the [reference docs](https://github.com/erayates/roomful/blob/main/docs/reference/adapters-react.md).
 
 ## Documentation
 

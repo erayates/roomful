@@ -1,8 +1,8 @@
 # @roomful/angular
 
-Angular bindings for [Roomful](https://github.com/erayates/roomful) — signal-based providers and injectables for real-time collaboration.
+Angular bindings for [Roomful](https://github.com/erayates/roomful) — signal-based providers and injectables for real-time collaboration (presence, cursors, shared state, awareness, events, viewport sync, laser pointer, locks, comments, and history).
 
-> **Stable — v1.0.** The API is stable and ready for production.
+> **Stable — v1.0**, plus the v1.5 collaboration primitives. The API is stable and ready for production.
 
 ## Install
 
@@ -51,6 +51,8 @@ Inside any component or service created within that provider context, call the i
 - `injectEvent(name, handler)` — returns an `emit(payload)` function.
 - `injectPeers()` — a signal of remote peers.
 - `injectConnectionStatus()` — a signal of the current `RoomStatus`.
+
+The v1.5 collaboration primitives follow the same `inject*` pattern: `injectViewport()`, `injectLocks()` (plus `injectLockState(key)`), `injectPointer()`, `injectComments()`, and `injectHistory()` — see the [reference docs](https://github.com/erayates/roomful/blob/main/docs/reference/adapters-angular.md).
 
 Every `inject*` helper must be called in an injection context (a component/service constructor, a field initializer, or `runInInjectionContext`).
 

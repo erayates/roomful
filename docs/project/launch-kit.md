@@ -160,7 +160,7 @@ Feedback welcome, especially on API ergonomics and deployment examples.
 ```text
 We launched Roomful, an open-source TypeScript SDK for adding real-time collaboration to web apps.
 
-It includes room lifecycle, presence, live cursors, shared state, awareness, event broadcast, CRDT/Yjs support, optional encryption, offline queueing, framework adapters for React/Vue/Svelte/Solid/Angular, a Next.js server-side auth package, prebuilt collaboration UI components, DevTools assets, and a self-hostable relay server.
+It includes room lifecycle, presence, live cursors, shared state, awareness, event broadcast, viewport sync, locking, laser pointers, threaded comments, collaborative history, CRDT/Yjs support, optional encryption, offline queueing, framework adapters for React/Vue/Svelte/Solid/Angular, a Next.js server-side auth package, prebuilt collaboration UI components, DevTools assets, and a self-hostable relay server.
 
 The goal is to make multiplayer features practical for teams that want open-source primitives and deployment control instead of starting with a hosted collaboration platform.
 

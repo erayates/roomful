@@ -45,11 +45,13 @@ v2 takes Roomful from a collaboration SDK to collaboration infrastructure. The f
 
 The **Ecosystem (v1.1)** milestone shipped on 2026-06-28: `@roomful/solid`, `@roomful/angular`, and `@roomful/next` (server-issued relay auth tokens) are published to npm.
 
+The **New Primitives I (v1.5)** milestone shipped on 2026-06-29: `useViewport()` (follow-me / presenter), `useLocks()` (advisory distributed mutex), `usePointer()` (laser beams), `useComments()` (persistent threads), and `useHistory()` (per-peer conflict-free undo) are live across the core and all five adapters — all riding the existing transport with no relay changes.
+
 | Milestone          | Version   | Key Deliverables                                                   | Status      |
 | ------------------ | --------- | ------------------------------------------------------------------ | ----------- |
 | Stable Foundation  | v1.0      | All v1.0 primitives, React/Vue/Svelte adapters, relay server       | ✅ Released |
 | Ecosystem          | v1.1      | SolidJS adapter, Angular adapter, Next.js auth tokens              | ✅ Released |
-| New Primitives I   | v1.5      | Viewport Sync, Locking, History/Undo, Pointer, Comments            | Planned     |
+| New Primitives I   | v1.5      | Viewport Sync, Locking, History/Undo, Pointer, Comments            | ✅ Released |
 | AI & Recording     | v2.0-beta | AI Peer, Session Recording, WebTransport, Edge Relay               | Planned     |
 | Platform           | v2.0      | React Native adapter, CLI tool, Plugin System, ZK Rooms, Ephemeral | Planned     |
 | Observability      | v2.1      | Built-in Analytics, Audit Log, Network Topology Visualizer         | Planned     |

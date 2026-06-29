@@ -1,8 +1,8 @@
 # @roomful/vue
 
-Vue 3 bindings for [Roomful](https://github.com/erayates/roomful) — a plugin and composables that integrate real-time collaboration with Vue's reactivity system.
+Vue 3 bindings for [Roomful](https://github.com/erayates/roomful) — a plugin and composables that integrate real-time collaboration (presence, cursors, shared state, awareness, events, viewport sync, laser pointer, locks, comments, and history) with Vue's reactivity system.
 
-> **Stable — v1.0.** The API is stable and ready for production.
+> **Stable — v1.0**, plus the v1.5 collaboration primitives. The API is stable and ready for production.
 
 ## Install
 
@@ -31,7 +31,7 @@ const [count, setCount] = useSharedState('count', { initialValue: 0 });
 </script>
 ```
 
-Composables: `usePresence`, `useCursors`, `useSharedState`, `useAwareness`, `useEvent`, `useConnectionStatus` (plus the `v-roomful-cursors` directive). `RoomfulPlugin` also accepts `onConnect`, `onDisconnect`, and `onError` lifecycle callbacks.
+Composables: `usePresence`, `useCursors`, `useSharedState`, `useAwareness`, `useEvent`, `useConnectionStatus` (plus the `v-roomful-cursors` directive). v1.5 collaboration primitives: `useViewport`, `useLocks` (plus `useLockState`), `usePointer`, `useComments`, `useHistory` — see the [reference docs](https://github.com/erayates/roomful/blob/main/docs/reference/adapters-vue.md). `RoomfulPlugin` also accepts `onConnect`, `onDisconnect`, and `onError` lifecycle callbacks.
 
 ## Documentation
 

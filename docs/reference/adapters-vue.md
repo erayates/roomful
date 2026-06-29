@@ -47,6 +47,16 @@ const emitReaction = useEvent('reaction', (data, from) => {
 </template>
 ```
 
+## Collaboration primitives (v1.5)
+
+These composables follow the same Vue-ref conventions as the rest of the adapter (reactive state as readonly refs; `ref`/`mount`/`unmount` for DOM hosts):
+
+- `useViewport(opts?)` — `{ ref, states, broadcast, stopBroadcast, present, stopPresenting, follow, unfollow }` to follow a peer's scroll/zoom. See [Viewport engine](engines-viewport.md).
+- `useLocks()` — `{ locks, acquire, release, releaseAll, isLocked, getHolder }` for advisory locks over UI keys, with `useLockState(key)` returning a single key's `LockState | null` ref (the lock-on-focus pattern). See [Locking engine](engines-locks.md).
+- `usePointer(opts?)` — `{ ref, beams, activate, deactivate, render }` for laser-pointer beams. See [Pointer engine](engines-pointer.md).
+- `useComments(opts?)` — `{ threads, add, reply, resolve, reopen, getByElement, getOpen }` for anchored comment threads. See [Comments engine](engines-comments.md).
+- `useHistory(opts?)` — `{ timeline, canUndo, canRedo, capture, transaction, undo, redo }` for undo/redo plus a shared activity timeline. See [History engine](engines-history.md).
+
 ## Integration Notes
 
 - Designed for Vue 3 composable patterns and `setup()` usage in both Composition API and Options API components.
@@ -68,5 +78,10 @@ const emitReaction = useEvent('reaction', (data, from) => {
 - [Reference index](README.md)
 - [Core API](core-api.md)
 - [State, awareness, events](engines-state-awareness-events.md)
+- [Viewport engine](engines-viewport.md)
+- [Locking engine](engines-locks.md)
+- [Pointer engine](engines-pointer.md)
+- [Comments engine](engines-comments.md)
+- [History engine](engines-history.md)
 - [Quickstart](../getting-started/quickstart.md)
 - [Docs index](../README.md)
