@@ -2,6 +2,11 @@ import type {
   AwarenessEngine,
   AwarenessSelection,
   AwarenessState,
+  Comment,
+  CommentAnchor,
+  CommentsEngine,
+  CommentsOptions,
+  CommentThread,
   CursorData,
   CursorEngine,
   CursorPosition,
@@ -97,6 +102,12 @@ interface LocksSnapshotCache<TPresence extends PresenceData> {
   engine: LockEngine;
   room: Room<TPresence>;
   snapshot: LockState[];
+}
+
+interface CommentsSnapshotCache<TPresence extends PresenceData> {
+  engine: CommentsEngine;
+  room: Room<TPresence>;
+  snapshot: CommentThread[];
 }
 
 interface LockStateSnapshotCache<TPresence extends PresenceData> {
@@ -395,6 +406,57 @@ export interface LocksStore extends Readable<LockState[]> {
 export type LockStateStore = Readable<LockState | null>;
 
 /**
+ * Readable store of collaborative comment threads augmented with the thread
+ * mutators.
+ */
+export interface CommentsStore extends Readable<CommentThread[]> {
+  /**
+   * Opens a new thread authored by the local peer at an anchor.
+   */
+  add: CommentsEngine['add'];
+
+  /**
+   * Appends a reply authored by the local peer to a thread.
+   *
+   * @param threadId - The thread to reply to.
+   * @param text - The reply body.
+   * @returns A promise resolving to the updated thread.
+   */
+  reply(threadId: string, text: string): Promise<CommentThread>;
+
+  /**
+   * Marks a thread resolved.
+   *
+   * @param threadId - The thread to resolve.
+   * @returns A promise resolving to the updated thread.
+   */
+  resolve(threadId: string): Promise<CommentThread>;
+
+  /**
+   * Reopens a resolved thread.
+   *
+   * @param threadId - The thread to reopen.
+   * @returns A promise resolving to the updated thread.
+   */
+  reopen(threadId: string): Promise<CommentThread>;
+
+  /**
+   * Returns the threads anchored to an element.
+   */
+  getByElement: CommentsEngine['getByElement'];
+
+  /**
+   * Returns the unresolved threads.
+   */
+  getOpen: CommentsEngine['getOpen'];
+}
+
+/**
+ * Re-exports the collaborative comment types for adapter consumers.
+ */
+export type { Comment, CommentAnchor, CommentsOptions, CommentThread };
+
+/**
  * Readable awareness store augmented with write helpers.
  */
 export interface AwarenessStore extends Readable<AwarenessStoreValue> {
@@ -541,6 +603,11 @@ export interface RoomfulOptions<
   TPresence extends PresenceData = PresenceData,
 > extends RoomOptions<TPresence> {
   /**
+   * Configures the comments store's storage backend.
+   */
+  comments?: CommentsOptions;
+
+  /**
    * Runs after the room connects.
    */
   onConnect?: () => void;
@@ -570,6 +637,11 @@ export interface RoomfulAdapter<
    * Exposes the awareness store.
    */
   awareness: AwarenessStore;
+
+  /**
+   * Exposes the collaborative comments store plus the thread mutators.
+   */
+  comments: CommentsStore;
 
   /**
    * Connects the room runtime.
@@ -654,7 +726,7 @@ export function roomful<
   TPresence extends PresenceData = PresenceData,
   TCursor extends CursorData = CursorData,
 >(roomId: string, options: RoomfulOptions<TPresence> = {}): RoomfulAdapter<TPresence, TCursor> {
-  const { onConnect, onDisconnect, onError, ...roomOptions } = options;
+  const { comments: commentsOptions, onConnect, onDisconnect, onError, ...roomOptions } = options;
   const room = createRoom(roomId, roomOptions);
   const presenceEngine = room.usePresence();
   const cursorEngine = room.useCursors<TCursor>();
@@ -662,6 +734,7 @@ export function roomful<
   const viewportEngine = room.useViewport();
   const pointerEngine = room.usePointer();
   const lockEngine = room.useLocks();
+  const commentsEngine = room.useComments(commentsOptions);
   const eventEngine = room.useEvents();
 
   let destroyed = false;
@@ -677,6 +750,7 @@ export function roomful<
   let viewportCache: ViewportSnapshotCache<TPresence> | null = null;
   let pointerCache: PointerSnapshotCache<TPresence> | null = null;
   let locksCache: LocksSnapshotCache<TPresence> | null = null;
+  let commentsCache: CommentsSnapshotCache<TPresence> | null = null;
   let sharedStateController: SharedStateController<TPresence, unknown> | null = null;
 
   const cleanupRegistry = new Set<() => void>();
@@ -737,6 +811,14 @@ export function roomful<
       current: locksCache,
       set(nextCache) {
         locksCache = nextCache;
+      },
+    }),
+  );
+  const commentsStore = createValueStore(
+    readCommentsSnapshot(room, commentsEngine, {
+      current: commentsCache,
+      set(nextCache) {
+        commentsCache = nextCache;
       },
     }),
   );
@@ -807,6 +889,17 @@ export function roomful<
         current: locksCache,
         set(nextCache) {
           locksCache = nextCache;
+        },
+      }),
+    );
+  };
+
+  const refreshComments = (): void => {
+    commentsStore.publish(
+      readCommentsSnapshot(room, commentsEngine, {
+        current: commentsCache,
+        set(nextCache) {
+          commentsCache = nextCache;
         },
       }),
     );
@@ -935,6 +1028,20 @@ export function roomful<
     });
   };
 
+  const attachCommentsSubscription = (): void => {
+    if (!runtimeStarted) {
+      return;
+    }
+
+    const unsubscribe = commentsEngine.subscribe(() => {
+      refreshComments();
+    });
+
+    registerCleanup(() => {
+      unsubscribe();
+    });
+  };
+
   const attachLockStateRecord = (record: LockStateRecord<TPresence>): void => {
     if (!runtimeStarted || record.cleanup) {
       return;
@@ -1025,6 +1132,7 @@ export function roomful<
     attachViewportSubscription();
     attachPointerSubscription();
     attachLocksSubscription();
+    attachCommentsSubscription();
     attachSharedStateSubscription();
 
     for (const record of eventListeners) {
@@ -1288,6 +1396,34 @@ export function roomful<
     },
     getHolder(key) {
       return lockEngine.getHolder(key);
+    },
+  };
+
+  const comments: CommentsStore = {
+    subscribe(run, invalidate) {
+      return commentsStore.subscribe(run, invalidate);
+    },
+    add(input) {
+      assertAvailable('comments.add');
+      return commentsEngine.add(input);
+    },
+    reply(threadId, text) {
+      assertAvailable('comments.reply');
+      return commentsEngine.thread(threadId).reply(text);
+    },
+    resolve(threadId) {
+      assertAvailable('comments.resolve');
+      return commentsEngine.thread(threadId).resolve();
+    },
+    reopen(threadId) {
+      assertAvailable('comments.reopen');
+      return commentsEngine.thread(threadId).reopen();
+    },
+    getByElement(elementId) {
+      return commentsEngine.getByElement(elementId);
+    },
+    getOpen() {
+      return commentsEngine.getOpen();
     },
   };
 
@@ -1586,6 +1722,7 @@ export function roomful<
     viewportStore.clear();
     pointerStore.clear();
     locksStore.clear();
+    commentsStore.clear();
     statusStore.clear();
     sharedStateController?.valueStore.clear();
 
@@ -1602,6 +1739,7 @@ export function roomful<
 
   return {
     awareness,
+    comments,
     connect,
     cursors,
     destroy,
@@ -1992,6 +2130,67 @@ function readLocksSnapshot<TPresence extends PresenceData>(
 
   cacheRef.set({
     engine: locks,
+    room,
+    snapshot: nextSnapshot,
+  });
+  return nextSnapshot;
+}
+
+function areCommentThreadArraysEqual(
+  previous: readonly CommentThread[],
+  next: readonly CommentThread[],
+): boolean {
+  if (previous === next) {
+    return true;
+  }
+
+  if (previous.length !== next.length) {
+    return false;
+  }
+
+  for (let index = 0; index < previous.length; index += 1) {
+    const previousEntry = previous[index];
+    const nextEntry = next[index];
+
+    if (!previousEntry || !nextEntry || !areStructuredValuesEqual(previousEntry, nextEntry)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function readCommentsSnapshot<TPresence extends PresenceData>(
+  room: Room<TPresence>,
+  comments: CommentsEngine,
+  cacheRef: {
+    current: CommentsSnapshotCache<TPresence> | null;
+    set(nextCache: CommentsSnapshotCache<TPresence>): void;
+  },
+): CommentThread[] {
+  const nextSnapshot = comments.getAll();
+  const previous = cacheRef.current;
+
+  if (previous && previous.room === room && previous.engine === comments) {
+    const previousSnapshot = previous.snapshot;
+    if (areCommentThreadArraysEqual(previousSnapshot, nextSnapshot)) {
+      return previousSnapshot;
+    }
+
+    const stableSnapshot = nextSnapshot.map((thread, index) => {
+      const previousThread = previousSnapshot[index];
+      if (previousThread && areStructuredValuesEqual(previousThread, thread)) {
+        return previousThread;
+      }
+
+      return thread;
+    });
+    previous.snapshot = stableSnapshot;
+    return stableSnapshot;
+  }
+
+  cacheRef.set({
+    engine: comments,
     room,
     snapshot: nextSnapshot,
   });

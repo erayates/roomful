@@ -407,6 +407,40 @@ function createMockRoom(
         }),
       };
     }),
+    useComments: vi.fn(() => {
+      return {
+        add: vi.fn(async () => {
+          throw new Error('not implemented in SSR mock');
+        }),
+        thread: vi.fn(() => {
+          return {
+            reply: vi.fn(async () => {
+              throw new Error('not implemented in SSR mock');
+            }),
+            resolve: vi.fn(async () => {
+              throw new Error('not implemented in SSR mock');
+            }),
+            reopen: vi.fn(async () => {
+              throw new Error('not implemented in SSR mock');
+            }),
+          };
+        }),
+        getAll: vi.fn(() => {
+          return [];
+        }),
+        getByElement: vi.fn(() => {
+          return [];
+        }),
+        getOpen: vi.fn(() => {
+          return [];
+        }),
+        subscribe: vi.fn(() => {
+          return () => {
+            return undefined;
+          };
+        }),
+      };
+    }),
     useEvents: vi.fn(() => {
       return eventEngine;
     }),

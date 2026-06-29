@@ -1,4 +1,5 @@
 import type {
+  CommentThread,
   LockState,
   Peer,
   PointerBeam,
@@ -13,6 +14,7 @@ import { get, type Readable, type Writable } from 'svelte/store';
 import { expectType } from 'tsd';
 
 import {
+  type CommentsStore,
   type LocksStore,
   type LockStateStore,
   type PointerStore,
@@ -119,3 +121,20 @@ const lockStateStore = adapter.lockState('cell-1');
 expectType<LockStateStore>(lockStateStore);
 expectType<LockState | null>(get(lockStateStore));
 expectType<Peer | null | undefined>(get(lockStateStore)?.holder);
+
+expectType<CommentsStore>(adapter.comments);
+expectType<CommentThread[]>(get(adapter.comments));
+expectType<boolean | undefined>(get(adapter.comments)[0]?.resolved);
+expectType<Promise<CommentThread>>(
+  adapter.comments.add({ anchor: { elementId: 'cell-1' }, text: 'hi' }),
+);
+expectType<Promise<CommentThread>>(adapter.comments.reply('thread-1', 'reply'));
+expectType<Promise<CommentThread>>(adapter.comments.resolve('thread-1'));
+expectType<Promise<CommentThread>>(adapter.comments.reopen('thread-1'));
+expectType<CommentThread[]>(adapter.comments.getByElement('cell-1'));
+expectType<CommentThread[]>(adapter.comments.getOpen());
+
+const commentsConfiguredAdapter = roomful('comments-room', {
+  comments: { storage: 'indexeddb' },
+});
+expectType<CommentsStore>(commentsConfiguredAdapter.comments);

@@ -1650,6 +1650,192 @@ export interface LockEngine {
 }
 
 /**
+ * Anchors a comment thread to the document it annotates. One of:
+ *
+ * - `{ elementId }` — pins the thread to an element.
+ * - `{ x, y }` — pins the thread to a point in canvas/coordinate space.
+ * - `{ from, to, elementId }` — pins the thread to a text-selection range
+ *   within an element.
+ */
+export type CommentAnchor =
+  | { elementId: string }
+  | { x: number; y: number }
+  | { from: number; to: number; elementId: string };
+
+/**
+ * A single reply within a comment thread.
+ */
+export interface Comment {
+  /**
+   * Identifies the reply within its thread.
+   */
+  id: string;
+
+  /**
+   * The peer that authored the reply.
+   */
+  author: Peer;
+
+  /**
+   * The reply body.
+   */
+  text: string;
+
+  /**
+   * The epoch-millisecond timestamp when the reply was created.
+   */
+  createdAt: number;
+}
+
+/**
+ * A collaborative comment thread: a root comment, its anchor, and any replies.
+ * Threads are persistent collaborative state — they sync across peers and
+ * survive late joins, unlike the ephemeral presence-style primitives.
+ */
+export interface CommentThread {
+  /**
+   * Identifies the thread within the room.
+   */
+  id: string;
+
+  /**
+   * Where the thread is anchored in the annotated document.
+   */
+  anchor: CommentAnchor;
+
+  /**
+   * The peer that opened the thread.
+   */
+  author: Peer;
+
+  /**
+   * The root comment body.
+   */
+  text: string;
+
+  /**
+   * The epoch-millisecond timestamp when the thread was created.
+   */
+  createdAt: number;
+
+  /**
+   * Whether the thread has been resolved.
+   */
+  resolved: boolean;
+
+  /**
+   * The replies appended to the thread, in creation order.
+   */
+  replies: Comment[];
+}
+
+/**
+ * Configures the comments engine.
+ */
+export interface CommentsOptions {
+  /**
+   * Selects the storage backend.
+   *
+   * - `'memory'` (default) — the synced, in-room collaborative structure.
+   * - `'indexeddb'` — additionally persists threads to the browser so they
+   *   reload on the next session.
+   * - `'rest'` — additionally mirrors threads to a REST endpoint.
+   */
+  storage?: 'memory' | 'indexeddb' | 'rest';
+
+  /**
+   * The REST endpoint used when `storage` is `'rest'`. Threads are loaded from
+   * it on init and mutations are POSTed back to it.
+   */
+  restEndpoint?: string;
+}
+
+/**
+ * Operates on a single comment thread resolved by id.
+ */
+export interface CommentThreadHandle {
+  /**
+   * Appends a reply authored by the local peer to the thread.
+   *
+   * @param text - The reply body.
+   * @returns A promise resolving to the updated thread.
+   */
+  reply(text: string): Promise<CommentThread>;
+
+  /**
+   * Marks the thread resolved.
+   *
+   * @returns A promise resolving to the updated thread.
+   */
+  resolve(): Promise<CommentThread>;
+
+  /**
+   * Reopens a resolved thread.
+   *
+   * @returns A promise resolving to the updated thread.
+   */
+  reopen(): Promise<CommentThread>;
+}
+
+/**
+ * Exposes collaborative comment threads for a room. Threads are synced
+ * collaborative state, shared across peers over the room's existing CRDT
+ * channel.
+ */
+export interface CommentsEngine {
+  /**
+   * Opens a new thread authored by the local peer at `anchor`. The thread id
+   * and `createdAt` are generated.
+   *
+   * @param input - The thread anchor and root comment body.
+   * @returns A promise resolving to the created thread.
+   */
+  add(input: { anchor: CommentAnchor; text: string }): Promise<CommentThread>;
+
+  /**
+   * Resolves a handle for operating on the thread with `id`. The handle
+   * methods no-op against an unknown id until it surfaces, then resolve to the
+   * latest thread.
+   *
+   * @param id - The thread id.
+   * @returns A handle exposing `reply`, `resolve`, and `reopen`.
+   */
+  thread(id: string): CommentThreadHandle;
+
+  /**
+   * Returns every thread, oldest first.
+   *
+   * @returns The current threads.
+   */
+  getAll(): CommentThread[];
+
+  /**
+   * Returns the threads anchored to `elementId` (element or text-range
+   * anchors).
+   *
+   * @param elementId - The element id to filter by.
+   * @returns The matching threads.
+   */
+  getByElement(elementId: string): CommentThread[];
+
+  /**
+   * Returns the unresolved threads.
+   *
+   * @returns The open threads.
+   */
+  getOpen(): CommentThread[];
+
+  /**
+   * Subscribes to thread changes. Fires immediately with the current threads,
+   * then on every local or remote mutation.
+   *
+   * @param callback - The callback invoked with the latest threads.
+   * @returns A function that removes the listener.
+   */
+  subscribe(callback: (threads: CommentThread[]) => void): Unsubscribe;
+}
+
+/**
  * Exposes custom event operations for a room.
  *
  * @typeParam TPresence - The custom peer presence shape.
@@ -1811,6 +1997,14 @@ export interface Room<TPresence extends PresenceData = PresenceData> {
    * @returns The lock engine.
    */
   useLocks(): LockEngine;
+
+  /**
+   * Accesses the collaborative comments engine for this room.
+   *
+   * @param options - Optional storage backend configuration.
+   * @returns The comments engine.
+   */
+  useComments(options?: CommentsOptions): CommentsEngine;
 
   /**
    * Accesses the custom event engine for this room.

@@ -3,6 +3,9 @@
 import type {
   AwarenessEngine,
   AwarenessState,
+  CommentAnchor,
+  CommentsEngine,
+  CommentThread,
   CursorData,
   CursorEngine,
   CursorPosition,
@@ -31,6 +34,7 @@ import { defineComponent, nextTick, watchEffect } from 'vue';
 
 import type {
   UseAwarenessResult,
+  UseCommentsResult,
   UseCursorsResult,
   UseLocksResult,
   UsePointerResult,
@@ -40,6 +44,7 @@ import type {
 import {
   RoomfulPlugin,
   useAwareness,
+  useComments,
   useConnectionStatus,
   useCursors,
   useEvent,
@@ -77,6 +82,7 @@ type ViewportSubscriber = (states: ViewportState[]) => void;
 type PointerSubscriber = (beams: PointerBeam[]) => void;
 type LockStateSubscriber = (state: LockState) => void;
 type LocksSubscriber = (states: LockState[]) => void;
+type CommentsSubscriber = (threads: CommentThread[]) => void;
 
 type TestPresenceEngine = PresenceEngine<PresenceData> & {
   emit(peers: Peer<PresenceData>[]): void;
@@ -135,6 +141,17 @@ type TestAwarenessEngine = AwarenessEngine & {
   setTyping: ReturnType<typeof vi.fn<(isTyping: boolean) => void>>;
 };
 
+type TestCommentsEngine = CommentsEngine & {
+  emit(threads: CommentThread[]): void;
+  subscriberCount(): number;
+  add: ReturnType<
+    typeof vi.fn<(input: { anchor: CommentAnchor; text: string }) => Promise<CommentThread>>
+  >;
+  reply: ReturnType<typeof vi.fn<(threadId: string, text: string) => Promise<CommentThread>>>;
+  resolve: ReturnType<typeof vi.fn<(threadId: string) => Promise<CommentThread>>>;
+  reopen: ReturnType<typeof vi.fn<(threadId: string) => Promise<CommentThread>>>;
+};
+
 type TestEventEngine = EventEngine<PresenceData> & {
   deliver(name: string, payload: unknown, from?: Peer<PresenceData>): void;
   subscriberCount(name: string): number;
@@ -158,6 +175,7 @@ type TestRoom = Room<PresenceData> & {
   listenerCount(event: RoomEventName): number;
   setStatus(status: RoomStatus): void;
   awarenessEngine: TestAwarenessEngine;
+  commentsEngine: TestCommentsEngine;
   cursorEngine: TestCursorEngine;
   eventEngine: TestEventEngine;
   lockEngine: TestLockEngine;
@@ -508,6 +526,120 @@ function createMockAwarenessEngine(peers: AwarenessState[] = []): TestAwarenessE
   return engine;
 }
 
+function createCommentThread(id: string, overrides: Partial<CommentThread> = {}): CommentThread {
+  return {
+    id,
+    anchor: { elementId: `element-${id}` },
+    author: createPeer(`author-${id}`),
+    text: `thread ${id}`,
+    createdAt: 1,
+    resolved: false,
+    replies: [],
+    ...overrides,
+  };
+}
+
+function createMockCommentsEngine(threads: CommentThread[] = []): TestCommentsEngine {
+  const subscribers = new Set<CommentsSubscriber>();
+  let currentThreads = threads;
+
+  const findThread = (threadId: string): CommentThread | undefined => {
+    return currentThreads.find((thread) => {
+      return thread.id === threadId;
+    });
+  };
+
+  const writeThread = (next: CommentThread): void => {
+    currentThreads = currentThreads.map((thread) => {
+      return thread.id === next.id ? next : thread;
+    });
+    for (const subscriber of subscribers) {
+      subscriber(currentThreads);
+    }
+  };
+
+  const engine = {
+    add: vi.fn(async (input: { anchor: CommentAnchor; text: string }) => {
+      const thread = createCommentThread(`thread-${currentThreads.length + 1}`, {
+        anchor: input.anchor,
+        text: input.text,
+      });
+      currentThreads = [...currentThreads, thread];
+      for (const subscriber of subscribers) {
+        subscriber(currentThreads);
+      }
+      return thread;
+    }),
+    reply: vi.fn(async (threadId: string, text: string) => {
+      const current = findThread(threadId) ?? createCommentThread(threadId);
+      const next: CommentThread = {
+        ...current,
+        replies: [
+          ...current.replies,
+          {
+            id: `reply-${current.replies.length + 1}`,
+            author: createPeer(`reply-author-${threadId}`),
+            text,
+            createdAt: 2,
+          },
+        ],
+      };
+      writeThread(next);
+      return next;
+    }),
+    resolve: vi.fn(async (threadId: string) => {
+      const current = findThread(threadId) ?? createCommentThread(threadId);
+      const next: CommentThread = { ...current, resolved: true };
+      writeThread(next);
+      return next;
+    }),
+    reopen: vi.fn(async (threadId: string) => {
+      const current = findThread(threadId) ?? createCommentThread(threadId);
+      const next: CommentThread = { ...current, resolved: false };
+      writeThread(next);
+      return next;
+    }),
+    thread(threadId: string) {
+      return {
+        reply: (text: string) => engine.reply(threadId, text),
+        resolve: () => engine.resolve(threadId),
+        reopen: () => engine.reopen(threadId),
+      };
+    },
+    getAll() {
+      return currentThreads;
+    },
+    getByElement(elementId: string) {
+      return currentThreads.filter((thread) => {
+        return 'elementId' in thread.anchor && thread.anchor.elementId === elementId;
+      });
+    },
+    getOpen() {
+      return currentThreads.filter((thread) => {
+        return !thread.resolved;
+      });
+    },
+    subscribe(callback: CommentsSubscriber) {
+      subscribers.add(callback);
+      callback(currentThreads);
+      return () => {
+        subscribers.delete(callback);
+      };
+    },
+    emit(nextThreads: CommentThread[]) {
+      currentThreads = nextThreads;
+      for (const subscriber of subscribers) {
+        subscriber(currentThreads);
+      }
+    },
+    subscriberCount() {
+      return subscribers.size;
+    },
+  } as TestCommentsEngine;
+
+  return engine;
+}
+
 function createMockEventEngine(): TestEventEngine {
   const subscribers = new Map<string, Set<EventSubscriber>>();
 
@@ -613,6 +745,7 @@ function createMockRoom(
   options: RoomOptions<PresenceData> = {},
   config: {
     awarenessEngine?: TestAwarenessEngine;
+    commentsEngine?: TestCommentsEngine;
     cursorEngine?: TestCursorEngine;
     eventEngine?: TestEventEngine;
     lockEngine?: TestLockEngine;
@@ -626,6 +759,7 @@ function createMockRoom(
   const handlers = new Map<RoomEventName, Set<RoomEventHandler>>();
   const peerId = config.peerId ?? `${roomId}-peer`;
   const awarenessEngine = config.awarenessEngine ?? createMockAwarenessEngine();
+  const commentsEngine = config.commentsEngine ?? createMockCommentsEngine();
   const cursorEngine = config.cursorEngine ?? createMockCursorEngine();
   const eventEngine = config.eventEngine ?? createMockEventEngine();
   const lockEngine = config.lockEngine ?? createMockLockEngine();
@@ -730,6 +864,9 @@ function createMockRoom(
     useLocks: vi.fn(() => {
       return lockEngine;
     }),
+    useComments: vi.fn(() => {
+      return commentsEngine;
+    }),
     useEvents: vi.fn(() => {
       return eventEngine;
     }),
@@ -775,6 +912,7 @@ function createMockRoom(
       currentStatus = status;
     },
     awarenessEngine,
+    commentsEngine,
     cursorEngine,
     eventEngine,
     lockEngine,
@@ -1379,6 +1517,88 @@ describe('useLocks', () => {
         defineComponent({
           setup() {
             useLocks();
+            return {};
+          },
+          template: '<div />',
+        }),
+      );
+    }).toThrowError(RoomfulError);
+  });
+});
+
+describe('useComments', () => {
+  it('exposes threads reactively, adds a comment, and forwards reply/resolve controls', async () => {
+    const commentsEngine = createMockCommentsEngine([
+      createCommentThread('seed', { text: 'Seed thread' }),
+    ]);
+    createMockRoom(
+      'comments-room',
+      {},
+      {
+        commentsEngine,
+      },
+    );
+    let observedComments: UseCommentsResult | null = null;
+
+    const wrapper = mount(
+      defineComponent({
+        setup() {
+          observedComments = useComments();
+          return {
+            threads: observedComments.threads,
+          };
+        },
+        template: '<span>{{ threads.length }}</span>',
+      }),
+      {
+        global: {
+          plugins: [[RoomfulPlugin, { roomId: 'comments-room' }]],
+        },
+      },
+    );
+
+    expect(wrapper.text()).toContain('1');
+    expect(observedComments?.threads.value).toEqual([expect.objectContaining({ id: 'seed' })]);
+
+    // Adding a thread is reflected in the reactive list.
+    await observedComments?.add({ anchor: { elementId: 'cell-1' }, text: 'New thread' });
+    await nextTick();
+
+    expect(wrapper.text()).toContain('2');
+    expect(commentsEngine.add).toHaveBeenCalledWith({
+      anchor: { elementId: 'cell-1' },
+      text: 'New thread',
+    });
+
+    await observedComments?.reply('seed', 'A reply');
+    await observedComments?.resolve('seed');
+    await observedComments?.reopen('seed');
+
+    expect(commentsEngine.reply).toHaveBeenCalledWith('seed', 'A reply');
+    expect(commentsEngine.resolve).toHaveBeenCalledWith('seed');
+    expect(commentsEngine.reopen).toHaveBeenCalledWith('seed');
+
+    // A remote thread change is reflected in the reactive list.
+    commentsEngine.emit([
+      createCommentThread('seed', { text: 'Seed thread' }),
+      createCommentThread('remote', { text: 'Remote thread' }),
+      createCommentThread('remote-2', { text: 'Remote thread 2' }),
+    ]);
+    await nextTick();
+
+    expect(wrapper.text()).toContain('3');
+    expect(observedComments?.getOpen()).toHaveLength(3);
+
+    wrapper.unmount();
+    expect(commentsEngine.subscriberCount()).toBe(0);
+  });
+
+  it('throws a typed error when useComments() is called outside the plugin', () => {
+    expect(() => {
+      mount(
+        defineComponent({
+          setup() {
+            useComments();
             return {};
           },
           template: '<div />',
