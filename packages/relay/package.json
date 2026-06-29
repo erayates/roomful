@@ -1,6 +1,6 @@
 {
   "name": "@roomful/relay",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Self-hosted relay server for Roomful realtime transports.",
   "private": false,
   "type": "module",
