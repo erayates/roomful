@@ -1,10 +1,10 @@
-import type { RoomfulError, RoomStatus, ViewportState } from '@roomful/core';
+import type { LockState, Peer, RoomfulError, RoomStatus, ViewportState } from '@roomful/core';
 import type { Action } from 'svelte/action';
 import { get, type Readable, type Writable } from 'svelte/store';
 
 import { expectType } from 'tsd';
 
-import { roomful, type RoomfulAdapter } from '..';
+import { type LocksStore, type LockStateStore, roomful, type RoomfulAdapter } from '..';
 
 const adapter = roomful('room-id', {
   onConnect() {
@@ -83,3 +83,16 @@ expectType<number | undefined>(get(adapter.viewport)[0]?.scrollX);
 expectType<Action<HTMLElement, undefined>>(adapter.viewport.mount);
 adapter.viewport.follow('peer-id');
 adapter.viewport.broadcast();
+
+expectType<LocksStore>(adapter.locks);
+expectType<LockState[]>(get(adapter.locks));
+expectType<Peer | null | undefined>(get(adapter.locks)[0]?.holder);
+expectType<Promise<boolean>>(adapter.locks.acquire('cell-1', { ttl: 1_000, timeout: 5_000 }));
+expectType<Peer | null>(adapter.locks.getHolder('cell-1'));
+adapter.locks.release('cell-1');
+adapter.locks.releaseAll();
+
+const lockStateStore = adapter.lockState('cell-1');
+expectType<LockStateStore>(lockStateStore);
+expectType<LockState | null>(get(lockStateStore));
+expectType<Peer | null | undefined>(get(lockStateStore)?.holder);

@@ -7,6 +7,8 @@ import type {
   CursorEngine,
   CursorPosition,
   EventEngine,
+  LockEngine,
+  LockState,
   Peer,
   PresenceData,
   PresenceEngine,
@@ -45,6 +47,7 @@ vi.mock('@roomful/core', async () => {
 import type {
   UseAwarenessResult,
   UseCursorsResult,
+  UseLocksResult,
   UsePresenceResult,
   UseViewportResult,
 } from './index';
@@ -54,6 +57,8 @@ import {
   useConnectionStatus,
   useCursors,
   useEvent,
+  useLocks,
+  useLockState,
   usePeers,
   usePresence,
   useRoom,
@@ -110,6 +115,20 @@ type TestViewportEngine = ViewportEngine & {
   unfollow: ReturnType<typeof vi.fn<() => void>>;
 };
 
+type LockStateSubscriber = (state: LockState) => void;
+type LocksSubscriber = (states: LockState[]) => void;
+
+type TestLockEngine = LockEngine & {
+  emitKey(key: string, state: LockState): void;
+  emitAll(states: LockState[]): void;
+  setHolder(key: string, holder: Peer<PresenceData> | null): void;
+  keySubscriberCount(key: string): number;
+  allSubscriberCount(): number;
+  acquire: ReturnType<typeof vi.fn<(key: string) => Promise<boolean>>>;
+  release: ReturnType<typeof vi.fn<(key: string) => void>>;
+  releaseAll: ReturnType<typeof vi.fn<() => void>>;
+};
+
 type TestAwarenessEngine = AwarenessEngine & {
   emit(peers: AwarenessState[]): void;
   subscriberCount(): number;
@@ -150,6 +169,7 @@ type TestRoom = Room<PresenceData> & {
   awarenessEngine: TestAwarenessEngine;
   cursorEngine: TestCursorEngine;
   eventEngine: TestEventEngine;
+  lockEngine: TestLockEngine;
   presenceEngine: TestPresenceEngine;
   stateEngine: TestStateEngine<unknown>;
   viewportEngine: TestViewportEngine;
@@ -362,6 +382,96 @@ function createMockViewportEngine(states: ViewportState[] = []): TestViewportEng
   return engine;
 }
 
+function createLock(key: string, holder: Peer<PresenceData> | null = null): LockState {
+  return {
+    key,
+    holder,
+    acquiredAt: holder ? 1 : 0,
+    expiresAt: null,
+  };
+}
+
+function createMockLockEngine(): TestLockEngine {
+  const keySubscribers = new Map<string, Set<LockStateSubscriber>>();
+  const allSubscribers = new Set<LocksSubscriber>();
+  const holders = new Map<string, LockState>();
+
+  const collectAll = (): LockState[] => {
+    return Array.from(holders.values()).filter((state) => {
+      return state.holder !== null;
+    });
+  };
+
+  const stateFor = (key: string): LockState => {
+    return holders.get(key) ?? createLock(key, null);
+  };
+
+  const engine = {
+    acquire: vi.fn(async () => {
+      return true;
+    }),
+    release: vi.fn(),
+    releaseAll: vi.fn(),
+    isLocked(key: string) {
+      return stateFor(key).holder !== null;
+    },
+    getHolder(key: string) {
+      return stateFor(key).holder;
+    },
+    getAll() {
+      return collectAll();
+    },
+    subscribe: vi.fn((key: string, callback: LockStateSubscriber) => {
+      const subscribers = keySubscribers.get(key) ?? new Set<LockStateSubscriber>();
+      subscribers.add(callback);
+      keySubscribers.set(key, subscribers);
+      callback(stateFor(key));
+
+      return () => {
+        subscribers.delete(callback);
+        if (subscribers.size === 0) {
+          keySubscribers.delete(key);
+        }
+      };
+    }),
+    subscribeAll: vi.fn((callback: LocksSubscriber) => {
+      allSubscribers.add(callback);
+      callback(collectAll());
+
+      return () => {
+        allSubscribers.delete(callback);
+      };
+    }),
+    setHolder(key: string, holder: Peer<PresenceData> | null) {
+      holders.set(key, createLock(key, holder));
+    },
+    emitKey(key: string, state: LockState) {
+      holders.set(key, state);
+      for (const subscriber of keySubscribers.get(key) ?? []) {
+        subscriber(state);
+      }
+    },
+    emitAll(states: LockState[]) {
+      holders.clear();
+      for (const state of states) {
+        holders.set(state.key, state);
+      }
+
+      for (const subscriber of allSubscribers) {
+        subscriber(states);
+      }
+    },
+    keySubscriberCount(key: string) {
+      return keySubscribers.get(key)?.size ?? 0;
+    },
+    allSubscriberCount() {
+      return allSubscribers.size;
+    },
+  } as TestLockEngine;
+
+  return engine;
+}
+
 function createMockEventEngine(): TestEventEngine {
   const subscribers = new Map<string, Set<EventSubscriber>>();
 
@@ -470,6 +580,7 @@ function createMockRoom(
     awarenessEngine?: TestAwarenessEngine;
     cursorEngine?: TestCursorEngine;
     eventEngine?: TestEventEngine;
+    lockEngine?: TestLockEngine;
     peerId?: string;
     presenceEngine?: TestPresenceEngine;
     status?: RoomStatus;
@@ -482,6 +593,7 @@ function createMockRoom(
   const awarenessEngine = config.awarenessEngine ?? createMockAwarenessEngine();
   const cursorEngine = config.cursorEngine ?? createMockCursorEngine();
   const eventEngine = config.eventEngine ?? createMockEventEngine();
+  const lockEngine = config.lockEngine ?? createMockLockEngine();
   const stateEngine = config.stateEngine ?? createMockStateEngine({});
   const viewportEngine = config.viewportEngine ?? createMockViewportEngine();
   const presenceEngine =
@@ -586,6 +698,9 @@ function createMockRoom(
     useViewport: vi.fn(() => {
       return viewportEngine;
     }),
+    useLocks: vi.fn(() => {
+      return lockEngine;
+    }),
     useEvents: vi.fn(() => {
       return eventEngine;
     }),
@@ -637,6 +752,7 @@ function createMockRoom(
     awarenessEngine,
     cursorEngine,
     eventEngine,
+    lockEngine,
     presenceEngine,
     stateEngine,
     viewportEngine,
@@ -2375,6 +2491,168 @@ describe('useViewport', () => {
     expect(() => {
       renderToString(createElement(MissingProviderConsumer));
     }).toThrow('RoomfulProvider');
+  });
+});
+
+describe('useLocks', () => {
+  it('exposes held locks and forwards the engine controls', async () => {
+    const lockEngine = createMockLockEngine();
+    lockEngine.setHolder('cell-1', createPeer('owner-peer'));
+    createMockRoom(
+      'locks-room',
+      {},
+      {
+        lockEngine,
+      },
+    );
+    let observed: UseLocksResult | null = null;
+
+    function LocksConsumer(): ReactNode {
+      observed = useLocks();
+      return null;
+    }
+
+    const harness = await renderElement(
+      createElement(
+        RoomfulProvider,
+        {
+          roomId: 'locks-room',
+        },
+        createElement(LocksConsumer),
+      ),
+    );
+
+    expect(observed?.locks).toEqual([expect.objectContaining({ key: 'cell-1' })]);
+    expect(observed?.isLocked('cell-1')).toBe(true);
+    expect(observed?.getHolder('cell-1')?.id).toBe('owner-peer');
+
+    await observed?.acquire('cell-2');
+    observed?.release('cell-1');
+    observed?.releaseAll();
+
+    expect(lockEngine.acquire).toHaveBeenCalledWith('cell-2', undefined);
+    expect(lockEngine.release).toHaveBeenCalledWith('cell-1');
+    expect(lockEngine.releaseAll).toHaveBeenCalledTimes(1);
+
+    await harness.unmount();
+    expect(lockEngine.allSubscriberCount()).toBe(0);
+  });
+
+  it('rerenders when lock states change and skips deep-equal updates', async () => {
+    const lockEngine = createMockLockEngine();
+    createMockRoom(
+      'locks-reactivity',
+      {},
+      {
+        lockEngine,
+      },
+    );
+    const snapshots: LockState[][] = [];
+    let renderCount = 0;
+
+    function LocksConsumer(): ReactNode {
+      const locks = useLocks();
+      renderCount += 1;
+      snapshots.push(locks.locks);
+      return null;
+    }
+
+    const harness = await renderElement(
+      createElement(
+        RoomfulProvider,
+        {
+          roomId: 'locks-reactivity',
+        },
+        createElement(LocksConsumer),
+      ),
+    );
+
+    const baseRenderCount = renderCount;
+    const held = [createLock('cell-1', createPeer('owner-peer'))];
+
+    await act(async () => {
+      lockEngine.emitAll(held);
+    });
+    // Re-emit an equal snapshot: the render bail-out must skip it.
+    await act(async () => {
+      lockEngine.emitAll([createLock('cell-1', createPeer('owner-peer'))]);
+    });
+
+    expect(renderCount).toBe(baseRenderCount + 1);
+    expect(snapshots.at(-1)?.[0]).toMatchObject({ key: 'cell-1' });
+    expect(lockEngine.allSubscriberCount()).toBe(1);
+
+    await harness.unmount();
+  });
+
+  it('throws a typed error when useLocks() is called outside the provider', () => {
+    function MissingProviderConsumer(): null {
+      useLocks();
+      return null;
+    }
+
+    expect(() => {
+      renderToString(createElement(MissingProviderConsumer));
+    }).toThrowError(RoomfulError);
+  });
+});
+
+describe('useLockState', () => {
+  it('tracks a single key and transitions from free to held to free', async () => {
+    const lockEngine = createMockLockEngine();
+    createMockRoom(
+      'lock-state-room',
+      {},
+      {
+        lockEngine,
+      },
+    );
+    const observed: Array<LockState | null> = [];
+
+    function LockStateConsumer(): ReactNode {
+      const state = useLockState('cell-1');
+      observed.push(state);
+      return null;
+    }
+
+    const harness = await renderElement(
+      createElement(
+        RoomfulProvider,
+        {
+          roomId: 'lock-state-room',
+        },
+        createElement(LockStateConsumer),
+      ),
+    );
+
+    // Initially free.
+    expect(observed.at(-1)).toBeNull();
+
+    await act(async () => {
+      lockEngine.emitKey('cell-1', createLock('cell-1', createPeer('owner-peer')));
+    });
+    expect(observed.at(-1)).toMatchObject({ key: 'cell-1', holder: { id: 'owner-peer' } });
+
+    await act(async () => {
+      lockEngine.emitKey('cell-1', createLock('cell-1', null));
+    });
+    expect(observed.at(-1)).toBeNull();
+
+    expect(lockEngine.keySubscriberCount('cell-1')).toBe(1);
+
+    await harness.unmount();
+    expect(lockEngine.keySubscriberCount('cell-1')).toBe(0);
+  });
+
+  it('throws a typed error when useLockState() is called outside the provider', () => {
+    function MissingProviderConsumer(): null {
+      useLockState('cell-1');
+      return null;
+    }
+
+    expect(() => {
+      renderToString(createElement(MissingProviderConsumer));
+    }).toThrowError(RoomfulError);
   });
 });
 

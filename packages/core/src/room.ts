@@ -10,6 +10,13 @@ import {
 import { createAwarenessEngine } from './engines/awareness';
 import { createCursorEngine } from './engines/cursors';
 import { createEventEngine } from './engines/events';
+import {
+  createLockEngine,
+  type LockClaimFrame,
+  type LockReleaseFrame,
+  parseLockClaimFrame,
+  parseLockReleaseFrame,
+} from './engines/locks';
 import { createPresenceEngine } from './engines/presence';
 import { createStateEngine, type StateEngineContext } from './engines/state';
 import { createCrdtStateEngine as createCrdtStateEngineRuntime } from './engines/state.crdt';
@@ -96,6 +103,7 @@ import type {
   CursorPosition,
   EventEngine,
   EventOptions,
+  LockEngine,
   Peer,
   PresenceData,
   PresenceEngine,
@@ -126,6 +134,8 @@ const DIAGNOSTIC_PING_EVENT = '__roomful:diag:ping__';
 const DIAGNOSTIC_PONG_EVENT = '__roomful:diag:pong__';
 const VIEWPORT_UPDATE_EVENT = '__roomful:viewport:update__';
 const VIEWPORT_STOP_EVENT = '__roomful:viewport:stop__';
+const LOCK_CLAIM_EVENT = '__roomful:lock:claim__';
+const LOCK_RELEASE_EVENT = '__roomful:lock:release__';
 
 interface ConnectContext {
   isReconnectAttempt: boolean;
@@ -464,6 +474,14 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
 
   private presentingPeerId: string | null = null;
 
+  private readonly lockClaimHandlers = new Set<(peerId: string, frame: LockClaimFrame) => void>();
+
+  private readonly lockReleaseHandlers = new Set<
+    (peerId: string, frame: LockReleaseFrame) => void
+  >();
+
+  private readonly lockPeerLeaveHandlers = new Set<(peerId: string) => void>();
+
   private readonly customEventHandlers = new Map<string, Set<InternalEventCallback<TPresence>>>();
 
   private presenceEngineInstance: PresenceEngine<TPresence> | null = null;
@@ -475,6 +493,8 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
   private awarenessEngineInstance: AwarenessEngine | null = null;
 
   private viewportEngineInstance: ViewportEngine | null = null;
+
+  private lockEngineInstance: LockEngine | null = null;
 
   private yjsController: RoomYjsController<TPresence> | null = null;
 
@@ -1200,6 +1220,55 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     return this.viewportEngineInstance;
   }
 
+  public useLocks(): LockEngine {
+    if (!this.lockEngineInstance) {
+      this.lockEngineInstance = createLockEngine({
+        selfPeerId: this.peerId,
+        broadcastClaim: (frame) => {
+          this.broadcastInternalEvent(LOCK_CLAIM_EVENT, frame);
+        },
+        broadcastRelease: (frame) => {
+          this.broadcastInternalEvent(LOCK_RELEASE_EVENT, frame);
+        },
+        getPeer: (peerId) => {
+          return this.resolveLockHolderPeer(peerId);
+        },
+        onRemoteClaim: (handler) => {
+          this.lockClaimHandlers.add(handler);
+        },
+        onRemoteRelease: (handler) => {
+          this.lockReleaseHandlers.add(handler);
+        },
+        onPeerLeave: (handler) => {
+          this.lockPeerLeaveHandlers.add(handler);
+        },
+      });
+    }
+
+    return this.lockEngineInstance;
+  }
+
+  // Resolves the peer record a lock holder should carry. The local peer always
+  // resolves to the full self record; a remote holder uses the registry, falling
+  // back to a minimal peer when a claim arrives before that peer's presence
+  // handshake so the lock still reports a holder.
+  private resolveLockHolderPeer(peerId: string): Peer<TPresence> | null {
+    if (peerId === this.peerId) {
+      return this.selfPeer;
+    }
+
+    const known = this.peerRegistry.get(peerId);
+    if (known) {
+      return known;
+    }
+
+    return coerceTypedPeer<TPresence>({
+      id: peerId,
+      joinedAt: 0,
+      lastSeen: 0,
+    });
+  }
+
   public useEvents(options?: EventOptions): EventEngine<TPresence> {
     return createEventEngine(
       {
@@ -1750,6 +1819,7 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     const awarenessDeleted = this.awarenessByPeer.delete(peerId);
     const viewportDeleted = this.forgetPeerViewport(peerId);
     this.latencyByPeerId.delete(peerId);
+    this.notifyLockPeerLeave(peerId);
     this.yjsController?.handlePeerLeft(peerId);
 
     if (cursorDeleted) {
@@ -2248,6 +2318,16 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
 
     if (signal.payload.name === VIEWPORT_STOP_EVENT) {
       this.handleViewportStopEvent(signal.fromPeerId);
+      return;
+    }
+
+    if (signal.payload.name === LOCK_CLAIM_EVENT) {
+      this.handleLockClaimEvent(signal.fromPeerId, signal.payload.payload);
+      return;
+    }
+
+    if (signal.payload.name === LOCK_RELEASE_EVENT) {
+      this.handleLockReleaseEvent(signal.fromPeerId, signal.payload.payload);
       return;
     }
 
@@ -3212,6 +3292,7 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     this.cursorPositions.delete(peer.id);
     this.awarenessByPeer.delete(peer.id);
     this.forgetPeerViewport(peer.id);
+    this.notifyLockPeerLeave(peer.id);
     this.yjsController?.handlePeerLeft(peer.id);
 
     this.roomEventEmitter.emit('peer:leave', peer);
@@ -3304,6 +3385,34 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
 
     if (removed) {
       this.notifyViewportSubscribers();
+    }
+  }
+
+  private handleLockClaimEvent(fromPeerId: string, payload: unknown): void {
+    const frame = parseLockClaimFrame(payload);
+    if (!frame) {
+      return;
+    }
+
+    for (const handler of this.lockClaimHandlers) {
+      handler(fromPeerId, frame);
+    }
+  }
+
+  private handleLockReleaseEvent(fromPeerId: string, payload: unknown): void {
+    const frame = parseLockReleaseFrame(payload);
+    if (!frame) {
+      return;
+    }
+
+    for (const handler of this.lockReleaseHandlers) {
+      handler(fromPeerId, frame);
+    }
+  }
+
+  private notifyLockPeerLeave(peerId: string): void {
+    for (const handler of this.lockPeerLeaveHandlers) {
+      handler(peerId);
     }
   }
 
