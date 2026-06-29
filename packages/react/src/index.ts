@@ -8,6 +8,9 @@ import type {
   LockEngine,
   LockState,
   Peer,
+  PointerBeam,
+  PointerEngine,
+  PointerOptions,
   PresenceData,
   PresenceEngine,
   Room,
@@ -218,6 +221,37 @@ export interface UseViewportResult {
 }
 
 /**
+ * Describes the return value of `usePointer`.
+ */
+export interface UsePointerResult {
+  /**
+   * Callback ref that mounts the pointer engine on a container element.
+   */
+  ref: RefCallback<HTMLElement>;
+
+  /**
+   * Exposes remote peers' pointer beams only.
+   */
+  beams: PointerBeam[];
+
+  /**
+   * Starts broadcasting the local pointer beam to all peers.
+   */
+  activate: PointerEngine['activate'];
+
+  /**
+   * Stops broadcasting the local pointer beam so peers drop it.
+   */
+  deactivate: PointerEngine['deactivate'];
+
+  /**
+   * Renders the built-in pointer overlay over a container, returning a cleanup
+   * function.
+   */
+  render: PointerEngine['render'];
+}
+
+/**
  * Describes the return value of `useLocks`.
  */
 export interface UseLocksResult {
@@ -291,6 +325,12 @@ interface ViewportSnapshotCache<TPresence extends PresenceData> {
   room: Room<TPresence>;
   engine: ViewportEngine;
   snapshot: ViewportState[];
+}
+
+interface PointerSnapshotCache<TPresence extends PresenceData> {
+  room: Room<TPresence>;
+  engine: PointerEngine;
+  snapshot: PointerBeam[];
 }
 
 interface LocksSnapshotCache<TPresence extends PresenceData> {
@@ -712,6 +752,112 @@ export function useViewport<TPresence extends PresenceData = PresenceData>(
     stopPresenting,
     follow,
     unfollow,
+  };
+}
+
+/**
+ * Subscribes to remote pointer beams and returns mounting plus control helpers.
+ *
+ * @typeParam TPresence - The room presence shape.
+ * @param options - Optional pointer tracking configuration.
+ * @returns The remote beams plus a mounting ref and activate/deactivate/render controls.
+ */
+export function usePointer<TPresence extends PresenceData = PresenceData>(
+  options?: PointerOptions,
+): UsePointerResult {
+  const room = useRoom<TPresence>();
+  const optionsRef = useRef(options);
+  const pointerEngine = room.usePointer(optionsRef.current);
+  const engineRef = useRef(pointerEngine);
+  engineRef.current = pointerEngine;
+
+  const snapshotCacheRef = useRef<PointerSnapshotCache<TPresence> | null>(null);
+  const trackedElementRef = useRef<HTMLElement | null>(null);
+  const mountedEngineRef = useRef<PointerEngine | null>(null);
+
+  const mount = useCallback(
+    (element: HTMLElement) => {
+      const previousElement = trackedElementRef.current;
+      trackedElementRef.current = element;
+
+      if (mountedEngineRef.current === pointerEngine && previousElement === element) {
+        return;
+      }
+
+      mountedEngineRef.current?.unmount();
+      pointerEngine.mount(element);
+      mountedEngineRef.current = pointerEngine;
+    },
+    [pointerEngine],
+  );
+
+  const unmount = useCallback(() => {
+    trackedElementRef.current = null;
+    mountedEngineRef.current?.unmount();
+    mountedEngineRef.current = null;
+  }, []);
+
+  const ref = useCallback<RefCallback<HTMLElement>>(
+    (element) => {
+      if (element === null) {
+        unmount();
+        return;
+      }
+
+      mount(element);
+    },
+    [mount, unmount],
+  );
+
+  useEffect(() => {
+    const trackedElement = trackedElementRef.current;
+    if (trackedElement && mountedEngineRef.current !== pointerEngine) {
+      mountedEngineRef.current?.unmount();
+      pointerEngine.mount(trackedElement);
+      mountedEngineRef.current = pointerEngine;
+    }
+  }, [pointerEngine]);
+
+  useEffect(() => {
+    return () => {
+      trackedElementRef.current = null;
+      mountedEngineRef.current?.unmount();
+      mountedEngineRef.current = null;
+    };
+  }, []);
+
+  const activate = useCallback<PointerEngine['activate']>(() => {
+    engineRef.current.activate();
+  }, []);
+  const deactivate = useCallback<PointerEngine['deactivate']>(() => {
+    engineRef.current.deactivate();
+  }, []);
+  const render = useCallback<PointerEngine['render']>((renderOptions) => {
+    return engineRef.current.render(renderOptions);
+  }, []);
+
+  const subscribe = useCallback(
+    (onStoreChange: () => void) => {
+      return pointerEngine.subscribe(() => {
+        const previousSnapshot = snapshotCacheRef.current?.snapshot ?? null;
+        const nextSnapshot = readPointerSnapshot(room, pointerEngine, snapshotCacheRef);
+        if (nextSnapshot !== previousSnapshot) {
+          onStoreChange();
+        }
+      });
+    },
+    [pointerEngine, room],
+  );
+  const getSnapshot = useCallback(() => {
+    return readPointerSnapshot(room, pointerEngine, snapshotCacheRef);
+  }, [pointerEngine, room]);
+
+  return {
+    ref,
+    beams: useSyncExternalStore(subscribe, getSnapshot, getSnapshot),
+    activate,
+    deactivate,
+    render,
   };
 }
 
@@ -1237,6 +1383,63 @@ function readViewportSnapshot<TPresence extends PresenceData>(
   return nextSnapshot;
 }
 
+function arePointerArraysEqual(
+  previous: readonly PointerBeam[],
+  next: readonly PointerBeam[],
+): boolean {
+  if (previous === next) {
+    return true;
+  }
+
+  if (previous.length !== next.length) {
+    return false;
+  }
+
+  for (let index = 0; index < previous.length; index += 1) {
+    const previousEntry = previous[index];
+    const nextEntry = next[index];
+
+    if (!previousEntry || !nextEntry || !areStructuredValuesEqual(previousEntry, nextEntry)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function readPointerSnapshot<TPresence extends PresenceData>(
+  room: Room<TPresence>,
+  pointer: PointerEngine,
+  cacheRef: { current: PointerSnapshotCache<TPresence> | null },
+): PointerBeam[] {
+  const nextSnapshot = pointer.getAll();
+  const previous = cacheRef.current;
+
+  if (previous && previous.room === room && previous.engine === pointer) {
+    const previousSnapshot = previous.snapshot;
+    if (arePointerArraysEqual(previousSnapshot, nextSnapshot)) {
+      return previousSnapshot;
+    }
+
+    previous.snapshot = nextSnapshot.map((beam, index) => {
+      const previousBeam = previousSnapshot[index];
+      if (previousBeam && areStructuredValuesEqual(previousBeam, beam)) {
+        return previousBeam;
+      }
+
+      return beam;
+    });
+    return previous.snapshot;
+  }
+
+  cacheRef.current = {
+    room,
+    engine: pointer,
+    snapshot: nextSnapshot,
+  };
+  return nextSnapshot;
+}
+
 function areLockArraysEqual(previous: readonly LockState[], next: readonly LockState[]): boolean {
   if (previous === next) {
     return true;
@@ -1538,6 +1741,7 @@ function isRoom<TPresence extends PresenceData = PresenceData>(
     hasFunction(value, 'useState') &&
     hasFunction(value, 'useAwareness') &&
     hasFunction(value, 'useViewport') &&
+    hasFunction(value, 'usePointer') &&
     hasFunction(value, 'useLocks') &&
     hasFunction(value, 'useEvents') &&
     hasFunction(value, 'getYDoc') &&

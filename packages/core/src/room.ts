@@ -17,6 +17,7 @@ import {
   parseLockClaimFrame,
   parseLockReleaseFrame,
 } from './engines/locks';
+import { createPointerEngine, type PointerFrame } from './engines/pointer';
 import { createPresenceEngine } from './engines/presence';
 import { createStateEngine, type StateEngineContext } from './engines/state';
 import { createCrdtStateEngine as createCrdtStateEngineRuntime } from './engines/state.crdt';
@@ -105,6 +106,9 @@ import type {
   EventOptions,
   LockEngine,
   Peer,
+  PointerBeam,
+  PointerEngine,
+  PointerOptions,
   PresenceData,
   PresenceEngine,
   Room,
@@ -134,6 +138,8 @@ const DIAGNOSTIC_PING_EVENT = '__roomful:diag:ping__';
 const DIAGNOSTIC_PONG_EVENT = '__roomful:diag:pong__';
 const VIEWPORT_UPDATE_EVENT = '__roomful:viewport:update__';
 const VIEWPORT_STOP_EVENT = '__roomful:viewport:stop__';
+const POINTER_UPDATE_EVENT = '__roomful:pointer:update__';
+const POINTER_STOP_EVENT = '__roomful:pointer:stop__';
 const LOCK_CLAIM_EVENT = '__roomful:lock:claim__';
 const LOCK_RELEASE_EVENT = '__roomful:lock:release__';
 
@@ -150,6 +156,7 @@ type CursorCallback = (positions: CursorPosition[]) => void;
 type StateSnapshotCallback = (snapshot: StateSnapshot) => void;
 type AwarenessCallback = (peers: AwarenessState[]) => void;
 type ViewportCallback = (states: ViewportState[]) => void;
+type PointerCallback = (beams: PointerBeam[]) => void;
 type InternalEventCallback<TPresence extends PresenceData> = {
   bivarianceHack(payload: unknown, from: Peer<TPresence>): void;
 }['bivarianceHack'];
@@ -210,6 +217,25 @@ function readViewportState(payload: unknown, fromPeerId: string): ViewportState 
     viewportHeight,
     focusedElement: focusedElement ?? null,
   };
+}
+
+function readPointerFrame(payload: unknown): { x: number; y: number } | null {
+  if (!isObject(payload)) {
+    return null;
+  }
+
+  const pointer = readRecord(payload, 'pointer');
+  if (!pointer) {
+    return null;
+  }
+
+  const x = readNumber(pointer, 'x');
+  const y = readNumber(pointer, 'y');
+  if (x === undefined || y === undefined) {
+    return null;
+  }
+
+  return { x, y };
 }
 
 function isRoomfulError(value: unknown): value is RoomfulError {
@@ -474,6 +500,10 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
 
   private presentingPeerId: string | null = null;
 
+  private readonly pointerByPeer = new Map<string, PointerBeam>();
+
+  private readonly pointerSubscribers = new Set<PointerCallback>();
+
   private readonly lockClaimHandlers = new Set<(peerId: string, frame: LockClaimFrame) => void>();
 
   private readonly lockReleaseHandlers = new Set<
@@ -493,6 +523,8 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
   private awarenessEngineInstance: AwarenessEngine | null = null;
 
   private viewportEngineInstance: ViewportEngine | null = null;
+
+  private pointerEngineInstance: PointerEngine | null = null;
 
   private lockEngineInstance: LockEngine | null = null;
 
@@ -1220,6 +1252,35 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     return this.viewportEngineInstance;
   }
 
+  public usePointer(options?: PointerOptions): PointerEngine {
+    if (!this.pointerEngineInstance) {
+      this.pointerEngineInstance = createPointerEngine(
+        {
+          broadcastPointer: (frame) => {
+            this.broadcastSelfPointer(frame);
+          },
+          stopPointer: () => {
+            this.stopSelfPointer();
+          },
+          getBeams: () => {
+            return this.getRemotePointerSnapshot();
+          },
+          subscribe: (callback) => {
+            this.pointerSubscribers.add(callback);
+            callback(this.getRemotePointerSnapshot());
+
+            return () => {
+              this.pointerSubscribers.delete(callback);
+            };
+          },
+        },
+        options,
+      );
+    }
+
+    return this.pointerEngineInstance;
+  }
+
   public useLocks(): LockEngine {
     if (!this.lockEngineInstance) {
       this.lockEngineInstance = createLockEngine({
@@ -1818,6 +1879,7 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     const cursorDeleted = this.cursorPositions.delete(peerId);
     const awarenessDeleted = this.awarenessByPeer.delete(peerId);
     const viewportDeleted = this.forgetPeerViewport(peerId);
+    const pointerDeleted = this.forgetPeerPointer(peerId);
     this.latencyByPeerId.delete(peerId);
     this.notifyLockPeerLeave(peerId);
     this.yjsController?.handlePeerLeft(peerId);
@@ -1833,6 +1895,10 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     if (viewportDeleted) {
       this.notifyViewportSubscribers();
     }
+
+    if (pointerDeleted) {
+      this.notifyPointerSubscribers();
+    }
   }
 
   private forgetPeerViewport(peerId: string): boolean {
@@ -1842,6 +1908,10 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     }
 
     return deleted;
+  }
+
+  private forgetPeerPointer(peerId: string): boolean {
+    return this.pointerByPeer.delete(peerId);
   }
 
   private createMalformedEncryptedSignalError(
@@ -2321,6 +2391,16 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
       return;
     }
 
+    if (signal.payload.name === POINTER_UPDATE_EVENT) {
+      this.handlePointerUpdateEvent(signal.fromPeerId, signal.payload.payload);
+      return;
+    }
+
+    if (signal.payload.name === POINTER_STOP_EVENT) {
+      this.handlePointerStopEvent(signal.fromPeerId);
+      return;
+    }
+
     if (signal.payload.name === LOCK_CLAIM_EVENT) {
       this.handleLockClaimEvent(signal.fromPeerId, signal.payload.payload);
       return;
@@ -2689,6 +2769,7 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     this.awarenessByPeer.clear();
     this.awarenessByPeer.set(this.peerId, { peerId: this.peerId });
     this.clearRemoteViewports();
+    this.clearRemotePointers();
     this.latencyByPeerId.clear();
     this.incompatibleEncryptionPeers.clear();
     this.decryptionErrorPeers.clear();
@@ -2696,6 +2777,7 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     this.notifyCursorSubscribers();
     this.notifyAwarenessSubscribers();
     this.notifyViewportSubscribers();
+    this.notifyPointerSubscribers();
   }
 
   private clearRemoteViewports(): void {
@@ -2706,6 +2788,14 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     }
 
     this.presentingPeerId = null;
+  }
+
+  private clearRemotePointers(): void {
+    const selfPointer = this.pointerByPeer.get(this.peerId);
+    this.pointerByPeer.clear();
+    if (selfPointer) {
+      this.pointerByPeer.set(this.peerId, selfPointer);
+    }
   }
 
   private updateSelfPresence(data: Partial<TPresence>): void {
@@ -3292,6 +3382,7 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     this.cursorPositions.delete(peer.id);
     this.awarenessByPeer.delete(peer.id);
     this.forgetPeerViewport(peer.id);
+    this.forgetPeerPointer(peer.id);
     this.notifyLockPeerLeave(peer.id);
     this.yjsController?.handlePeerLeft(peer.id);
 
@@ -3304,6 +3395,7 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     this.notifyCursorSubscribers();
     this.notifyAwarenessSubscribers();
     this.notifyViewportSubscribers();
+    this.notifyPointerSubscribers();
   }
 
   private setSelfCursorPosition(position: Partial<CursorPosition>): void {
@@ -3388,6 +3480,61 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     }
   }
 
+  private broadcastSelfPointer(frame: PointerFrame): void {
+    const next: PointerBeam = {
+      peerId: this.peerId,
+      name: this.getPeerDisplayName(this.selfPeer),
+      color: this.getPeerColor(this.selfPeer),
+      x: frame.x,
+      y: frame.y,
+      active: true,
+    };
+
+    this.pointerByPeer.set(this.peerId, next);
+    this.broadcastInternalEvent(POINTER_UPDATE_EVENT, {
+      pointer: { x: frame.x, y: frame.y },
+    });
+    this.notifyPointerSubscribers();
+  }
+
+  private stopSelfPointer(): void {
+    const removed = this.pointerByPeer.delete(this.peerId);
+    this.broadcastInternalEvent(POINTER_STOP_EVENT, {});
+
+    if (removed) {
+      this.notifyPointerSubscribers();
+    }
+  }
+
+  private handlePointerUpdateEvent(fromPeerId: string, payload: unknown): void {
+    const frame = readPointerFrame(payload);
+    if (!frame) {
+      return;
+    }
+
+    // Resolve the beam's label/color from the sender's presence, mirroring how
+    // cursors derive their label, so the beam always carries a current name/color.
+    const peer = this.peerRegistry.get(fromPeerId);
+    const beam: PointerBeam = {
+      peerId: fromPeerId,
+      name: peer ? this.getPeerDisplayName(peer) : fromPeerId,
+      color: peer ? this.getPeerColor(peer) : '#4F46E5',
+      x: frame.x,
+      y: frame.y,
+      active: true,
+    };
+
+    this.pointerByPeer.set(fromPeerId, beam);
+    this.notifyPointerSubscribers();
+  }
+
+  private handlePointerStopEvent(fromPeerId: string): void {
+    const removed = this.pointerByPeer.delete(fromPeerId);
+    if (removed) {
+      this.notifyPointerSubscribers();
+    }
+  }
+
   private handleLockClaimEvent(fromPeerId: string, payload: unknown): void {
     const frame = parseLockClaimFrame(payload);
     if (!frame) {
@@ -3425,6 +3572,19 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
   private notifyViewportSubscribers(): void {
     const snapshot = this.getRemoteViewportSnapshot();
     for (const subscriber of this.viewportSubscribers) {
+      subscriber(snapshot);
+    }
+  }
+
+  private getRemotePointerSnapshot(): PointerBeam[] {
+    return Array.from(this.pointerByPeer.values()).filter((beam) => {
+      return beam.peerId !== this.peerId;
+    });
+  }
+
+  private notifyPointerSubscribers(): void {
+    const snapshot = this.getRemotePointerSnapshot();
+    for (const subscriber of this.pointerSubscribers) {
       subscriber(snapshot);
     }
   }

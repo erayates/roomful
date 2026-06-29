@@ -15,6 +15,8 @@ import {
   useLocks,
   type UseLocksResult,
   useLockState,
+  usePointer,
+  type UsePointerResult,
   usePresence,
   useSharedState,
   type UseViewportResult,
@@ -23,9 +25,11 @@ import {
 import type {
   LockState,
   Peer,
+  PointerBeam,
   PresenceData,
   RoomfulError,
   RoomStatus,
+  Unsubscribe,
   ViewportState,
 } from '@roomful/core';
 
@@ -75,6 +79,16 @@ expectType<ViewportState[]>(viewport.states.value);
 expectType<number | undefined>(viewport.states.value[0]?.scrollX);
 viewport.follow('peer-id');
 viewport.broadcast();
+
+const pointer = usePointer();
+expectType<UsePointerResult>(pointer);
+expectType<HTMLElement | null>(pointer.ref.value);
+expectType<PointerBeam[]>(pointer.beams.value);
+expectType<number | undefined>(pointer.beams.value[0]?.x);
+expectType<boolean | undefined>(pointer.beams.value[0]?.active);
+pointer.activate();
+pointer.deactivate();
+expectType<Unsubscribe>(pointer.render({ style: 'laser' }));
 
 const locks = useLocks();
 expectType<UseLocksResult>(locks);
