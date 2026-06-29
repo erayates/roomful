@@ -5,6 +5,8 @@ import type {
   CursorEngine,
   CursorOptions,
   CursorPosition,
+  LockEngine,
+  LockState,
   Peer,
   PresenceData,
   PresenceEngine,
@@ -215,6 +217,42 @@ export interface UseViewportResult {
   unfollow: ViewportEngine['unfollow'];
 }
 
+/**
+ * Describes the return value of `useLocks`.
+ */
+export interface UseLocksResult {
+  /**
+   * Exposes the resolved state of every currently-held lock.
+   */
+  locks: LockState[];
+
+  /**
+   * Claims exclusive ownership of a key, resolving whether the local peer holds
+   * it.
+   */
+  acquire: LockEngine['acquire'];
+
+  /**
+   * Releases a lock held by the local peer.
+   */
+  release: LockEngine['release'];
+
+  /**
+   * Releases every lock held by the local peer.
+   */
+  releaseAll: LockEngine['releaseAll'];
+
+  /**
+   * Reports whether a key is currently held by any peer.
+   */
+  isLocked: LockEngine['isLocked'];
+
+  /**
+   * Returns the peer currently holding a key, or `null`.
+   */
+  getHolder: LockEngine['getHolder'];
+}
+
 interface RoomDefinition<TPresence extends PresenceData> {
   roomId: string;
   options: RoomOptions<TPresence>;
@@ -253,6 +291,19 @@ interface ViewportSnapshotCache<TPresence extends PresenceData> {
   room: Room<TPresence>;
   engine: ViewportEngine;
   snapshot: ViewportState[];
+}
+
+interface LocksSnapshotCache<TPresence extends PresenceData> {
+  room: Room<TPresence>;
+  engine: LockEngine;
+  snapshot: LockState[];
+}
+
+interface LockStateSnapshotCache<TPresence extends PresenceData> {
+  room: Room<TPresence>;
+  engine: LockEngine;
+  key: string;
+  snapshot: LockState | null;
 }
 
 interface PeerSnapshotCache<TPresence extends PresenceData> {
@@ -662,6 +713,102 @@ export function useViewport<TPresence extends PresenceData = PresenceData>(
     follow,
     unfollow,
   };
+}
+
+/**
+ * Subscribes to all lock states and returns the lock engine controls.
+ *
+ * @typeParam TPresence - The room presence shape.
+ * @returns The held lock states plus acquire/release controls.
+ */
+export function useLocks<TPresence extends PresenceData = PresenceData>(): UseLocksResult {
+  const room = useRoom<TPresence>();
+  const lockEngine = room.useLocks();
+  const engineRef = useRef(lockEngine);
+  engineRef.current = lockEngine;
+
+  const snapshotCacheRef = useRef<LocksSnapshotCache<TPresence> | null>(null);
+
+  const acquire = useCallback<LockEngine['acquire']>((key, options) => {
+    return engineRef.current.acquire(key, options);
+  }, []);
+  const release = useCallback<LockEngine['release']>((key) => {
+    engineRef.current.release(key);
+  }, []);
+  const releaseAll = useCallback<LockEngine['releaseAll']>(() => {
+    engineRef.current.releaseAll();
+  }, []);
+  const isLocked = useCallback<LockEngine['isLocked']>((key) => {
+    return engineRef.current.isLocked(key);
+  }, []);
+  const getHolder = useCallback<LockEngine['getHolder']>((key) => {
+    return engineRef.current.getHolder(key);
+  }, []);
+
+  const subscribe = useCallback(
+    (onStoreChange: () => void) => {
+      return lockEngine.subscribeAll(() => {
+        const previousSnapshot = snapshotCacheRef.current?.snapshot ?? null;
+        const nextSnapshot = readLocksSnapshot(room, lockEngine, snapshotCacheRef);
+        if (nextSnapshot !== previousSnapshot) {
+          onStoreChange();
+        }
+      });
+    },
+    [lockEngine, room],
+  );
+  const getSnapshot = useCallback(() => {
+    return readLocksSnapshot(room, lockEngine, snapshotCacheRef);
+  }, [lockEngine, room]);
+
+  return {
+    locks: useSyncExternalStore(subscribe, getSnapshot, getSnapshot),
+    acquire,
+    release,
+    releaseAll,
+    isLocked,
+    getHolder,
+  };
+}
+
+/**
+ * Subscribes to the resolved state of a single lock key (the lock-on-focus
+ * pattern: read `holder` to decide whether the local peer owns the key).
+ *
+ * @typeParam TPresence - The room presence shape.
+ * @param key - The lock key to observe.
+ * @returns The current lock state for the key, or `null` when it is free.
+ */
+export function useLockState<TPresence extends PresenceData = PresenceData>(
+  key: string,
+): LockState | null {
+  const room = useRoom<TPresence>();
+  const lockEngine = room.useLocks();
+  const snapshotCacheRef = useRef<LockStateSnapshotCache<TPresence> | null>(null);
+
+  const subscribe = useCallback(
+    (onStoreChange: () => void) => {
+      return lockEngine.subscribe(key, (state) => {
+        const previousSnapshot = snapshotCacheRef.current?.snapshot ?? null;
+        const nextSnapshot = reconcileLockStateSnapshot(
+          room,
+          lockEngine,
+          key,
+          state,
+          snapshotCacheRef,
+        );
+        if (nextSnapshot !== previousSnapshot) {
+          onStoreChange();
+        }
+      });
+    },
+    [key, lockEngine, room],
+  );
+  const getSnapshot = useCallback(() => {
+    return readLockStateSnapshot(room, lockEngine, key, snapshotCacheRef);
+  }, [key, lockEngine, room]);
+
+  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 }
 
 /**
@@ -1090,6 +1237,126 @@ function readViewportSnapshot<TPresence extends PresenceData>(
   return nextSnapshot;
 }
 
+function areLockArraysEqual(previous: readonly LockState[], next: readonly LockState[]): boolean {
+  if (previous === next) {
+    return true;
+  }
+
+  if (previous.length !== next.length) {
+    return false;
+  }
+
+  for (let index = 0; index < previous.length; index += 1) {
+    const previousEntry = previous[index];
+    const nextEntry = next[index];
+
+    if (!previousEntry || !nextEntry || !areStructuredValuesEqual(previousEntry, nextEntry)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function readLocksSnapshot<TPresence extends PresenceData>(
+  room: Room<TPresence>,
+  locks: LockEngine,
+  cacheRef: { current: LocksSnapshotCache<TPresence> | null },
+): LockState[] {
+  const nextSnapshot = locks.getAll();
+  const previous = cacheRef.current;
+
+  if (previous && previous.room === room && previous.engine === locks) {
+    const previousSnapshot = previous.snapshot;
+    if (areLockArraysEqual(previousSnapshot, nextSnapshot)) {
+      return previousSnapshot;
+    }
+
+    previous.snapshot = nextSnapshot.map((state, index) => {
+      const previousState = previousSnapshot[index];
+      if (previousState && areStructuredValuesEqual(previousState, state)) {
+        return previousState;
+      }
+
+      return state;
+    });
+    return previous.snapshot;
+  }
+
+  cacheRef.current = {
+    room,
+    engine: locks,
+    snapshot: nextSnapshot,
+  };
+  return nextSnapshot;
+}
+
+function resolveSingleLockState(locks: LockEngine, key: string): LockState | null {
+  const holder = locks.getHolder(key);
+  if (!holder) {
+    return null;
+  }
+
+  return (
+    locks.getAll().find((state) => {
+      return state.key === key;
+    }) ?? null
+  );
+}
+
+function commitLockStateSnapshot<TPresence extends PresenceData>(
+  room: Room<TPresence>,
+  locks: LockEngine,
+  key: string,
+  nextState: LockState | null,
+  cacheRef: { current: LockStateSnapshotCache<TPresence> | null },
+): LockState | null {
+  const previous = cacheRef.current;
+
+  if (previous && previous.room === room && previous.engine === locks && previous.key === key) {
+    const previousSnapshot = previous.snapshot;
+    if (
+      previousSnapshot === nextState ||
+      (previousSnapshot !== null &&
+        nextState !== null &&
+        areStructuredValuesEqual(previousSnapshot, nextState))
+    ) {
+      return previousSnapshot;
+    }
+
+    previous.snapshot = nextState;
+    return nextState;
+  }
+
+  cacheRef.current = {
+    room,
+    engine: locks,
+    key,
+    snapshot: nextState,
+  };
+  return nextState;
+}
+
+function readLockStateSnapshot<TPresence extends PresenceData>(
+  room: Room<TPresence>,
+  locks: LockEngine,
+  key: string,
+  cacheRef: { current: LockStateSnapshotCache<TPresence> | null },
+): LockState | null {
+  return commitLockStateSnapshot(room, locks, key, resolveSingleLockState(locks, key), cacheRef);
+}
+
+function reconcileLockStateSnapshot<TPresence extends PresenceData>(
+  room: Room<TPresence>,
+  locks: LockEngine,
+  key: string,
+  state: LockState,
+  cacheRef: { current: LockStateSnapshotCache<TPresence> | null },
+): LockState | null {
+  const nextState = state.holder === null ? null : state;
+  return commitLockStateSnapshot(room, locks, key, nextState, cacheRef);
+}
+
 function readPresenceSnapshot<TPresence extends PresenceData>(
   room: Room<TPresence>,
   presence: PresenceEngine<TPresence>,
@@ -1271,6 +1538,7 @@ function isRoom<TPresence extends PresenceData = PresenceData>(
     hasFunction(value, 'useState') &&
     hasFunction(value, 'useAwareness') &&
     hasFunction(value, 'useViewport') &&
+    hasFunction(value, 'useLocks') &&
     hasFunction(value, 'useEvents') &&
     hasFunction(value, 'getYDoc') &&
     hasFunction(value, 'getYProvider') &&

@@ -5,6 +5,9 @@ import type {
   CursorEngine,
   CursorOptions,
   CursorPosition,
+  LockAcquireOptions,
+  LockEngine,
+  LockState,
   Peer,
   PresenceData,
   PresenceEngine,
@@ -225,6 +228,46 @@ export interface UseAwarenessResult {
 }
 
 /**
+ * Describes the return value of `useLocks`.
+ */
+export interface UseLocksResult {
+  /**
+   * Exposes the resolved state of every currently-held lock.
+   */
+  locks: ReadonlyRef<LockState[]>;
+
+  /**
+   * Claims exclusive ownership of a key, resolving whether the local peer holds
+   * it.
+   *
+   * @param key - The lock key to claim.
+   * @param options - Optional TTL and acquire-timeout configuration.
+   * @returns A promise resolving to whether the local peer holds the key.
+   */
+  acquire(key: string, options?: LockAcquireOptions): Promise<boolean>;
+
+  /**
+   * Releases a lock held by the local peer.
+   */
+  release: LockEngine['release'];
+
+  /**
+   * Releases every lock held by the local peer.
+   */
+  releaseAll: LockEngine['releaseAll'];
+
+  /**
+   * Reports whether a key is currently held by any peer.
+   */
+  isLocked: LockEngine['isLocked'];
+
+  /**
+   * Returns the peer currently holding a key, or `null`.
+   */
+  getHolder: LockEngine['getHolder'];
+}
+
+/**
  * Mirrors React-style updater semantics for Vue shared state setters.
  *
  * @typeParam T - The shared state value type.
@@ -275,6 +318,19 @@ interface ViewportSnapshotCache<TPresence extends PresenceData> {
   room: Room<TPresence>;
   engine: ViewportEngine;
   snapshot: ViewportState[];
+}
+
+interface LocksSnapshotCache<TPresence extends PresenceData> {
+  room: Room<TPresence>;
+  engine: LockEngine;
+  snapshot: LockState[];
+}
+
+interface LockStateSnapshotCache<TPresence extends PresenceData> {
+  room: Room<TPresence>;
+  engine: LockEngine;
+  key: string;
+  snapshot: LockState | null;
 }
 
 interface SharedStateSnapshotCache<TPresence extends PresenceData, T> {
@@ -666,6 +722,125 @@ export function useViewport<TPresence extends PresenceData = PresenceData>(
       engineRef.value.unfollow();
     },
   };
+}
+
+/**
+ * Subscribes to all lock states and returns the lock engine controls.
+ *
+ * @typeParam TPresence - The room presence shape.
+ * @returns The held lock states plus acquire/release controls.
+ */
+export function useLocks<TPresence extends PresenceData = PresenceData>(): UseLocksResult {
+  const context = useRoomfulContext('useLocks');
+  const initialRoom = requireTypedRoom<TPresence>(context.room.value, 'useLocks');
+  const initialEngine = initialRoom.useLocks();
+  const cacheRef: { current: LocksSnapshotCache<TPresence> | null } = {
+    current: null,
+  };
+  const locks = shallowRef(readLocksSnapshot(initialRoom, initialEngine, cacheRef));
+
+  watch(
+    context.room,
+    (room, _previousRoom, onCleanup) => {
+      const typedRoom = requireTypedRoom<TPresence>(room, 'useLocks');
+      const engine = typedRoom.useLocks();
+
+      const syncSnapshot = (): void => {
+        const nextSnapshot = readLocksSnapshot(typedRoom, engine, cacheRef);
+        if (locks.value === nextSnapshot) {
+          return;
+        }
+
+        locks.value = nextSnapshot;
+      };
+
+      syncSnapshot();
+
+      const unsubscribe = engine.subscribeAll(() => {
+        syncSnapshot();
+      });
+
+      onCleanup(() => {
+        unsubscribe();
+      });
+    },
+    {
+      immediate: true,
+    },
+  );
+
+  return {
+    locks,
+    acquire(key, options) {
+      return requireTypedRoom<TPresence>(context.room.value, 'useLocks')
+        .useLocks()
+        .acquire(key, options);
+    },
+    release(key) {
+      requireTypedRoom<TPresence>(context.room.value, 'useLocks').useLocks().release(key);
+    },
+    releaseAll() {
+      requireTypedRoom<TPresence>(context.room.value, 'useLocks').useLocks().releaseAll();
+    },
+    isLocked(key) {
+      return requireTypedRoom<TPresence>(context.room.value, 'useLocks').useLocks().isLocked(key);
+    },
+    getHolder(key) {
+      return requireTypedRoom<TPresence>(context.room.value, 'useLocks').useLocks().getHolder(key);
+    },
+  };
+}
+
+/**
+ * Subscribes to the resolved state of a single lock key (the lock-on-focus
+ * pattern: read `holder` to decide whether the local peer owns the key).
+ *
+ * @typeParam TPresence - The room presence shape.
+ * @param key - The lock key to observe.
+ * @returns A readonly ref holding the current lock state, or `null` when free.
+ */
+export function useLockState<TPresence extends PresenceData = PresenceData>(
+  key: string,
+): ReadonlyRef<LockState | null> {
+  const context = useRoomfulContext('useLockState');
+  const initialRoom = requireTypedRoom<TPresence>(context.room.value, 'useLockState');
+  const cacheRef: { current: LockStateSnapshotCache<TPresence> | null } = {
+    current: null,
+  };
+  const state = shallowRef(
+    readLockStateSnapshot(initialRoom, initialRoom.useLocks(), key, cacheRef),
+  );
+
+  watch(
+    context.room,
+    (room, _previousRoom, onCleanup) => {
+      const typedRoom = requireTypedRoom<TPresence>(room, 'useLockState');
+      const engine = typedRoom.useLocks();
+
+      const commit = (nextSnapshot: LockState | null): void => {
+        if (state.value === nextSnapshot) {
+          return;
+        }
+
+        state.value = nextSnapshot;
+      };
+
+      commit(readLockStateSnapshot(typedRoom, engine, key, cacheRef));
+
+      const unsubscribe = engine.subscribe(key, (lockState) => {
+        commit(reconcileLockStateSnapshot(typedRoom, engine, key, lockState, cacheRef));
+      });
+
+      onCleanup(() => {
+        unsubscribe();
+      });
+    },
+    {
+      immediate: true,
+    },
+  );
+
+  return state;
 }
 
 /**
@@ -1192,6 +1367,131 @@ function readViewportSnapshot<TPresence extends PresenceData>(
   return nextSnapshot;
 }
 
+function areLockArraysEqual(previous: readonly LockState[], next: readonly LockState[]): boolean {
+  if (previous === next) {
+    return true;
+  }
+
+  if (previous.length !== next.length) {
+    return false;
+  }
+
+  for (let index = 0; index < previous.length; index += 1) {
+    const previousEntry = previous[index];
+    const nextEntry = next[index];
+
+    if (!previousEntry || !nextEntry || !areStructuredValuesEqual(previousEntry, nextEntry)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function readLocksSnapshot<TPresence extends PresenceData>(
+  room: Room<TPresence>,
+  locks: LockEngine,
+  cacheRef: { current: LocksSnapshotCache<TPresence> | null },
+): LockState[] {
+  const nextSnapshot = locks.getAll();
+  const previous = cacheRef.current;
+
+  if (previous !== null && previous.room === room && previous.engine === locks) {
+    const previousSnapshot = previous.snapshot;
+    if (areLockArraysEqual(previousSnapshot, nextSnapshot)) {
+      return previousSnapshot;
+    }
+
+    previous.snapshot = nextSnapshot.map((state, index) => {
+      const previousState = previousSnapshot[index];
+      if (previousState !== undefined && areStructuredValuesEqual(previousState, state)) {
+        return previousState;
+      }
+
+      return state;
+    });
+    return previous.snapshot;
+  }
+
+  cacheRef.current = {
+    room,
+    engine: locks,
+    snapshot: nextSnapshot,
+  };
+  return nextSnapshot;
+}
+
+function resolveSingleLockState(locks: LockEngine, key: string): LockState | null {
+  const holder = locks.getHolder(key);
+  if (!holder) {
+    return null;
+  }
+
+  return (
+    locks.getAll().find((state) => {
+      return state.key === key;
+    }) ?? null
+  );
+}
+
+function commitLockStateSnapshot<TPresence extends PresenceData>(
+  room: Room<TPresence>,
+  locks: LockEngine,
+  key: string,
+  nextState: LockState | null,
+  cacheRef: { current: LockStateSnapshotCache<TPresence> | null },
+): LockState | null {
+  const previous = cacheRef.current;
+
+  if (
+    previous !== null &&
+    previous.room === room &&
+    previous.engine === locks &&
+    previous.key === key
+  ) {
+    const previousSnapshot = previous.snapshot;
+    if (
+      previousSnapshot === nextState ||
+      (previousSnapshot !== null &&
+        nextState !== null &&
+        areStructuredValuesEqual(previousSnapshot, nextState))
+    ) {
+      return previousSnapshot;
+    }
+
+    previous.snapshot = nextState;
+    return nextState;
+  }
+
+  cacheRef.current = {
+    room,
+    engine: locks,
+    key,
+    snapshot: nextState,
+  };
+  return nextState;
+}
+
+function readLockStateSnapshot<TPresence extends PresenceData>(
+  room: Room<TPresence>,
+  locks: LockEngine,
+  key: string,
+  cacheRef: { current: LockStateSnapshotCache<TPresence> | null },
+): LockState | null {
+  return commitLockStateSnapshot(room, locks, key, resolveSingleLockState(locks, key), cacheRef);
+}
+
+function reconcileLockStateSnapshot<TPresence extends PresenceData>(
+  room: Room<TPresence>,
+  locks: LockEngine,
+  key: string,
+  state: LockState,
+  cacheRef: { current: LockStateSnapshotCache<TPresence> | null },
+): LockState | null {
+  const nextState = state.holder === null ? null : state;
+  return commitLockStateSnapshot(room, locks, key, nextState, cacheRef);
+}
+
 function readAwarenessSnapshot<TPresence extends PresenceData>(
   room: Room<TPresence>,
   awareness: AwarenessEngine,
@@ -1311,6 +1611,7 @@ function isRoom<TPresence extends PresenceData = PresenceData>(
     hasFunction(value, 'useState') &&
     hasFunction(value, 'useAwareness') &&
     hasFunction(value, 'useViewport') &&
+    hasFunction(value, 'useLocks') &&
     hasFunction(value, 'useEvents') &&
     hasFunction(value, 'getYDoc') &&
     hasFunction(value, 'getYProvider') &&

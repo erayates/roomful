@@ -7,6 +7,8 @@ import type {
   CursorEngine,
   CursorPosition,
   EventEngine,
+  LockEngine,
+  LockState,
   Peer,
   PresenceData,
   PresenceEngine,
@@ -79,6 +81,8 @@ type EventSubscriber = (payload: unknown, from: Peer<PresenceData>) => void;
 type PresenceSubscriber = (peers: Peer<PresenceData>[]) => void;
 type StateSubscriber<T> = (value: T, meta: StateChangeMeta) => void;
 type ViewportSubscriber = (states: ViewportState[]) => void;
+type LockStateSubscriber = (state: LockState) => void;
+type LocksSubscriber = (states: LockState[]) => void;
 
 type TestPresenceEngine = PresenceEngine<PresenceData> & {
   emit(peers: Peer<PresenceData>[]): void;
@@ -111,6 +115,17 @@ type TestViewportEngine = ViewportEngine & {
   subscribe: ReturnType<typeof vi.fn<(cb: ViewportSubscriber) => () => void>>;
   unfollow: ReturnType<typeof vi.fn<() => void>>;
   unmount: ReturnType<typeof vi.fn<() => void>>;
+};
+
+type TestLockEngine = LockEngine & {
+  acquire: ReturnType<typeof vi.fn<(key: string) => Promise<boolean>>>;
+  allSubscriberCount(): number;
+  emitAll(states: LockState[]): void;
+  emitKey(key: string, state: LockState): void;
+  keySubscriberCount(key: string): number;
+  release: ReturnType<typeof vi.fn<(key: string) => void>>;
+  releaseAll: ReturnType<typeof vi.fn<() => void>>;
+  setHolder(key: string, holder: Peer<PresenceData> | null): void;
 };
 
 type TestAwarenessEngine = AwarenessEngine & {
@@ -150,6 +165,7 @@ type TestRoom = Room<PresenceData> & {
   ) => void;
   eventEngine: TestEventEngine;
   listenerCount(event: RoomEventName): number;
+  lockEngine: TestLockEngine;
   presenceEngine: TestPresenceEngine;
   setStatus(status: RoomStatus): void;
   stateEngine: TestStateEngine<unknown>;
@@ -439,6 +455,96 @@ function createMockViewportEngine(states: ViewportState[] = []): TestViewportEng
   return engine;
 }
 
+function createLock(key: string, holder: Peer<PresenceData> | null = null): LockState {
+  return {
+    acquiredAt: holder ? 1 : 0,
+    expiresAt: null,
+    holder,
+    key,
+  };
+}
+
+function createMockLockEngine(): TestLockEngine {
+  const keySubscribers = new Map<string, Set<LockStateSubscriber>>();
+  const allSubscribers = new Set<LocksSubscriber>();
+  const holders = new Map<string, LockState>();
+
+  const collectAll = (): LockState[] => {
+    return Array.from(holders.values()).filter((state) => {
+      return state.holder !== null;
+    });
+  };
+
+  const stateFor = (key: string): LockState => {
+    return holders.get(key) ?? createLock(key, null);
+  };
+
+  const engine = {
+    acquire: vi.fn(async () => {
+      return true;
+    }),
+    allSubscriberCount() {
+      return allSubscribers.size;
+    },
+    emitAll(states: LockState[]) {
+      holders.clear();
+      for (const state of states) {
+        holders.set(state.key, state);
+      }
+
+      for (const subscriber of allSubscribers) {
+        subscriber(states);
+      }
+    },
+    emitKey(key: string, state: LockState) {
+      holders.set(key, state);
+      for (const subscriber of keySubscribers.get(key) ?? []) {
+        subscriber(state);
+      }
+    },
+    getAll() {
+      return collectAll();
+    },
+    getHolder(key: string) {
+      return stateFor(key).holder;
+    },
+    isLocked(key: string) {
+      return stateFor(key).holder !== null;
+    },
+    keySubscriberCount(key: string) {
+      return keySubscribers.get(key)?.size ?? 0;
+    },
+    release: vi.fn(),
+    releaseAll: vi.fn(),
+    setHolder(key: string, holder: Peer<PresenceData> | null) {
+      holders.set(key, createLock(key, holder));
+    },
+    subscribe: vi.fn((key: string, callback: LockStateSubscriber) => {
+      const subscribers = keySubscribers.get(key) ?? new Set<LockStateSubscriber>();
+      subscribers.add(callback);
+      keySubscribers.set(key, subscribers);
+      callback(stateFor(key));
+
+      return () => {
+        subscribers.delete(callback);
+        if (subscribers.size === 0) {
+          keySubscribers.delete(key);
+        }
+      };
+    }),
+    subscribeAll: vi.fn((callback: LocksSubscriber) => {
+      allSubscribers.add(callback);
+      callback(collectAll());
+
+      return () => {
+        allSubscribers.delete(callback);
+      };
+    }),
+  } as TestLockEngine;
+
+  return engine;
+}
+
 function createMockEventEngine(): TestEventEngine {
   const subscribers = new Map<string, Set<EventSubscriber>>();
 
@@ -515,6 +621,7 @@ function createMockRoom(
     awarenessEngine?: TestAwarenessEngine;
     cursorEngine?: TestCursorEngine;
     eventEngine?: TestEventEngine;
+    lockEngine?: TestLockEngine;
     peerId?: string;
     presenceEngine?: TestPresenceEngine;
     stateEngine?: TestStateEngine<unknown>;
@@ -528,6 +635,7 @@ function createMockRoom(
     config.awarenessEngine ?? createMockAwarenessEngine([createAwareness(peerId)]);
   const cursorEngine = config.cursorEngine ?? createMockCursorEngine();
   const eventEngine = config.eventEngine ?? createMockEventEngine();
+  const lockEngine = config.lockEngine ?? createMockLockEngine();
   const stateEngine = config.stateEngine ?? createMockStateEngine({});
   const viewportEngine = config.viewportEngine ?? createMockViewportEngine();
   const presenceEngine =
@@ -583,6 +691,7 @@ function createMockRoom(
     listenerCount(event: RoomEventName) {
       return handlers.get(event)?.size ?? 0;
     },
+    lockEngine,
     off: vi.fn((event: RoomEventName, handler: RoomEventHandler) => {
       handlers.get(event)?.delete(handler);
     }),
@@ -609,6 +718,9 @@ function createMockRoom(
     }),
     useEvents: vi.fn(() => {
       return eventEngine;
+    }),
+    useLocks: vi.fn(() => {
+      return lockEngine;
     }),
     usePresence: vi.fn(() => {
       return presenceEngine;
@@ -1151,6 +1263,95 @@ describe('roomful', () => {
     });
 
     unsubscribe();
+  });
+
+  it('exposes locks as a store, reflects remote claims, and forwards controls', async () => {
+    const lockEngine = createMockLockEngine();
+    lockEngine.setHolder('cell-1', createPeer('owner-peer'));
+    createMockRoom(
+      'locks-room',
+      {},
+      {
+        lockEngine,
+      },
+    );
+
+    const adapter = roomful('locks-room');
+    const snapshots: Array<LockState[]> = [];
+    const unsubscribe = adapter.locks.subscribe((value) => {
+      snapshots.push(value);
+    });
+
+    expect(get(adapter.locks)).toEqual([expect.objectContaining({ key: 'cell-1' })]);
+    expect(adapter.locks.isLocked('cell-1')).toBe(true);
+    expect(adapter.locks.getHolder('cell-1')?.id).toBe('owner-peer');
+
+    await adapter.locks.acquire('cell-2', { ttl: 1_000 });
+    adapter.locks.release('cell-1');
+    adapter.locks.releaseAll();
+
+    expect(lockEngine.acquire).toHaveBeenCalledWith('cell-2', { ttl: 1_000 });
+    expect(lockEngine.release).toHaveBeenCalledWith('cell-1');
+    expect(lockEngine.releaseAll).toHaveBeenCalledTimes(1);
+
+    await adapter.connect();
+
+    // A remote claim on a new key is reflected in the store; a deep-equal re-emit is skipped.
+    lockEngine.emitAll([
+      createLock('cell-1', createPeer('owner-peer')),
+      createLock('cell-3', createPeer('peer-c')),
+    ]);
+    expect(snapshots).toHaveLength(2);
+    expect(snapshots[1]?.map((state) => state.key)).toEqual(['cell-1', 'cell-3']);
+    expect(adapter.locks.getHolder('cell-3')?.id).toBe('peer-c');
+
+    lockEngine.emitAll([
+      createLock('cell-1', createPeer('owner-peer')),
+      createLock('cell-3', createPeer('peer-c')),
+    ]);
+    expect(snapshots).toHaveLength(2);
+
+    unsubscribe();
+  });
+
+  it('creates per-key lockState stores that track free to held to free transitions', async () => {
+    const lockEngine = createMockLockEngine();
+    createMockRoom(
+      'lock-state-room',
+      {},
+      {
+        lockEngine,
+      },
+    );
+
+    const adapter = roomful('lock-state-room');
+    const store = adapter.lockState('cell-1');
+    const sameStore = adapter.lockState('cell-1');
+    const observed: Array<LockState | null> = [];
+    const unsubscribe = store.subscribe((value) => {
+      observed.push(value);
+    });
+
+    // Initially free.
+    expect(get(store)).toBeNull();
+    expect(observed.at(-1)).toBeNull();
+
+    await adapter.connect();
+
+    lockEngine.emitKey('cell-1', createLock('cell-1', createPeer('owner-peer')));
+    expect(observed.at(-1)).toMatchObject({ key: 'cell-1', holder: { id: 'owner-peer' } });
+
+    lockEngine.emitKey('cell-1', createLock('cell-1', null));
+    expect(observed.at(-1)).toBeNull();
+
+    // A second store for the same key reuses the same subscription.
+    expect(lockEngine.keySubscriberCount('cell-1')).toBe(1);
+    expect(get(sameStore)).toBeNull();
+
+    unsubscribe();
+
+    await adapter.destroy();
+    expect(lockEngine.keySubscriberCount('cell-1')).toBe(0);
   });
 
   it('creates shared state stores, keeps setter identity stable, and enforces binding rules', async () => {

@@ -6,6 +6,8 @@ import type {
   CursorEngine,
   CursorPosition,
   EventEngine,
+  LockEngine,
+  LockState,
   Peer,
   PresenceData,
   PresenceEngine,
@@ -42,6 +44,8 @@ import {
   injectConnectionStatus,
   injectCursors,
   injectEvent,
+  injectLocks,
+  injectLockState,
   injectPeers,
   injectPresence,
   injectRoom,
@@ -59,6 +63,8 @@ type EventSubscriber = (payload: unknown, from: Peer<PresenceData>) => void;
 type PresenceSubscriber = (peers: Peer<PresenceData>[]) => void;
 type StateSubscriber<T> = (value: T, meta: StateChangeMeta) => void;
 type ViewportSubscriber = (states: ViewportState[]) => void;
+type LockStateSubscriber = (state: LockState) => void;
+type LocksSubscriber = (states: LockState[]) => void;
 
 type TestPresenceEngine = PresenceEngine<PresenceData> & {
   emit(peers: Peer<PresenceData>[]): void;
@@ -90,6 +96,17 @@ type TestViewportEngine = ViewportEngine & {
   stopPresenting: ReturnType<typeof vi.fn<() => void>>;
   follow: ReturnType<typeof vi.fn<(peerId: string) => void>>;
   unfollow: ReturnType<typeof vi.fn<() => void>>;
+};
+
+type TestLockEngine = LockEngine & {
+  emitKey(key: string, state: LockState): void;
+  emitAll(states: LockState[]): void;
+  setHolder(key: string, holder: Peer<PresenceData> | null): void;
+  keySubscriberCount(key: string): number;
+  allSubscriberCount(): number;
+  acquire: ReturnType<typeof vi.fn<(key: string) => Promise<boolean>>>;
+  release: ReturnType<typeof vi.fn<(key: string) => void>>;
+  releaseAll: ReturnType<typeof vi.fn<() => void>>;
 };
 
 type TestAwarenessEngine = AwarenessEngine & {
@@ -132,6 +149,7 @@ type TestRoom = Room<PresenceData> & {
   awarenessEngine: TestAwarenessEngine;
   cursorEngine: TestCursorEngine;
   eventEngine: TestEventEngine;
+  lockEngine: TestLockEngine;
   presenceEngine: TestPresenceEngine;
   stateEngine: TestStateEngine<unknown>;
   viewportEngine: TestViewportEngine;
@@ -344,6 +362,96 @@ function createMockViewportEngine(states: ViewportState[] = []): TestViewportEng
   return engine;
 }
 
+function createLock(key: string, holder: Peer<PresenceData> | null = null): LockState {
+  return {
+    key,
+    holder,
+    acquiredAt: holder ? 1 : 0,
+    expiresAt: null,
+  };
+}
+
+function createMockLockEngine(): TestLockEngine {
+  const keySubscribers = new Map<string, Set<LockStateSubscriber>>();
+  const allSubscribers = new Set<LocksSubscriber>();
+  const holders = new Map<string, LockState>();
+
+  const collectAll = (): LockState[] => {
+    return Array.from(holders.values()).filter((state) => {
+      return state.holder !== null;
+    });
+  };
+
+  const stateFor = (key: string): LockState => {
+    return holders.get(key) ?? createLock(key, null);
+  };
+
+  const engine = {
+    acquire: vi.fn(async () => {
+      return true;
+    }),
+    release: vi.fn(),
+    releaseAll: vi.fn(),
+    isLocked(key: string) {
+      return stateFor(key).holder !== null;
+    },
+    getHolder(key: string) {
+      return stateFor(key).holder;
+    },
+    getAll() {
+      return collectAll();
+    },
+    subscribe: vi.fn((key: string, callback: LockStateSubscriber) => {
+      const subscribers = keySubscribers.get(key) ?? new Set<LockStateSubscriber>();
+      subscribers.add(callback);
+      keySubscribers.set(key, subscribers);
+      callback(stateFor(key));
+
+      return () => {
+        subscribers.delete(callback);
+        if (subscribers.size === 0) {
+          keySubscribers.delete(key);
+        }
+      };
+    }),
+    subscribeAll: vi.fn((callback: LocksSubscriber) => {
+      allSubscribers.add(callback);
+      callback(collectAll());
+
+      return () => {
+        allSubscribers.delete(callback);
+      };
+    }),
+    setHolder(key: string, holder: Peer<PresenceData> | null) {
+      holders.set(key, createLock(key, holder));
+    },
+    emitKey(key: string, state: LockState) {
+      holders.set(key, state);
+      for (const subscriber of keySubscribers.get(key) ?? []) {
+        subscriber(state);
+      }
+    },
+    emitAll(states: LockState[]) {
+      holders.clear();
+      for (const state of states) {
+        holders.set(state.key, state);
+      }
+
+      for (const subscriber of allSubscribers) {
+        subscriber(states);
+      }
+    },
+    keySubscriberCount(key: string) {
+      return keySubscribers.get(key)?.size ?? 0;
+    },
+    allSubscriberCount() {
+      return allSubscribers.size;
+    },
+  } as TestLockEngine;
+
+  return engine;
+}
+
 function createMockEventEngine(): TestEventEngine {
   const subscribers = new Map<string, Set<EventSubscriber>>();
 
@@ -452,6 +560,7 @@ function createMockRoom(
     awarenessEngine?: TestAwarenessEngine;
     cursorEngine?: TestCursorEngine;
     eventEngine?: TestEventEngine;
+    lockEngine?: TestLockEngine;
     peerId?: string;
     presenceEngine?: TestPresenceEngine;
     status?: RoomStatus;
@@ -464,6 +573,7 @@ function createMockRoom(
   const awarenessEngine = config.awarenessEngine ?? createMockAwarenessEngine();
   const cursorEngine = config.cursorEngine ?? createMockCursorEngine();
   const eventEngine = config.eventEngine ?? createMockEventEngine();
+  const lockEngine = config.lockEngine ?? createMockLockEngine();
   const stateEngine = config.stateEngine ?? createMockStateEngine({});
   const viewportEngine = config.viewportEngine ?? createMockViewportEngine();
   const presenceEngine =
@@ -568,6 +678,9 @@ function createMockRoom(
     useViewport: vi.fn(() => {
       return viewportEngine;
     }),
+    useLocks: vi.fn(() => {
+      return lockEngine;
+    }),
     useEvents: vi.fn(() => {
       return eventEngine;
     }),
@@ -619,6 +732,7 @@ function createMockRoom(
     awarenessEngine,
     cursorEngine,
     eventEngine,
+    lockEngine,
     presenceEngine,
     stateEngine,
     viewportEngine,
@@ -1181,6 +1295,110 @@ describe('injectViewport', () => {
       scrollY: 0.9,
     });
     expect(viewportEngine.subscriberCount()).toBe(1);
+  });
+});
+
+describe('injectLocks', () => {
+  it('returns a locks signal and controls and reflects remote claims', () => {
+    const lockEngine = createMockLockEngine();
+    lockEngine.setHolder('cell-1', createPeer('owner-peer'));
+    createMockRoom(
+      'locks-room',
+      {},
+      {
+        lockEngine,
+      },
+    );
+
+    const env = setupRoom('locks-room');
+    const result = env.run(() => injectLocks());
+
+    expect(result.locks()).toEqual([expect.objectContaining({ key: 'cell-1' })]);
+    expect(result.isLocked('cell-1')).toBe(true);
+    expect(result.getHolder('cell-1')?.id).toBe('owner-peer');
+
+    // A remote claim on a new key is reflected in the signal.
+    lockEngine.emitAll([
+      createLock('cell-1', createPeer('owner-peer')),
+      createLock('cell-2', createPeer('peer-b')),
+    ]);
+    expect(result.locks().map((state) => state.key)).toEqual(['cell-1', 'cell-2']);
+    expect(result.getHolder('cell-2')?.id).toBe('peer-b');
+
+    void result.acquire('cell-3', { ttl: 1_000 });
+    result.release('cell-1');
+    result.releaseAll();
+
+    expect(lockEngine.acquire).toHaveBeenCalledWith('cell-3', { ttl: 1_000 });
+    expect(lockEngine.release).toHaveBeenCalledWith('cell-1');
+    expect(lockEngine.releaseAll).toHaveBeenCalledTimes(1);
+    expect(lockEngine.allSubscriberCount()).toBe(1);
+
+    env.destroy();
+    expect(lockEngine.allSubscriberCount()).toBe(0);
+  });
+
+  it('skips deep-equal lock snapshots', () => {
+    const lockEngine = createMockLockEngine();
+    createMockRoom(
+      'locks-reactivity',
+      {},
+      {
+        lockEngine,
+      },
+    );
+
+    const env = setupRoom('locks-reactivity');
+    const result = env.run(() => injectLocks());
+
+    lockEngine.emitAll([createLock('cell-1', createPeer('owner-peer'))]);
+    const heldSnapshot = result.locks();
+    expect(heldSnapshot[0]).toMatchObject({ key: 'cell-1' });
+
+    lockEngine.emitAll([createLock('cell-1', createPeer('owner-peer'))]);
+    expect(result.locks()).toBe(heldSnapshot);
+  });
+
+  it('throws a typed error when injectLocks() is called without provideRoomful', () => {
+    expect(() => {
+      TestBed.runInInjectionContext(() => injectLocks());
+    }).toThrowError(RoomfulError);
+  });
+});
+
+describe('injectLockState', () => {
+  it('tracks a single key and transitions free to held to free', () => {
+    const lockEngine = createMockLockEngine();
+    createMockRoom(
+      'lock-state-room',
+      {},
+      {
+        lockEngine,
+      },
+    );
+
+    const env = setupRoom('lock-state-room');
+    const result = env.run(() => injectLockState('cell-1'));
+
+    // Initially free.
+    expect(result()).toBeNull();
+
+    lockEngine.emitKey('cell-1', createLock('cell-1', createPeer('owner-peer')));
+    expect(result()).toMatchObject({ key: 'cell-1', holder: { id: 'owner-peer' } });
+
+    lockEngine.emitKey('cell-1', createLock('cell-1', null));
+    expect(result()).toBeNull();
+
+    expect(lockEngine.keySubscriberCount('cell-1')).toBe(1);
+
+    env.destroy();
+    expect(lockEngine.keySubscriberCount('cell-1')).toBe(0);
+  });
+
+  it('throws a typed error when injectLockState() is called without provideRoomful', () => {
+    expect(() => {
+      TestBed.runInInjectionContext(() => injectLockState('cell-1'));
+    }).toThrowError(RoomfulError);
   });
 });
 

@@ -1,4 +1,4 @@
-import type { Peer, PresenceData, Room, RoomStatus, ViewportState } from '@roomful/core';
+import type { LockState, Peer, PresenceData, Room, RoomStatus, ViewportState } from '@roomful/core';
 import type { Accessor, JSX } from 'solid-js';
 import { expectType } from 'tsd';
 
@@ -11,6 +11,9 @@ import {
   useConnectionStatus,
   useCursors,
   useEvent,
+  useLocks,
+  type UseLocksResult,
+  useLockState,
   usePeers,
   usePresence,
   useRoom,
@@ -65,6 +68,18 @@ expectType<Accessor<ViewportState[]>>(viewport.states);
 expectType<number | undefined>(viewport.states()[0]?.scrollX);
 viewport.follow('peer-id');
 viewport.broadcast();
+
+const locks = useLocks();
+expectType<UseLocksResult>(locks);
+expectType<Accessor<LockState[]>>(locks.locks);
+expectType<Promise<boolean>>(locks.acquire('cell-1', { ttl: 1_000, timeout: 5_000 }));
+expectType<Peer | null>(locks.getHolder('cell-1'));
+locks.release('cell-1');
+locks.releaseAll();
+
+const lockState = useLockState('cell-1');
+expectType<Accessor<LockState | null>>(lockState);
+expectType<Peer | null | undefined>(lockState()?.holder);
 
 const peers = usePeers<{ role: 'editor' | 'viewer' }>();
 expectType<Accessor<Peer<{ role: 'editor' | 'viewer' }>[]>>(peers);

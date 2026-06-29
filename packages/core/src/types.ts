@@ -1042,6 +1042,61 @@ export interface ViewportOptions {
 }
 
 /**
+ * Describes the resolved state of a single advisory lock — who holds it (if
+ * anyone) and when the claim was made and expires.
+ *
+ * Locks are EPHEMERAL (released on holder disconnect, TTL expiry, or explicit
+ * release) and ADVISORY (a coordination convention, not enforced mutual
+ * exclusion). Every peer resolves the holder independently and deterministically
+ * so the result converges, but see {@link LockEngine} for the consistency model
+ * and the brief races possible under simultaneous claims.
+ */
+export interface LockState {
+  /**
+   * Identifies the lock.
+   */
+  key: string;
+
+  /**
+   * Identifies the peer that currently holds the lock, or `null` when the lock
+   * is free.
+   */
+  holder: Peer | null;
+
+  /**
+   * Records when the holding claim was made, in epoch milliseconds. `0` when the
+   * lock is free.
+   */
+  acquiredAt: number;
+
+  /**
+   * Records when the holding claim self-expires, in epoch milliseconds, or
+   * `null` when the claim has no TTL (and only releases explicitly or on
+   * disconnect). `null` when the lock is free.
+   */
+  expiresAt: number | null;
+}
+
+/**
+ * Configures a single {@link LockEngine.acquire} attempt.
+ */
+export interface LockAcquireOptions {
+  /**
+   * Auto-releases the lock this many milliseconds after it is acquired, even if
+   * the holder never calls {@link LockEngine.release} (for example, after a
+   * crash). Omit for a lock that only releases explicitly or on disconnect.
+   */
+  ttl?: number;
+
+  /**
+   * Waits up to this many milliseconds for the lock to become free before giving
+   * up, re-attempting as holders release or expire. Omit to resolve promptly
+   * against the current holder without waiting.
+   */
+  timeout?: number;
+}
+
+/**
  * Exposes presence operations for a room.
  *
  * @typeParam TPresence - The custom peer presence shape.
@@ -1345,6 +1400,102 @@ export interface ViewportEngine {
 }
 
 /**
+ * Exposes a distributed advisory mutex over UI keys for a room. Use it to claim
+ * exclusive ownership of an arbitrary key (an editable cell, a draggable block)
+ * so peers can coordinate "only one editor at a time" interactions.
+ *
+ * Consistency model — there is NO central lock authority. Each peer broadcasts
+ * its lock CLAIMS and RELEASES on the event channel and every peer resolves each
+ * key's holder independently and deterministically: the earliest non-expired,
+ * non-released claim wins, with the lower `peerId` breaking exact ties. Because
+ * all peers apply the same rule to the same claims, they converge on the same
+ * holder. Locks are ADVISORY (a convention — nothing prevents code that ignores
+ * the engine from mutating the same resource) and EVENTUALLY CONSISTENT: during
+ * the propagation window of two near-simultaneous claims a peer may briefly see
+ * itself as holder before a conflicting earlier claim arrives, then converge.
+ * {@link LockEngine.acquire} waits a short bounded window for conflicting claims
+ * to surface before resolving to narrow that race, but cannot eliminate it in a
+ * P2P/relay model. Treat the lock as coordination, not a correctness guarantee;
+ * there are no deadlocks by design.
+ */
+export interface LockEngine {
+  /**
+   * Claims exclusive ownership of `key`. Broadcasts a claim, waits a short
+   * bounded window for any conflicting earlier claim to surface, then resolves
+   * to whether the local peer is the holder.
+   *
+   * With `options.timeout`, keeps re-attempting until the lock frees (a holder
+   * releases or its TTL expires) or the timeout elapses. With `options.ttl`, the
+   * claim self-expires after the TTL so a crashed holder cannot hold it forever.
+   *
+   * @param key - The lock key to claim.
+   * @param options - Optional TTL and wait-timeout configuration.
+   * @returns A promise resolving `true` when the local peer holds the lock,
+   *   `false` when another peer holds it.
+   */
+  acquire(key: string, options?: LockAcquireOptions): Promise<boolean>;
+
+  /**
+   * Releases a lock held by the local peer. No-op when the local peer does not
+   * hold `key`.
+   *
+   * @param key - The lock key to release.
+   * @returns Nothing.
+   */
+  release(key: string): void;
+
+  /**
+   * Releases every lock currently held by the local peer.
+   *
+   * @returns Nothing.
+   */
+  releaseAll(): void;
+
+  /**
+   * Reports whether `key` is currently held by any peer (including the local
+   * peer).
+   *
+   * @param key - The lock key to test.
+   * @returns `true` when the key has a non-expired holder.
+   */
+  isLocked(key: string): boolean;
+
+  /**
+   * Returns the peer currently holding `key`, or `null` when the lock is free.
+   *
+   * @param key - The lock key to resolve.
+   * @returns The holding peer, or `null`.
+   */
+  getHolder(key: string): Peer | null;
+
+  /**
+   * Returns the resolved state of every known lock that currently has a holder.
+   *
+   * @returns The current lock states.
+   */
+  getAll(): LockState[];
+
+  /**
+   * Subscribes to changes for a single lock key. Fires with the current state
+   * whenever the resolved holder, claim time, or expiry for `key` changes.
+   *
+   * @param key - The lock key to observe.
+   * @param callback - The callback invoked with the latest state for `key`.
+   * @returns A function that removes the listener.
+   */
+  subscribe(key: string, callback: (state: LockState) => void): Unsubscribe;
+
+  /**
+   * Subscribes to changes across all locks. Fires with every held lock's state
+   * whenever any lock changes.
+   *
+   * @param callback - The callback invoked with the latest lock states.
+   * @returns A function that removes the listener.
+   */
+  subscribeAll(callback: (states: LockState[]) => void): Unsubscribe;
+}
+
+/**
  * Exposes custom event operations for a room.
  *
  * @typeParam TPresence - The custom peer presence shape.
@@ -1491,6 +1642,13 @@ export interface Room<TPresence extends PresenceData = PresenceData> {
    * @returns The viewport engine.
    */
   useViewport(options?: ViewportOptions): ViewportEngine;
+
+  /**
+   * Accesses the distributed advisory lock engine for this room.
+   *
+   * @returns The lock engine.
+   */
+  useLocks(): LockEngine;
 
   /**
    * Accesses the custom event engine for this room.

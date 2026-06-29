@@ -358,6 +358,34 @@ function createMockRoom(
         }),
       };
     }),
+    useLocks: vi.fn(() => {
+      return {
+        acquire: vi.fn(async () => {
+          return true;
+        }),
+        release: vi.fn(),
+        releaseAll: vi.fn(),
+        isLocked: vi.fn(() => {
+          return false;
+        }),
+        getHolder: vi.fn(() => {
+          return null;
+        }),
+        getAll: vi.fn(() => {
+          return [];
+        }),
+        subscribe: vi.fn(() => {
+          return () => {
+            return undefined;
+          };
+        }),
+        subscribeAll: vi.fn(() => {
+          return () => {
+            return undefined;
+          };
+        }),
+      };
+    }),
     useEvents: vi.fn(() => {
       return eventEngine;
     }),

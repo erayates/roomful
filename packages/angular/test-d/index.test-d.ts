@@ -1,5 +1,5 @@
 import type { EnvironmentProviders, Signal } from '@angular/core';
-import type { Peer, PresenceData, Room, RoomStatus, ViewportState } from '@roomful/core';
+import type { LockState, Peer, PresenceData, Room, RoomStatus, ViewportState } from '@roomful/core';
 import { expectType } from 'tsd';
 
 import {
@@ -7,12 +7,15 @@ import {
   injectConnectionStatus,
   injectCursors,
   injectEvent,
+  injectLocks,
+  injectLockState,
   injectPeers,
   injectPresence,
   injectRoom,
   injectSharedState,
   injectViewport,
   type InjectAwarenessResult,
+  type InjectLocksResult,
   type InjectViewportResult,
   provideRoomful,
   type RoomfulProviderOptions,
@@ -68,6 +71,18 @@ expectType<Signal<ViewportState[]>>(viewport.states);
 expectType<number | undefined>(viewport.states()[0]?.scrollX);
 viewport.follow('peer-id');
 viewport.broadcast();
+
+const locks = injectLocks();
+expectType<InjectLocksResult>(locks);
+expectType<Signal<LockState[]>>(locks.locks);
+expectType<Promise<boolean>>(locks.acquire('cell-1', { ttl: 1_000, timeout: 5_000 }));
+expectType<Peer | null>(locks.getHolder('cell-1'));
+locks.release('cell-1');
+locks.releaseAll();
+
+const lockState = injectLockState('cell-1');
+expectType<Signal<LockState | null>>(lockState);
+expectType<Peer | null | undefined>(lockState()?.holder);
 
 const peers = injectPeers<{ role: 'editor' | 'viewer' }>();
 expectType<Signal<Peer<{ role: 'editor' | 'viewer' }>[]>>(peers);

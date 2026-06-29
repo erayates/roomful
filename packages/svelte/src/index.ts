@@ -7,6 +7,9 @@ import type {
   CursorPosition,
   CursorRenderOptions,
   EventEngine,
+  LockAcquireOptions,
+  LockEngine,
+  LockState,
   Peer,
   PresenceData,
   PresenceEngine,
@@ -80,6 +83,26 @@ interface ViewportSnapshotCache<TPresence extends PresenceData> {
   engine: ViewportEngine;
   room: Room<TPresence>;
   snapshot: ViewportState[];
+}
+
+interface LocksSnapshotCache<TPresence extends PresenceData> {
+  engine: LockEngine;
+  room: Room<TPresence>;
+  snapshot: LockState[];
+}
+
+interface LockStateSnapshotCache<TPresence extends PresenceData> {
+  engine: LockEngine;
+  key: string;
+  room: Room<TPresence>;
+  snapshot: LockState | null;
+}
+
+interface LockStateRecord<TPresence extends PresenceData> {
+  cache: LockStateSnapshotCache<TPresence> | null;
+  cleanup: (() => void) | null;
+  key: string;
+  store: ValueStore<LockState | null>;
 }
 
 interface SharedStateSnapshotCache<TPresence extends PresenceData, T> {
@@ -291,6 +314,46 @@ export interface ViewportStore extends Readable<ViewportState[]> {
 }
 
 /**
+ * Readable store of all held locks augmented with acquire/release helpers.
+ */
+export interface LocksStore extends Readable<LockState[]> {
+  /**
+   * Claims exclusive ownership of a key, resolving whether the local peer holds
+   * it.
+   *
+   * @param key - The lock key to claim.
+   * @param options - Optional TTL and acquire-timeout configuration.
+   * @returns A promise resolving to whether the local peer holds the key.
+   */
+  acquire(key: string, options?: LockAcquireOptions): Promise<boolean>;
+
+  /**
+   * Releases a lock held by the local peer.
+   */
+  release: LockEngine['release'];
+
+  /**
+   * Releases every lock held by the local peer.
+   */
+  releaseAll: LockEngine['releaseAll'];
+
+  /**
+   * Reports whether a key is currently held by any peer.
+   */
+  isLocked: LockEngine['isLocked'];
+
+  /**
+   * Returns the peer currently holding a key, or `null`.
+   */
+  getHolder: LockEngine['getHolder'];
+}
+
+/**
+ * Readable store of a single lock key's resolved state, or `null` when free.
+ */
+export type LockStateStore = Readable<LockState | null>;
+
+/**
  * Readable awareness store augmented with write helpers.
  */
 export interface AwarenessStore extends Readable<AwarenessStoreValue> {
@@ -499,6 +562,19 @@ export interface RoomfulAdapter<
   events: EventsNamespace<TPresence>;
 
   /**
+   * Exposes the store of all held locks plus acquire/release controls.
+   */
+  locks: LocksStore;
+
+  /**
+   * Creates a readable store for a single lock key's resolved state.
+   *
+   * @param key - The lock key to observe.
+   * @returns A readable store holding the lock state, or `null` when free.
+   */
+  lockState(key: string): LockStateStore;
+
+  /**
    * Exposes the presence store.
    */
   presence: PresenceStore<TPresence>;
@@ -538,6 +614,7 @@ export function roomful<
   const cursorEngine = room.useCursors<TCursor>();
   const awarenessEngine = room.useAwareness();
   const viewportEngine = room.useViewport();
+  const lockEngine = room.useLocks();
   const eventEngine = room.useEvents();
 
   let destroyed = false;
@@ -550,11 +627,13 @@ export function roomful<
   let cursorCache: CursorSnapshotCache<TPresence, TCursor> | null = null;
   let awarenessCache: AwarenessSnapshotCache<TPresence> | null = null;
   let viewportCache: ViewportSnapshotCache<TPresence> | null = null;
+  let locksCache: LocksSnapshotCache<TPresence> | null = null;
   let sharedStateController: SharedStateController<TPresence, unknown> | null = null;
 
   const cleanupRegistry = new Set<() => void>();
   const eventListeners = new Set<EventListenerRecord<TPresence>>();
   const eventChannels = new Map<string, EventChannelRecord<TPresence>>();
+  const lockStateRecords = new Map<string, LockStateRecord<TPresence>>();
 
   const assertAvailable = (methodName: string): void => {
     if (!destroyed) {
@@ -593,6 +672,14 @@ export function roomful<
       current: viewportCache,
       set(nextCache) {
         viewportCache = nextCache;
+      },
+    }),
+  );
+  const locksStore = createValueStore(
+    readLocksSnapshot(room, lockEngine, {
+      current: locksCache,
+      set(nextCache) {
+        locksCache = nextCache;
       },
     }),
   );
@@ -641,6 +728,17 @@ export function roomful<
         current: viewportCache,
         set(nextCache) {
           viewportCache = nextCache;
+        },
+      }),
+    );
+  };
+
+  const refreshLocks = (): void => {
+    locksStore.publish(
+      readLocksSnapshot(room, lockEngine, {
+        current: locksCache,
+        set(nextCache) {
+          locksCache = nextCache;
         },
       }),
     );
@@ -741,6 +839,44 @@ export function roomful<
     });
   };
 
+  const attachLocksSubscription = (): void => {
+    if (!runtimeStarted) {
+      return;
+    }
+
+    const unsubscribe = lockEngine.subscribeAll(() => {
+      refreshLocks();
+    });
+
+    registerCleanup(() => {
+      unsubscribe();
+    });
+  };
+
+  const attachLockStateRecord = (record: LockStateRecord<TPresence>): void => {
+    if (!runtimeStarted || record.cleanup) {
+      return;
+    }
+
+    const unsubscribe = lockEngine.subscribe(record.key, (lockState) => {
+      record.store.publish(
+        reconcileLockStateSnapshot(room, lockEngine, record.key, lockState, {
+          current: record.cache,
+          set(nextCache) {
+            record.cache = nextCache;
+          },
+        }),
+      );
+    });
+
+    record.cleanup = registerCleanup(() => {
+      unsubscribe();
+      if (record.cleanup) {
+        record.cleanup = null;
+      }
+    });
+  };
+
   const attachSharedStateSubscription = (): void => {
     if (!runtimeStarted || !sharedStateController || sharedStateController.cleanup) {
       return;
@@ -805,6 +941,7 @@ export function roomful<
     attachCursorSubscription();
     attachAwarenessSubscription();
     attachViewportSubscription();
+    attachLocksSubscription();
     attachSharedStateSubscription();
 
     for (const record of eventListeners) {
@@ -813,6 +950,10 @@ export function roomful<
 
     for (const record of eventChannels.values()) {
       attachEventChannel(record);
+    }
+
+    for (const record of lockStateRecords.values()) {
+      attachLockStateRecord(record);
     }
   };
 
@@ -985,6 +1126,68 @@ export function roomful<
       assertAvailable('viewport.unfollow');
       viewportEngine.unfollow();
     },
+  };
+
+  const locks: LocksStore = {
+    subscribe(run, invalidate) {
+      return locksStore.subscribe(run, invalidate);
+    },
+    acquire(key, lockOptions) {
+      assertAvailable('locks.acquire');
+      return lockEngine.acquire(key, lockOptions);
+    },
+    release(key) {
+      assertAvailable('locks.release');
+      lockEngine.release(key);
+    },
+    releaseAll() {
+      assertAvailable('locks.releaseAll');
+      lockEngine.releaseAll();
+    },
+    isLocked(key) {
+      return lockEngine.isLocked(key);
+    },
+    getHolder(key) {
+      return lockEngine.getHolder(key);
+    },
+  };
+
+  const lockState = (key: string): LockStateStore => {
+    assertAvailable('lockState');
+
+    const existingRecord = lockStateRecords.get(key);
+    if (existingRecord) {
+      return {
+        subscribe(run, invalidate) {
+          return existingRecord.store.subscribe(run, invalidate);
+        },
+      };
+    }
+
+    const record: LockStateRecord<TPresence> = {
+      cache: null,
+      cleanup: null,
+      key,
+      store: createValueStore<LockState | null>(
+        readLockStateSnapshot(room, lockEngine, key, {
+          current: null,
+          set() {
+            return undefined;
+          },
+        }),
+      ),
+    };
+
+    lockStateRecords.set(key, record);
+    if (runtimeStarted) {
+      attachLockStateRecord(record);
+    }
+
+    return {
+      subscribe(run, invalidate) {
+        return record.store.subscribe(run, invalidate);
+      },
+    };
   };
 
   const awareness: AwarenessStore = {
@@ -1233,10 +1436,15 @@ export function roomful<
       record.store.clear();
     }
     eventChannels.clear();
+    for (const record of lockStateRecords.values()) {
+      record.store.clear();
+    }
+    lockStateRecords.clear();
     presenceStore.clear();
     cursorStore.clear();
     awarenessStore.clear();
     viewportStore.clear();
+    locksStore.clear();
     statusStore.clear();
     sharedStateController?.valueStore.clear();
 
@@ -1258,6 +1466,8 @@ export function roomful<
     destroy,
     disconnect,
     events,
+    locks,
+    lockState,
     presence,
     state,
     status,
@@ -1525,6 +1735,139 @@ function readViewportSnapshot<TPresence extends PresenceData>(
     snapshot: nextSnapshot,
   });
   return nextSnapshot;
+}
+
+function areLockArraysEqual(previous: readonly LockState[], next: readonly LockState[]): boolean {
+  if (previous === next) {
+    return true;
+  }
+
+  if (previous.length !== next.length) {
+    return false;
+  }
+
+  for (let index = 0; index < previous.length; index += 1) {
+    const previousEntry = previous[index];
+    const nextEntry = next[index];
+
+    if (!previousEntry || !nextEntry || !areStructuredValuesEqual(previousEntry, nextEntry)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function readLocksSnapshot<TPresence extends PresenceData>(
+  room: Room<TPresence>,
+  locks: LockEngine,
+  cacheRef: {
+    current: LocksSnapshotCache<TPresence> | null;
+    set(nextCache: LocksSnapshotCache<TPresence>): void;
+  },
+): LockState[] {
+  const nextSnapshot = locks.getAll();
+  const previous = cacheRef.current;
+
+  if (previous && previous.room === room && previous.engine === locks) {
+    const previousSnapshot = previous.snapshot;
+    if (areLockArraysEqual(previousSnapshot, nextSnapshot)) {
+      return previousSnapshot;
+    }
+
+    const stableSnapshot = nextSnapshot.map((state, index) => {
+      const previousState = previousSnapshot[index];
+      if (previousState && areStructuredValuesEqual(previousState, state)) {
+        return previousState;
+      }
+
+      return state;
+    });
+    previous.snapshot = stableSnapshot;
+    return stableSnapshot;
+  }
+
+  cacheRef.set({
+    engine: locks,
+    room,
+    snapshot: nextSnapshot,
+  });
+  return nextSnapshot;
+}
+
+function resolveSingleLockState(locks: LockEngine, key: string): LockState | null {
+  const holder = locks.getHolder(key);
+  if (!holder) {
+    return null;
+  }
+
+  return (
+    locks.getAll().find((state) => {
+      return state.key === key;
+    }) ?? null
+  );
+}
+
+function commitLockStateSnapshot<TPresence extends PresenceData>(
+  room: Room<TPresence>,
+  locks: LockEngine,
+  key: string,
+  nextState: LockState | null,
+  cacheRef: {
+    current: LockStateSnapshotCache<TPresence> | null;
+    set(nextCache: LockStateSnapshotCache<TPresence>): void;
+  },
+): LockState | null {
+  const previous = cacheRef.current;
+
+  if (previous && previous.room === room && previous.engine === locks && previous.key === key) {
+    const previousSnapshot = previous.snapshot;
+    if (
+      previousSnapshot === nextState ||
+      (previousSnapshot !== null &&
+        nextState !== null &&
+        areStructuredValuesEqual(previousSnapshot, nextState))
+    ) {
+      return previousSnapshot;
+    }
+
+    previous.snapshot = nextState;
+    return nextState;
+  }
+
+  cacheRef.set({
+    engine: locks,
+    key,
+    room,
+    snapshot: nextState,
+  });
+  return nextState;
+}
+
+function readLockStateSnapshot<TPresence extends PresenceData>(
+  room: Room<TPresence>,
+  locks: LockEngine,
+  key: string,
+  cacheRef: {
+    current: LockStateSnapshotCache<TPresence> | null;
+    set(nextCache: LockStateSnapshotCache<TPresence>): void;
+  },
+): LockState | null {
+  return commitLockStateSnapshot(room, locks, key, resolveSingleLockState(locks, key), cacheRef);
+}
+
+function reconcileLockStateSnapshot<TPresence extends PresenceData>(
+  room: Room<TPresence>,
+  locks: LockEngine,
+  key: string,
+  state: LockState,
+  cacheRef: {
+    current: LockStateSnapshotCache<TPresence> | null;
+    set(nextCache: LockStateSnapshotCache<TPresence>): void;
+  },
+): LockState | null {
+  const nextState = state.holder === null ? null : state;
+  return commitLockStateSnapshot(room, locks, key, nextState, cacheRef);
 }
 
 function readSharedStateSnapshot<TPresence extends PresenceData, T>(

@@ -12,12 +12,22 @@ import {
   useConnectionStatus,
   useCursors,
   useEvent,
+  useLocks,
+  type UseLocksResult,
+  useLockState,
   usePresence,
   useSharedState,
   type UseViewportResult,
   useViewport,
 } from '..';
-import type { Peer, PresenceData, RoomfulError, RoomStatus, ViewportState } from '@roomful/core';
+import type {
+  LockState,
+  Peer,
+  PresenceData,
+  RoomfulError,
+  RoomStatus,
+  ViewportState,
+} from '@roomful/core';
 
 const presence = usePresence<{ role: 'editor' | 'viewer' }>();
 expectType<'editor' | 'viewer' | undefined>(presence.self.value.role);
@@ -65,6 +75,19 @@ expectType<ViewportState[]>(viewport.states.value);
 expectType<number | undefined>(viewport.states.value[0]?.scrollX);
 viewport.follow('peer-id');
 viewport.broadcast();
+
+const locks = useLocks();
+expectType<UseLocksResult>(locks);
+expectType<ReadonlyRef<LockState[]>>(locks.locks);
+expectType<LockState[]>(locks.locks.value);
+expectType<Promise<boolean>>(locks.acquire('cell-1', { ttl: 1_000, timeout: 5_000 }));
+expectType<Peer | null>(locks.getHolder('cell-1'));
+locks.release('cell-1');
+locks.releaseAll();
+
+const lockState = useLockState('cell-1');
+expectType<ReadonlyRef<LockState | null>>(lockState);
+expectType<Peer | null | undefined>(lockState.value?.holder);
 
 const [votes, setVotes] = useSharedState('votes', {
   initialValue: {
