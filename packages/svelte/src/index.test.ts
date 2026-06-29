@@ -3,6 +3,9 @@
 import type {
   AwarenessEngine,
   AwarenessState,
+  CommentAnchor,
+  CommentsEngine,
+  CommentThread,
   CursorData,
   CursorEngine,
   CursorPosition,
@@ -86,6 +89,7 @@ type ViewportSubscriber = (states: ViewportState[]) => void;
 type PointerSubscriber = (beams: PointerBeam[]) => void;
 type LockStateSubscriber = (state: LockState) => void;
 type LocksSubscriber = (states: LockState[]) => void;
+type CommentsSubscriber = (threads: CommentThread[]) => void;
 
 type TestPresenceEngine = PresenceEngine<PresenceData> & {
   emit(peers: Peer<PresenceData>[]): void;
@@ -142,6 +146,18 @@ type TestLockEngine = LockEngine & {
   setHolder(key: string, holder: Peer<PresenceData> | null): void;
 };
 
+type TestCommentsEngine = CommentsEngine & {
+  add: ReturnType<
+    typeof vi.fn<(input: { anchor: CommentAnchor; text: string }) => Promise<CommentThread>>
+  >;
+  emit(threads: CommentThread[]): void;
+  reopen: ReturnType<typeof vi.fn<(threadId: string) => Promise<CommentThread>>>;
+  reply: ReturnType<typeof vi.fn<(threadId: string, text: string) => Promise<CommentThread>>>;
+  resolve: ReturnType<typeof vi.fn<(threadId: string) => Promise<CommentThread>>>;
+  subscriberCount(): number;
+  subscribe: ReturnType<typeof vi.fn<(cb: CommentsSubscriber) => () => void>>;
+};
+
 type TestAwarenessEngine = AwarenessEngine & {
   emit(peers: AwarenessState[]): void;
   set: ReturnType<typeof vi.fn<(value: Record<string, unknown>) => void>>;
@@ -170,6 +186,7 @@ type TestStateEngine<T> = StateEngine<T> & {
 
 type TestRoom = Room<PresenceData> & {
   awarenessEngine: TestAwarenessEngine;
+  commentsEngine: TestCommentsEngine;
   connect: ReturnType<typeof vi.fn<() => Promise<void>>>;
   cursorEngine: TestCursorEngine;
   disconnect: ReturnType<typeof vi.fn<() => Promise<void>>>;
@@ -609,6 +626,121 @@ function createMockLockEngine(): TestLockEngine {
   return engine;
 }
 
+function createCommentThread(id: string, overrides: Partial<CommentThread> = {}): CommentThread {
+  return {
+    anchor: { elementId: `element-${id}` },
+    author: createPeer(`author-${id}`),
+    createdAt: 1,
+    id,
+    replies: [],
+    resolved: false,
+    text: `thread ${id}`,
+    ...overrides,
+  };
+}
+
+function createMockCommentsEngine(threads: CommentThread[] = []): TestCommentsEngine {
+  const subscribers = new Set<CommentsSubscriber>();
+  let currentThreads = threads;
+
+  const findThread = (threadId: string): CommentThread | undefined => {
+    return currentThreads.find((thread) => {
+      return thread.id === threadId;
+    });
+  };
+
+  const writeThread = (next: CommentThread): void => {
+    currentThreads = currentThreads.map((thread) => {
+      return thread.id === next.id ? next : thread;
+    });
+    for (const subscriber of subscribers) {
+      subscriber(currentThreads);
+    }
+  };
+
+  const engine = {
+    add: vi.fn(async (input: { anchor: CommentAnchor; text: string }) => {
+      const thread = createCommentThread(`thread-${currentThreads.length + 1}`, {
+        anchor: input.anchor,
+        text: input.text,
+      });
+      currentThreads = [...currentThreads, thread];
+      for (const subscriber of subscribers) {
+        subscriber(currentThreads);
+      }
+      return thread;
+    }),
+    reply: vi.fn(async (threadId: string, text: string) => {
+      const current = findThread(threadId) ?? createCommentThread(threadId);
+      const next: CommentThread = {
+        ...current,
+        replies: [
+          ...current.replies,
+          {
+            id: `reply-${current.replies.length + 1}`,
+            author: createPeer(`reply-author-${threadId}`),
+            text,
+            createdAt: 2,
+          },
+        ],
+      };
+      writeThread(next);
+      return next;
+    }),
+    resolve: vi.fn(async (threadId: string) => {
+      const current = findThread(threadId) ?? createCommentThread(threadId);
+      const next: CommentThread = { ...current, resolved: true };
+      writeThread(next);
+      return next;
+    }),
+    reopen: vi.fn(async (threadId: string) => {
+      const current = findThread(threadId) ?? createCommentThread(threadId);
+      const next: CommentThread = { ...current, resolved: false };
+      writeThread(next);
+      return next;
+    }),
+    thread(threadId: string) {
+      return {
+        reply: (text: string) => engine.reply(threadId, text),
+        resolve: () => engine.resolve(threadId),
+        reopen: () => engine.reopen(threadId),
+      };
+    },
+    getAll() {
+      return currentThreads;
+    },
+    getByElement(elementId: string) {
+      return currentThreads.filter((thread) => {
+        return 'elementId' in thread.anchor && thread.anchor.elementId === elementId;
+      });
+    },
+    getOpen() {
+      return currentThreads.filter((thread) => {
+        return !thread.resolved;
+      });
+    },
+    subscribe: vi.fn((callback: CommentsSubscriber) => {
+      subscribers.add(callback);
+      callback(currentThreads);
+
+      return () => {
+        subscribers.delete(callback);
+      };
+    }),
+    emit(nextThreads: CommentThread[]) {
+      currentThreads = nextThreads;
+      for (const subscriber of subscribers) {
+        subscriber(currentThreads);
+      }
+    },
+    subscriberCount() {
+      return subscribers.size;
+    },
+  } as TestCommentsEngine;
+
+  return engine;
+}
+
 function createMockEventEngine(): TestEventEngine {
   const subscribers = new Map<string, Set<EventSubscriber>>();
 
@@ -683,6 +815,7 @@ function createMockRoom(
   options: RoomOptions<PresenceData> = {},
   config: {
     awarenessEngine?: TestAwarenessEngine;
+    commentsEngine?: TestCommentsEngine;
     cursorEngine?: TestCursorEngine;
     eventEngine?: TestEventEngine;
     lockEngine?: TestLockEngine;
@@ -698,6 +831,7 @@ function createMockRoom(
   const peerId = config.peerId ?? `${roomId}-peer`;
   const awarenessEngine =
     config.awarenessEngine ?? createMockAwarenessEngine([createAwareness(peerId)]);
+  const commentsEngine = config.commentsEngine ?? createMockCommentsEngine();
   const cursorEngine = config.cursorEngine ?? createMockCursorEngine();
   const eventEngine = config.eventEngine ?? createMockEventEngine();
   const lockEngine = config.lockEngine ?? createMockLockEngine();
@@ -710,6 +844,7 @@ function createMockRoom(
 
   const room = {
     awarenessEngine,
+    commentsEngine,
     connect: vi.fn(async () => {
       currentStatus = 'connected';
     }),
@@ -779,6 +914,9 @@ function createMockRoom(
     stateEngine,
     useAwareness: vi.fn(() => {
       return awarenessEngine;
+    }),
+    useComments: vi.fn(() => {
+      return commentsEngine;
     }),
     useCursors: vi.fn(() => {
       return cursorEngine;
@@ -1459,6 +1597,82 @@ describe('roomful', () => {
     expect(snapshots).toHaveLength(2);
 
     unsubscribe();
+  });
+
+  it('exposes comments as a store, reflects remote threads, and forwards controls', async () => {
+    const commentsEngine = createMockCommentsEngine([
+      createCommentThread('seed', { text: 'Seed thread' }),
+    ]);
+    createMockRoom(
+      'comments-room',
+      {},
+      {
+        commentsEngine,
+      },
+    );
+
+    const adapter = roomful('comments-room');
+    const snapshots: Array<CommentThread[]> = [];
+    const unsubscribe = adapter.comments.subscribe((value) => {
+      snapshots.push(value);
+    });
+
+    expect(get(adapter.comments)).toEqual([expect.objectContaining({ id: 'seed' })]);
+    expect(snapshots).toHaveLength(1);
+
+    await adapter.connect();
+
+    // Adding a thread is reflected in the store.
+    await adapter.comments.add({ anchor: { elementId: 'cell-1' }, text: 'New thread' });
+    expect(commentsEngine.add).toHaveBeenCalledWith({
+      anchor: { elementId: 'cell-1' },
+      text: 'New thread',
+    });
+    expect(get(adapter.comments).map((thread) => thread.id)).toEqual(['seed', 'thread-2']);
+
+    await adapter.comments.reply('seed', 'A reply');
+    await adapter.comments.resolve('seed');
+    await adapter.comments.reopen('seed');
+
+    expect(commentsEngine.reply).toHaveBeenCalledWith('seed', 'A reply');
+    expect(commentsEngine.resolve).toHaveBeenCalledWith('seed');
+    expect(commentsEngine.reopen).toHaveBeenCalledWith('seed');
+
+    // A remote thread is reflected in the store; a deep-equal re-emit is skipped.
+    const snapshotCountBeforeEmit = snapshots.length;
+    commentsEngine.emit([
+      createCommentThread('seed', { text: 'Seed thread' }),
+      createCommentThread('remote', { text: 'Remote thread' }),
+    ]);
+    expect(snapshots).toHaveLength(snapshotCountBeforeEmit + 1);
+    expect(snapshots.at(-1)?.map((thread) => thread.id)).toEqual(['seed', 'remote']);
+    expect(adapter.comments.getOpen()).toHaveLength(2);
+
+    commentsEngine.emit([
+      createCommentThread('seed', { text: 'Seed thread' }),
+      createCommentThread('remote', { text: 'Remote thread' }),
+    ]);
+    expect(snapshots).toHaveLength(snapshotCountBeforeEmit + 1);
+
+    unsubscribe();
+
+    await adapter.destroy();
+    expect(commentsEngine.subscriberCount()).toBe(0);
+  });
+
+  it('forwards comments storage options to room.useComments', () => {
+    const commentsEngine = createMockCommentsEngine();
+    const room = createMockRoom(
+      'comments-options-room',
+      {},
+      {
+        commentsEngine,
+      },
+    );
+
+    roomful('comments-options-room', { comments: { storage: 'indexeddb' } });
+
+    expect(room.useComments.mock.calls[0]?.[0]).toEqual({ storage: 'indexeddb' });
   });
 
   it('creates per-key lockState stores that track free to held to free transitions', async () => {

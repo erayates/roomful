@@ -1,5 +1,6 @@
 import type { EnvironmentProviders, Signal } from '@angular/core';
 import type {
+  CommentThread,
   LockState,
   Peer,
   PointerBeam,
@@ -13,6 +14,7 @@ import { expectType } from 'tsd';
 
 import {
   injectAwareness,
+  injectComments,
   injectConnectionStatus,
   injectCursors,
   injectEvent,
@@ -25,6 +27,7 @@ import {
   injectSharedState,
   injectViewport,
   type InjectAwarenessResult,
+  type InjectCommentsResult,
   type InjectLocksResult,
   type InjectPointerResult,
   type InjectViewportResult,
@@ -103,6 +106,20 @@ locks.releaseAll();
 const lockState = injectLockState('cell-1');
 expectType<Signal<LockState | null>>(lockState);
 expectType<Peer | null | undefined>(lockState()?.holder);
+
+const comments = injectComments();
+expectType<InjectCommentsResult>(comments);
+expectType<Signal<CommentThread[]>>(comments.threads);
+expectType<boolean | undefined>(comments.threads()[0]?.resolved);
+expectType<Promise<CommentThread>>(comments.add({ anchor: { elementId: 'cell-1' }, text: 'hi' }));
+expectType<Promise<CommentThread>>(comments.reply('thread-1', 'reply'));
+expectType<Promise<CommentThread>>(comments.resolve('thread-1'));
+expectType<Promise<CommentThread>>(comments.reopen('thread-1'));
+expectType<CommentThread[]>(comments.getByElement('cell-1'));
+expectType<CommentThread[]>(comments.getOpen());
+
+const commentsWithOptions = injectComments({ storage: 'indexeddb' });
+expectType<InjectCommentsResult>(commentsWithOptions);
 
 const peers = injectPeers<{ role: 'editor' | 'viewer' }>();
 expectType<Signal<Peer<{ role: 'editor' | 'viewer' }>[]>>(peers);

@@ -9,6 +9,8 @@ import {
   type SharedStateSetter,
   type UseAwarenessResult,
   useAwareness,
+  useComments,
+  type UseCommentsResult,
   useConnectionStatus,
   useCursors,
   useEvent,
@@ -23,6 +25,7 @@ import {
   useViewport,
 } from '..';
 import type {
+  CommentThread,
   LockState,
   Peer,
   PointerBeam,
@@ -102,6 +105,21 @@ locks.releaseAll();
 const lockState = useLockState('cell-1');
 expectType<ReadonlyRef<LockState | null>>(lockState);
 expectType<Peer | null | undefined>(lockState.value?.holder);
+
+const comments = useComments();
+expectType<UseCommentsResult>(comments);
+expectType<ReadonlyRef<CommentThread[]>>(comments.threads);
+expectType<CommentThread[]>(comments.threads.value);
+expectType<boolean | undefined>(comments.threads.value[0]?.resolved);
+expectType<Promise<CommentThread>>(comments.add({ anchor: { elementId: 'cell-1' }, text: 'hi' }));
+expectType<Promise<CommentThread>>(comments.reply('thread-1', 'reply'));
+expectType<Promise<CommentThread>>(comments.resolve('thread-1'));
+expectType<Promise<CommentThread>>(comments.reopen('thread-1'));
+expectType<CommentThread[]>(comments.getByElement('cell-1'));
+expectType<CommentThread[]>(comments.getOpen());
+
+const commentsWithOptions = useComments({ storage: 'indexeddb' });
+expectType<UseCommentsResult>(commentsWithOptions);
 
 const [votes, setVotes] = useSharedState('votes', {
   initialValue: {

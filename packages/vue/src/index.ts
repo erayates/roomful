@@ -1,6 +1,11 @@
 import type {
   AwarenessEngine,
   AwarenessState,
+  Comment,
+  CommentAnchor,
+  CommentsEngine,
+  CommentsOptions,
+  CommentThread,
   CursorData,
   CursorEngine,
   CursorOptions,
@@ -317,6 +322,62 @@ export interface UseLocksResult {
 }
 
 /**
+ * Describes the return value of `useComments`.
+ */
+export interface UseCommentsResult {
+  /**
+   * Exposes the current comment threads, oldest first. Reactive: updates on any
+   * local or remote thread change.
+   */
+  threads: ReadonlyRef<CommentThread[]>;
+
+  /**
+   * Opens a new thread authored by the local peer at an anchor.
+   */
+  add: CommentsEngine['add'];
+
+  /**
+   * Appends a reply authored by the local peer to a thread.
+   *
+   * @param threadId - The thread to reply to.
+   * @param text - The reply body.
+   * @returns A promise resolving to the updated thread.
+   */
+  reply(threadId: string, text: string): Promise<CommentThread>;
+
+  /**
+   * Marks a thread resolved.
+   *
+   * @param threadId - The thread to resolve.
+   * @returns A promise resolving to the updated thread.
+   */
+  resolve(threadId: string): Promise<CommentThread>;
+
+  /**
+   * Reopens a resolved thread.
+   *
+   * @param threadId - The thread to reopen.
+   * @returns A promise resolving to the updated thread.
+   */
+  reopen(threadId: string): Promise<CommentThread>;
+
+  /**
+   * Returns the threads anchored to an element.
+   */
+  getByElement: CommentsEngine['getByElement'];
+
+  /**
+   * Returns the unresolved threads.
+   */
+  getOpen: CommentsEngine['getOpen'];
+}
+
+/**
+ * Re-exports the collaborative comment types for adapter consumers.
+ */
+export type { Comment, CommentAnchor, CommentsOptions, CommentThread };
+
+/**
  * Mirrors React-style updater semantics for Vue shared state setters.
  *
  * @typeParam T - The shared state value type.
@@ -392,6 +453,12 @@ interface SharedStateSnapshotCache<TPresence extends PresenceData, T> {
   room: Room<TPresence>;
   engine: StateEngine<T>;
   snapshot: T;
+}
+
+interface CommentsSnapshotCache<TPresence extends PresenceData> {
+  room: Room<TPresence>;
+  engine: CommentsEngine;
+  snapshot: CommentThread[];
 }
 
 interface MountedCursorDirectiveState {
@@ -958,6 +1025,92 @@ export function useLocks<TPresence extends PresenceData = PresenceData>(): UseLo
     },
     getHolder(key) {
       return requireTypedRoom<TPresence>(context.room.value, 'useLocks').useLocks().getHolder(key);
+    },
+  };
+}
+
+/**
+ * Subscribes to collaborative comment threads and returns the thread mutators.
+ *
+ * @typeParam TPresence - The room presence shape.
+ * @param options - Optional storage backend configuration.
+ * @returns A readonly ref of threads plus add/reply/resolve/reopen and filter helpers.
+ */
+export function useComments<TPresence extends PresenceData = PresenceData>(
+  options?: CommentsOptions,
+): UseCommentsResult {
+  const context = useRoomfulContext('useComments');
+  const initialRoom = requireTypedRoom<TPresence>(context.room.value, 'useComments');
+  const initialEngine = initialRoom.useComments(options);
+  const cacheRef: { current: CommentsSnapshotCache<TPresence> | null } = {
+    current: null,
+  };
+  const threads = shallowRef(readCommentsSnapshot(initialRoom, initialEngine, cacheRef));
+
+  watch(
+    context.room,
+    (room, _previousRoom, onCleanup) => {
+      const typedRoom = requireTypedRoom<TPresence>(room, 'useComments');
+      const engine = typedRoom.useComments(options);
+
+      const syncSnapshot = (): void => {
+        const nextSnapshot = readCommentsSnapshot(typedRoom, engine, cacheRef);
+        if (threads.value === nextSnapshot) {
+          return;
+        }
+
+        threads.value = nextSnapshot;
+      };
+
+      syncSnapshot();
+
+      const unsubscribe = engine.subscribe(() => {
+        syncSnapshot();
+      });
+
+      onCleanup(() => {
+        unsubscribe();
+      });
+    },
+    {
+      immediate: true,
+    },
+  );
+
+  return {
+    threads,
+    add(input) {
+      return requireTypedRoom<TPresence>(context.room.value, 'useComments')
+        .useComments(options)
+        .add(input);
+    },
+    reply(threadId, text) {
+      return requireTypedRoom<TPresence>(context.room.value, 'useComments')
+        .useComments(options)
+        .thread(threadId)
+        .reply(text);
+    },
+    resolve(threadId) {
+      return requireTypedRoom<TPresence>(context.room.value, 'useComments')
+        .useComments(options)
+        .thread(threadId)
+        .resolve();
+    },
+    reopen(threadId) {
+      return requireTypedRoom<TPresence>(context.room.value, 'useComments')
+        .useComments(options)
+        .thread(threadId)
+        .reopen();
+    },
+    getByElement(elementId) {
+      return requireTypedRoom<TPresence>(context.room.value, 'useComments')
+        .useComments(options)
+        .getByElement(elementId);
+    },
+    getOpen() {
+      return requireTypedRoom<TPresence>(context.room.value, 'useComments')
+        .useComments(options)
+        .getOpen();
     },
   };
 }
@@ -1649,6 +1802,63 @@ function readLocksSnapshot<TPresence extends PresenceData>(
   return nextSnapshot;
 }
 
+function areCommentThreadArraysEqual(
+  previous: readonly CommentThread[],
+  next: readonly CommentThread[],
+): boolean {
+  if (previous === next) {
+    return true;
+  }
+
+  if (previous.length !== next.length) {
+    return false;
+  }
+
+  for (let index = 0; index < previous.length; index += 1) {
+    const previousEntry = previous[index];
+    const nextEntry = next[index];
+
+    if (!previousEntry || !nextEntry || !areStructuredValuesEqual(previousEntry, nextEntry)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function readCommentsSnapshot<TPresence extends PresenceData>(
+  room: Room<TPresence>,
+  comments: CommentsEngine,
+  cacheRef: { current: CommentsSnapshotCache<TPresence> | null },
+): CommentThread[] {
+  const nextSnapshot = comments.getAll();
+  const previous = cacheRef.current;
+
+  if (previous !== null && previous.room === room && previous.engine === comments) {
+    const previousSnapshot = previous.snapshot;
+    if (areCommentThreadArraysEqual(previousSnapshot, nextSnapshot)) {
+      return previousSnapshot;
+    }
+
+    previous.snapshot = nextSnapshot.map((thread, index) => {
+      const previousThread = previousSnapshot[index];
+      if (previousThread !== undefined && areStructuredValuesEqual(previousThread, thread)) {
+        return previousThread;
+      }
+
+      return thread;
+    });
+    return previous.snapshot;
+  }
+
+  cacheRef.current = {
+    room,
+    engine: comments,
+    snapshot: nextSnapshot,
+  };
+  return nextSnapshot;
+}
+
 function resolveSingleLockState(locks: LockEngine, key: string): LockState | null {
   const holder = locks.getHolder(key);
   if (!holder) {
@@ -1841,6 +2051,7 @@ function isRoom<TPresence extends PresenceData = PresenceData>(
     hasFunction(value, 'useViewport') &&
     hasFunction(value, 'usePointer') &&
     hasFunction(value, 'useLocks') &&
+    hasFunction(value, 'useComments') &&
     hasFunction(value, 'useEvents') &&
     hasFunction(value, 'getYDoc') &&
     hasFunction(value, 'getYProvider') &&

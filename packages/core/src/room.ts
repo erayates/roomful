@@ -8,6 +8,7 @@ import {
   resolveRoomEncryption,
 } from './encryption';
 import { createAwarenessEngine } from './engines/awareness';
+import { createCommentsEngine } from './engines/comments';
 import { createCursorEngine } from './engines/cursors';
 import { createEventEngine } from './engines/events';
 import {
@@ -27,6 +28,7 @@ import {
   type ViewportFrame,
 } from './engines/viewport';
 import { TypedEventEmitter } from './event-emitter';
+import { readPersistedComments, writePersistedComments } from './internal/comments.persistence';
 import {
   DEVTOOLS_BRIDGE_VERSION,
   DEVTOOLS_MAX_EVENT_LOG_ENTRIES,
@@ -98,6 +100,9 @@ import { isWebSocketPollingFallbackEligibleError } from './transports/websocket'
 import type {
   AwarenessEngine,
   AwarenessState,
+  CommentsEngine,
+  CommentsOptions,
+  CommentThread,
   CursorData,
   CursorEngine,
   CursorOptions,
@@ -527,6 +532,8 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
   private pointerEngineInstance: PointerEngine | null = null;
 
   private lockEngineInstance: LockEngine | null = null;
+
+  private commentsEngineInstance: CommentsEngine | null = null;
 
   private yjsController: RoomYjsController<TPresence> | null = null;
 
@@ -1307,6 +1314,179 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     }
 
     return this.lockEngineInstance;
+  }
+
+  public useComments(options: CommentsOptions = {}): CommentsEngine {
+    if (this.commentsEngineInstance) {
+      return this.commentsEngineInstance;
+    }
+
+    const storage = options.storage ?? 'memory';
+    const restEndpoint = storage === 'rest' ? options.restEndpoint : undefined;
+
+    if (storage === 'rest' && (!restEndpoint || restEndpoint.length === 0)) {
+      throw createRoomfulError(
+        'INVALID_STATE',
+        'Comments storage "rest" requires a non-empty "restEndpoint".',
+        false,
+        { storage },
+      );
+    }
+
+    const onLocalMutation =
+      storage === 'memory'
+        ? undefined
+        : (threads: CommentThread[]): void => {
+            this.persistComments(storage, restEndpoint, threads);
+          };
+
+    const commentsEngine = createCommentsEngine(
+      {
+        actorId: this.peerId,
+        doc: this.getOrCreateYjsController().doc,
+        getSelfPeer: () => {
+          return this.selfPeer;
+        },
+        ...(onLocalMutation ? { onLocalMutation } : {}),
+      },
+      () => {
+        return createRuntimePeerId();
+      },
+    );
+
+    this.commentsEngineInstance = commentsEngine;
+
+    if (storage === 'indexeddb') {
+      this.loadPersistedComments(commentsEngine);
+    }
+
+    if (storage === 'rest' && restEndpoint) {
+      void this.loadRestComments(commentsEngine, restEndpoint);
+    }
+
+    this.logger.info('state', 'state', 'Comments engine configured', {
+      storage,
+    });
+
+    return commentsEngine;
+  }
+
+  // Hydrates the comments engine from local persistence, seeding any thread the
+  // engine has not already synced. Existing (synced) threads win, so a reload
+  // never clobbers live collaborative state.
+  private loadPersistedComments(commentsEngine: CommentsEngine): void {
+    const known = new Set(
+      commentsEngine.getAll().map((thread) => {
+        return thread.id;
+      }),
+    );
+
+    for (const thread of readPersistedComments(this.id)) {
+      if (known.has(thread.id)) {
+        continue;
+      }
+
+      void commentsEngine
+        .add({
+          anchor: thread.anchor,
+          text: thread.text,
+        })
+        .catch(() => {
+          return undefined;
+        });
+    }
+  }
+
+  // Best-effort REST hydration: GET the endpoint and seed any thread not already
+  // present. A network/parse failure is swallowed so the in-room collaborative
+  // state still works offline.
+  private async loadRestComments(
+    commentsEngine: CommentsEngine,
+    restEndpoint: string,
+  ): Promise<void> {
+    if (typeof fetch !== 'function') {
+      return;
+    }
+
+    let payload: unknown;
+    try {
+      const response = await fetch(restEndpoint, { method: 'GET' });
+      if (!response.ok) {
+        return;
+      }
+
+      payload = await response.json();
+    } catch {
+      return;
+    }
+
+    const threads = Array.isArray(payload)
+      ? payload
+      : isObject(payload) && Array.isArray(Reflect.get(payload, 'threads'))
+        ? Reflect.get(payload, 'threads')
+        : null;
+    if (!Array.isArray(threads)) {
+      return;
+    }
+
+    const known = new Set(
+      commentsEngine.getAll().map((thread) => {
+        return thread.id;
+      }),
+    );
+
+    for (const entry of threads) {
+      if (!isObject(entry)) {
+        continue;
+      }
+
+      const id = Reflect.get(entry, 'id');
+      const anchor = Reflect.get(entry, 'anchor');
+      const text = Reflect.get(entry, 'text');
+      if (typeof id === 'string' && known.has(id)) {
+        continue;
+      }
+
+      if (typeof text !== 'string' || !isObject(anchor)) {
+        continue;
+      }
+
+      void commentsEngine
+        .add({
+          // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+          anchor: anchor as CommentThread['anchor'],
+          text,
+        })
+        .catch(() => {
+          return undefined;
+        });
+    }
+  }
+
+  // Routes a comments mutation to the configured backend. IndexedDB rewrites the
+  // full thread list locally; REST POSTs the snapshot to the endpoint. Both are
+  // best-effort and never block the synced in-room state.
+  private persistComments(
+    storage: 'indexeddb' | 'rest',
+    restEndpoint: string | undefined,
+    threads: CommentThread[],
+  ): void {
+    if (storage === 'indexeddb') {
+      writePersistedComments(this.id, threads);
+      return;
+    }
+
+    if (!restEndpoint || typeof fetch !== 'function') {
+      return;
+    }
+
+    void fetch(restEndpoint, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ threads }),
+    }).catch(() => {
+      return undefined;
+    });
   }
 
   // Resolves the peer record a lock holder should carry. The local peer always

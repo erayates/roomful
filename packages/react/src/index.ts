@@ -1,6 +1,9 @@
 import type {
   AwarenessEngine,
   AwarenessState,
+  CommentsEngine,
+  CommentsOptions,
+  CommentThread,
   CursorData,
   CursorEngine,
   CursorOptions,
@@ -287,6 +290,57 @@ export interface UseLocksResult {
   getHolder: LockEngine['getHolder'];
 }
 
+/**
+ * Describes the return value of `useComments`.
+ */
+export interface UseCommentsResult {
+  /**
+   * Exposes the current comment threads, oldest first. Reactive: re-renders on
+   * any local or remote thread change.
+   */
+  threads: CommentThread[];
+
+  /**
+   * Opens a new thread authored by the local peer at an anchor.
+   */
+  add: CommentsEngine['add'];
+
+  /**
+   * Appends a reply authored by the local peer to a thread.
+   *
+   * @param threadId - The thread to reply to.
+   * @param text - The reply body.
+   * @returns A promise resolving to the updated thread.
+   */
+  reply(threadId: string, text: string): Promise<CommentThread>;
+
+  /**
+   * Marks a thread resolved.
+   *
+   * @param threadId - The thread to resolve.
+   * @returns A promise resolving to the updated thread.
+   */
+  resolve(threadId: string): Promise<CommentThread>;
+
+  /**
+   * Reopens a resolved thread.
+   *
+   * @param threadId - The thread to reopen.
+   * @returns A promise resolving to the updated thread.
+   */
+  reopen(threadId: string): Promise<CommentThread>;
+
+  /**
+   * Returns the threads anchored to an element.
+   */
+  getByElement: CommentsEngine['getByElement'];
+
+  /**
+   * Returns the unresolved threads.
+   */
+  getOpen: CommentsEngine['getOpen'];
+}
+
 interface RoomDefinition<TPresence extends PresenceData> {
   roomId: string;
   options: RoomOptions<TPresence>;
@@ -344,6 +398,12 @@ interface LockStateSnapshotCache<TPresence extends PresenceData> {
   engine: LockEngine;
   key: string;
   snapshot: LockState | null;
+}
+
+interface CommentsSnapshotCache<TPresence extends PresenceData> {
+  room: Room<TPresence>;
+  engine: CommentsEngine;
+  snapshot: CommentThread[];
 }
 
 interface PeerSnapshotCache<TPresence extends PresenceData> {
@@ -958,6 +1018,70 @@ export function useLockState<TPresence extends PresenceData = PresenceData>(
 }
 
 /**
+ * Subscribes to collaborative comment threads and returns the thread mutators.
+ *
+ * @typeParam TPresence - The room presence shape.
+ * @param options - Optional storage backend configuration.
+ * @returns The current threads plus add/reply/resolve/reopen and filter helpers.
+ */
+export function useComments<TPresence extends PresenceData = PresenceData>(
+  options?: CommentsOptions,
+): UseCommentsResult {
+  const room = useRoom<TPresence>();
+  const optionsRef = useRef(options);
+  const commentsEngine = room.useComments(optionsRef.current);
+  const engineRef = useRef(commentsEngine);
+  engineRef.current = commentsEngine;
+
+  const snapshotCacheRef = useRef<CommentsSnapshotCache<TPresence> | null>(null);
+
+  const add = useCallback<CommentsEngine['add']>((input) => {
+    return engineRef.current.add(input);
+  }, []);
+  const reply = useCallback((threadId: string, text: string) => {
+    return engineRef.current.thread(threadId).reply(text);
+  }, []);
+  const resolve = useCallback((threadId: string) => {
+    return engineRef.current.thread(threadId).resolve();
+  }, []);
+  const reopen = useCallback((threadId: string) => {
+    return engineRef.current.thread(threadId).reopen();
+  }, []);
+  const getByElement = useCallback<CommentsEngine['getByElement']>((elementId) => {
+    return engineRef.current.getByElement(elementId);
+  }, []);
+  const getOpen = useCallback<CommentsEngine['getOpen']>(() => {
+    return engineRef.current.getOpen();
+  }, []);
+
+  const subscribe = useCallback(
+    (onStoreChange: () => void) => {
+      return commentsEngine.subscribe(() => {
+        const previousSnapshot = snapshotCacheRef.current?.snapshot ?? null;
+        const nextSnapshot = readCommentsSnapshot(room, commentsEngine, snapshotCacheRef);
+        if (nextSnapshot !== previousSnapshot) {
+          onStoreChange();
+        }
+      });
+    },
+    [commentsEngine, room],
+  );
+  const getSnapshot = useCallback(() => {
+    return readCommentsSnapshot(room, commentsEngine, snapshotCacheRef);
+  }, [commentsEngine, room]);
+
+  return {
+    threads: useSyncExternalStore(subscribe, getSnapshot, getSnapshot),
+    add,
+    reply,
+    resolve,
+    reopen,
+    getByElement,
+    getOpen,
+  };
+}
+
+/**
  * Subscribes to a custom event channel and returns an emitter for that channel.
  *
  * @typeParam TPayload - The payload type for the channel.
@@ -1494,6 +1618,63 @@ function readLocksSnapshot<TPresence extends PresenceData>(
   return nextSnapshot;
 }
 
+function areCommentThreadArraysEqual(
+  previous: readonly CommentThread[],
+  next: readonly CommentThread[],
+): boolean {
+  if (previous === next) {
+    return true;
+  }
+
+  if (previous.length !== next.length) {
+    return false;
+  }
+
+  for (let index = 0; index < previous.length; index += 1) {
+    const previousEntry = previous[index];
+    const nextEntry = next[index];
+
+    if (!previousEntry || !nextEntry || !areStructuredValuesEqual(previousEntry, nextEntry)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function readCommentsSnapshot<TPresence extends PresenceData>(
+  room: Room<TPresence>,
+  comments: CommentsEngine,
+  cacheRef: { current: CommentsSnapshotCache<TPresence> | null },
+): CommentThread[] {
+  const nextSnapshot = comments.getAll();
+  const previous = cacheRef.current;
+
+  if (previous && previous.room === room && previous.engine === comments) {
+    const previousSnapshot = previous.snapshot;
+    if (areCommentThreadArraysEqual(previousSnapshot, nextSnapshot)) {
+      return previousSnapshot;
+    }
+
+    previous.snapshot = nextSnapshot.map((thread, index) => {
+      const previousThread = previousSnapshot[index];
+      if (previousThread && areStructuredValuesEqual(previousThread, thread)) {
+        return previousThread;
+      }
+
+      return thread;
+    });
+    return previous.snapshot;
+  }
+
+  cacheRef.current = {
+    room,
+    engine: comments,
+    snapshot: nextSnapshot,
+  };
+  return nextSnapshot;
+}
+
 function resolveSingleLockState(locks: LockEngine, key: string): LockState | null {
   const holder = locks.getHolder(key);
   if (!holder) {
@@ -1743,6 +1924,7 @@ function isRoom<TPresence extends PresenceData = PresenceData>(
     hasFunction(value, 'useViewport') &&
     hasFunction(value, 'usePointer') &&
     hasFunction(value, 'useLocks') &&
+    hasFunction(value, 'useComments') &&
     hasFunction(value, 'useEvents') &&
     hasFunction(value, 'getYDoc') &&
     hasFunction(value, 'getYProvider') &&

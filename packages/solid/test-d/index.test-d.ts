@@ -1,4 +1,5 @@
 import type {
+  CommentThread,
   LockState,
   Peer,
   PointerBeam,
@@ -17,6 +18,8 @@ import {
   type SharedStateSetter,
   type UseAwarenessResult,
   useAwareness,
+  useComments,
+  type UseCommentsResult,
   useConnectionStatus,
   useCursors,
   useEvent,
@@ -100,6 +103,20 @@ locks.releaseAll();
 const lockState = useLockState('cell-1');
 expectType<Accessor<LockState | null>>(lockState);
 expectType<Peer | null | undefined>(lockState()?.holder);
+
+const comments = useComments();
+expectType<UseCommentsResult>(comments);
+expectType<Accessor<CommentThread[]>>(comments.threads);
+expectType<boolean | undefined>(comments.threads()[0]?.resolved);
+expectType<Promise<CommentThread>>(comments.add({ anchor: { elementId: 'cell-1' }, text: 'hi' }));
+expectType<Promise<CommentThread>>(comments.reply('thread-1', 'reply'));
+expectType<Promise<CommentThread>>(comments.resolve('thread-1'));
+expectType<Promise<CommentThread>>(comments.reopen('thread-1'));
+expectType<CommentThread[]>(comments.getByElement('cell-1'));
+expectType<CommentThread[]>(comments.getOpen());
+
+const commentsWithOptions = useComments({ storage: 'rest', restEndpoint: 'https://x' });
+expectType<UseCommentsResult>(commentsWithOptions);
 
 const peers = usePeers<{ role: 'editor' | 'viewer' }>();
 expectType<Accessor<Peer<{ role: 'editor' | 'viewer' }>[]>>(peers);
