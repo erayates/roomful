@@ -98,6 +98,11 @@ interface Room<TPresence extends Record<string, unknown> = Record<string, unknow
   ): CursorEngine<TCursor>;
   useState<T>(options: StateOptions<T>): StateEngine<T>;
   useAwareness(): AwarenessEngine;
+  useViewport(options?: ViewportOptions): ViewportEngine;
+  usePointer(options?: PointerOptions): PointerEngine;
+  useLocks(): LockEngine;
+  useComments(options?: CommentsOptions): CommentsEngine;
+  useHistory(options?: HistoryOptions): HistoryEngine;
   useEvents(options?: EventOptions): EventEngine<TPresence>;
   getYDoc(): YDoc;
   getYProvider(): RoomfulYjsProvider;
@@ -200,5 +205,10 @@ await room.connect();
 - [Presence engine](engines-presence.md)
 - [Cursor engine](engines-cursors.md)
 - [State, awareness, events](engines-state-awareness-events.md)
+- [Viewport engine](engines-viewport.md)
+- [Locking engine](engines-locks.md)
+- [Pointer engine](engines-pointer.md)
+- [Comments engine](engines-comments.md)
+- [History engine](engines-history.md)
 - [Types](types.md)
 - [Docs index](../README.md)

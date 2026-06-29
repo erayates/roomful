@@ -1,8 +1,8 @@
 # @roomful/svelte
 
-Svelte bindings for [Roomful](https://github.com/erayates/roomful) — Svelte-native stores and actions for real-time collaboration.
+Svelte bindings for [Roomful](https://github.com/erayates/roomful) — Svelte-native stores and actions for real-time collaboration (presence, cursors, shared state, awareness, events, viewport sync, laser pointer, locks, comments, and history).
 
-> **Stable — v1.0.** The API is stable and ready for production.
+> **Stable — v1.0**, plus the v1.5 collaboration primitives. The API is stable and ready for production.
 
 ## Install
 
@@ -31,7 +31,7 @@ npm install @roomful/core @roomful/svelte
 </div>
 ```
 
-`roomful()` returns `{ presence, cursors, state, events, awareness, status }` as Svelte stores. The `status` store exposes the current `RoomStatus`, and `roomful()` accepts `onConnect`, `onDisconnect`, and `onError` lifecycle callbacks.
+`roomful()` returns `{ presence, cursors, state, events, awareness, status }` as Svelte stores, plus the v1.5 collaboration primitives `viewport`, `locks` (with `lockState(key)`), `pointer`, `comments`, and `history` — see the [reference docs](https://github.com/erayates/roomful/blob/main/docs/reference/adapters-svelte.md). The `status` store exposes the current `RoomStatus`, and `roomful()` accepts `onConnect`, `onDisconnect`, and `onError` lifecycle callbacks.
 
 ## Documentation
 

@@ -74,6 +74,19 @@ Call these inside the `provideRoomful` context. Reactive values are returned as 
 | `injectPeers()`                | `Signal<Peer[]>`                                     | remote peers                   |
 | `injectConnectionStatus()`     | `Signal<RoomStatus>`                                 | current room status            |
 
+### Collaboration primitives (v1.5)
+
+Reactive members are returned as signals; mount viewport/pointer on an element from `afterNextRender` or `ngAfterViewInit` (Angular has no callback ref).
+
+| Injectable              | Returns                                                                                           | Purpose                                                         |
+| ----------------------- | ------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| `injectViewport(opts?)` | `{ states, mount, unmount, broadcast, stopBroadcast, present, stopPresenting, follow, unfollow }` | follow a peer's scroll/zoom ([viewport](engines-viewport.md))   |
+| `injectLocks()`         | `{ locks, acquire, release, releaseAll, isLocked, getHolder }`                                    | advisory locks over UI keys ([locks](engines-locks.md))         |
+| `injectLockState(key)`  | `Signal<LockState \| null>`                                                                       | one key's holder, for lock-on-focus ([locks](engines-locks.md)) |
+| `injectPointer(opts?)`  | `{ beams, mount, unmount, activate, deactivate, render }`                                         | laser pointer beams ([pointer](engines-pointer.md))             |
+| `injectComments(opts?)` | `{ threads, add, reply, resolve, reopen, getByElement, getOpen }`                                 | anchored comment threads ([comments](engines-comments.md))      |
+| `injectHistory(opts?)`  | `{ timeline, canUndo, canRedo, capture, transaction, undo, redo }`                                | undo/redo plus shared timeline ([history](engines-history.md))  |
+
 - `injectPresence()` returns `self`, `others`, and `all` as signals plus the `update`/`replace` presence mutators.
 - `injectAwareness()` returns the remote `others` signal plus the `set`/`setFocus`/`setSelection`/`setTyping` mutators.
 - `injectSharedState(key, opts)` returns a `[signal, setter]` tuple. The setter mirrors React `useState`: it accepts the next value or an updater `(previous) => next`, and returns the resolved value. `opts` forwards directly to `room.useState(...)`.
@@ -120,5 +133,10 @@ export class BoardComponent implements AfterViewInit {
 - [Reference index](README.md)
 - [Core API](core-api.md)
 - [State, awareness, events](engines-state-awareness-events.md)
+- [Viewport engine](engines-viewport.md)
+- [Locking engine](engines-locks.md)
+- [Pointer engine](engines-pointer.md)
+- [Comments engine](engines-comments.md)
+- [History engine](engines-history.md)
 - [Quickstart](../getting-started/quickstart.md)
 - [Docs index](../README.md)
