@@ -10,12 +10,12 @@ Roomful is an open-source, framework-agnostic SDK designed to help frontend team
 
 ## Project Status
 
-> **Stable — v1.0.** Roomful is feature-complete and tested across 10 public packages. Install with `npm install @roomful/core` and please [open an issue](https://github.com/erayates/roomful/issues) with any feedback.
+> **Stable — v1.5.** Roomful is feature-complete and tested across 10 public packages. Install with `npm install @roomful/core` and please [open an issue](https://github.com/erayates/roomful/issues) with any feedback.
 
 All major features are implemented and tested across 10 public packages.
 
 - API contracts are stable and implemented.
-- All framework adapters (React, Vue, Svelte, Solid, Angular) provide full presence, cursors, state, awareness, and events APIs.
+- All framework adapters (React, Vue, Svelte, Solid, Angular) provide full presence, cursors, state, awareness, events, and the v1.5 collaboration primitives (viewport sync, locking, pointer, comments, history) APIs.
 - `@roomful/next` mints relay-compatible auth tokens server-side for Next.js apps.
 - The relay server supports WebSocket, polling, JWT auth, and Redis coordination.
 - Release automation validates packages, consumer smoke apps, relay Docker images, and generated GitHub Releases before promotion.

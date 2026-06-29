@@ -1,6 +1,6 @@
 # Roadmap
 
-v1.0 is **shipped**: Roomful **1.0.1** is published to npm (`latest`), Docker (`:latest`), and GitHub Releases (2026-06-28). The original execution model — **6 sprints, 9 epics** — is now complete. Forward work is tracked as the **v2 roadmap** below.
+v1.0 is **shipped**: Roomful **1.0.1** is published to npm (`latest`), Docker (`:latest`), and GitHub Releases (2026-06-28). The original execution model — **6 sprints, 9 epics** — is now complete. Two further milestones have since shipped: **Ecosystem (v1.1)** on 2026-06-28 and **New Primitives I (v1.5)** on 2026-06-29 — **v1.5 is the current released milestone**. Remaining forward work is tracked as the **v2 roadmap** below.
 
 Status labels used below:
 

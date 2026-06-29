@@ -2,7 +2,7 @@
 
 Prebuilt collaboration UI components for Roomful.
 
-> **Stable — v1.0.** The API is stable and ready for production.
+> **Stable — v1.5.** The API is stable and ready for production.
 
 ## Install
 

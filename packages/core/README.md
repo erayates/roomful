@@ -2,7 +2,7 @@
 
 Framework-agnostic core for [Roomful](https://github.com/erayates/roomful) — real-time collaboration primitives (presence, cursors, shared state, awareness, events, viewport sync, laser pointer, locks, comments, and history) over WebRTC, BroadcastChannel, or a self-hosted WebSocket relay. Zero backend required for small rooms.
 
-> **Stable — v1.0**, plus the v1.5 collaboration primitives (`room.useViewport`, `useLocks`, `usePointer`, `useComments`, `useHistory`). The API is stable and ready for production.
+> **Stable — v1.5.** Realtime presence, cursors, and shared state, plus the collaboration primitives (`room.useViewport`, `useLocks`, `usePointer`, `useComments`, `useHistory`). The API is stable and ready for production.
 
 ## Install
 

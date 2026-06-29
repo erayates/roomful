@@ -1,5 +1,6 @@
 {
   "name": "@roomful/devtools",
+  "description": "Developer tools and diagnostics for inspecting Roomful realtime rooms.",
   "version": "1.0.1",
   "private": false,
   "type": "module",

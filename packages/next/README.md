@@ -2,7 +2,7 @@
 
 Next.js server-side auth-token helpers for [Roomful](https://github.com/erayates/roomful) — mint short-lived, relay-compatible JWTs on the server so your clients join rooms without ever seeing the relay secret.
 
-> **Stable — v1.0.** The API is stable and ready for production.
+> **Stable — v1.5.** The API is stable and ready for production.
 
 Tokens are signed with [Web Crypto](https://developer.mozilla.org/docs/Web/API/Web_Crypto_API), so the helpers run in both the Node and Edge runtimes. There is no `next` or `react` dependency — the route handler is a Web-standard `(request: Request) => Promise<Response>`.
 

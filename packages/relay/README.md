@@ -2,7 +2,7 @@
 
 Self-hosted relay server for Roomful WebRTC signaling and WebSocket room transport.
 
-> **Stable — v1.0.** The API is stable and ready for production.
+> **Stable — v1.5.** The API is stable and ready for production.
 
 ## Install
 
