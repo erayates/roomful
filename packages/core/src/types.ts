@@ -2,7 +2,7 @@ import type { Awareness as YjsAwareness } from 'y-protocols/awareness';
 import type { Doc as YDoc } from 'yjs';
 
 import type { RoomfulError, RoomfulErrorCode } from './roomful-error';
-import type { TransportKind } from './transports/transport';
+import type { RoomTransportSignal, TransportKind } from './transports/transport';
 
 /**
  * Describes arbitrary presence metadata attached to a peer.
@@ -1982,6 +1982,156 @@ export interface HistoryEngine {
 }
 
 /**
+ * The direction a recorded signal travelled relative to the local peer:
+ * `inbound` was received from the transport, `outbound` was sent to it.
+ */
+export type RecordingDirection = 'inbound' | 'outbound';
+
+/**
+ * A single captured wire signal in a session recording.
+ */
+export interface RecordingFrame {
+  /** Milliseconds elapsed from the start of the recording to this signal. */
+  t: number;
+
+  /** Whether the local peer received or sent this signal. */
+  direction: RecordingDirection;
+
+  /** The wire signal captured at the room's transport boundary. */
+  signal: RoomTransportSignal;
+}
+
+/**
+ * A serializable session recording: a timed log of one peer's room traffic.
+ * This is the shape written to and read back from a `.roomful` file.
+ */
+export interface RoomfulRecording {
+  /** The recording schema version (see `RECORDING_FORMAT_VERSION`). */
+  version: 1;
+
+  /** The room the signals were captured from. */
+  roomId: string;
+
+  /** The local peer that captured them. */
+  peerId: string;
+
+  /** Absolute epoch milliseconds when capture started. */
+  startedAt: number;
+
+  /** Span of the recording in milliseconds (the last frame's offset). */
+  durationMs: number;
+
+  /** Every captured frame, in capture order. */
+  frames: RecordingFrame[];
+}
+
+/**
+ * A reactive snapshot of the recorder, for UI bindings.
+ */
+export interface RecordingState {
+  /** Whether capture is currently active. */
+  isRecording: boolean;
+
+  /** How many frames have been captured in the current take. */
+  frameCount: number;
+
+  /** The span of the current take in milliseconds. */
+  durationMs: number;
+}
+
+/**
+ * A single emission from a {@link ReplaySession}.
+ */
+export interface ReplayEvent {
+  /**
+   * The frame just reached, or `null` for a pure state change (playback just
+   * started, or just finished/stopped).
+   */
+  frame: RecordingFrame | null;
+
+  /** Whether playback is currently running. */
+  isPlaying: boolean;
+
+  /** The index of the next frame to emit (equals the frame count when done). */
+  cursor: number;
+}
+
+/**
+ * Drives a timed playback of a recording. Frames are re-emitted at their
+ * original tempo; the session does not re-apply them to a room.
+ */
+export interface ReplaySession {
+  /** Starts playback from the beginning on a virtual clock. */
+  play(): void;
+
+  /** Stops playback and releases the pending timer. */
+  stop(): void;
+
+  /**
+   * Subscribes to per-frame emissions and play/stop changes. Fires immediately
+   * with the current state, then once per frame, then a final `null`-frame
+   * event when playback ends.
+   *
+   * @param callback - The callback invoked for each replay event.
+   * @returns A function that removes the listener.
+   */
+  subscribe(callback: (event: ReplayEvent) => void): Unsubscribe;
+}
+
+/**
+ * Records a room's wire signals for later inspection and timed replay.
+ *
+ * A recording is **local**: it logs the signals this peer sends and receives,
+ * never touching the shared document and never syncing to other peers. Capture
+ * is gated by `start()`/`stop()`; replay re-emits the captured frames at their
+ * original tempo without re-applying them to a room.
+ */
+export interface RecordingEngine {
+  /** Begins capturing wire signals, discarding any previous take. */
+  start(): void;
+
+  /** Stops capturing. The captured frames remain available. */
+  stop(): void;
+
+  /** Returns the current recorder state (recording flag, frame count, span). */
+  getState(): RecordingState;
+
+  /** Returns a copy of the frames captured so far. */
+  getFrames(): RecordingFrame[];
+
+  /** Serializes the current take into a portable {@link RoomfulRecording}. */
+  export(): RoomfulRecording;
+
+  /**
+   * Builds a timed playback session for a recording, or for the current take
+   * when none is given.
+   *
+   * @param recording - The recording to replay; defaults to the current take.
+   * @returns A playback session.
+   */
+  replay(recording?: RoomfulRecording): ReplaySession;
+
+  /**
+   * Subscribes to recorder state changes (start/stop and each captured frame).
+   * Fires immediately with the current state.
+   *
+   * @param callback - The callback invoked with the latest state.
+   * @returns A function that removes the listener.
+   */
+  subscribe(callback: (state: RecordingState) => void): Unsubscribe;
+
+  /**
+   * Ingests a wire signal from the room runtime. The room calls this at its
+   * transport boundary; it is a no-op unless recording. Not for application use.
+   *
+   * @param direction - Whether the signal was received or sent.
+   * @param signal - The wire signal captured at the boundary.
+   * @returns Nothing.
+   */
+  ingest(direction: RecordingDirection, signal: RoomTransportSignal): void;
+}
+
+/**
  * Exposes custom event operations for a room.
  *
  * @typeParam TPresence - The custom peer presence shape.
@@ -2160,6 +2310,14 @@ export interface Room<TPresence extends PresenceData = PresenceData> {
    * @returns The history engine.
    */
   useHistory(options?: HistoryOptions): HistoryEngine;
+
+  /**
+   * Accesses the session-recording engine for this room: capture the room's
+   * wire signals, then export or replay them. Local to this peer.
+   *
+   * @returns The recording engine.
+   */
+  useRecording(): RecordingEngine;
 
   /**
    * Accesses the custom event engine for this room.

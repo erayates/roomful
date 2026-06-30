@@ -41,7 +41,7 @@ export default [
             'apps/*/vite.config.ts',
             'apps/*/vitest.config.ts',
           ],
-          maximumDefaultProjectFileMatchCount_THIS_WILL_SLOW_DOWN_LINTING: 50,
+          maximumDefaultProjectFileMatchCount_THIS_WILL_SLOW_DOWN_LINTING: 60,
         },
         tsconfigRootDir,
       },
