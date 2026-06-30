@@ -30,12 +30,14 @@ import type {
   PointerOptions,
   PresenceData,
   PresenceEngine,
+  RecordingEngine,
   Room,
   RoomOptions,
   RoomStatus,
   StateEngine,
   StateOptions,
   TimelineEntry,
+  Unsubscribe,
   ViewportEngine,
   ViewportOptions,
   ViewportState,
@@ -410,6 +412,48 @@ export interface InjectHistoryResult {
    * Redoes the local peer's most recently undone transaction.
    */
   redo: HistoryEngine['redo'];
+}
+
+/**
+ * Describes the return value of {@link injectRecording}.
+ */
+export interface InjectRecordingResult {
+  /**
+   * Reports whether the recorder is currently capturing wire signals. Reactive.
+   */
+  isRecording: Signal<boolean>;
+
+  /**
+   * Reports how many signals the current take has captured. Reactive:
+   * increments as traffic flows while recording.
+   */
+  frameCount: Signal<number>;
+
+  /**
+   * Reports the span of the current take in milliseconds. Reactive.
+   */
+  durationMs: Signal<number>;
+
+  /**
+   * Begins capturing, discarding any previous take.
+   */
+  start: RecordingEngine['start'];
+
+  /**
+   * Stops capturing; the captured frames remain available.
+   */
+  stop: RecordingEngine['stop'];
+
+  /**
+   * Builds a timed playback session for a recording, or the current take.
+   */
+  replay: RecordingEngine['replay'];
+
+  /**
+   * Serializes the current take into a portable recording (named to stay
+   * destructurable, since `export` is a reserved word).
+   */
+  exportRecording: RecordingEngine['export'];
 }
 
 /**
@@ -1005,6 +1049,55 @@ export function injectHistory<TPresence extends PresenceData = PresenceData>(
     },
     redo: () => {
       return historyEngine.redo();
+    },
+  };
+}
+
+/**
+ * Subscribes to the session recording engine: three reactive primitives
+ * (`isRecording`, `frameCount`, `durationMs`) plus start/stop/replay/export
+ * controls. The engine taps the room's existing transport, so recording adds no
+ * extra connection.
+ *
+ * Must be called in an injection context.
+ *
+ * @typeParam TPresence - The room presence shape.
+ * @returns The recorder-state signals plus start/stop/replay/export controls.
+ */
+export function injectRecording<
+  TPresence extends PresenceData = PresenceData,
+>(): InjectRecordingResult {
+  assertInInjectionContext(injectRecording);
+  const room = injectRoom<TPresence>();
+  const engine = room.useRecording();
+  const initialState = engine.getState();
+  const isRecording = signal(initialState.isRecording);
+  const frameCount = signal(initialState.frameCount);
+  const durationMs = signal(initialState.durationMs);
+
+  const unsubscribe: Unsubscribe = engine.subscribe((state) => {
+    isRecording.set(state.isRecording);
+    frameCount.set(state.frameCount);
+    durationMs.set(state.durationMs);
+  });
+
+  inject(DestroyRef).onDestroy(unsubscribe);
+
+  return {
+    isRecording,
+    frameCount,
+    durationMs,
+    start: () => {
+      engine.start();
+    },
+    stop: () => {
+      engine.stop();
+    },
+    replay: (recording) => {
+      return engine.replay(recording);
+    },
+    exportRecording: () => {
+      return engine.export();
     },
   };
 }
