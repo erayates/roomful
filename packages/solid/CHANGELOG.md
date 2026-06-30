@@ -1,5 +1,16 @@
 # @roomful/solid
 
+## 1.3.0
+
+### Minor Changes
+
+- 56409b0: Add the framework bindings for session recording. Vue and Solid get a `useRecording()` composable/hook, Angular gets `injectRecording()`, and Svelte's `roomful()` adapter gains a `recording` store — each exposing reactive `isRecording` / `frameCount` / `durationMs` plus `start` / `stop` / `replay` / `exportRecording`, mirroring the adapter's existing engine bindings. Wraps `room.useRecording()` from `@roomful/core`.
+
+### Patch Changes
+
+- Updated dependencies [3ef72a4]
+  - @roomful/core@1.2.0
+
 ## 1.2.1
 
 ### Patch Changes
