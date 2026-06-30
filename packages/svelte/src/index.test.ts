@@ -18,9 +18,13 @@ import type {
   PointerEngine,
   PresenceData,
   PresenceEngine,
+  RecordingEngine,
+  RecordingState,
+  ReplaySession,
   Room,
   RoomEventMap,
   RoomEventName,
+  RoomfulRecording,
   RoomOptions,
   RoomStatus,
   StateChangeMeta,
@@ -93,6 +97,7 @@ type LockStateSubscriber = (state: LockState) => void;
 type LocksSubscriber = (states: LockState[]) => void;
 type CommentsSubscriber = (threads: CommentThread[]) => void;
 type HistorySubscriber = (timeline: TimelineEntry[]) => void;
+type RecordingSubscriber = (state: RecordingState) => void;
 
 type TestPresenceEngine = PresenceEngine<PresenceData> & {
   emit(peers: Peer<PresenceData>[]): void;
@@ -173,6 +178,16 @@ type TestHistoryEngine = HistoryEngine & {
   redo: ReturnType<typeof vi.fn<() => Promise<void>>>;
 };
 
+type TestRecordingEngine = RecordingEngine & {
+  emit(state: RecordingState): void;
+  subscriberCount(): number;
+  subscribe: ReturnType<typeof vi.fn<(cb: RecordingSubscriber) => () => void>>;
+  start: ReturnType<typeof vi.fn<() => void>>;
+  stop: ReturnType<typeof vi.fn<() => void>>;
+  export: ReturnType<typeof vi.fn<() => RoomfulRecording>>;
+  replay: ReturnType<typeof vi.fn<(recording?: RoomfulRecording) => ReplaySession>>;
+};
+
 type TestAwarenessEngine = AwarenessEngine & {
   emit(peers: AwarenessState[]): void;
   set: ReturnType<typeof vi.fn<(value: Record<string, unknown>) => void>>;
@@ -215,6 +230,7 @@ type TestRoom = Room<PresenceData> & {
   lockEngine: TestLockEngine;
   pointerEngine: TestPointerEngine;
   presenceEngine: TestPresenceEngine;
+  recordingEngine: TestRecordingEngine;
   setStatus(status: RoomStatus): void;
   stateEngine: TestStateEngine<unknown>;
   viewportEngine: TestViewportEngine;
@@ -852,6 +868,68 @@ function createMockHistoryEngine(timeline: TimelineEntry[] = []): TestHistoryEng
   return engine;
 }
 
+function createRecordingState(overrides: Partial<RecordingState> = {}): RecordingState {
+  return {
+    durationMs: 0,
+    frameCount: 0,
+    isRecording: false,
+    ...overrides,
+  };
+}
+
+function createMockRecordingEngine(
+  initialState: RecordingState = createRecordingState(),
+): TestRecordingEngine {
+  const subscribers = new Set<RecordingSubscriber>();
+  let currentState = initialState;
+
+  const engine = {
+    emit(nextState: RecordingState) {
+      currentState = nextState;
+      for (const subscriber of subscribers) {
+        subscriber(currentState);
+      }
+    },
+    export: vi.fn(() => {
+      return {
+        durationMs: currentState.durationMs,
+        frames: [],
+        peerId: 'recording-peer',
+        roomId: 'recording-room',
+        startedAt: 0,
+        version: 1,
+      } as RoomfulRecording;
+    }),
+    getState() {
+      return currentState;
+    },
+    replay: vi.fn(() => {
+      return {
+        play: vi.fn(),
+        stop: vi.fn(),
+        subscribe: vi.fn(() => {
+          return () => undefined;
+        }),
+      } as ReplaySession;
+    }),
+    start: vi.fn(),
+    stop: vi.fn(),
+    subscribe: vi.fn((callback: RecordingSubscriber) => {
+      subscribers.add(callback);
+      callback(currentState);
+
+      return () => {
+        subscribers.delete(callback);
+      };
+    }),
+    subscriberCount() {
+      return subscribers.size;
+    },
+  } as TestRecordingEngine;
+
+  return engine;
+}
+
 function createMockEventEngine(): TestEventEngine {
   const subscribers = new Map<string, Set<EventSubscriber>>();
 
@@ -934,6 +1012,7 @@ function createMockRoom(
     peerId?: string;
     pointerEngine?: TestPointerEngine;
     presenceEngine?: TestPresenceEngine;
+    recordingEngine?: TestRecordingEngine;
     stateEngine?: TestStateEngine<unknown>;
     status?: RoomStatus;
     viewportEngine?: TestViewportEngine;
@@ -947,6 +1026,7 @@ function createMockRoom(
   const cursorEngine = config.cursorEngine ?? createMockCursorEngine();
   const eventEngine = config.eventEngine ?? createMockEventEngine();
   const historyEngine = config.historyEngine ?? createMockHistoryEngine();
+  const recordingEngine = config.recordingEngine ?? createMockRecordingEngine();
   const lockEngine = config.lockEngine ?? createMockLockEngine();
   const stateEngine = config.stateEngine ?? createMockStateEngine({});
   const viewportEngine = config.viewportEngine ?? createMockViewportEngine();
@@ -1022,6 +1102,7 @@ function createMockRoom(
     peerId,
     pointerEngine,
     presenceEngine,
+    recordingEngine,
     setStatus(status: RoomStatus) {
       currentStatus = status;
     },
@@ -1049,6 +1130,9 @@ function createMockRoom(
     }),
     usePresence: vi.fn(() => {
       return presenceEngine;
+    }),
+    useRecording: vi.fn(() => {
+      return recordingEngine;
     }),
     useState: vi.fn(() => {
       return stateEngine;
@@ -1872,6 +1956,73 @@ describe('roomful', () => {
     roomful('history-options-room', { history: { maxEntries: 50 } });
 
     expect(room.useHistory.mock.calls[0]?.[0]).toEqual({ maxEntries: 50 });
+  });
+
+  it('exposes recording as reactive stores and forwards controls', async () => {
+    const recordingEngine = createMockRecordingEngine(
+      createRecordingState({ durationMs: 0, frameCount: 0, isRecording: false }),
+    );
+    createMockRoom(
+      'recording-room',
+      {},
+      {
+        recordingEngine,
+      },
+    );
+
+    const adapter = roomful('recording-room');
+    const isRecordingValues: boolean[] = [];
+    const frameCountValues: number[] = [];
+    const durationValues: number[] = [];
+    const unsubscribeIsRecording = adapter.recording.isRecording.subscribe((value) => {
+      isRecordingValues.push(value);
+    });
+    const unsubscribeFrameCount = adapter.recording.frameCount.subscribe((value) => {
+      frameCountValues.push(value);
+    });
+    const unsubscribeDuration = adapter.recording.durationMs.subscribe((value) => {
+      durationValues.push(value);
+    });
+
+    expect(get(adapter.recording.isRecording)).toBe(false);
+    expect(get(adapter.recording.frameCount)).toBe(0);
+    expect(get(adapter.recording.durationMs)).toBe(0);
+
+    await adapter.connect();
+    expect(recordingEngine.subscribe).toHaveBeenCalledTimes(1);
+
+    // A recorder state change is reflected across all three stores.
+    recordingEngine.emit(
+      createRecordingState({ durationMs: 1_200, frameCount: 3, isRecording: true }),
+    );
+    expect(get(adapter.recording.isRecording)).toBe(true);
+    expect(get(adapter.recording.frameCount)).toBe(3);
+    expect(get(adapter.recording.durationMs)).toBe(1_200);
+    expect(isRecordingValues.at(-1)).toBe(true);
+    expect(frameCountValues.at(-1)).toBe(3);
+    expect(durationValues.at(-1)).toBe(1_200);
+
+    // Controls forward to the engine.
+    adapter.recording.start();
+    expect(recordingEngine.start).toHaveBeenCalledTimes(1);
+
+    adapter.recording.stop();
+    expect(recordingEngine.stop).toHaveBeenCalledTimes(1);
+
+    const exported = adapter.recording.exportRecording();
+    expect(recordingEngine.export).toHaveBeenCalledTimes(1);
+    expect(exported).toMatchObject({ durationMs: 1_200, version: 1 });
+
+    const session = adapter.recording.replay();
+    expect(recordingEngine.replay).toHaveBeenCalledTimes(1);
+    expect(typeof session.play).toBe('function');
+
+    unsubscribeIsRecording();
+    unsubscribeFrameCount();
+    unsubscribeDuration();
+
+    await adapter.destroy();
+    expect(recordingEngine.subscriberCount()).toBe(0);
   });
 
   it('creates per-key lockState stores that track free to held to free transitions', async () => {

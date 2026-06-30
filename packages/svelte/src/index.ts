@@ -22,7 +22,11 @@ import type {
   PointerEngine,
   PresenceData,
   PresenceEngine,
+  RecordingEngine,
+  RecordingState,
+  ReplaySession,
   Room,
+  RoomfulRecording,
   RoomOptions,
   RoomStatus,
   StateEngine,
@@ -501,6 +505,51 @@ export interface HistoryStore extends Readable<TimelineEntry[]> {
 }
 
 /**
+ * Store of the session recorder exposing reactive `isRecording`, `frameCount`,
+ * and `durationMs` sub-stores plus the start/stop/replay/export controls.
+ * Capture is local to this peer; replay re-emits the captured frames at their
+ * original tempo without re-applying them to a room.
+ */
+export interface RecordingStore {
+  /**
+   * A readable store reporting whether the recorder is currently capturing wire
+   * signals.
+   */
+  isRecording: Readable<boolean>;
+
+  /**
+   * A readable store reporting how many frames the current take has captured.
+   */
+  frameCount: Readable<number>;
+
+  /**
+   * A readable store reporting the span of the current take in milliseconds.
+   */
+  durationMs: Readable<number>;
+
+  /**
+   * Begins capturing wire signals, discarding any previous take.
+   */
+  start: RecordingEngine['start'];
+
+  /**
+   * Stops capturing; the captured frames remain available.
+   */
+  stop: RecordingEngine['stop'];
+
+  /**
+   * Builds a timed playback session for a recording, or the current take.
+   */
+  replay(recording?: RoomfulRecording): ReplaySession;
+
+  /**
+   * Serializes the current take into a portable recording (named to stay a
+   * valid identifier, since `export` is a reserved word).
+   */
+  exportRecording: RecordingEngine['export'];
+}
+
+/**
  * Re-exports the collaborative comment types for adapter consumers.
  */
 export type { Comment, CommentAnchor, CommentsOptions, CommentThread };
@@ -509,6 +558,11 @@ export type { Comment, CommentAnchor, CommentsOptions, CommentThread };
  * Re-exports the collaborative history types for adapter consumers.
  */
 export type { HistoryEngine, HistoryOptions, TimelineEntry };
+
+/**
+ * Re-exports the session-recording types for adapter consumers.
+ */
+export type { RecordingEngine, RecordingState, ReplaySession, RoomfulRecording };
 
 /**
  * Readable awareness store augmented with write helpers.
@@ -763,6 +817,12 @@ export interface RoomfulAdapter<
   presence: PresenceStore<TPresence>;
 
   /**
+   * Exposes the session-recording store: reactive `isRecording`, `frameCount`,
+   * and `durationMs` plus the start/stop/replay/export controls.
+   */
+  recording: RecordingStore;
+
+  /**
    * Exposes the shared-state namespace.
    */
   state: StateNamespace;
@@ -808,6 +868,7 @@ export function roomful<
   const lockEngine = room.useLocks();
   const commentsEngine = room.useComments(commentsOptions);
   const historyEngine = room.useHistory(historyOptions);
+  const recordingEngine = room.useRecording();
   const eventEngine = room.useEvents();
 
   let destroyed = false;
@@ -906,6 +967,10 @@ export function roomful<
   );
   const historyCanUndoStore = createValueStore<boolean>(historyEngine.canUndo());
   const historyCanRedoStore = createValueStore<boolean>(historyEngine.canRedo());
+  const initialRecordingState = recordingEngine.getState();
+  const recordingIsRecordingStore = createValueStore<boolean>(initialRecordingState.isRecording);
+  const recordingFrameCountStore = createValueStore<number>(initialRecordingState.frameCount);
+  const recordingDurationMsStore = createValueStore<number>(initialRecordingState.durationMs);
   const statusStore = createValueStore<RoomStatus>(room.status);
 
   const refreshStatus = (): void => {
@@ -1000,6 +1065,13 @@ export function roomful<
     );
     historyCanUndoStore.publish(historyEngine.canUndo());
     historyCanRedoStore.publish(historyEngine.canRedo());
+  };
+
+  const refreshRecording = (): void => {
+    const recordingState = recordingEngine.getState();
+    recordingIsRecordingStore.publish(recordingState.isRecording);
+    recordingFrameCountStore.publish(recordingState.frameCount);
+    recordingDurationMsStore.publish(recordingState.durationMs);
   };
 
   const registerCleanup = (callback: () => void): (() => void) => {
@@ -1153,6 +1225,20 @@ export function roomful<
     });
   };
 
+  const attachRecordingSubscription = (): void => {
+    if (!runtimeStarted) {
+      return;
+    }
+
+    const unsubscribe = recordingEngine.subscribe(() => {
+      refreshRecording();
+    });
+
+    registerCleanup(() => {
+      unsubscribe();
+    });
+  };
+
   const attachLockStateRecord = (record: LockStateRecord<TPresence>): void => {
     if (!runtimeStarted || record.cleanup) {
       return;
@@ -1245,6 +1331,7 @@ export function roomful<
     attachLocksSubscription();
     attachCommentsSubscription();
     attachHistorySubscription();
+    attachRecordingSubscription();
     attachSharedStateSubscription();
 
     for (const record of eventListeners) {
@@ -1571,6 +1658,40 @@ export function roomful<
     },
   };
 
+  const recording: RecordingStore = {
+    isRecording: {
+      subscribe(run, invalidate) {
+        return recordingIsRecordingStore.subscribe(run, invalidate);
+      },
+    },
+    frameCount: {
+      subscribe(run, invalidate) {
+        return recordingFrameCountStore.subscribe(run, invalidate);
+      },
+    },
+    durationMs: {
+      subscribe(run, invalidate) {
+        return recordingDurationMsStore.subscribe(run, invalidate);
+      },
+    },
+    start() {
+      assertAvailable('recording.start');
+      recordingEngine.start();
+    },
+    stop() {
+      assertAvailable('recording.stop');
+      recordingEngine.stop();
+    },
+    replay(recordingInput) {
+      assertAvailable('recording.replay');
+      return recordingEngine.replay(recordingInput);
+    },
+    exportRecording() {
+      assertAvailable('recording.exportRecording');
+      return recordingEngine.export();
+    },
+  };
+
   const lockState = (key: string): LockStateStore => {
     assertAvailable('lockState');
 
@@ -1870,6 +1991,9 @@ export function roomful<
     historyStore.clear();
     historyCanUndoStore.clear();
     historyCanRedoStore.clear();
+    recordingIsRecordingStore.clear();
+    recordingFrameCountStore.clear();
+    recordingDurationMsStore.clear();
     statusStore.clear();
     sharedStateController?.valueStore.clear();
 
@@ -1897,6 +2021,7 @@ export function roomful<
     lockState,
     pointer,
     presence,
+    recording,
     state,
     status,
     viewport,

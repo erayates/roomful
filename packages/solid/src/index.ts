@@ -21,7 +21,11 @@ import type {
   PointerOptions,
   PresenceData,
   PresenceEngine,
+  RecordingEngine,
+  RecordingState,
+  ReplaySession,
   Room,
+  RoomfulRecording,
   RoomOptions,
   RoomStatus,
   StateEngine,
@@ -432,6 +436,48 @@ export interface UseHistoryResult {
 }
 
 /**
+ * Describes the return value of `useRecording`.
+ */
+export interface UseRecordingResult {
+  /**
+   * Reports whether a recording is currently capturing frames. Reactive.
+   */
+  isRecording: Accessor<boolean>;
+
+  /**
+   * Reports how many frames the active recording has captured. Reactive.
+   */
+  frameCount: Accessor<number>;
+
+  /**
+   * Reports the elapsed duration of the active recording in milliseconds.
+   * Reactive.
+   */
+  durationMs: Accessor<number>;
+
+  /**
+   * Begins capturing, discarding any previous take.
+   */
+  start: RecordingEngine['start'];
+
+  /**
+   * Stops capturing; the captured frames remain available.
+   */
+  stop: RecordingEngine['stop'];
+
+  /**
+   * Builds a timed playback session for a recording, or the current take.
+   */
+  replay: RecordingEngine['replay'];
+
+  /**
+   * Serializes the current take into a portable recording (named to stay
+   * destructurable, since `export` is a reserved word).
+   */
+  exportRecording: RecordingEngine['export'];
+}
+
+/**
  * Re-exports the collaborative comment types for adapter consumers.
  */
 export type { Comment, CommentAnchor, CommentsOptions, CommentThread };
@@ -440,6 +486,11 @@ export type { Comment, CommentAnchor, CommentsOptions, CommentThread };
  * Re-exports the collaborative history types for adapter consumers.
  */
 export type { HistoryEngine, HistoryOptions, TimelineEntry };
+
+/**
+ * Re-exports the session recording types for adapter consumers.
+ */
+export type { RecordingEngine, RecordingState, ReplaySession, RoomfulRecording };
 
 interface PresenceSnapshot<TPresence extends PresenceData> {
   self: Peer<TPresence>;
@@ -1074,6 +1125,60 @@ export function useHistory<TPresence extends PresenceData = PresenceData>(
     },
     redo: () => {
       return historyEngine.redo();
+    },
+  };
+}
+
+/**
+ * Subscribes to the session recording engine: reactive `isRecording`,
+ * `frameCount`, and `durationMs` primitives plus start/stop/replay/export
+ * controls.
+ *
+ * @typeParam TPresence - The room presence shape.
+ * @returns Accessors for the recorder state plus controls.
+ */
+export function useRecording<TPresence extends PresenceData = PresenceData>(): UseRecordingResult {
+  const room = useRoom<TPresence>();
+  const engine = room.useRecording();
+  const initialState = engine.getState();
+  const [isRecording, setIsRecording] = createSignal(initialState.isRecording);
+  const [frameCount, setFrameCount] = createSignal(initialState.frameCount);
+  const [durationMs, setDurationMs] = createSignal(initialState.durationMs);
+
+  onMount(() => {
+    const sync = (): void => {
+      const state = engine.getState();
+      setIsRecording(() => state.isRecording);
+      setFrameCount(() => state.frameCount);
+      setDurationMs(() => state.durationMs);
+    };
+
+    sync();
+
+    const unsubscribe = engine.subscribe(() => {
+      sync();
+    });
+
+    onCleanup(() => {
+      unsubscribe();
+    });
+  });
+
+  return {
+    isRecording,
+    frameCount,
+    durationMs,
+    start: () => {
+      engine.start();
+    },
+    stop: () => {
+      engine.stop();
+    },
+    replay: (recording) => {
+      return engine.replay(recording);
+    },
+    exportRecording: () => {
+      return engine.export();
     },
   };
 }

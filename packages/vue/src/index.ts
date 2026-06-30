@@ -21,7 +21,10 @@ import type {
   PointerOptions,
   PresenceData,
   PresenceEngine,
+  RecordingEngine,
+  RecordingState,
   Room,
+  RoomfulRecording,
   RoomOptions,
   RoomStatus,
   StateEngine,
@@ -417,6 +420,47 @@ export interface UseHistoryResult {
 }
 
 /**
+ * Describes the return value of `useRecording`.
+ */
+export interface UseRecordingResult {
+  /**
+   * Reports whether a recording is currently capturing frames. Reactive.
+   */
+  isRecording: ReadonlyRef<boolean>;
+
+  /**
+   * Reports how many frames the active recording has captured. Reactive.
+   */
+  frameCount: ReadonlyRef<number>;
+
+  /**
+   * Reports the elapsed duration of the active recording in milliseconds.
+   * Reactive.
+   */
+  durationMs: ReadonlyRef<number>;
+
+  /**
+   * Begins capturing room activity into a new recording.
+   */
+  start: RecordingEngine['start'];
+
+  /**
+   * Stops the active recording.
+   */
+  stop: RecordingEngine['stop'];
+
+  /**
+   * Replays a recording, defaulting to the most recent capture.
+   */
+  replay: RecordingEngine['replay'];
+
+  /**
+   * Exports the captured recording as a serializable payload.
+   */
+  exportRecording: RecordingEngine['export'];
+}
+
+/**
  * Re-exports the collaborative comment types for adapter consumers.
  */
 export type { Comment, CommentAnchor, CommentsOptions, CommentThread };
@@ -425,6 +469,11 @@ export type { Comment, CommentAnchor, CommentsOptions, CommentThread };
  * Re-exports the collaborative history types for adapter consumers.
  */
 export type { HistoryEngine, HistoryOptions, TimelineEntry };
+
+/**
+ * Re-exports the session recording types for adapter consumers.
+ */
+export type { RecordingEngine, RecordingState, RoomfulRecording };
 
 /**
  * Mirrors React-style updater semantics for Vue shared state setters.
@@ -1252,6 +1301,82 @@ export function useHistory<TPresence extends PresenceData = PresenceData>(
       return requireTypedRoom<TPresence>(context.room.value, 'useHistory')
         .useHistory(options)
         .redo();
+    },
+  };
+}
+
+/**
+ * Subscribes to the session recording engine: reactive `isRecording`,
+ * `frameCount`, and `durationMs` primitives plus start/stop/replay/export
+ * controls.
+ *
+ * @typeParam TPresence - The room presence shape.
+ * @returns Readonly refs for the recording state plus controls.
+ */
+export function useRecording<TPresence extends PresenceData = PresenceData>(): UseRecordingResult {
+  const context = useRoomfulContext('useRecording');
+  const initialRoom = requireTypedRoom<TPresence>(context.room.value, 'useRecording');
+  const initialEngine = initialRoom.useRecording();
+  const initialState = initialEngine.getState();
+  const isRecording = shallowRef(initialState.isRecording);
+  const frameCount = shallowRef(initialState.frameCount);
+  const durationMs = shallowRef(initialState.durationMs);
+
+  watch(
+    context.room,
+    (room, _previousRoom, onCleanup) => {
+      const typedRoom = requireTypedRoom<TPresence>(room, 'useRecording');
+      const engine = typedRoom.useRecording();
+
+      const sync = (): void => {
+        const state = engine.getState();
+        if (isRecording.value !== state.isRecording) {
+          isRecording.value = state.isRecording;
+        }
+
+        if (frameCount.value !== state.frameCount) {
+          frameCount.value = state.frameCount;
+        }
+
+        if (durationMs.value !== state.durationMs) {
+          durationMs.value = state.durationMs;
+        }
+      };
+
+      sync();
+
+      const unsubscribe = engine.subscribe(() => {
+        sync();
+      });
+
+      onCleanup(() => {
+        unsubscribe();
+      });
+    },
+    {
+      immediate: true,
+    },
+  );
+
+  return {
+    isRecording,
+    frameCount,
+    durationMs,
+    start() {
+      requireTypedRoom<TPresence>(context.room.value, 'useRecording').useRecording().start();
+    },
+    stop() {
+      requireTypedRoom<TPresence>(context.room.value, 'useRecording').useRecording().stop();
+    },
+    replay(recording) {
+      return requireTypedRoom<TPresence>(context.room.value, 'useRecording')
+        .useRecording()
+        .replay(recording);
+    },
+    exportRecording() {
+      return requireTypedRoom<TPresence>(context.room.value, 'useRecording')
+        .useRecording()
+        .export();
     },
   };
 }
