@@ -1,5 +1,12 @@
 # @roomful/vue
 
+## 1.2.2
+
+### Patch Changes
+
+- Updated dependencies [5b11b46]
+  - @roomful/core@1.4.0
+
 ## 1.2.1
 
 ### Patch Changes
