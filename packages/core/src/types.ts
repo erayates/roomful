@@ -2320,6 +2320,18 @@ export interface Room<TPresence extends PresenceData = PresenceData> {
   useRecording(): RecordingEngine;
 
   /**
+   * Applies a previously recorded wire signal to this room's engines, as if it
+   * had just arrived — reconstructing presence, cursors, and shared state from
+   * a {@link RecordingFrame}'s `signal`. Feed a recording's frames in order
+   * (e.g. from a {@link ReplaySession}) into a throwaway offline room to replay
+   * a session visually. Not for live use.
+   *
+   * @param signal - The recorded wire signal to apply.
+   * @returns Nothing.
+   */
+  applyReplaySignal(signal: RoomTransportSignal): void;
+
+  /**
    * Accesses the custom event engine for this room.
    *
    * @param options - Optional custom event behavior overrides.

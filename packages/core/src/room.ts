@@ -1426,6 +1426,15 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     return recordingEngine;
   }
 
+  public applyReplaySignal(signal: RoomTransportSignal): void {
+    // Route the recorded signal through the same inbound path a live signal
+    // takes, so every engine (presence, cursors, state, ...) reconstructs it
+    // identically. The signal carries its original `fromPeerId`, so replaying a
+    // peer's own outbound frames rebuilds that peer too. Outbound sends no-op
+    // here (a replay room has no transport), so this is side-effect-free.
+    this.handleRoomSignal(signal);
+  }
+
   // Hydrates the comments engine from local persistence, seeding any thread the
   // engine has not already synced. Existing (synced) threads win, so a reload
   // never clobbers live collaborative state.
