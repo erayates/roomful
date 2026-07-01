@@ -12,18 +12,20 @@ A `room` is the primary collaboration scope in Roomful.
 
 ## Transport Modes
 
-| Transport   | Typical use                                 | Server required          | Notes                                                                                                                              |
-| ----------- | ------------------------------------------- | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `webrtc`    | small collaborative rooms across machines   | Yes (relay for WebRTC)   | P2P DataChannel mesh after signaling; same-origin fallback uses BroadcastChannel only when signaling is unavailable during connect |
-| `broadcast` | same-browser, same-origin tabs              | No                       | JSON-envelope messaging + unload-aware leave handling                                                                              |
-| `websocket` | larger rooms or strict network environments | Yes (`@roomful/relay`)   | Relay-backed room messaging with targeted send + broadcast support                                                                 |
-| `auto`      | choose best available option                | Depends on fallback path | Ordered selection: `broadcast` -> `webrtc` -> `websocket` -> `in-memory`                                                           |
+| Transport      | Typical use                                 | Server required                  | Notes                                                                                                                                                |
+| -------------- | ------------------------------------------- | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `webrtc`       | small collaborative rooms across machines   | Yes (relay for WebRTC)           | P2P DataChannel mesh after signaling; same-origin fallback uses BroadcastChannel only when signaling is unavailable during connect                   |
+| `broadcast`    | same-browser, same-origin tabs              | No                               | JSON-envelope messaging + unload-aware leave handling                                                                                                |
+| `websocket`    | larger rooms or strict network environments | Yes (`@roomful/relay`)           | Relay-backed room messaging with targeted send + broadcast support                                                                                   |
+| `webtransport` | modern low-latency rooms over HTTP/3        | Yes (WebTransport-capable relay) | Same relay protocol as `websocket` carried over a QUIC bidirectional stream; opt-in only (`auto` does not select it); needs an `https://` `relayUrl` |
+| `auto`         | choose best available option                | Depends on fallback path         | Ordered selection: `broadcast` -> `webrtc` -> `websocket` -> `in-memory`                                                                             |
 
 ## Recommended Defaults
 
 - Start with `transport: 'auto'` unless you have a specific network requirement.
 - Use `transport: 'webrtc'` with `relayUrl` for cross-machine collaboration.
 - Use `transport: 'websocket'` with `relayUrl` for larger rooms or constrained networks where direct peer mesh is not a fit.
+- Use `transport: 'webtransport'` with an `https://` `relayUrl` for low-latency HTTP/3 transport where your relay speaks WebTransport. It carries the same relay protocol as `websocket`; `auto` does not select it yet, so opt in explicitly.
 - If a deployment must survive WebSocket blocking, opt into `websocket: { fallbackTransport: 'polling' }` on `transport: 'websocket'`.
 - If initial signaling is unavailable and peers share the same origin, `transport: 'webrtc'` falls back to BroadcastChannel automatically.
 - `maxPeers` defaults to `15` for the `webrtc` transport when unset; the `relay` and `broadcast` transports stay unlimited unless `maxPeers` is set. Keep it explicit for mesh safety (for example `maxPeers: 8`).

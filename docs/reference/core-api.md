@@ -14,7 +14,7 @@ function createRoom<TPresence extends Record<string, unknown> = Record<string, u
 ## `RoomOptions`
 
 ```ts
-type TransportMode = 'auto' | 'webrtc' | 'websocket' | 'broadcast';
+type TransportMode = 'auto' | 'webrtc' | 'websocket' | 'webtransport' | 'broadcast';
 
 interface RoomOptions {
   transport?: TransportMode;

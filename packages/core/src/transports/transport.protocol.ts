@@ -77,7 +77,8 @@ export function negotiateTransportProtocolSession(
   remote: PeerProtocolCapabilities | undefined,
 ): PeerProtocolNegotiationResult {
   return negotiatePeerProtocolSession(getTransportProtocolCapabilities(kind), remote, {
-    supportsBinary: kind === 'webrtc' || kind === 'websocket' || kind === 'polling',
+    supportsBinary:
+      kind === 'webrtc' || kind === 'websocket' || kind === 'webtransport' || kind === 'polling',
   });
 }
 

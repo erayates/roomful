@@ -7,6 +7,7 @@ import { createInMemoryTransportAdapter } from './in-memory';
 import type { TransportAdapter } from './transport';
 import { createWebRTCFallbackTransportAdapter } from './webrtc-fallback';
 import { createWebSocketTransportAdapter } from './websocket';
+import { createWebTransportTransportAdapter } from './webtransport';
 
 function hasRelayUrl<TPresence extends PresenceData>(options: RoomOptions<TPresence>): boolean {
   return typeof options.relayUrl === 'string' && options.relayUrl.trim().length > 0;
@@ -111,6 +112,18 @@ export function selectTransportAdapter<TPresence extends PresenceData>(
       mode,
       createWebSocketTransportAdapter(roomId, peerId, options),
       'Explicit websocket mode',
+    );
+  }
+
+  if (mode === 'webtransport') {
+    // ponytail: explicit opt-in only. `auto` never selects WebTransport yet — that would
+    // need capability detection plus a WT-capable relay to fall back to safely.
+    return logSelection(
+      roomId,
+      options,
+      mode,
+      createWebTransportTransportAdapter(roomId, peerId, options),
+      'Explicit webtransport mode',
     );
   }
 

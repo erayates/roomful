@@ -25,7 +25,7 @@ export type RoomStatus =
  *
  * Non-exhaustive; new codes may be added in minor releases — handle a default case.
  */
-export type TransportMode = 'auto' | 'webrtc' | 'websocket' | 'broadcast';
+export type TransportMode = 'auto' | 'webrtc' | 'websocket' | 'webtransport' | 'broadcast';
 
 /**
  * Supplies relay authentication as a static token or token factory.
