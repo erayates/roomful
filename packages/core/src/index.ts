@@ -4,6 +4,15 @@ import { RoomfulError } from './roomful-error';
 export { createRoom };
 export { RoomfulError };
 export type {
+  AddAIPeerOptions,
+  AIPeer,
+  AIPeerAgent,
+  AIPeerContext,
+  AIPeerEvent,
+  HeuristicAgentOptions,
+} from './ai-peer';
+export { addAIPeer, createHeuristicAgent } from './ai-peer';
+export type {
   AwarenessEngine,
   AwarenessSelection,
   AwarenessState,

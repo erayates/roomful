@@ -121,6 +121,9 @@ export function App(): ReactElement {
           <MiniAppStage
             app={activeApp}
             identity={identity}
+            relayUrl={config.relayUrl}
+            roomId={appRoomId}
+            transport={config.transport}
             transportLabel={config.transportLabel}
           />
         </RoomfulProvider>

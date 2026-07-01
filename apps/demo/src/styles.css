@@ -438,6 +438,16 @@ textarea {
   padding-bottom: 0.2rem;
 }
 
+.button--sm {
+  min-height: 34px;
+  padding: 0 0.9rem;
+  font-size: 0.85rem;
+}
+
+.stage__presence .button--sm {
+  margin-left: auto;
+}
+
 .stage__hint {
   color: var(--faint);
   font-size: 0.82rem;
