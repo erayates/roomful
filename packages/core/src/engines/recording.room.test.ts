@@ -48,3 +48,29 @@ describe('RecordingEngine with mock transport', () => {
     expect(exported.frames).toHaveLength(frames.length);
   });
 });
+
+describe('Room.applyReplaySignal (sandbox replay)', () => {
+  it('replays a recording into a fresh offline room, reconstructing peers', async () => {
+    harness = await createMockRoomHarness();
+    const roomA = harness.createRoom('replay-src');
+    const roomB = harness.createRoom('replay-src');
+
+    const recording = roomA.useRecording();
+    recording.start();
+    await Promise.all([roomA.connect(), roomB.connect()]);
+    await harness.waitFor(() => roomA.peerCount === 1);
+    recording.stop();
+
+    // A fresh room that NEVER connected — reconstruct the session into it purely
+    // by feeding roomA's recorded inbound signals through applyReplaySignal.
+    const replayRoom = harness.createRoom('replay-dst');
+    for (const frame of recording.getFrames()) {
+      if (frame.direction === 'inbound') {
+        replayRoom.applyReplaySignal(frame.signal);
+      }
+    }
+
+    // roomB's peer was reconstructed from roomA's recording alone.
+    expect(replayRoom.peers.some((peer) => peer.id === roomB.peerId)).toBe(true);
+  });
+});

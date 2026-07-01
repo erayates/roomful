@@ -1,63 +1,27 @@
-import type { RecordingFrame } from '@roomful/core';
+import type { RoomfulRecording } from '@roomful/core';
 import { useRecording } from '@roomful/react';
-import { type ReactElement, useCallback, useEffect, useRef, useState } from 'react';
+import { type ReactElement, useCallback, useState } from 'react';
 
-// Keep the streamed replay log bounded so a long take never bloats the DOM.
-const MAX_VISIBLE_FRAMES = 60;
+import { ReplayOverlay } from './replay-overlay';
 
 function formatSeconds(ms: number): string {
   return `${(ms / 1000).toFixed(1)}s`;
 }
 
-function frameLabel(frame: RecordingFrame): string {
-  const arrow = frame.direction === 'inbound' ? '←' : '→';
-  return `${(frame.t / 1000).toFixed(2)}s  ${arrow}  ${frame.signal.type}`;
-}
-
-interface ReplayRow {
-  key: number;
-  frame: RecordingFrame;
-}
-
 /**
  * A live session recorder docked under the active mini-app. It taps the same
  * room the app uses, so Record captures that app's real collaboration signals;
- * Replay streams them back at the original tempo and Export saves a `.roomful`
- * file. Demonstrates `useRecording` against genuine traffic.
+ * Replay opens a visual playback (a sandbox room reconstructs the session) and
+ * Export saves a `.roomful` file. Demonstrates `useRecording` against genuine
+ * traffic.
  */
 export function SessionRecorder(): ReactElement {
-  const { isRecording, frameCount, durationMs, start, stop, replay, exportRecording } =
-    useRecording();
-  const [replayLog, setReplayLog] = useState<ReplayRow[]>([]);
-  const [isReplaying, setIsReplaying] = useState(false);
-  const sessionRef = useRef<ReturnType<typeof replay> | null>(null);
-  const replayKeyRef = useRef(0);
-
-  // Stop any in-flight replay when the panel unmounts (e.g. switching apps).
-  useEffect(() => {
-    return () => {
-      sessionRef.current?.stop();
-      sessionRef.current = null;
-    };
-  }, []);
+  const { isRecording, frameCount, durationMs, start, stop, exportRecording } = useRecording();
+  const [replayRecording, setReplayRecording] = useState<RoomfulRecording | null>(null);
 
   const handleReplay = useCallback(() => {
-    sessionRef.current?.stop();
-    setReplayLog([]);
-    const session = replay();
-    sessionRef.current = session;
-    session.subscribe((event) => {
-      setIsReplaying(event.isPlaying);
-      const { frame } = event;
-      if (frame) {
-        setReplayLog((log) => {
-          const next = [...log, { key: replayKeyRef.current++, frame }];
-          return next.slice(-MAX_VISIBLE_FRAMES);
-        });
-      }
-    });
-    session.play();
-  }, [replay]);
+    setReplayRecording(exportRecording());
+  }, [exportRecording]);
 
   const handleExport = useCallback(() => {
     const recording = exportRecording();
@@ -117,20 +81,17 @@ export function SessionRecorder(): ReactElement {
         {isRecording
           ? 'Capturing this room’s wire signals — interact with the app or open another tab.'
           : hasFrames
-            ? isReplaying
-              ? 'Replaying at the original tempo…'
-              : 'Replay streams the captured signals back in real time, or export them as a .roomful file.'
+            ? 'Replay reconstructs the session visually, or export it as a .roomful file.'
             : 'Press Record, then use the app above to capture its live collaboration signals.'}
       </p>
 
-      {replayLog.length > 0 ? (
-        <ol className="recorder__log">
-          {replayLog.map((row) => (
-            <li className="recorder__log-row" data-direction={row.frame.direction} key={row.key}>
-              {frameLabel(row.frame)}
-            </li>
-          ))}
-        </ol>
+      {replayRecording ? (
+        <ReplayOverlay
+          onClose={() => {
+            setReplayRecording(null);
+          }}
+          recording={replayRecording}
+        />
       ) : null}
     </aside>
   );
