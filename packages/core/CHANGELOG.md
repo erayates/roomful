@@ -1,5 +1,12 @@
 # @roomful/core
 
+## 1.3.0
+
+### Minor Changes
+
+- 9d36007: Add `addAIPeer(roomId, options)` — attach a headless, programmatically-driven ("AI") peer to a room. It joins as a second participant over the room's transport and a pluggable `agent` drives its presence, cursor, and events on a tick loop; it runs in a browser tab, Node, or a server (no DOM). Ships `createHeuristicAgent()` for a zero-dependency demo bot (wandering cursor + reactions + rotating mood) — pair `addAIPeer` with an LLM-backed agent for real intelligence. The demo gains an "Add AI teammate" button that drops the bot into whichever mini-app is active.
+- 233153b: Add `room.applyReplaySignal(signal)` — feed a recorded wire signal back through the room's inbound pipeline to reconstruct presence, cursors, and shared state. This enables **visual session replay**: stream a recording's frames into a throwaway offline room (each signal carries its original `fromPeerId`, so every participant is rebuilt) and render the reconstructed state. The demo's Session recorder now replays visually — a sandbox room rebuilds the cursors at the original tempo — instead of streaming a raw signal log.
+
 ## 1.2.0
 
 ### Minor Changes
