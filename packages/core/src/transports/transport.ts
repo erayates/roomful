@@ -6,7 +6,13 @@ import type {
 } from '../protocol/peer-message';
 import type { RoomfulError, Unsubscribe } from '../types';
 
-export type TransportKind = 'broadcast' | 'in-memory' | 'webrtc' | 'websocket' | 'polling';
+export type TransportKind =
+  | 'broadcast'
+  | 'in-memory'
+  | 'webrtc'
+  | 'websocket'
+  | 'webtransport'
+  | 'polling';
 
 export type RoomTransportSignalType = PeerWireMessageType;
 export type RoomTransportSignal = PeerWireMessage;

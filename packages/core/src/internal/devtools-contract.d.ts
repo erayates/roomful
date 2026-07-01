@@ -15,6 +15,7 @@ export type DevtoolsTransportKind =
   | 'in-memory'
   | 'webrtc'
   | 'websocket'
+  | 'webtransport'
   | 'polling'
   | null;
 

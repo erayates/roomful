@@ -160,6 +160,7 @@ Transport baseline note:
 - WebRTC mesh transport is available via `transport: 'webrtc'` with relay signaling, plus connect-time BroadcastChannel fallback when signaling is unavailable on the same origin.
 - `relayUrl` remains the canonical signaling URL for real WebRTC negotiation.
 - Relay-backed room messaging is available via `transport: 'websocket'`.
+- Relay-backed room messaging over HTTP/3 is available via `transport: 'webtransport'` (same relay protocol as `websocket`, carried on a QUIC bidirectional stream; opt-in only, not selected by `auto`).
 - Optional end-to-end encryption is available through `encryption: { key }` or `encryption: { passphrase }`.
 - `RoomfulError.code` is one of six values: `ROOM_FULL` (room is at capacity), `AUTH_FAILED` (relay rejected the join/auth request), `NETWORK_ERROR` (transport/connectivity failure), `ENCRYPTION_ERROR` (encryption setup or configuration failed, such as a bad key/passphrase or missing WebCrypto), `DECRYPTION_ERROR` (a peer message failed to decrypt, for example with the wrong key), and `INVALID_STATE` (an invalid state operation, such as a failed CRDT persist or an unsupported strategy).
 - `DECRYPTION_ERROR` is emitted when an encrypted payload cannot be authenticated or decrypted with the local room key.

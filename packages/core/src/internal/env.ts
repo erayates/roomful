@@ -56,6 +56,9 @@ export const env = {
   get hasWebSocket(): boolean {
     return typeof WebSocket !== 'undefined';
   },
+  get hasWebTransport(): boolean {
+    return typeof WebTransport !== 'undefined';
+  },
   get hasFetch(): boolean {
     return typeof fetch === 'function';
   },
