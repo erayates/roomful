@@ -1,5 +1,12 @@
 # @roomful/angular
 
+## 1.3.2
+
+### Patch Changes
+
+- Updated dependencies [5b11b46]
+  - @roomful/core@1.4.0
+
 ## 1.3.1
 
 ### Patch Changes
