@@ -5,6 +5,7 @@ import { type ReactElement, useEffect } from 'react';
 
 import type { MiniAppDefinition } from '../apps/registry';
 import type { DemoIdentity, DemoPresence } from '../demo-types';
+import { AITeammate } from './ai-teammate';
 import { SessionRecorder } from './session-recorder';
 
 function statusLabel(status: RoomStatus): string {
@@ -28,9 +29,19 @@ interface MiniAppStageProps {
   app: MiniAppDefinition;
   identity: DemoIdentity;
   transportLabel: string;
+  roomId: string;
+  transport: 'broadcast' | 'websocket';
+  relayUrl?: string | undefined;
 }
 
-export function MiniAppStage({ app, identity, transportLabel }: MiniAppStageProps): ReactElement {
+export function MiniAppStage({
+  app,
+  identity,
+  transportLabel,
+  roomId,
+  transport,
+  relayUrl,
+}: MiniAppStageProps): ReactElement {
   const { all, others, update } = usePresence<DemoPresence>();
   const status = useConnectionStatus<DemoPresence>();
   const AppComponent = app.Component;
@@ -69,6 +80,7 @@ export function MiniAppStage({ app, identity, transportLabel }: MiniAppStageProp
             ? transportLabel
             : `${String(others.length)} other ${others.length === 1 ? 'person' : 'people'} here`}
         </span>
+        <AITeammate relayUrl={relayUrl} roomId={roomId} transport={transport} />
       </div>
 
       <div className="stage__app" data-app={app.id}>
