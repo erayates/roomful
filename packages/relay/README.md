@@ -96,3 +96,37 @@ different instances can find each other. Point each instance at the same Redis w
 
 > **Experimental.** Multi-instance Redis coordination is experimental and its semantics — for
 > example, rejecting joins while Redis is unavailable — may change in a future release.
+
+## Edge (Cloudflare Workers)
+
+The relay also runs on **Cloudflare Workers + Durable Objects** — no server to run, and no Redis.
+Cloudflare routes every connection for a room to one Durable Object instance, so a room's peers
+share a single in-memory object (the `EdgeRoom` engine) and coordinate without an external store.
+
+Deploy with the included `wrangler.jsonc` (from a checkout of `packages/relay`, or the installed
+package directory):
+
+```bash
+npx wrangler deploy
+```
+
+Because routing happens at the WebSocket upgrade — before the join message is seen — the room id
+travels in the URL, so give each room its own `relayUrl` with a matching `?room=`:
+
+```ts
+const roomId = 'doc-123';
+createRoom(roomId, {
+  transport: 'websocket',
+  relayUrl: `wss://<worker-subdomain>.workers.dev/?room=${roomId}`,
+});
+```
+
+The `?room=` value must match the `createRoom` id (the engine rejects a mismatch).
+
+Optional bindings:
+
+- `RELAY_AUTH_SECRET` — `wrangler secret put RELAY_AUTH_SECRET` to require HS256 JWTs (verified with Web Crypto).
+- `RELAY_MAX_ROOM_SIZE` — a `[vars]` entry to cap peers per room.
+
+The runtime-agnostic pieces (`EdgeRoom`, `verifyRelayJwtEdge`) are exported from the package root,
+so the same engine can back a Deno or other edge deployment.

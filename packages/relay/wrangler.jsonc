@@ -1,0 +1,17 @@
+{
+  // Cloudflare Workers deployment for the edge relay (one Durable Object per room).
+  // Deploy: `wrangler deploy`. Point clients at `https://<worker-host>/?room=<roomId>`
+  // using `transport: 'websocket'` (or `'webtransport'` once HTTP/3 relaying is added).
+  "name": "roomful-relay-edge",
+  "main": "src/cloudflare.ts",
+  "compatibility_date": "2024-09-23",
+  "durable_objects": {
+    "bindings": [{ "name": "ROOMS", "class_name": "RoomDurableObject" }],
+  },
+  // The relay keeps only in-memory per-room state, but new DO namespaces must declare a
+  // storage backend; SQLite is the current default and costs nothing when unused.
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["RoomDurableObject"] }],
+  // Optional bindings:
+  //   RELAY_AUTH_SECRET   -> `wrangler secret put RELAY_AUTH_SECRET` (enables HS256 JWT auth)
+  //   RELAY_MAX_ROOM_SIZE -> set under [vars] to cap peers per room
+}
