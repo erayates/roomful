@@ -48,7 +48,7 @@ protocol) ships only after the protocol, Flutter SDK, trust layer, and AI-agent 
 | Version    | Phase                           | Focus                                                                                 |
 | ---------- | ------------------------------- | ------------------------------------------------------------------------------------- |
 | v2.0-beta  | Protocol + Relay Stabilization  | Versioned event envelope, schema, replay model, relay hardening, test vectors         |
-| v2.1-alpha | Dart Core SDK                   | `roomful_dart` alpha (room lifecycle, presence, events, shared state, reconnect)      |
+| v2.1-alpha | Dart Core SDK                   | `roomful` alpha (room lifecycle, presence, events, shared state, reconnect)           |
 | v2.2-beta  | Flutter SDK MVP                 | `roomful_flutter` provider/builders/overlay/controllers — pub.dev beta                |
 | v2.3       | Self-host + Mobile Trust        | Docker/Redis, JWT & Firebase/Supabase auth, reconnect hardening, cross-platform demos |
 | v2.4       | B2B Collaboration Components    | Durable comments, field presence, record locks, vertical component packs              |

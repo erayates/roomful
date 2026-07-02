@@ -12,6 +12,9 @@ with team capacity. Each sprint's goal is a **release gate**, not a feature list
 > WebTransport, Edge Relay) shipped early in **v1.6–v1.8**. `EP-17`/`EP-18` below therefore build on
 > that foundation (agent-driven peers, recording capture/replay, edge relay) rather than starting from
 > zero, and `EP-10` focuses on the cross-SDK protocol governance the Flutter expansion needs.
+>
+> **Naming:** the Dart core package is **`roomful`** (bare name, matching the `supabase`/`sentry`
+> convention where the core Dart package is unsuffixed) and the Flutter layer is **`roomful_flutter`**.
 
 ## Epic Map
 
@@ -41,7 +44,7 @@ with team capacity. Each sprint's goal is a **release gate**, not a feature list
 | S01    | v2.0-beta  | Roadmap reset + protocol RFC  | EP-10, EP-25        | Roadmap PR, protocol v2 RFC, issue labels, project board                    | Roadmap merged; backlog accepted                           |
 | S02    | v2.0-beta  | Protocol envelope + schema    | EP-10               | Event envelope, versioning, room/peer identifiers, typed payload schemas    | JS SDK consumes protocol v2 alpha without breaking v1      |
 | S03    | v2.0-beta  | Relay compatibility + replay  | EP-10, EP-13, EP-18 | Relay message normalization, replay buffer skeleton, protocol test vectors  | Interop tests pass with existing adapters                  |
-| S04    | v2.1-alpha | Dart package foundation       | EP-11               | `roomful_dart` scaffold, models, transport abstraction, CI                  | Package builds and publishes alpha internally              |
+| S04    | v2.1-alpha | Dart package foundation       | EP-11               | `roomful` scaffold, models, transport abstraction, CI                       | Package builds and publishes alpha internally              |
 | S05    | v2.1-alpha | Dart room lifecycle           | EP-11               | RoomfulClient, connect/disconnect, heartbeat, reconnect, peer registry      | Dart client joins relay room and sees JS peers             |
 | S06    | v2.1-alpha | Dart primitives alpha         | EP-11               | Presence, events, shared state (LWW), locks client, docs alpha              | Console demo covers presence/events/state/locks            |
 | S07    | v2.2-beta  | Flutter SDK foundation        | EP-12               | `roomful_flutter`, RoomfulProvider, controllers, lifecycle integration      | Flutter app connects to relay and manages user identity    |
@@ -67,18 +70,18 @@ with team capacity. Each sprint's goal is a **release gate**, not a feature list
 
 ### EP-10 Protocol Governance & Compatibility
 
-| Issue | Title                                                     | Scope                                                                         | Acceptance              |
-| ----- | --------------------------------------------------------- | ----------------------------------------------------------------------------- | ----------------------- |
-| #101  | Protocol v2 RFC ([draft](../../rfcs/0001-protocol-v2.md)) | Event envelope, message versioning, backwards compatibility, migration policy | RFC merged              |
-| #102  | Protocol test vectors                                     | Same fixture files for JS, Dart, and relay compatibility tests                | Cross-SDK fixtures pass |
-| #103  | Room/peer/session identifier standard                     | Standardize `roomId`, `peerId`, `sessionId`, `surfaceId`, `coordinateSpace`   | Schema accepted         |
-| #104  | Ephemeral vs durable state contract                       | Clarify presence/cursor/viewport vs comments/locks/history split              | Docs + types updated    |
+| Issue | Title                                                                             | Scope                                                                         | Acceptance              |
+| ----- | --------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- | ----------------------- |
+| #101  | Protocol v2 RFC ([draft](../../rfcs/0001-protocol-v2.md))                         | Event envelope, message versioning, backwards compatibility, migration policy | RFC merged              |
+| #102  | Protocol test vectors ([`protocol-fixtures/`](../../protocol-fixtures/README.md)) | Same fixture files for JS, Dart, and relay compatibility tests                | Cross-SDK fixtures pass |
+| #103  | Room/peer/session identifier standard                                             | Standardize `roomId`, `peerId`, `sessionId`, `surfaceId`, `coordinateSpace`   | Schema accepted         |
+| #104  | Ephemeral vs durable state contract                                               | Clarify presence/cursor/viewport vs comments/locks/history split              | Docs + types updated    |
 
 ### EP-11 Dart Core SDK
 
 | Issue | Title                                | Scope                                                                 | Acceptance           |
 | ----- | ------------------------------------ | --------------------------------------------------------------------- | -------------------- |
-| #111  | `roomful_dart` package scaffold      | pubspec, package structure, CI, lint, tests, examples                 | Package builds       |
+| #111  | `roomful` package scaffold           | pubspec, package structure, CI, lint, tests, examples                 | Package builds       |
 | #112  | Dart transport abstraction           | WebSocket transport, future polling/WebRTC placeholders, typed events | Transport tests pass |
 | #113  | RoomfulClient lifecycle              | connect, disconnect, reconnect, heartbeat, backoff, peer registry     | Console demo works   |
 | #114  | Dart presence/events/shared state    | Presence tracking, events API, LWW shared state, subscriptions        | Interop with JS      |

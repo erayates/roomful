@@ -6,3 +6,4 @@ node_modules
 pnpm-lock.yaml
 .changeset/pre.json
 docs/project/roomful-code-quality-guidelines.md
+protocol-fixtures/core-vectors.json

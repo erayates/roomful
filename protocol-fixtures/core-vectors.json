@@ -1,0 +1,719 @@
+{
+  "version": 1,
+  "description": "Canonical Roomful Protocol v2 vectors (RFC-0001). Binary fields are { \"$bin\": base64 }. wireBase64 is base64 of the on-the-wire bytes (UTF-8 JSON, or MessagePack).",
+  "sessions": {
+    "legacy": {
+      "version": 1,
+      "codec": "json",
+      "legacy": true
+    },
+    "v2json": {
+      "version": 2,
+      "codec": "json",
+      "legacy": false
+    },
+    "v2msgpack": {
+      "version": 2,
+      "codec": "msgpack",
+      "legacy": false
+    }
+  },
+  "negotiation": [
+    {
+      "name": "remote-advertises-no-capabilities",
+      "local": {
+        "minVersion": 1,
+        "maxVersion": 2,
+        "codecs": [
+          "json",
+          "msgpack"
+        ],
+        "preferredCodec": "msgpack"
+      },
+      "remote": null,
+      "supportsBinary": true,
+      "result": {
+        "compatible": true,
+        "session": {
+          "version": 1,
+          "codec": "json",
+          "legacy": true
+        },
+        "reason": "Remote peer did not advertise protocol capabilities; using legacy v1/json."
+      }
+    },
+    {
+      "name": "both-modern-binary-transport",
+      "local": {
+        "minVersion": 1,
+        "maxVersion": 2,
+        "codecs": [
+          "json",
+          "msgpack"
+        ],
+        "preferredCodec": "msgpack"
+      },
+      "remote": {
+        "minVersion": 1,
+        "maxVersion": 2,
+        "codecs": [
+          "json",
+          "msgpack"
+        ],
+        "preferredCodec": "msgpack"
+      },
+      "supportsBinary": true,
+      "result": {
+        "compatible": true,
+        "session": {
+          "version": 2,
+          "codec": "msgpack",
+          "legacy": false
+        },
+        "reason": "Negotiated v2/msgpack."
+      }
+    },
+    {
+      "name": "both-modern-non-binary-transport",
+      "local": {
+        "minVersion": 1,
+        "maxVersion": 2,
+        "codecs": [
+          "json",
+          "msgpack"
+        ],
+        "preferredCodec": "msgpack"
+      },
+      "remote": {
+        "minVersion": 1,
+        "maxVersion": 2,
+        "codecs": [
+          "json",
+          "msgpack"
+        ],
+        "preferredCodec": "msgpack"
+      },
+      "supportsBinary": false,
+      "result": {
+        "compatible": true,
+        "session": {
+          "version": 2,
+          "codec": "json",
+          "legacy": false
+        },
+        "reason": "Negotiated v2/json fallback."
+      }
+    },
+    {
+      "name": "remote-json-only",
+      "local": {
+        "minVersion": 1,
+        "maxVersion": 2,
+        "codecs": [
+          "json",
+          "msgpack"
+        ],
+        "preferredCodec": "msgpack"
+      },
+      "remote": {
+        "minVersion": 1,
+        "maxVersion": 2,
+        "codecs": [
+          "json"
+        ],
+        "preferredCodec": "json"
+      },
+      "supportsBinary": true,
+      "result": {
+        "compatible": true,
+        "session": {
+          "version": 2,
+          "codec": "json",
+          "legacy": false
+        },
+        "reason": "Negotiated v2/json fallback."
+      }
+    },
+    {
+      "name": "both-json-only",
+      "local": {
+        "minVersion": 1,
+        "maxVersion": 2,
+        "codecs": [
+          "json"
+        ],
+        "preferredCodec": "json"
+      },
+      "remote": {
+        "minVersion": 1,
+        "maxVersion": 2,
+        "codecs": [
+          "json"
+        ],
+        "preferredCodec": "json"
+      },
+      "supportsBinary": true,
+      "result": {
+        "compatible": true,
+        "session": {
+          "version": 2,
+          "codec": "json",
+          "legacy": false
+        },
+        "reason": "Negotiated v2/json fallback."
+      }
+    }
+  ],
+  "envelopes": [
+    {
+      "name": "hello/v1-json",
+      "session": {
+        "version": 1,
+        "codec": "json",
+        "legacy": true
+      },
+      "message": {
+        "type": "hello",
+        "roomId": "room-a",
+        "fromPeerId": "peer-a",
+        "timestamp": 1700000000000,
+        "payload": {
+          "peer": {
+            "id": "peer-a",
+            "joinedAt": 1,
+            "lastSeen": 1700000000000,
+            "name": "Alice",
+            "role": "editor"
+          },
+          "protocol": {
+            "minVersion": 1,
+            "maxVersion": 2,
+            "codecs": [
+              "json",
+              "msgpack"
+            ],
+            "preferredCodec": "msgpack"
+          }
+        }
+      },
+      "wireBase64": "eyJzb3VyY2UiOiJyb29tZnVsIiwidmVyc2lvbiI6MSwic2lnbmFsIjp7InR5cGUiOiJoZWxsbyIsInJvb21JZCI6InJvb20tYSIsImZyb21QZWVySWQiOiJwZWVyLWEiLCJwYXlsb2FkIjp7InBlZXIiOnsiaWQiOiJwZWVyLWEiLCJqb2luZWRBdCI6MSwibGFzdFNlZW4iOjE3MDAwMDAwMDAwMDAsIm5hbWUiOiJBbGljZSIsInJvbGUiOiJlZGl0b3IifSwicHJvdG9jb2wiOnsibWluVmVyc2lvbiI6MSwibWF4VmVyc2lvbiI6MiwiY29kZWNzIjpbImpzb24iLCJtc2dwYWNrIl0sInByZWZlcnJlZENvZGVjIjoibXNncGFjayJ9fX19",
+      "text": "{\"source\":\"roomful\",\"version\":1,\"signal\":{\"type\":\"hello\",\"roomId\":\"room-a\",\"fromPeerId\":\"peer-a\",\"payload\":{\"peer\":{\"id\":\"peer-a\",\"joinedAt\":1,\"lastSeen\":1700000000000,\"name\":\"Alice\",\"role\":\"editor\"},\"protocol\":{\"minVersion\":1,\"maxVersion\":2,\"codecs\":[\"json\",\"msgpack\"],\"preferredCodec\":\"msgpack\"}}}}"
+    },
+    {
+      "name": "hello/v2-json",
+      "session": {
+        "version": 2,
+        "codec": "json",
+        "legacy": false
+      },
+      "message": {
+        "type": "hello",
+        "roomId": "room-a",
+        "fromPeerId": "peer-a",
+        "timestamp": 1700000000000,
+        "payload": {
+          "peer": {
+            "id": "peer-a",
+            "joinedAt": 1,
+            "lastSeen": 1700000000000,
+            "name": "Alice",
+            "role": "editor"
+          },
+          "protocol": {
+            "minVersion": 1,
+            "maxVersion": 2,
+            "codecs": [
+              "json",
+              "msgpack"
+            ],
+            "preferredCodec": "msgpack"
+          }
+        }
+      },
+      "wireBase64": "eyJzb3VyY2UiOiJyb29tZnVsIiwicHJvdG9jb2xWZXJzaW9uIjoyLCJjb2RlYyI6Impzb24iLCJyb29tSWQiOiJyb29tLWEiLCJmcm9tUGVlcklkIjoicGVlci1hIiwidGltZXN0YW1wIjoxNzAwMDAwMDAwMDAwLCJ0eXBlIjoiaGVsbG8iLCJwYXlsb2FkIjp7InBlZXIiOnsiaWQiOiJwZWVyLWEiLCJqb2luZWRBdCI6MSwibGFzdFNlZW4iOjE3MDAwMDAwMDAwMDAsIm5hbWUiOiJBbGljZSIsInJvbGUiOiJlZGl0b3IifSwicHJvdG9jb2wiOnsibWluVmVyc2lvbiI6MSwibWF4VmVyc2lvbiI6MiwiY29kZWNzIjpbImpzb24iLCJtc2dwYWNrIl0sInByZWZlcnJlZENvZGVjIjoibXNncGFjayJ9fX0=",
+      "text": "{\"source\":\"roomful\",\"protocolVersion\":2,\"codec\":\"json\",\"roomId\":\"room-a\",\"fromPeerId\":\"peer-a\",\"timestamp\":1700000000000,\"type\":\"hello\",\"payload\":{\"peer\":{\"id\":\"peer-a\",\"joinedAt\":1,\"lastSeen\":1700000000000,\"name\":\"Alice\",\"role\":\"editor\"},\"protocol\":{\"minVersion\":1,\"maxVersion\":2,\"codecs\":[\"json\",\"msgpack\"],\"preferredCodec\":\"msgpack\"}}}"
+    },
+    {
+      "name": "hello/v2-msgpack",
+      "session": {
+        "version": 2,
+        "codec": "msgpack",
+        "legacy": false
+      },
+      "message": {
+        "type": "hello",
+        "roomId": "room-a",
+        "fromPeerId": "peer-a",
+        "timestamp": 1700000000000,
+        "payload": {
+          "peer": {
+            "id": "peer-a",
+            "joinedAt": 1,
+            "lastSeen": 1700000000000,
+            "name": "Alice",
+            "role": "editor"
+          },
+          "protocol": {
+            "minVersion": 1,
+            "maxVersion": 2,
+            "codecs": [
+              "json",
+              "msgpack"
+            ],
+            "preferredCodec": "msgpack"
+          }
+        }
+      },
+      "wireBase64": "iKZzb3VyY2Wncm9vbWZ1bK9wcm90b2NvbFZlcnNpb24CpWNvZGVjp21zZ3BhY2umcm9vbUlkpnJvb20tYapmcm9tUGVlcklkpnBlZXItYal0aW1lc3RhbXDLQni8/laAAACkdHlwZaVoZWxsb6dwYXlsb2FkgqRwZWVyhaJpZKZwZWVyLWGoam9pbmVkQXQBqGxhc3RTZWVuy0J4vP5WgAAApG5hbWWlQWxpY2Wkcm9sZaZlZGl0b3KocHJvdG9jb2yEqm1pblZlcnNpb24Bqm1heFZlcnNpb24CpmNvZGVjc5KkanNvbqdtc2dwYWNrrnByZWZlcnJlZENvZGVjp21zZ3BhY2s="
+    },
+    {
+      "name": "presence-update/v1-json",
+      "session": {
+        "version": 1,
+        "codec": "json",
+        "legacy": true
+      },
+      "message": {
+        "type": "presence:update",
+        "roomId": "room-a",
+        "fromPeerId": "peer-a",
+        "timestamp": 1700000000000,
+        "payload": {
+          "peer": {
+            "id": "peer-a",
+            "joinedAt": 1,
+            "lastSeen": 1700000000000,
+            "name": "Alice"
+          }
+        }
+      },
+      "wireBase64": "eyJzb3VyY2UiOiJyb29tZnVsIiwidmVyc2lvbiI6MSwic2lnbmFsIjp7InR5cGUiOiJwcmVzZW5jZTp1cGRhdGUiLCJyb29tSWQiOiJyb29tLWEiLCJmcm9tUGVlcklkIjoicGVlci1hIiwicGF5bG9hZCI6eyJwZWVyIjp7ImlkIjoicGVlci1hIiwiam9pbmVkQXQiOjEsImxhc3RTZWVuIjoxNzAwMDAwMDAwMDAwLCJuYW1lIjoiQWxpY2UifX19fQ==",
+      "text": "{\"source\":\"roomful\",\"version\":1,\"signal\":{\"type\":\"presence:update\",\"roomId\":\"room-a\",\"fromPeerId\":\"peer-a\",\"payload\":{\"peer\":{\"id\":\"peer-a\",\"joinedAt\":1,\"lastSeen\":1700000000000,\"name\":\"Alice\"}}}}"
+    },
+    {
+      "name": "presence-update/v2-json",
+      "session": {
+        "version": 2,
+        "codec": "json",
+        "legacy": false
+      },
+      "message": {
+        "type": "presence:update",
+        "roomId": "room-a",
+        "fromPeerId": "peer-a",
+        "timestamp": 1700000000000,
+        "payload": {
+          "peer": {
+            "id": "peer-a",
+            "joinedAt": 1,
+            "lastSeen": 1700000000000,
+            "name": "Alice"
+          }
+        }
+      },
+      "wireBase64": "eyJzb3VyY2UiOiJyb29tZnVsIiwicHJvdG9jb2xWZXJzaW9uIjoyLCJjb2RlYyI6Impzb24iLCJyb29tSWQiOiJyb29tLWEiLCJmcm9tUGVlcklkIjoicGVlci1hIiwidGltZXN0YW1wIjoxNzAwMDAwMDAwMDAwLCJ0eXBlIjoicHJlc2VuY2U6dXBkYXRlIiwicGF5bG9hZCI6eyJwZWVyIjp7ImlkIjoicGVlci1hIiwiam9pbmVkQXQiOjEsImxhc3RTZWVuIjoxNzAwMDAwMDAwMDAwLCJuYW1lIjoiQWxpY2UifX19",
+      "text": "{\"source\":\"roomful\",\"protocolVersion\":2,\"codec\":\"json\",\"roomId\":\"room-a\",\"fromPeerId\":\"peer-a\",\"timestamp\":1700000000000,\"type\":\"presence:update\",\"payload\":{\"peer\":{\"id\":\"peer-a\",\"joinedAt\":1,\"lastSeen\":1700000000000,\"name\":\"Alice\"}}}"
+    },
+    {
+      "name": "presence-update/v2-msgpack",
+      "session": {
+        "version": 2,
+        "codec": "msgpack",
+        "legacy": false
+      },
+      "message": {
+        "type": "presence:update",
+        "roomId": "room-a",
+        "fromPeerId": "peer-a",
+        "timestamp": 1700000000000,
+        "payload": {
+          "peer": {
+            "id": "peer-a",
+            "joinedAt": 1,
+            "lastSeen": 1700000000000,
+            "name": "Alice"
+          }
+        }
+      },
+      "wireBase64": "iKZzb3VyY2Wncm9vbWZ1bK9wcm90b2NvbFZlcnNpb24CpWNvZGVjp21zZ3BhY2umcm9vbUlkpnJvb20tYapmcm9tUGVlcklkpnBlZXItYal0aW1lc3RhbXDLQni8/laAAACkdHlwZa9wcmVzZW5jZTp1cGRhdGWncGF5bG9hZIGkcGVlcoSiaWSmcGVlci1hqGpvaW5lZEF0AahsYXN0U2VlbstCeLz+VoAAAKRuYW1lpUFsaWNl"
+    },
+    {
+      "name": "cursor-update/v1-json",
+      "session": {
+        "version": 1,
+        "codec": "json",
+        "legacy": true
+      },
+      "message": {
+        "type": "cursor:update",
+        "roomId": "room-a",
+        "fromPeerId": "peer-a",
+        "timestamp": 1700000000000,
+        "payload": {
+          "cursor": {
+            "userId": "peer-a",
+            "name": "Alice",
+            "color": "#ff0055",
+            "x": 0.5,
+            "y": 0.25,
+            "xAbsolute": 640,
+            "yAbsolute": 360,
+            "idle": false
+          }
+        }
+      },
+      "wireBase64": "eyJzb3VyY2UiOiJyb29tZnVsIiwidmVyc2lvbiI6MSwic2lnbmFsIjp7InR5cGUiOiJjdXJzb3I6dXBkYXRlIiwicm9vbUlkIjoicm9vbS1hIiwiZnJvbVBlZXJJZCI6InBlZXItYSIsInBheWxvYWQiOnsiY3Vyc29yIjp7InVzZXJJZCI6InBlZXItYSIsIm5hbWUiOiJBbGljZSIsImNvbG9yIjoiI2ZmMDA1NSIsIngiOjAuNSwieSI6MC4yNSwieEFic29sdXRlIjo2NDAsInlBYnNvbHV0ZSI6MzYwLCJpZGxlIjpmYWxzZX19fX0=",
+      "text": "{\"source\":\"roomful\",\"version\":1,\"signal\":{\"type\":\"cursor:update\",\"roomId\":\"room-a\",\"fromPeerId\":\"peer-a\",\"payload\":{\"cursor\":{\"userId\":\"peer-a\",\"name\":\"Alice\",\"color\":\"#ff0055\",\"x\":0.5,\"y\":0.25,\"xAbsolute\":640,\"yAbsolute\":360,\"idle\":false}}}}"
+    },
+    {
+      "name": "cursor-update/v2-json",
+      "session": {
+        "version": 2,
+        "codec": "json",
+        "legacy": false
+      },
+      "message": {
+        "type": "cursor:update",
+        "roomId": "room-a",
+        "fromPeerId": "peer-a",
+        "timestamp": 1700000000000,
+        "payload": {
+          "cursor": {
+            "userId": "peer-a",
+            "name": "Alice",
+            "color": "#ff0055",
+            "x": 0.5,
+            "y": 0.25,
+            "xAbsolute": 640,
+            "yAbsolute": 360,
+            "idle": false
+          }
+        }
+      },
+      "wireBase64": "eyJzb3VyY2UiOiJyb29tZnVsIiwicHJvdG9jb2xWZXJzaW9uIjoyLCJjb2RlYyI6Impzb24iLCJyb29tSWQiOiJyb29tLWEiLCJmcm9tUGVlcklkIjoicGVlci1hIiwidGltZXN0YW1wIjoxNzAwMDAwMDAwMDAwLCJ0eXBlIjoiY3Vyc29yOnVwZGF0ZSIsInBheWxvYWQiOnsiY3Vyc29yIjp7InVzZXJJZCI6InBlZXItYSIsIm5hbWUiOiJBbGljZSIsImNvbG9yIjoiI2ZmMDA1NSIsIngiOjAuNSwieSI6MC4yNSwieEFic29sdXRlIjo2NDAsInlBYnNvbHV0ZSI6MzYwLCJpZGxlIjpmYWxzZX19fQ==",
+      "text": "{\"source\":\"roomful\",\"protocolVersion\":2,\"codec\":\"json\",\"roomId\":\"room-a\",\"fromPeerId\":\"peer-a\",\"timestamp\":1700000000000,\"type\":\"cursor:update\",\"payload\":{\"cursor\":{\"userId\":\"peer-a\",\"name\":\"Alice\",\"color\":\"#ff0055\",\"x\":0.5,\"y\":0.25,\"xAbsolute\":640,\"yAbsolute\":360,\"idle\":false}}}"
+    },
+    {
+      "name": "cursor-update/v2-msgpack",
+      "session": {
+        "version": 2,
+        "codec": "msgpack",
+        "legacy": false
+      },
+      "message": {
+        "type": "cursor:update",
+        "roomId": "room-a",
+        "fromPeerId": "peer-a",
+        "timestamp": 1700000000000,
+        "payload": {
+          "cursor": {
+            "userId": "peer-a",
+            "name": "Alice",
+            "color": "#ff0055",
+            "x": 0.5,
+            "y": 0.25,
+            "xAbsolute": 640,
+            "yAbsolute": 360,
+            "idle": false
+          }
+        }
+      },
+      "wireBase64": "iKZzb3VyY2Wncm9vbWZ1bK9wcm90b2NvbFZlcnNpb24CpWNvZGVjp21zZ3BhY2umcm9vbUlkpnJvb20tYapmcm9tUGVlcklkpnBlZXItYal0aW1lc3RhbXDLQni8/laAAACkdHlwZa1jdXJzb3I6dXBkYXRlp3BheWxvYWSBpmN1cnNvcoimdXNlcklkpnBlZXItYaRuYW1lpUFsaWNlpWNvbG9ypyNmZjAwNTWheMs/4AAAAAAAAKF5yz/QAAAAAAAAqXhBYnNvbHV0Zc0CgKl5QWJzb2x1dGXNAWikaWRsZcI="
+    },
+    {
+      "name": "event-direct/v1-json",
+      "session": {
+        "version": 1,
+        "codec": "json",
+        "legacy": true
+      },
+      "message": {
+        "type": "event",
+        "roomId": "room-a",
+        "fromPeerId": "peer-a",
+        "toPeerId": "peer-b",
+        "timestamp": 1700000000000,
+        "payload": {
+          "name": "ping",
+          "payload": {
+            "ok": true
+          }
+        }
+      },
+      "wireBase64": "eyJzb3VyY2UiOiJyb29tZnVsIiwidmVyc2lvbiI6MSwic2lnbmFsIjp7InR5cGUiOiJldmVudCIsInJvb21JZCI6InJvb20tYSIsImZyb21QZWVySWQiOiJwZWVyLWEiLCJ0b1BlZXJJZCI6InBlZXItYiIsInBheWxvYWQiOnsiZXZlbnQiOnsibmFtZSI6InBpbmciLCJwYXlsb2FkIjp7Im9rIjp0cnVlfX19fX0=",
+      "text": "{\"source\":\"roomful\",\"version\":1,\"signal\":{\"type\":\"event\",\"roomId\":\"room-a\",\"fromPeerId\":\"peer-a\",\"toPeerId\":\"peer-b\",\"payload\":{\"event\":{\"name\":\"ping\",\"payload\":{\"ok\":true}}}}}"
+    },
+    {
+      "name": "event-direct/v2-json",
+      "session": {
+        "version": 2,
+        "codec": "json",
+        "legacy": false
+      },
+      "message": {
+        "type": "event",
+        "roomId": "room-a",
+        "fromPeerId": "peer-a",
+        "toPeerId": "peer-b",
+        "timestamp": 1700000000000,
+        "payload": {
+          "name": "ping",
+          "payload": {
+            "ok": true
+          }
+        }
+      },
+      "wireBase64": "eyJzb3VyY2UiOiJyb29tZnVsIiwicHJvdG9jb2xWZXJzaW9uIjoyLCJjb2RlYyI6Impzb24iLCJyb29tSWQiOiJyb29tLWEiLCJmcm9tUGVlcklkIjoicGVlci1hIiwidG9QZWVySWQiOiJwZWVyLWIiLCJ0aW1lc3RhbXAiOjE3MDAwMDAwMDAwMDAsInR5cGUiOiJldmVudCIsInBheWxvYWQiOnsibmFtZSI6InBpbmciLCJwYXlsb2FkIjp7Im9rIjp0cnVlfX19",
+      "text": "{\"source\":\"roomful\",\"protocolVersion\":2,\"codec\":\"json\",\"roomId\":\"room-a\",\"fromPeerId\":\"peer-a\",\"toPeerId\":\"peer-b\",\"timestamp\":1700000000000,\"type\":\"event\",\"payload\":{\"name\":\"ping\",\"payload\":{\"ok\":true}}}"
+    },
+    {
+      "name": "event-direct/v2-msgpack",
+      "session": {
+        "version": 2,
+        "codec": "msgpack",
+        "legacy": false
+      },
+      "message": {
+        "type": "event",
+        "roomId": "room-a",
+        "fromPeerId": "peer-a",
+        "toPeerId": "peer-b",
+        "timestamp": 1700000000000,
+        "payload": {
+          "name": "ping",
+          "payload": {
+            "ok": true
+          }
+        }
+      },
+      "wireBase64": "iaZzb3VyY2Wncm9vbWZ1bK9wcm90b2NvbFZlcnNpb24CpWNvZGVjp21zZ3BhY2umcm9vbUlkpnJvb20tYapmcm9tUGVlcklkpnBlZXItYah0b1BlZXJJZKZwZWVyLWKpdGltZXN0YW1wy0J4vP5WgAAApHR5cGWlZXZlbnSncGF5bG9hZIKkbmFtZaRwaW5np3BheWxvYWSBom9rww=="
+    },
+    {
+      "name": "state-update/v1-json",
+      "session": {
+        "version": 1,
+        "codec": "json",
+        "legacy": true
+      },
+      "message": {
+        "type": "state:update",
+        "roomId": "room-a",
+        "fromPeerId": "peer-a",
+        "timestamp": 1700000000000,
+        "payload": {
+          "value": {
+            "count": 1
+          },
+          "history": [],
+          "vectorClock": {
+            "peer-a": 1
+          },
+          "changedBy": "peer-a",
+          "timestamp": 1700000000000,
+          "reason": "set"
+        }
+      },
+      "wireBase64": "eyJzb3VyY2UiOiJyb29tZnVsIiwidmVyc2lvbiI6MSwic2lnbmFsIjp7InR5cGUiOiJzdGF0ZTp1cGRhdGUiLCJyb29tSWQiOiJyb29tLWEiLCJmcm9tUGVlcklkIjoicGVlci1hIiwicGF5bG9hZCI6eyJ2YWx1ZSI6eyJjb3VudCI6MX0sImhpc3RvcnkiOltdLCJ2ZWN0b3JDbG9jayI6eyJwZWVyLWEiOjF9LCJjaGFuZ2VkQnkiOiJwZWVyLWEiLCJ0aW1lc3RhbXAiOjE3MDAwMDAwMDAwMDAsInJlYXNvbiI6InNldCJ9fX0=",
+      "text": "{\"source\":\"roomful\",\"version\":1,\"signal\":{\"type\":\"state:update\",\"roomId\":\"room-a\",\"fromPeerId\":\"peer-a\",\"payload\":{\"value\":{\"count\":1},\"history\":[],\"vectorClock\":{\"peer-a\":1},\"changedBy\":\"peer-a\",\"timestamp\":1700000000000,\"reason\":\"set\"}}}"
+    },
+    {
+      "name": "state-update/v2-json",
+      "session": {
+        "version": 2,
+        "codec": "json",
+        "legacy": false
+      },
+      "message": {
+        "type": "state:update",
+        "roomId": "room-a",
+        "fromPeerId": "peer-a",
+        "timestamp": 1700000000000,
+        "payload": {
+          "value": {
+            "count": 1
+          },
+          "history": [],
+          "vectorClock": {
+            "peer-a": 1
+          },
+          "changedBy": "peer-a",
+          "timestamp": 1700000000000,
+          "reason": "set"
+        }
+      },
+      "wireBase64": "eyJzb3VyY2UiOiJyb29tZnVsIiwicHJvdG9jb2xWZXJzaW9uIjoyLCJjb2RlYyI6Impzb24iLCJyb29tSWQiOiJyb29tLWEiLCJmcm9tUGVlcklkIjoicGVlci1hIiwidGltZXN0YW1wIjoxNzAwMDAwMDAwMDAwLCJ0eXBlIjoic3RhdGU6dXBkYXRlIiwicGF5bG9hZCI6eyJ2YWx1ZSI6eyJjb3VudCI6MX0sImhpc3RvcnkiOltdLCJ2ZWN0b3JDbG9jayI6eyJwZWVyLWEiOjF9LCJjaGFuZ2VkQnkiOiJwZWVyLWEiLCJ0aW1lc3RhbXAiOjE3MDAwMDAwMDAwMDAsInJlYXNvbiI6InNldCJ9fQ==",
+      "text": "{\"source\":\"roomful\",\"protocolVersion\":2,\"codec\":\"json\",\"roomId\":\"room-a\",\"fromPeerId\":\"peer-a\",\"timestamp\":1700000000000,\"type\":\"state:update\",\"payload\":{\"value\":{\"count\":1},\"history\":[],\"vectorClock\":{\"peer-a\":1},\"changedBy\":\"peer-a\",\"timestamp\":1700000000000,\"reason\":\"set\"}}"
+    },
+    {
+      "name": "state-update/v2-msgpack",
+      "session": {
+        "version": 2,
+        "codec": "msgpack",
+        "legacy": false
+      },
+      "message": {
+        "type": "state:update",
+        "roomId": "room-a",
+        "fromPeerId": "peer-a",
+        "timestamp": 1700000000000,
+        "payload": {
+          "value": {
+            "count": 1
+          },
+          "history": [],
+          "vectorClock": {
+            "peer-a": 1
+          },
+          "changedBy": "peer-a",
+          "timestamp": 1700000000000,
+          "reason": "set"
+        }
+      },
+      "wireBase64": "iKZzb3VyY2Wncm9vbWZ1bK9wcm90b2NvbFZlcnNpb24CpWNvZGVjp21zZ3BhY2umcm9vbUlkpnJvb20tYapmcm9tUGVlcklkpnBlZXItYal0aW1lc3RhbXDLQni8/laAAACkdHlwZaxzdGF0ZTp1cGRhdGWncGF5bG9hZIaldmFsdWWBpWNvdW50AadoaXN0b3J5kKt2ZWN0b3JDbG9ja4GmcGVlci1hAaljaGFuZ2VkQnmmcGVlci1hqXRpbWVzdGFtcMtCeLz+VoAAAKZyZWFzb26jc2V0"
+    },
+    {
+      "name": "leave/v1-json",
+      "session": {
+        "version": 1,
+        "codec": "json",
+        "legacy": true
+      },
+      "message": {
+        "type": "leave",
+        "roomId": "room-a",
+        "fromPeerId": "peer-a",
+        "timestamp": 1700000000000,
+        "payload": {}
+      },
+      "wireBase64": "eyJzb3VyY2UiOiJyb29tZnVsIiwidmVyc2lvbiI6MSwic2lnbmFsIjp7InR5cGUiOiJsZWF2ZSIsInJvb21JZCI6InJvb20tYSIsImZyb21QZWVySWQiOiJwZWVyLWEiLCJwYXlsb2FkIjp7fX19",
+      "text": "{\"source\":\"roomful\",\"version\":1,\"signal\":{\"type\":\"leave\",\"roomId\":\"room-a\",\"fromPeerId\":\"peer-a\",\"payload\":{}}}"
+    },
+    {
+      "name": "leave/v2-json",
+      "session": {
+        "version": 2,
+        "codec": "json",
+        "legacy": false
+      },
+      "message": {
+        "type": "leave",
+        "roomId": "room-a",
+        "fromPeerId": "peer-a",
+        "timestamp": 1700000000000,
+        "payload": {}
+      },
+      "wireBase64": "eyJzb3VyY2UiOiJyb29tZnVsIiwicHJvdG9jb2xWZXJzaW9uIjoyLCJjb2RlYyI6Impzb24iLCJyb29tSWQiOiJyb29tLWEiLCJmcm9tUGVlcklkIjoicGVlci1hIiwidGltZXN0YW1wIjoxNzAwMDAwMDAwMDAwLCJ0eXBlIjoibGVhdmUiLCJwYXlsb2FkIjp7fX0=",
+      "text": "{\"source\":\"roomful\",\"protocolVersion\":2,\"codec\":\"json\",\"roomId\":\"room-a\",\"fromPeerId\":\"peer-a\",\"timestamp\":1700000000000,\"type\":\"leave\",\"payload\":{}}"
+    },
+    {
+      "name": "leave/v2-msgpack",
+      "session": {
+        "version": 2,
+        "codec": "msgpack",
+        "legacy": false
+      },
+      "message": {
+        "type": "leave",
+        "roomId": "room-a",
+        "fromPeerId": "peer-a",
+        "timestamp": 1700000000000,
+        "payload": {}
+      },
+      "wireBase64": "iKZzb3VyY2Wncm9vbWZ1bK9wcm90b2NvbFZlcnNpb24CpWNvZGVjp21zZ3BhY2umcm9vbUlkpnJvb20tYapmcm9tUGVlcklkpnBlZXItYal0aW1lc3RhbXDLQni8/laAAACkdHlwZaVsZWF2ZadwYXlsb2FkgA=="
+    },
+    {
+      "name": "crdt-sync/v2-json",
+      "session": {
+        "version": 2,
+        "codec": "json",
+        "legacy": false
+      },
+      "message": {
+        "type": "crdt:sync",
+        "roomId": "room-a",
+        "fromPeerId": "peer-a",
+        "timestamp": 1700000000000,
+        "payload": {
+          "kind": "update",
+          "data": {
+            "$bin": "ChQeKA=="
+          }
+        }
+      },
+      "wireBase64": "eyJzb3VyY2UiOiJyb29tZnVsIiwicHJvdG9jb2xWZXJzaW9uIjoyLCJjb2RlYyI6Impzb24iLCJyb29tSWQiOiJyb29tLWEiLCJmcm9tUGVlcklkIjoicGVlci1hIiwidGltZXN0YW1wIjoxNzAwMDAwMDAwMDAwLCJ0eXBlIjoiY3JkdDpzeW5jIiwicGF5bG9hZCI6eyJraW5kIjoidXBkYXRlIiwiZGF0YSI6WzEwLDIwLDMwLDQwXX19",
+      "text": "{\"source\":\"roomful\",\"protocolVersion\":2,\"codec\":\"json\",\"roomId\":\"room-a\",\"fromPeerId\":\"peer-a\",\"timestamp\":1700000000000,\"type\":\"crdt:sync\",\"payload\":{\"kind\":\"update\",\"data\":[10,20,30,40]}}"
+    },
+    {
+      "name": "crdt-sync/v2-msgpack",
+      "session": {
+        "version": 2,
+        "codec": "msgpack",
+        "legacy": false
+      },
+      "message": {
+        "type": "crdt:sync",
+        "roomId": "room-a",
+        "fromPeerId": "peer-a",
+        "timestamp": 1700000000000,
+        "payload": {
+          "kind": "update",
+          "data": {
+            "$bin": "ChQeKA=="
+          }
+        }
+      },
+      "wireBase64": "iKZzb3VyY2Wncm9vbWZ1bK9wcm90b2NvbFZlcnNpb24CpWNvZGVjp21zZ3BhY2umcm9vbUlkpnJvb20tYapmcm9tUGVlcklkpnBlZXItYal0aW1lc3RhbXDLQni8/laAAACkdHlwZaljcmR0OnN5bmOncGF5bG9hZIKka2luZKZ1cGRhdGWkZGF0YcQEChQeKA=="
+    },
+    {
+      "name": "encrypted/v2-json",
+      "session": {
+        "version": 2,
+        "codec": "json",
+        "legacy": false
+      },
+      "message": {
+        "type": "encrypted",
+        "roomId": "room-a",
+        "fromPeerId": "peer-a",
+        "toPeerId": "peer-b",
+        "timestamp": 1700000000000,
+        "payload": {
+          "version": 1,
+          "iv": {
+            "$bin": "AQID"
+          },
+          "ciphertext": {
+            "$bin": "BAUGBwg="
+          }
+        }
+      },
+      "wireBase64": "eyJzb3VyY2UiOiJyb29tZnVsIiwicHJvdG9jb2xWZXJzaW9uIjoyLCJjb2RlYyI6Impzb24iLCJyb29tSWQiOiJyb29tLWEiLCJmcm9tUGVlcklkIjoicGVlci1hIiwidG9QZWVySWQiOiJwZWVyLWIiLCJ0aW1lc3RhbXAiOjE3MDAwMDAwMDAwMDAsInR5cGUiOiJlbmNyeXB0ZWQiLCJwYXlsb2FkIjp7InZlcnNpb24iOjEsIml2IjpbMSwyLDNdLCJjaXBoZXJ0ZXh0IjpbNCw1LDYsNyw4XX19",
+      "text": "{\"source\":\"roomful\",\"protocolVersion\":2,\"codec\":\"json\",\"roomId\":\"room-a\",\"fromPeerId\":\"peer-a\",\"toPeerId\":\"peer-b\",\"timestamp\":1700000000000,\"type\":\"encrypted\",\"payload\":{\"version\":1,\"iv\":[1,2,3],\"ciphertext\":[4,5,6,7,8]}}"
+    },
+    {
+      "name": "encrypted/v2-msgpack",
+      "session": {
+        "version": 2,
+        "codec": "msgpack",
+        "legacy": false
+      },
+      "message": {
+        "type": "encrypted",
+        "roomId": "room-a",
+        "fromPeerId": "peer-a",
+        "toPeerId": "peer-b",
+        "timestamp": 1700000000000,
+        "payload": {
+          "version": 1,
+          "iv": {
+            "$bin": "AQID"
+          },
+          "ciphertext": {
+            "$bin": "BAUGBwg="
+          }
+        }
+      },
+      "wireBase64": "iaZzb3VyY2Wncm9vbWZ1bK9wcm90b2NvbFZlcnNpb24CpWNvZGVjp21zZ3BhY2umcm9vbUlkpnJvb20tYapmcm9tUGVlcklkpnBlZXItYah0b1BlZXJJZKZwZWVyLWKpdGltZXN0YW1wy0J4vP5WgAAApHR5cGWpZW5jcnlwdGVkp3BheWxvYWSDp3ZlcnNpb24Boml2xAMBAgOqY2lwaGVydGV4dMQFBAUGBwg="
+    }
+  ]
+}
