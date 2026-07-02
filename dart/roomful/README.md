@@ -7,8 +7,8 @@ core client. The Flutter widgets/overlays layer is the separate `roomful_flutter
 > [Roomful Protocol v2](../../rfcs/0001-protocol-v2.md) — capabilities, session negotiation, the
 > versioned envelope, and the JSON codec — the relay control protocol, a `RoomfulClient` room
 > lifecycle (join, peer registry, message relay), and a WebSocket relay transport. It also
-> provides the presence / events / shared-state (LWW) room primitives. Cursors, locks, and the
-> MessagePack codec land next. Not yet published to pub.dev.
+> provides the room primitives — presence, cursors, events, last-write-wins shared state, and
+> advisory locks. The MessagePack codec lands next. Not yet published to pub.dev.
 
 ## What works today
 
@@ -20,6 +20,8 @@ core client. The Flutter widgets/overlays layer is the separate `roomful_flutter
 - `EventEngine` — fire-and-forget room events (`emit` / `on`).
 - `PresenceEngine` — live presence, cleaned up when peers leave and re-announced to newcomers.
 - `SharedStateEngine` — last-write-wins shared state that converges across peers.
+- `CursorsEngine` — live multiplayer cursors, cleared when peers leave.
+- `LocksEngine` — advisory distributed locks with deterministic earliest-claim resolution.
 
 Run the example:
 

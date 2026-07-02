@@ -67,6 +67,22 @@ WireMessage stateMessage(String from, Object? value, int timestamp) => WireMessa
       },
     );
 
+WireMessage lockEvent(String name, String key, String peerId, int timestamp) =>
+    WireMessage(
+      type: 'event',
+      roomId: 'room-a',
+      fromPeerId: peerId,
+      timestamp: timestamp,
+      payload: <String, dynamic>{
+        'name': name,
+        'payload': <String, dynamic>{
+          'key': key,
+          'peerId': peerId,
+          'timestamp': timestamp,
+        },
+      },
+    );
+
 void main() {
   group('EventEngine', () {
     test('dispatches inbound events to handlers by name', () async {
@@ -160,6 +176,64 @@ void main() {
       fake.emit(transportFrame(stateMessage('js-2', <String, dynamic>{'count': 2}, 20)));
       await pump();
       expect(state.value, <String, dynamic>{'count': 2});
+    });
+  });
+
+  group('CursorsEngine', () {
+    test('tracks remote cursors and clears them on leave', () async {
+      final fake = FakeTransport();
+      final client = await connectClient(fake);
+      final cursors = CursorsEngine(client);
+
+      fake.emit(<String, dynamic>{
+        'type': 'peer-joined',
+        'roomId': 'room-a',
+        'peerId': 'js-1',
+      });
+      await pump();
+
+      fake.emit(transportFrame(WireMessage(
+        type: 'cursor:update',
+        roomId: 'room-a',
+        fromPeerId: 'js-1',
+        timestamp: 1,
+        payload: <String, dynamic>{
+          'cursor': <String, dynamic>{'userId': 'js-1', 'x': 0.5},
+        },
+      )));
+      await pump();
+      expect(cursors.remote['js-1']?['x'], 0.5);
+
+      fake.emit(<String, dynamic>{
+        'type': 'peer-left',
+        'roomId': 'room-a',
+        'peerId': 'js-1',
+      });
+      await pump();
+      expect(cursors.remote.containsKey('js-1'), isFalse);
+    });
+  });
+
+  group('LocksEngine', () {
+    test('resolves the holder by earliest claim; release hands it over', () async {
+      final fake = FakeTransport();
+      final client = await connectClient(fake);
+      final locks = LocksEngine(client);
+
+      // A remote peer claims the lock earlier than our later claim.
+      fake.emit(transportFrame(lockEvent('roomful:lock:acquire', 'row-1', 'js-1', 5)));
+      await pump();
+      expect(locks.holder('row-1'), 'js-1');
+
+      locks.acquire('row-1');
+      expect(locks.holder('row-1'), 'js-1');
+      expect(locks.isHeldByMe('row-1'), isFalse);
+
+      // The earlier holder releases, so our claim wins.
+      fake.emit(transportFrame(lockEvent('roomful:lock:release', 'row-1', 'js-1', 6)));
+      await pump();
+      expect(locks.holder('row-1'), 'dart-1');
+      expect(locks.isHeldByMe('row-1'), isTrue);
     });
   });
 }

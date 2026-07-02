@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.0-alpha.4
+
+- Add the remaining room primitives: `CursorsEngine` (live multiplayer cursors) and `LocksEngine`
+  (advisory distributed locks — earliest claim wins, carried over the event channel with reserved
+  `roomful:lock:*` names) (EP-11 / S06). The MessagePack codec is the remaining `v2.1-alpha` item.
+
 ## 0.1.0-alpha.3
 
 - Add the room primitives on `RoomfulClient`: `EventEngine` (emit/on), `PresenceEngine` (live presence
