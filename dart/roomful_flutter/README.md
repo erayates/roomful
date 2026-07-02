@@ -34,6 +34,7 @@ RoomfulProvider.of(context).setPresence({'name': 'Alice', 'color': '#5cc7ab'});
 - `RoomController` — a `ChangeNotifier` with `peers`, `presence`, `cursors`, `events`, `connect()`, `setPresence()`, `setCursor()`.
 - `RoomfulBuilder` — rebuilds its subtree whenever the room changes.
 - `PresenceAvatars` — an overlapping avatar stack driven by presence (`name` / `color` initials, a `+N` overflow chip). Reads the nearest provider, or pass a `controller`.
+- `LiveCursorsOverlay` — paints remote peers' live cursors over a child surface, labelled and coloured from presence. Supports pixel or `normalized` (`0..1`) coordinates.
 
 The whole `roomful` core (client, protocol, engines) is re-exported, so a single import is enough.
 
