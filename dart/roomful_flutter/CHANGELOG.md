@@ -10,4 +10,7 @@
   `package:flutter/widgets.dart`.
 - `LiveCursorsOverlay` — paints remote peers' live cursors over a child surface (labelled and
   coloured from presence), with pixel or `normalized` (`0..1`) coordinates. Shares the colour
-  helpers with `PresenceAvatars`. (A shared-state widget layer and example app follow.)
+  helpers with `PresenceAvatars`.
+- `RoomfulSharedStateBuilder<T>` — a typed, reactive view of the room's shared (last-write-wins)
+  value, with a setter to publish changes. `RoomController` now owns a `SharedStateEngine` and
+  exposes `sharedValue` / `setSharedState`. (A runnable example app follows.)

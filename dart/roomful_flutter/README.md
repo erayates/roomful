@@ -35,6 +35,7 @@ RoomfulProvider.of(context).setPresence({'name': 'Alice', 'color': '#5cc7ab'});
 - `RoomfulBuilder` — rebuilds its subtree whenever the room changes.
 - `PresenceAvatars` — an overlapping avatar stack driven by presence (`name` / `color` initials, a `+N` overflow chip). Reads the nearest provider, or pass a `controller`.
 - `LiveCursorsOverlay` — paints remote peers' live cursors over a child surface, labelled and coloured from presence. Supports pixel or `normalized` (`0..1`) coordinates.
+- `RoomfulSharedStateBuilder<T>` — a typed, reactive view of the room's shared (last-write-wins) value, with a setter to publish changes.
 
 The whole `roomful` core (client, protocol, engines) is re-exported, so a single import is enough.
 

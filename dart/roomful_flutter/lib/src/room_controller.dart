@@ -10,10 +10,12 @@ class RoomController extends ChangeNotifier {
   RoomController(this.client)
       : presence = PresenceEngine(client),
         cursors = CursorsEngine(client),
-        events = EventEngine(client) {
+        events = EventEngine(client),
+        sharedState = SharedStateEngine(client) {
     _peerSub = client.peerEvents.listen(_onChange);
     _presenceSub = presence.changes.listen(_onChange);
     _cursorSub = cursors.changes.listen(_onChange);
+    _stateSub = sharedState.changes.listen(_onChange);
   }
 
   /// The underlying room client.
@@ -28,9 +30,13 @@ class RoomController extends ChangeNotifier {
   /// Fire-and-forget room events.
   final EventEngine events;
 
+  /// The room's shared (last-write-wins) value. One value per room; see [sharedValue].
+  final SharedStateEngine sharedState;
+
   late final StreamSubscription<RoomfulPeerEvent> _peerSub;
   late final StreamSubscription<Map<String, Map<String, dynamic>>> _presenceSub;
   late final StreamSubscription<Map<String, Map<String, dynamic>>> _cursorSub;
+  late final StreamSubscription<Object?> _stateSub;
 
   /// The remote peers currently in the room.
   List<RemotePeer> get peers => client.peers;
@@ -47,6 +53,12 @@ class RoomController extends ChangeNotifier {
   /// Publishes the local peer's cursor.
   void setCursor(Map<String, dynamic> cursor) => cursors.set(cursor);
 
+  /// The room's current shared value, or null if nothing has been set yet.
+  Object? get sharedValue => sharedState.value;
+
+  /// Sets and broadcasts the room's shared value.
+  void setSharedState(Object? value) => sharedState.set(value);
+
   void _onChange(Object? _) => notifyListeners();
 
   @override
@@ -54,9 +66,11 @@ class RoomController extends ChangeNotifier {
     unawaited(_peerSub.cancel());
     unawaited(_presenceSub.cancel());
     unawaited(_cursorSub.cancel());
+    unawaited(_stateSub.cancel());
     unawaited(presence.dispose());
     unawaited(cursors.dispose());
     unawaited(events.dispose());
+    unawaited(sharedState.dispose());
     unawaited(client.disconnect());
     super.dispose();
   }
