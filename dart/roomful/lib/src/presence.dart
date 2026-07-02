@@ -11,11 +11,13 @@ class PresenceEngine {
     _messageSub =
         _client.messages.where((m) => m.type == 'presence:update').listen(_onPresence);
     _peerSub = _client.peerEvents.listen(_onPeerEvent);
+    _reconnectSub = _client.reconnects.listen((_) => _onReconnect());
   }
 
   final RoomfulClient _client;
   late final StreamSubscription<WireMessage> _messageSub;
   late final StreamSubscription<RoomfulPeerEvent> _peerSub;
+  late final StreamSubscription<void> _reconnectSub;
 
   Map<String, dynamic> _local = <String, dynamic>{};
   final Map<String, Map<String, dynamic>> _remote =
@@ -83,9 +85,18 @@ class PresenceEngine {
     }
   }
 
+  // After the client re-joins a room following a dropped connection, re-announce local presence
+  // so peers that missed the reconnect learn it again.
+  void _onReconnect() {
+    if (_local.isNotEmpty) {
+      _broadcastLocal();
+    }
+  }
+
   /// Cancels the engine's subscriptions.
   Future<void> dispose() async {
     await _messageSub.cancel();
     await _peerSub.cancel();
+    await _reconnectSub.cancel();
   }
 }

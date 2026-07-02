@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.0-alpha.8
+
+- Add opt-in auto-reconnect to `RoomfulClient` (EP-11). Pass a `RoomfulReconnect` policy (max
+  attempts + exponential backoff) and a dropped connection is re-established automatically: the
+  transport re-opens, the client re-joins, the peer registry resyncs, and a new `reconnects` stream
+  fires so engines re-announce — `PresenceEngine` re-broadcasts local presence. `WebSocketRelayTransport`
+  is now reusable across connect / close cycles. Without a policy a drop leaves the client
+  disconnected, as before. Unit-tested for reconnect, presence re-announce, and the no-policy path.
+
 ## 0.1.0-alpha.7
 
 - Add `LocksEngine.acquireBlocking(key, {timeout})`: claims the lock like `acquire`, then resolves
