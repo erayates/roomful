@@ -15,7 +15,10 @@
 library;
 
 export 'src/client.dart';
+export 'src/events.dart';
+export 'src/presence.dart';
 export 'src/protocol.dart';
 export 'src/relay.dart';
 export 'src/relay_transport.dart';
+export 'src/shared_state.dart';
 export 'src/transport.dart';
