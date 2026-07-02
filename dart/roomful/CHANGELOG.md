@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.0-alpha.10
+
+- Add `CursorsEngine.setPosition(x, y, {name, color, xAbsolute, yAbsolute, idle})`, which builds a
+  relay-conformant `cursor:update` — `userId` is the local peer id, `xAbsolute` / `yAbsolute` default
+  to the normalized `x` / `y`. The relay drops cursors missing any required field, so prefer this over
+  the low-level `set`. Makes Dart cursors interoperate with the JS SDK through a real relay (EP-14).
+
 ## 0.1.0-alpha.9
 
 - Fix `PresenceEngine` to emit relay-conformant presence: the broadcast `peer` now carries the

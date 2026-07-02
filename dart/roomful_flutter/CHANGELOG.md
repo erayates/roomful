@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.0-alpha.2
+
+- Update the example to publish cursors through `CursorsEngine.setPosition`, so its live cursors
+  carry every field the relay requires (a bare `{x, y}` map is dropped). Needs `roomful`
+  `>= 0.1.0-alpha.10`.
+
 ## 0.1.0-alpha.1
 
 - Initial `v2.2-beta` scaffold (EP-12): `RoomfulProvider` (room lifecycle + injection into the widget

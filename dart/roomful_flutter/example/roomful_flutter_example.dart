@@ -73,10 +73,15 @@ class _RoomScreenState extends State<_RoomScreen> {
     if (box.maxWidth == 0 || box.maxHeight == 0) {
       return;
     }
-    room.setCursor(<String, dynamic>{
-      'x': local.dx / box.maxWidth,
-      'y': local.dy / box.maxHeight,
-    });
+    // setPosition fills the relay-required cursor fields; a bare {x, y} map would be dropped.
+    room.cursors.setPosition(
+      local.dx / box.maxWidth,
+      local.dy / box.maxHeight,
+      name: widget.name,
+      color: widget.color,
+      xAbsolute: local.dx,
+      yAbsolute: local.dy,
+    );
   }
 
   @override

@@ -5,6 +5,11 @@ import 'protocol.dart';
 
 /// Live multiplayer cursors on top of a [RoomfulClient]: the local peer publishes its cursor,
 /// and remote cursors are tracked (keyed by peer id) and cleared when peers leave.
+///
+/// Prefer [setPosition] over [set]: the relay validates the cursor payload and drops any that omit
+/// a required field (`userId` / `name` / `color` / `x` / `y` / `xAbsolute` / `yAbsolute` / `idle`),
+/// so a hand-built partial cursor silently never reaches other peers. [setPosition] fills the
+/// mechanical fields for you (see `docs/reference/interop.md`).
 class CursorsEngine {
   CursorsEngine(this._client) {
     _messageSub =
@@ -30,7 +35,32 @@ class CursorsEngine {
   /// Emits the full remote cursor map whenever it changes.
   Stream<Map<String, Map<String, dynamic>>> get changes => _changes.stream;
 
-  /// Publishes the local peer's cursor position.
+  /// Publishes the local peer's cursor position, filling the relay-required fields. [x] / [y] are
+  /// the normalized `0..1` position (the interop-safe coordinates); [xAbsolute] / [yAbsolute]
+  /// default to them when not given. `userId` is the local peer id. Prefer this over [set].
+  void setPosition(
+    double x,
+    double y, {
+    String name = '',
+    String color = '',
+    double? xAbsolute,
+    double? yAbsolute,
+    bool idle = false,
+  }) {
+    set(<String, dynamic>{
+      'userId': _client.peerId,
+      'name': name,
+      'color': color,
+      'x': x,
+      'y': y,
+      'xAbsolute': xAbsolute ?? x,
+      'yAbsolute': yAbsolute ?? y,
+      'idle': idle,
+    });
+  }
+
+  /// Publishes an arbitrary cursor payload. Low-level: the map must carry every field the relay's
+  /// cursor schema requires, or the update is dropped — [setPosition] is the safe alternative.
   void set(Map<String, dynamic> cursor) {
     _client.broadcast(
       WireMessage(
