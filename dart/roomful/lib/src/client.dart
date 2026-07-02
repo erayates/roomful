@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'protocol.dart';
 import 'relay.dart';
@@ -42,10 +43,12 @@ class RoomfulClient {
     required this.peerId,
     required RoomfulTransport transport,
     ProtocolCapabilities? capabilities,
+    bool supportsBinary = false,
     int Function()? clock,
   })  : _transport = transport,
         capabilities =
             capabilities ?? ProtocolCapabilities.create(<String>['json'], 'json'),
+        _supportsBinary = supportsBinary,
         _clock = clock ?? _wallClock;
 
   final String roomId;
@@ -53,6 +56,7 @@ class RoomfulClient {
   final ProtocolCapabilities capabilities;
 
   final RoomfulTransport _transport;
+  final bool _supportsBinary;
   final int Function() _clock;
 
   final Map<String, RemotePeer> _peers = <String, RemotePeer>{};
@@ -99,9 +103,10 @@ class RoomfulClient {
   }
 
   /// Broadcasts [message] to the whole room.
-  void broadcast(WireMessage message) => _send(message, _defaultSession);
+  void broadcast(WireMessage message) => _send(message, _uplinkSession);
 
-  /// Sends [message] to a single peer, using that peer's negotiated session when known.
+  /// Sends [message] to a single peer. Encoded on the client's uplink session; the relay
+  /// re-encodes it for the target's session.
   void sendTo(String targetPeerId, WireMessage message) {
     _send(
       WireMessage(
@@ -112,7 +117,7 @@ class RoomfulClient {
         timestamp: message.timestamp,
         payload: message.payload,
       ),
-      _sessionFor(_peers[targetPeerId]),
+      _uplinkSession,
     );
   }
 
@@ -126,25 +131,33 @@ class RoomfulClient {
     await _teardown();
   }
 
-  static const ProtocolSession _defaultSession =
-      ProtocolSession(version: 2, codec: 'json', legacy: false);
-
-  ProtocolSession _sessionFor(RemotePeer? peer) {
-    final result =
-        negotiateSession(capabilities, peer?.protocol, supportsBinary: false);
-    return result.session ?? ProtocolSession.legacyV1;
-  }
+  /// The session the client encodes its outbound transport frames with, derived from its own
+  /// capabilities and whether its transport carries binary. The relay re-encodes per recipient,
+  /// so this is the client's uplink codec — msgpack only when both are in play — not any peer's.
+  ProtocolSession get _uplinkSession =>
+      negotiateSession(capabilities, capabilities,
+                  supportsBinary: _supportsBinary)
+              .session ??
+          ProtocolSession.legacyV1;
 
   void _send(WireMessage message, ProtocolSession session) {
-    final envelope = buildJsonEnvelope(message, session);
-    _transport.send(jsonEncode(buildRelayTransport(envelope)));
+    final frame = buildRelayTransport(buildJsonEnvelope(message, session));
+    _transport.send(
+      session.codec == 'msgpack' ? encodeMsgpackFrame(frame) : jsonEncode(frame),
+    );
   }
 
   void _onInbound(Object data) {
-    if (data is! String) {
-      return; // Only JSON relay frames are handled today; MessagePack lands in S05+.
+    final Object? decoded;
+    if (data is String) {
+      decoded = jsonDecode(data);
+    } else if (data is Uint8List) {
+      decoded = decodeMsgpackFrame(data);
+    } else if (data is List<int>) {
+      decoded = decodeMsgpackFrame(Uint8List.fromList(data));
+    } else {
+      return;
     }
-    final Object? decoded = jsonDecode(data);
     if (decoded is! Map<String, dynamic>) {
       return;
     }

@@ -9,8 +9,9 @@
 /// TypeScript `@roomful/core` generates, so the two SDKs share one contract.
 ///
 /// The room primitives (presence, cursors, events, shared state, locks) and the MessagePack
-/// codec are included; wiring msgpack into the client's negotiated send over a binary transport
-/// is the remaining step.
+/// codec are included. A client whose transport carries binary and whose capabilities offer
+/// `msgpack` negotiates a v2/msgpack uplink and exchanges binary relay frames; it stays on JSON
+/// otherwise.
 ///
 /// [RFC-0001]: https://github.com/erayates/roomful/blob/main/rfcs/0001-protocol-v2.md
 library;
