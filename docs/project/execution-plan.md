@@ -29,20 +29,42 @@ This summary aligns implementation planning to 6 sprints and 9 epics. All six sp
 | EP-08 | DevTools & DX                 | ✅ Released |
 | EP-09 | Docs, Tests & Launch          | ✅ Released |
 
-## Next: v2 Phases
+## Shipped Since v1.5
 
-Post-v1.0 work is delivered in phased milestones. See the [Roadmap](https://github.com/erayates/roomful/blob/main/ROADMAP.md) for deliverables, feature categories, and the backward-compatibility guarantee.
+Three further milestones shipped after New Primitives I, delivering the original `v2.0-beta` scope early:
 
-| Version   | Phase              | Focus                                                              |
-| --------- | ------------------ | ------------------------------------------------------------------ |
-| v1.1      | Ecosystem          | Angular adapter, SolidJS adapter, Next.js middleware               |
-| v1.5      | New Primitives I   | Viewport Sync, Locking, History/Undo, Pointer, Comments            |
-| v2.0-beta | AI & Recording     | AI Peer, Session Recording, WebTransport, Edge Relay               |
-| v2.0      | Platform           | React Native adapter, CLI tool, Plugin System, ZK Rooms, Ephemeral |
-| v2.1      | Observability      | Built-in Analytics, Audit Log, Network Topology Visualizer         |
-| v3.0      | Declarative Config | RoomfulScript — Collaboration-as-Code                              |
+| Version | Phase             | Focus                                                                   | Status      |
+| ------- | ----------------- | ----------------------------------------------------------------------- | ----------- |
+| v1.6    | Session Recording | `room.useRecording()` capture / `.roomful` export / replay              | ✅ Released |
+| v1.7    | AI Peer + Replay  | `addAIPeer()` headless peers + `room.applyReplaySignal()` visual replay | ✅ Released |
+| v1.8    | Transports        | `transport: 'webtransport'` (HTTP/3) + Cloudflare edge relay            | ✅ Released |
 
-v2 is additive and fully backward-compatible with v1.0 — no breaking changes to any v1.0 public API.
+## Next: v2 → v3 Long Transition
+
+The roadmap now **expands** (does not restart) into a cross-platform, self-hostable, AI-native
+collaboration layer. v2.x is a **~24-sprint / ~48-week** transition; v3.0 (RoomfulScript + a frozen
+protocol) ships only after the protocol, Flutter SDK, trust layer, and AI-agent collaboration are stable.
+
+| Version    | Phase                           | Focus                                                                                 |
+| ---------- | ------------------------------- | ------------------------------------------------------------------------------------- |
+| v2.0-beta  | Protocol + Relay Stabilization  | Versioned event envelope, schema, replay model, relay hardening, test vectors         |
+| v2.1-alpha | Dart Core SDK                   | `roomful_dart` alpha (room lifecycle, presence, events, shared state, reconnect)      |
+| v2.2-beta  | Flutter SDK MVP                 | `roomful_flutter` provider/builders/overlay/controllers — pub.dev beta                |
+| v2.3       | Self-host + Mobile Trust        | Docker/Redis, JWT & Firebase/Supabase auth, reconnect hardening, cross-platform demos |
+| v2.4       | B2B Collaboration Components    | Durable comments, field presence, record locks, vertical component packs              |
+| v2.5       | AI Agent Collaboration          | AI peer identity, agent cursor, action stream, approval flow, recording alpha         |
+| v2.6       | Observability + Trust           | Room Inspector, audit log, topology visualizer, production-trust docs                 |
+| v2.7       | Offline / Local-first           | Offline queue, reconnect recovery, conflict UI, CRDT bridge strategy                  |
+| v2.8       | Cloud / Open-Core Readiness     | Hosted relay beta, dashboard, orgs/projects, quotas, usage events                     |
+| v3.0-rc    | RoomfulScript + Stable Protocol | Collaboration-as-code, protocol freeze, migration guide/tooling                       |
+
+The detailed epic map (`EP-10`–`EP-25`), the sprint plan (`S01`–`S24`), the issue backlog
+(`#101`–`#254`), and release gates (`G1`–`G8`) live in the [v2 → v3 backlog](v2-v3-backlog.md). Strategy
+and the innovation idea pool are in [Innovation & Moat](innovation-moat.md); the productization phase is
+in the [Post-v3 Operating Roadmap](post-v3-operating-roadmap.md).
+
+v2 is additive and backward-compatible with the released v1.x line — no breaking changes to any v1.x
+public API; a stable protocol contract is frozen only at v3.0.
 
 ## Definition of Done (Project-Level)
 
@@ -55,6 +77,9 @@ v2 is additive and fully backward-compatible with v1.0 — no breaking changes t
 ## Related Docs
 
 - [Roadmap](../../ROADMAP.md)
+- [v2 → v3 backlog](v2-v3-backlog.md)
+- [Innovation & Moat](innovation-moat.md)
+- [Post-v3 Operating Roadmap](post-v3-operating-roadmap.md)
 - [Repository structure](repository-structure.md)
 - [Release process](release-process.md)
 - [Docs index](../README.md)
