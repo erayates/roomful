@@ -4,31 +4,59 @@ Audience: contributors and maintainers.
 
 ## Label Taxonomy
 
-### Area Labels
+The v2 → v3 program uses a grouped label system so issues can be filtered by type, platform, area,
+status, priority, and risk. Each issue carries **one milestone**; epics may span several sprints via a
+GitHub Project custom field. (This supersedes the flat v1 labels; the earlier area labels — `core`,
+`react`, `vue`, `svelte`, `relay`, `ui`, `devtools`, `infra`, `testing` — map onto the `area:*` /
+`platform:*` groups below.)
 
-- `infra`
-- `core`
-- `react`
-- `vue`
-- `svelte`
-- `relay`
-- `ui`
-- `docs`
-- `devtools`
-- `testing`
+### Type
 
-### Type Labels
+- `type:epic` — large product area
+- `type:feature` — new capability
+- `type:bug`
+- `type:docs`
+- `type:research` / `type:dx`
+- `type:security`
+- `type:demo` — demo or example project
 
-- `bug`
-- `enhancement`
-- `documentation`
-- `security`
+### Platform
 
-### Priority Labels
+- `platform:web` (JS/TS SDKs)
+- `platform:dart` (pure Dart core)
+- `platform:flutter` (Flutter SDK/UI)
+- `platform:react-native` (future)
+- `platform:relay`
+- `platform:cloud`
 
-- `p0`
-- `p1`
-- `p2`
+### Area
+
+- `area:protocol`
+- `area:presence` · `area:cursors` · `area:comments` · `area:locks`
+- `area:ai-agents`
+- `area:offline`
+- `area:observability`
+- `area:self-host`
+- `area:privacy`
+
+### Status
+
+- `status:planned` · `status:in-progress` · `status:blocked`
+- `status:needs-rfc` · `status:ready-for-review` · `status:released`
+
+### Priority
+
+- `priority:p0` (blocking/critical) · `priority:p1` · `priority:p2` · `priority:p3`
+
+### Risk
+
+- `risk:breaking-change` · `risk:security` · `risk:scope-creep` · `risk:performance` · `risk:uncertain`
+
+## Milestones
+
+One milestone per issue, matching the [v2 → v3 backlog](v2-v3-backlog.md):
+
+`v2.0-beta`, `v2.1-alpha`, `v2.2-beta`, `v2.3`, `v2.4`, `v2.5`, `v2.6`, `v2.7`, `v2.8`, `v3.0-rc`, `v3.0`.
 
 ## Issue Flow
 

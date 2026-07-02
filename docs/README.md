@@ -6,7 +6,11 @@ This directory is the canonical Markdown documentation hub for Roomful.
 
 ## Current State
 
-Roomful is approaching v1.0 release. All major features are implemented and tested across 7 packages. API contracts are stable.
+Roomful **v1.8 is released** — v1.0/v1.1/v1.5 plus Session Recording (v1.6), AI Peer + visual replay
+(v1.7), and the WebTransport transport + Cloudflare edge relay (v1.8), across 10 packages with stable
+API contracts. The next phase **expands** the SDK into a cross-platform, self-hostable, AI-native
+collaboration layer for web and Flutter — see the [Roadmap](../ROADMAP.md) and the
+[v2 → v3 backlog](project/v2-v3-backlog.md).
 
 ## Getting Started
 
@@ -45,6 +49,9 @@ Roomful is approaching v1.0 release. All major features are implemented and test
 - [Roomful code quality guidelines](project/roomful-code-quality-guidelines.md)
 - [WebRTC validation](project/webrtc-validation.md)
 - [Execution plan](project/execution-plan.md)
+- [v2 → v3 backlog](project/v2-v3-backlog.md)
+- [Innovation & Moat](project/innovation-moat.md)
+- [Post-v3 Operating Roadmap](project/post-v3-operating-roadmap.md)
 - [Labeling and triage](project/labeling-and-triage.md)
 - [Release process](project/release-process.md)
 - [Documentation style guide](STYLE_GUIDE.md)
