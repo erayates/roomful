@@ -67,12 +67,12 @@ with team capacity. Each sprint's goal is a **release gate**, not a feature list
 
 ### EP-10 Protocol Governance & Compatibility
 
-| Issue | Title                                 | Scope                                                                         | Acceptance              |
-| ----- | ------------------------------------- | ----------------------------------------------------------------------------- | ----------------------- |
-| #101  | Protocol v2 RFC                       | Event envelope, message versioning, backwards compatibility, migration policy | RFC merged              |
-| #102  | Protocol test vectors                 | Same fixture files for JS, Dart, and relay compatibility tests                | Cross-SDK fixtures pass |
-| #103  | Room/peer/session identifier standard | Standardize `roomId`, `peerId`, `sessionId`, `surfaceId`, `coordinateSpace`   | Schema accepted         |
-| #104  | Ephemeral vs durable state contract   | Clarify presence/cursor/viewport vs comments/locks/history split              | Docs + types updated    |
+| Issue | Title                                                     | Scope                                                                         | Acceptance              |
+| ----- | --------------------------------------------------------- | ----------------------------------------------------------------------------- | ----------------------- |
+| #101  | Protocol v2 RFC ([draft](../../rfcs/0001-protocol-v2.md)) | Event envelope, message versioning, backwards compatibility, migration policy | RFC merged              |
+| #102  | Protocol test vectors                                     | Same fixture files for JS, Dart, and relay compatibility tests                | Cross-SDK fixtures pass |
+| #103  | Room/peer/session identifier standard                     | Standardize `roomId`, `peerId`, `sessionId`, `surfaceId`, `coordinateSpace`   | Schema accepted         |
+| #104  | Ephemeral vs durable state contract                       | Clarify presence/cursor/viewport vs comments/locks/history split              | Docs + types updated    |
 
 ### EP-11 Dart Core SDK
 

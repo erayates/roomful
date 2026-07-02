@@ -149,7 +149,8 @@ risk) and one milestone per version (`v2.0-beta` … `v3.0-rc`, `v3.0`). See
 ## Change Management
 
 Roadmap updates are proposed via pull requests and reviewed by maintainers. Large or protocol-affecting
-changes go through an RFC (`status:needs-rfc`) before implementation.
+changes go through an [RFC](rfcs/README.md) (`status:needs-rfc`) before implementation — starting with
+[RFC-0001: Protocol v2](rfcs/0001-protocol-v2.md) (EP-10 / #101).
 
 ## Related Docs & Market References
 
