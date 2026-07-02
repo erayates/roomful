@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.0-alpha.3
+
+- Add the room primitives on `RoomfulClient`: `EventEngine` (emit/on), `PresenceEngine` (live presence
+  with peer-left cleanup and join re-announce), and `SharedStateEngine` (last-write-wins) (EP-11 / S06).
+  Unit-tested against a fake transport; a `room_example` console demo shows presence/events/state.
+  Cursors, locks, and the MessagePack codec follow.
+
 ## 0.1.0-alpha.2
 
 - Add the relay control protocol (`buildRelayJoin` / `buildRelayTransport` / `parseRelayServerFrame`),
