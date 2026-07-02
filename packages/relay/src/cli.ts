@@ -13,6 +13,9 @@ Options:
   --host <address>            Host interface to bind (default: 127.0.0.1)
   --max-connections <number>  Maximum concurrent WebSocket connections
   --max-room-size <number>    Hard per-room peer cap
+  --max-rooms <number>        Maximum distinct rooms per relay instance
+  --message-rate-limit <n>    Max messages per peer per rate interval
+  --message-rate-interval <ms>  Rate-limit interval in milliseconds
   --cors-origin <origin>      Allowed browser origin (use '*' to allow any)
   --auth-secret <secret>      HS256 JWT secret enabling built-in authorization
   --redis-url <url>           Redis URL for multi-instance coordination (experimental)
@@ -24,6 +27,9 @@ Environment:
   HOST
   MAX_CONNECTIONS
   ROOMFUL_MAX_ROOM_SIZE
+  ROOMFUL_MAX_ROOMS
+  ROOMFUL_MESSAGE_RATE_LIMIT
+  ROOMFUL_MESSAGE_RATE_INTERVAL_MS
   ROOMFUL_CORS_ORIGIN
   ROOMFUL_AUTH_SECRET
   ROOMFUL_REDIS_URL
@@ -49,6 +55,8 @@ interface RelayCliRuntime {
     maxConnections?: number;
     redisUrl?: string;
     maxRoomSize?: number;
+    maxRooms?: number;
+    messageRateLimit?: { limit: number; intervalMs: number };
     corsOrigin?: string;
     authSecret?: string;
   }) => RelayServer;
@@ -61,9 +69,15 @@ function parsePositiveIntegerOption(
     | 'PORT'
     | 'MAX_CONNECTIONS'
     | 'ROOMFUL_MAX_ROOM_SIZE'
+    | 'ROOMFUL_MAX_ROOMS'
+    | 'ROOMFUL_MESSAGE_RATE_LIMIT'
+    | 'ROOMFUL_MESSAGE_RATE_INTERVAL_MS'
     | '--port'
     | '--max-connections'
-    | '--max-room-size',
+    | '--max-room-size'
+    | '--max-rooms'
+    | '--message-rate-limit'
+    | '--message-rate-interval',
 ): number | { error: string } | undefined {
   if (value === undefined) {
     return undefined;
@@ -145,6 +159,9 @@ function parseRelayCliArgs(argv: readonly string[]):
       host?: string;
       maxConnections?: string;
       maxRoomSize?: string;
+      maxRooms?: string;
+      messageRateLimit?: string;
+      messageRateInterval?: string;
       corsOrigin?: string;
       authSecret?: string;
       port?: string;
@@ -173,6 +190,15 @@ function parseRelayCliArgs(argv: readonly string[]):
         'max-room-size': {
           type: 'string',
         },
+        'max-rooms': {
+          type: 'string',
+        },
+        'message-rate-limit': {
+          type: 'string',
+        },
+        'message-rate-interval': {
+          type: 'string',
+        },
         'cors-origin': {
           type: 'string',
         },
@@ -191,6 +217,9 @@ function parseRelayCliArgs(argv: readonly string[]):
     const host = readParsedStringValue(parsed.values.host);
     const maxConnections = readParsedStringValue(parsed.values['max-connections']);
     const maxRoomSize = readParsedStringValue(parsed.values['max-room-size']);
+    const maxRooms = readParsedStringValue(parsed.values['max-rooms']);
+    const messageRateLimit = readParsedStringValue(parsed.values['message-rate-limit']);
+    const messageRateInterval = readParsedStringValue(parsed.values['message-rate-interval']);
     const corsOrigin = readParsedStringValue(parsed.values['cors-origin']);
     const authSecret = readParsedStringValue(parsed.values['auth-secret']);
     const port = readParsedStringValue(parsed.values.port);
@@ -201,6 +230,9 @@ function parseRelayCliArgs(argv: readonly string[]):
       host?: string;
       maxConnections?: string;
       maxRoomSize?: string;
+      maxRooms?: string;
+      messageRateLimit?: string;
+      messageRateInterval?: string;
       corsOrigin?: string;
       authSecret?: string;
       port?: string;
@@ -219,6 +251,15 @@ function parseRelayCliArgs(argv: readonly string[]):
     }
     if (maxRoomSize !== undefined) {
       result.maxRoomSize = maxRoomSize;
+    }
+    if (maxRooms !== undefined) {
+      result.maxRooms = maxRooms;
+    }
+    if (messageRateLimit !== undefined) {
+      result.messageRateLimit = messageRateLimit;
+    }
+    if (messageRateInterval !== undefined) {
+      result.messageRateInterval = messageRateInterval;
     }
     if (corsOrigin !== undefined) {
       result.corsOrigin = corsOrigin;
@@ -253,6 +294,8 @@ export function resolveRelayCliOptions(
       maxConnections?: number;
       redisUrl?: string;
       maxRoomSize?: number;
+      maxRooms?: number;
+      messageRateLimit?: { limit: number; intervalMs: number };
       corsOrigin?: string;
       authSecret?: string;
     }
@@ -320,6 +363,56 @@ export function resolveRelayCliOptions(
     return maxRoomSizeEnv;
   }
 
+  const maxRoomsFlag = parsePositiveIntegerOption(parsedArgs.maxRooms, '--max-rooms');
+  if (typeof maxRoomsFlag === 'object') {
+    return maxRoomsFlag;
+  }
+
+  const maxRoomsEnv = parsePositiveIntegerOption(env.ROOMFUL_MAX_ROOMS, 'ROOMFUL_MAX_ROOMS');
+  if (typeof maxRoomsEnv === 'object') {
+    return maxRoomsEnv;
+  }
+
+  const rateLimitFlag = parsePositiveIntegerOption(
+    parsedArgs.messageRateLimit,
+    '--message-rate-limit',
+  );
+  if (typeof rateLimitFlag === 'object') {
+    return rateLimitFlag;
+  }
+
+  const rateLimitEnv = parsePositiveIntegerOption(
+    env.ROOMFUL_MESSAGE_RATE_LIMIT,
+    'ROOMFUL_MESSAGE_RATE_LIMIT',
+  );
+  if (typeof rateLimitEnv === 'object') {
+    return rateLimitEnv;
+  }
+
+  const rateIntervalFlag = parsePositiveIntegerOption(
+    parsedArgs.messageRateInterval,
+    '--message-rate-interval',
+  );
+  if (typeof rateIntervalFlag === 'object') {
+    return rateIntervalFlag;
+  }
+
+  const rateIntervalEnv = parsePositiveIntegerOption(
+    env.ROOMFUL_MESSAGE_RATE_INTERVAL_MS,
+    'ROOMFUL_MESSAGE_RATE_INTERVAL_MS',
+  );
+  if (typeof rateIntervalEnv === 'object') {
+    return rateIntervalEnv;
+  }
+
+  const resolvedRateLimit = rateLimitFlag ?? rateLimitEnv;
+  const resolvedRateInterval = rateIntervalFlag ?? rateIntervalEnv;
+  if ((resolvedRateLimit === undefined) !== (resolvedRateInterval === undefined)) {
+    return {
+      error: 'Message rate limiting requires both a limit and an interval.',
+    };
+  }
+
   const host = parsedArgs.host ?? env.HOST;
   const corsOrigin =
     readNonEmptyEnv(parsedArgs.corsOrigin) ?? readNonEmptyEnv(env.ROOMFUL_CORS_ORIGIN);
@@ -328,7 +421,12 @@ export function resolveRelayCliOptions(
   const resolvedPort = portFlag ?? portEnv ?? 8787;
   const resolvedMaxConnections = maxConnectionsFlag ?? maxConnectionsEnv;
   const resolvedMaxRoomSize = maxRoomSizeFlag ?? maxRoomSizeEnv;
+  const resolvedMaxRooms = maxRoomsFlag ?? maxRoomsEnv;
   const resolvedRedisUrl = redisUrlFlag ?? redisUrlEnv;
+  const messageRateLimit =
+    resolvedRateLimit !== undefined && resolvedRateInterval !== undefined
+      ? { limit: resolvedRateLimit, intervalMs: resolvedRateInterval }
+      : undefined;
 
   const options: {
     port: number;
@@ -336,6 +434,8 @@ export function resolveRelayCliOptions(
     maxConnections?: number;
     redisUrl?: string;
     maxRoomSize?: number;
+    maxRooms?: number;
+    messageRateLimit?: { limit: number; intervalMs: number };
     corsOrigin?: string;
     authSecret?: string;
   } = { port: resolvedPort };
@@ -350,6 +450,12 @@ export function resolveRelayCliOptions(
   }
   if (resolvedMaxRoomSize !== undefined) {
     options.maxRoomSize = resolvedMaxRoomSize;
+  }
+  if (resolvedMaxRooms !== undefined) {
+    options.maxRooms = resolvedMaxRooms;
+  }
+  if (messageRateLimit !== undefined) {
+    options.messageRateLimit = messageRateLimit;
   }
   if (corsOrigin !== undefined) {
     options.corsOrigin = corsOrigin;

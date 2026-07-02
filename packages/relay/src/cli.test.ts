@@ -286,4 +286,56 @@ describe('relay cli', () => {
       port: 7000,
     });
   });
+
+  it('resolves maxRooms and message rate limiting from cli flags', () => {
+    expect(
+      resolveRelayCliOptions({}, [
+        '--max-rooms',
+        '50',
+        '--message-rate-limit',
+        '120',
+        '--message-rate-interval',
+        '60000',
+      ]),
+    ).toEqual({
+      port: 8787,
+      maxRooms: 50,
+      messageRateLimit: {
+        limit: 120,
+        intervalMs: 60000,
+      },
+    });
+  });
+
+  it('resolves maxRooms and message rate limiting from environment variables', () => {
+    expect(
+      resolveRelayCliOptions(
+        {
+          ROOMFUL_MAX_ROOMS: '25',
+          ROOMFUL_MESSAGE_RATE_LIMIT: '60',
+          ROOMFUL_MESSAGE_RATE_INTERVAL_MS: '10000',
+        },
+        [],
+      ),
+    ).toEqual({
+      port: 8787,
+      maxRooms: 25,
+      messageRateLimit: {
+        limit: 60,
+        intervalMs: 10000,
+      },
+    });
+  });
+
+  it('requires both a limit and an interval for message rate limiting', () => {
+    expect(resolveRelayCliOptions({ ROOMFUL_MESSAGE_RATE_LIMIT: '60' }, [])).toEqual({
+      error: 'Message rate limiting requires both a limit and an interval.',
+    });
+  });
+
+  it('returns an error result for an invalid maxRooms value', () => {
+    expect(resolveRelayCliOptions({ ROOMFUL_MAX_ROOMS: 'invalid' }, [])).toEqual({
+      error: 'Invalid ROOMFUL_MAX_ROOMS value "invalid".',
+    });
+  });
 });
