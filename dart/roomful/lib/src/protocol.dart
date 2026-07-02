@@ -316,3 +316,14 @@ WireMessage decodeMsgpackEnvelope(Uint8List bytes, {int Function()? now}) {
   }
   return decodeJsonEnvelopeObject(decoded, now: now);
 }
+
+/// Encodes a whole relay [frame] (e.g. a `transport` wrapper around an envelope) to MessagePack
+/// bytes for a binary v2/msgpack session. The entire frame is one blob sent as a binary
+/// WebSocket message, matching `@roomful/relay`'s wire format — unlike [encodeMsgpackEnvelope],
+/// which encodes only the peer envelope for the fixture round-trip.
+Uint8List encodeMsgpackFrame(Object? frame) => msgpack.serialize(frame);
+
+/// Decodes a binary relay frame into a normalized object (map keys stringified, binary
+/// preserved), ready for the relay frame parser.
+Object? decodeMsgpackFrame(Uint8List bytes) =>
+    _normalizeMsgpack(msgpack.deserialize(bytes));

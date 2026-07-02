@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.0-alpha.6
+
+- Wire the MessagePack codec into `RoomfulClient` send and receive (EP-11 / S06). A client
+  constructed with `supportsBinary: true` and `msgpack` capabilities now negotiates a v2/msgpack
+  uplink and exchanges **binary** relay `transport` frames — the whole `{type, message}` wrapper is
+  msgpack-encoded, matching `@roomful/relay`'s wire format; control frames (`join` / `leave`) stay
+  JSON. Inbound binary frames are decoded regardless. Adds the frame-level `encodeMsgpackFrame` /
+  `decodeMsgpackFrame` helpers. Clients stay on JSON by default. The `roomful` Dart core is now
+  feature-complete for `v2.1-alpha`.
+
 ## 0.1.0-alpha.5
 
 - Add the MessagePack codec: `encodeMsgpackEnvelope` / `decodeMsgpackEnvelope` (via `msgpack_dart`),
