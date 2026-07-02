@@ -4,11 +4,9 @@ services:
       context: .
       dockerfile: Dockerfile
     image: erayatesdev/roomful:local
-    environment:
-      HOST: 0.0.0.0
-      PORT: ${PORT:-8787}
-      MAX_CONNECTIONS: ${MAX_CONNECTIONS:-1000}
-      ROOMFUL_REDIS_URL: ${ROOMFUL_REDIS_URL:-}
+    env_file:
+      - path: .env
+        required: false
     ports:
       - '${PORT:-8787}:${PORT:-8787}'
     restart: unless-stopped

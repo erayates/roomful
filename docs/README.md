@@ -17,6 +17,7 @@ collaboration layer for web and Flutter — see the [Roadmap](../ROADMAP.md) and
 - [Installation](getting-started/installation.md)
 - [Quickstart](getting-started/quickstart.md)
 - [Rooms and transports](getting-started/rooms-and-transports.md)
+- [Self-hosting the relay](getting-started/self-hosting.md)
 
 ## Reference
 

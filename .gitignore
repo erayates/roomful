@@ -19,5 +19,10 @@ benchmarks/results/*
 playwright-report/
 test-results/
 
+# Local self-host relay config (keep .env.example tracked).
+.env
+.env.local
+!.env.example
+
 .claude/launch.json
 .claude/settings.local.json
