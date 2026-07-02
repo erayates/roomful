@@ -6,8 +6,8 @@ import 'protocol.dart';
 /// Advisory distributed locks on top of a [RoomfulClient], carried over the event channel with
 /// reserved `roomful:lock:*` names. Claims resolve deterministically — the earliest timestamp
 /// wins, with the peer id as a tie-break — so every peer agrees on the holder without a central
-/// authority. Acquisition is optimistic (fire-and-forget); read [holder] / [isHeldByMe] for the
-/// resolved owner. A blocking acquire-with-timeout lands in a later milestone.
+/// authority. Acquisition is optimistic ([acquire] is fire-and-forget); read [holder] /
+/// [isHeldByMe] for the resolved owner, or await [acquireBlocking] to hold until you own it.
 class LocksEngine {
   LocksEngine(this._client) {
     _messageSub =
@@ -35,6 +35,37 @@ class LocksEngine {
     final timestamp = DateTime.now().millisecondsSinceEpoch;
     _record(key, _client.peerId, timestamp);
     _emit(_acquireEvent, key, _client.peerId, timestamp);
+  }
+
+  /// Claims [key] like [acquire], then resolves once the local peer is the holder — immediately
+  /// when the lock is free, or after an earlier holder releases or leaves. Returns `false`, and
+  /// retracts the local claim, if [timeout] elapses first.
+  Future<bool> acquireBlocking(
+    String key, {
+    Duration timeout = const Duration(seconds: 5),
+  }) async {
+    acquire(key);
+    if (isHeldByMe(key)) {
+      return true;
+    }
+    final completer = Completer<bool>();
+    final subscription = changes.where((changed) => changed == key).listen((_) {
+      if (!completer.isCompleted && isHeldByMe(key)) {
+        completer.complete(true);
+      }
+    });
+    final timer = Timer(timeout, () {
+      if (!completer.isCompleted) {
+        completer.complete(false);
+      }
+    });
+    final acquired = await completer.future;
+    await subscription.cancel();
+    timer.cancel();
+    if (!acquired) {
+      release(key);
+    }
+    return acquired;
   }
 
   /// Releases the local peer's claim on [key] and broadcasts the release.
