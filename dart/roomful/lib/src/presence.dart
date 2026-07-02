@@ -20,6 +20,7 @@ class PresenceEngine {
   late final StreamSubscription<void> _reconnectSub;
 
   Map<String, dynamic> _local = <String, dynamic>{};
+  final int _joinedAt = DateTime.now().millisecondsSinceEpoch;
   final Map<String, Map<String, dynamic>> _remote =
       <String, Map<String, dynamic>>{};
   final StreamController<Map<String, Map<String, dynamic>>> _changes =
@@ -42,14 +43,22 @@ class PresenceEngine {
   }
 
   void _broadcastLocal() {
+    final now = DateTime.now().millisecondsSinceEpoch;
     _client.broadcast(
       WireMessage(
         type: 'presence:update',
         roomId: _client.roomId,
         fromPeerId: _client.peerId,
-        timestamp: DateTime.now().millisecondsSinceEpoch,
+        timestamp: now,
         payload: <String, dynamic>{
-          'peer': <String, dynamic>{'id': _client.peerId, ..._local},
+          // Reserved keys come last so app presence can't override them; the relay's peer schema
+          // requires id/joinedAt/lastSeen or it drops the update (see docs/reference/interop.md).
+          'peer': <String, dynamic>{
+            ..._local,
+            'id': _client.peerId,
+            'joinedAt': _joinedAt,
+            'lastSeen': now,
+          },
         },
       ),
     );

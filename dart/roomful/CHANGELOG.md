@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.0-alpha.9
+
+- Fix `PresenceEngine` to emit relay-conformant presence: the broadcast `peer` now carries the
+  required `joinedAt` and `lastSeen` timestamps, with `id` / `joinedAt` / `lastSeen` reserved so app
+  presence can't override them. Without those fields `@roomful/relay` rejects the `presence:update`
+  and it never reaches other peers — so Dart presence now interoperates with the JS SDK through a
+  real relay (EP-14). Shared state and events already conformed.
+
 ## 0.1.0-alpha.8
 
 - Add opt-in auto-reconnect to `RoomfulClient` (EP-11). Pass a `RoomfulReconnect` policy (max

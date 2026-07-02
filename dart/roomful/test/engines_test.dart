@@ -155,6 +155,23 @@ void main() {
       await pump();
       expect(presence.remote.containsKey('js-1'), isFalse);
     });
+
+    test('broadcasts a relay-conformant peer with id, joinedAt, and lastSeen',
+        () async {
+      final fake = FakeTransport();
+      final client = await connectClient(fake);
+      PresenceEngine(client).set(<String, dynamic>{'name': 'Alice'});
+
+      final frame = fake.sentFrames.lastWhere((f) => f['type'] == 'transport');
+      final envelope = frame['message'] as Map<String, dynamic>;
+      expect(envelope['type'], 'presence:update');
+      final peer =
+          (envelope['payload'] as Map<String, dynamic>)['peer'] as Map<String, dynamic>;
+      expect(peer['id'], 'dart-1');
+      expect(peer['name'], 'Alice');
+      expect(peer['joinedAt'], isA<int>());
+      expect(peer['lastSeen'], isA<int>());
+    });
   });
 
   group('SharedStateEngine', () {
