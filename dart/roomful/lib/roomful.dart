@@ -15,7 +15,9 @@
 library;
 
 export 'src/client.dart';
+export 'src/cursors.dart';
 export 'src/events.dart';
+export 'src/locks.dart';
 export 'src/presence.dart';
 export 'src/protocol.dart';
 export 'src/relay.dart';
