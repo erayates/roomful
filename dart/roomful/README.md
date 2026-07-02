@@ -3,17 +3,20 @@
 Open-source, self-hostable realtime collaboration for **Dart and Flutter** apps — the pure-Dart
 core client. The Flutter widgets/overlays layer is the separate `roomful_flutter` package.
 
-> **Status: `v2.1-alpha` scaffold (EP-11).** This package currently implements the
+> **Status: `v2.1-alpha` (EP-11).** Implements the
 > [Roomful Protocol v2](../../rfcs/0001-protocol-v2.md) — capabilities, session negotiation, the
-> versioned transport envelope, and the JSON codec — plus the transport interface. The room-client
-> lifecycle (connect, presence, cursors, events, shared state) and the WebSocket relay transport
-> land in following milestones (S05–S06). Not yet published to pub.dev.
+> versioned envelope, and the JSON codec — the relay control protocol, a `RoomfulClient` room
+> lifecycle (join, peer registry, message relay), and a WebSocket relay transport. The room-primitive
+> APIs (presence, cursors, events, shared state) and the MessagePack codec land next. Not yet
+> published to pub.dev.
 
 ## What works today
 
 - `ProtocolCapabilities` + `negotiateSession(...)` — the exact v1..v2 / json↔msgpack negotiation from `@roomful/core`.
 - `WireMessage`, `encodeJsonEnvelope`, `decodeJsonEnvelope` — the legacy v1 and modern v2 JSON envelopes.
-- `RoomfulTransport` — the transport interface the room client will drive.
+- The relay control protocol — `buildRelayJoin` / `buildRelayTransport` / `parseRelayServerFrame`.
+- `RoomfulClient` — connect and join a relay room, track peers, and relay messages over an injected transport.
+- `WebSocketRelayTransport` — a `RoomfulTransport` over a WebSocket relay (or the Cloudflare edge relay).
 
 Run the example:
 
@@ -31,8 +34,8 @@ contract (release gate G2):
 dart test
 ```
 
-MessagePack vectors are skipped until the Dart codec lands (S05); the JSON vectors cover negotiation
-and both envelope versions.
+MessagePack vectors are skipped until the Dart codec lands (a following milestone); the JSON vectors
+cover negotiation and both envelope versions.
 
 ## Roadmap
 
