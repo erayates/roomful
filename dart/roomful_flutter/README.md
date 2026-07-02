@@ -33,6 +33,7 @@ RoomfulProvider.of(context).setPresence({'name': 'Alice', 'color': '#5cc7ab'});
 - `RoomfulProvider` — joins on mount, disconnects on dispose, exposes a `RoomController` via `RoomfulProvider.of(context)`.
 - `RoomController` — a `ChangeNotifier` with `peers`, `presence`, `cursors`, `events`, `connect()`, `setPresence()`, `setCursor()`.
 - `RoomfulBuilder` — rebuilds its subtree whenever the room changes.
+- `PresenceAvatars` — an overlapping avatar stack driven by presence (`name` / `color` initials, a `+N` overflow chip). Reads the nearest provider, or pass a `controller`.
 
 The whole `roomful` core (client, protocol, engines) is re-exported, so a single import is enough.
 

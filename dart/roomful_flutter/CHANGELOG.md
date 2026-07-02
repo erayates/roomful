@@ -4,5 +4,7 @@
 
 - Initial `v2.2-beta` scaffold (EP-12): `RoomfulProvider` (room lifecycle + injection into the widget
   tree), `RoomController` (a `ChangeNotifier` wrapping the `roomful` client and its presence / cursors /
-  events engines), and `RoomfulBuilder` (reactive rebuilds). Re-exports the `roomful` core. Higher-level
-  widgets (presence avatars, live-cursor overlay, shared-state layer) follow.
+  events engines), and `RoomfulBuilder` (reactive rebuilds). Re-exports the `roomful` core.
+- `PresenceAvatars` — an overlapping avatar stack driven by room presence, with `name` / `color`
+  initials, a `+N` overflow chip, and an id-derived colour fallback. Depends only on
+  `package:flutter/widgets.dart`. (Live-cursor overlay and a shared-state layer follow.)
