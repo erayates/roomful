@@ -63,18 +63,23 @@ void main() {
     // Nothing to show before anyone has presence.
     expect(find.byType(Text), findsNothing);
 
-    unawaited(controller.connect());
-    await tester.pump();
-    fake.emit(<String, dynamic>{
-      'type': 'joined',
-      'roomId': 'room-a',
-      'peerId': 'me',
-      'peers': <Map<String, dynamic>>[
-        <String, dynamic>{'peerId': 'js-1'},
-      ],
+    // Drive the transport under real async (the client propagates over timers, which the
+    // widget tester's fake clock would otherwise freeze), then pump once to flush the rebuild.
+    await tester.runAsync(() async {
+      final connecting = controller.connect();
+      await Future<void>.delayed(Duration.zero);
+      fake.emit(<String, dynamic>{
+        'type': 'joined',
+        'roomId': 'room-a',
+        'peerId': 'me',
+        'peers': <Map<String, dynamic>>[
+          <String, dynamic>{'peerId': 'js-1'},
+        ],
+      });
+      await connecting;
+      fake.emit(presenceFrame('js-1', <String, dynamic>{'name': 'Alice'}));
+      await Future<void>.delayed(Duration.zero);
     });
-    await tester.pump();
-    fake.emit(presenceFrame('js-1', <String, dynamic>{'name': 'Alice'}));
     await tester.pump();
 
     // "Alice" -> "AL".
