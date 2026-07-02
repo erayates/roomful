@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.0-alpha.5
+
+- Add the MessagePack codec: `encodeMsgpackEnvelope` / `decodeMsgpackEnvelope` (via `msgpack_dart`),
+  and un-skip the MessagePack conformance vectors so the Dart SDK now decodes the JS-produced msgpack
+  envelopes too (EP-11 / S06). Wiring msgpack into the client's negotiated send over a binary transport
+  is the remaining step; the `roomful` Dart core is otherwise feature-complete for `v2.1-alpha`.
+
 ## 0.1.0-alpha.4
 
 - Add the remaining room primitives: `CursorsEngine` (live multiplayer cursors) and `LocksEngine`

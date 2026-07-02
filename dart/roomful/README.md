@@ -8,7 +8,9 @@ core client. The Flutter widgets/overlays layer is the separate `roomful_flutter
 > versioned envelope, and the JSON codec — the relay control protocol, a `RoomfulClient` room
 > lifecycle (join, peer registry, message relay), and a WebSocket relay transport. It also
 > provides the room primitives — presence, cursors, events, last-write-wins shared state, and
-> advisory locks. The MessagePack codec lands next. Not yet published to pub.dev.
+> advisory locks — and the MessagePack codec (envelope encode/decode, validated against the shared
+> fixtures). Wiring msgpack into the client's negotiated send over a binary transport is the remaining
+> step. Not yet published to pub.dev.
 
 ## What works today
 
@@ -39,8 +41,7 @@ contract (release gate G2):
 dart test
 ```
 
-MessagePack vectors are skipped until the Dart codec lands (a following milestone); the JSON vectors
-cover negotiation and both envelope versions.
+The vectors cover negotiation, both envelope versions, and both the JSON and MessagePack codecs.
 
 ## Roadmap
 

@@ -1,4 +1,7 @@
 import 'dart:convert';
+import 'dart:typed_data';
+
+import 'package:msgpack_dart/msgpack_dart.dart' as msgpack;
 
 /// The Roomful wire protocol (RFC-0001): capabilities, session negotiation, the versioned
 /// transport envelope, and the JSON codec. Mirrors `@roomful/core`'s `peer-message.ts` so
@@ -220,7 +223,7 @@ Map<String, dynamic> buildJsonEnvelope(WireMessage message, ProtocolSession sess
   return <String, dynamic>{
     'source': 'roomful',
     'protocolVersion': 2,
-    'codec': 'json',
+    'codec': session.codec,
     'roomId': message.roomId,
     'fromPeerId': message.fromPeerId,
     if (message.toPeerId != null) 'toPeerId': message.toPeerId,
@@ -263,7 +266,8 @@ WireMessage decodeJsonEnvelopeObject(
       roomId: envelope['roomId'] as String,
       fromPeerId: envelope['fromPeerId'] as String,
       toPeerId: envelope['toPeerId'] as String?,
-      timestamp: envelope['timestamp'] as int,
+      // A MessagePack codec may decode the timestamp as a double; normalize to int.
+      timestamp: (envelope['timestamp'] as num).toInt(),
       payload: envelope['payload'],
     );
   }
@@ -276,6 +280,39 @@ WireMessage decodeJsonEnvelope(String wire, {int Function()? now}) {
   final decoded = jsonDecode(wire);
   if (decoded is! Map<String, dynamic>) {
     throw const FormatException('Not a JSON object envelope.');
+  }
+  return decodeJsonEnvelopeObject(decoded, now: now);
+}
+
+/// Encodes [message] to a MessagePack v2 transport envelope. Byte-exact matching against the
+/// TypeScript encoder is best-effort (map-key order); the decode round-trip is the contract.
+Uint8List encodeMsgpackEnvelope(WireMessage message, ProtocolSession session) =>
+    msgpack.serialize(buildJsonEnvelope(message, session));
+
+// MessagePack maps decode to Map<dynamic, dynamic>; normalize to Map<String, dynamic> while
+// preserving binary (Uint8List) so the shared envelope decoder can consume it.
+Object? _normalizeMsgpack(Object? value) {
+  if (value is Uint8List) {
+    return value;
+  }
+  if (value is Map) {
+    final normalized = <String, dynamic>{};
+    value.forEach((dynamic key, dynamic inner) {
+      normalized[key.toString()] = _normalizeMsgpack(inner);
+    });
+    return normalized;
+  }
+  if (value is List) {
+    return value.map<dynamic>(_normalizeMsgpack).toList();
+  }
+  return value;
+}
+
+/// Decodes a MessagePack transport envelope into a [WireMessage].
+WireMessage decodeMsgpackEnvelope(Uint8List bytes, {int Function()? now}) {
+  final decoded = _normalizeMsgpack(msgpack.deserialize(bytes));
+  if (decoded is! Map<String, dynamic>) {
+    throw const FormatException('Not a MessagePack object envelope.');
   }
   return decodeJsonEnvelopeObject(decoded, now: now);
 }

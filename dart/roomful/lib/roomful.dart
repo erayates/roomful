@@ -8,8 +8,9 @@
 /// Conformance is proven against the shared `protocol-fixtures/` vectors that the
 /// TypeScript `@roomful/core` generates, so the two SDKs share one contract.
 ///
-/// The room-primitive APIs (presence, cursors, events, shared state) and the MessagePack
-/// codec land in a following milestone.
+/// The room primitives (presence, cursors, events, shared state, locks) and the MessagePack
+/// codec are included; wiring msgpack into the client's negotiated send over a binary transport
+/// is the remaining step.
 ///
 /// [RFC-0001]: https://github.com/erayates/roomful/blob/main/rfcs/0001-protocol-v2.md
 library;
