@@ -399,6 +399,117 @@ describe(
       });
     });
 
+    it('rejects messages beyond the configured rate limit', async () => {
+      relayServer = createRelayServer({
+        port: 0,
+        messageRateLimit: {
+          limit: 1,
+          intervalMs: 60_000,
+        },
+      });
+      await relayServer.start();
+
+      const client = new WebSocket(relayServer.getAddress());
+      sockets.push(client);
+      await waitForOpen(client);
+
+      const rateLimited = waitForMessage(
+        client,
+        (message) => message.type === 'error' && message.code === 'RATE_LIMITED',
+      );
+
+      // Burst several messages: only the first fits the one-token budget, the rest are rejected.
+      send(client, { type: 'ping' });
+      send(client, { type: 'ping' });
+      send(client, { type: 'ping' });
+
+      await expect(rateLimited).resolves.toMatchObject({
+        type: 'error',
+        code: 'RATE_LIMITED',
+      });
+    });
+
+    it('rejects a new room beyond the room limit', async () => {
+      relayServer = createRelayServer({
+        port: 0,
+        maxRooms: 1,
+      });
+      await relayServer.start();
+
+      const clientA = new WebSocket(relayServer.getAddress());
+      const clientB = new WebSocket(relayServer.getAddress());
+      sockets.push(clientA, clientB);
+      await waitForOpen(clientA);
+      await waitForOpen(clientB);
+
+      const joinedA = await sendAndWaitForMessage(
+        clientA,
+        {
+          type: 'join',
+          roomId: 'room-1',
+          peerId: 'a',
+        },
+        (message) => message.type === 'joined',
+      );
+      expect(joinedA).toMatchObject({
+        type: 'joined',
+        roomId: 'room-1',
+      });
+
+      const rejectedB = await sendAndWaitForMessage(
+        clientB,
+        {
+          type: 'join',
+          roomId: 'room-2',
+          peerId: 'b',
+        },
+        (message) => message.type === 'error',
+      );
+      expect(rejectedB).toMatchObject({
+        type: 'error',
+        code: 'ROOM_LIMIT',
+      });
+    });
+
+    it('admits more peers into an existing room at the room limit', async () => {
+      relayServer = createRelayServer({
+        port: 0,
+        maxRooms: 1,
+      });
+      await relayServer.start();
+
+      const clientA = new WebSocket(relayServer.getAddress());
+      const clientB = new WebSocket(relayServer.getAddress());
+      sockets.push(clientA, clientB);
+      await waitForOpen(clientA);
+      await waitForOpen(clientB);
+
+      await sendAndWaitForMessage(
+        clientA,
+        {
+          type: 'join',
+          roomId: 'room-1',
+          peerId: 'a',
+        },
+        (message) => message.type === 'joined',
+      );
+
+      const joinedB = await sendAndWaitForMessage(
+        clientB,
+        {
+          type: 'join',
+          roomId: 'room-1',
+          peerId: 'b',
+        },
+        (message) => message.type === 'joined',
+      );
+      expect(joinedB).toMatchObject({
+        type: 'joined',
+        roomId: 'room-1',
+        peerId: 'b',
+      });
+    });
+
     it('enforces maxPeers using the first successful join capacity', async () => {
       relayServer = createRelayServer({
         port: 0,

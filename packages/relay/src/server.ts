@@ -145,6 +145,22 @@ export interface RelayAuthorizeContext {
 }
 
 /**
+ * Configures per-peer message rate limiting: a token bucket of `limit` messages that refills over
+ * `intervalMs`. Messages beyond the budget are rejected with a `RATE_LIMITED` error.
+ */
+export interface RelayMessageRateLimit {
+  /**
+   * Allows at most this many messages per `intervalMs`.
+   */
+  limit: number;
+
+  /**
+   * Sets the refill window, in milliseconds.
+   */
+  intervalMs: number;
+}
+
+/**
  * Configures the public relay server.
  */
 export interface RelayServerOptions {
@@ -196,6 +212,18 @@ export interface RelayServerOptions {
    * handler is configured.
    */
   authSecret?: string;
+
+  /**
+   * Caps the number of distinct rooms this relay instance will host. A join that would open a new
+   * room beyond the cap is rejected with a `ROOM_LIMIT` error. Enforced per relay instance.
+   */
+  maxRooms?: number;
+
+  /**
+   * Limits how many messages a single peer connection may send. Excess messages are rejected with
+   * a `RATE_LIMITED` error instead of being processed. Off by default.
+   */
+  messageRateLimit?: RelayMessageRateLimit;
 }
 
 export interface RelayServerInternalOptions extends RelayServerOptions {
@@ -469,6 +497,72 @@ function normalizeMaxConnections(value: number | undefined): number | undefined 
   return value;
 }
 
+function normalizeMaxRooms(value: number | undefined): number | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (!Number.isInteger(value) || value < 1) {
+    throw createRelayServerConfigurationError(`Invalid maxRooms value "${value}".`);
+  }
+
+  return value;
+}
+
+function normalizeMessageRateLimit(
+  value: RelayMessageRateLimit | undefined,
+): RelayMessageRateLimit | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (!Number.isInteger(value.limit) || value.limit < 1) {
+    throw createRelayServerConfigurationError(`Invalid messageRateLimit.limit "${value.limit}".`);
+  }
+
+  if (!Number.isInteger(value.intervalMs) || value.intervalMs < 1) {
+    throw createRelayServerConfigurationError(
+      `Invalid messageRateLimit.intervalMs "${value.intervalMs}".`,
+    );
+  }
+
+  return { limit: value.limit, intervalMs: value.intervalMs };
+}
+
+/**
+ * A per-peer token bucket. It starts full, refills continuously toward `limit` over `intervalMs`,
+ * and lets a message through only when at least one token is available.
+ */
+class PeerRateBucket {
+  private tokens: number;
+
+  private lastRefillMs: number;
+
+  public constructor(
+    private readonly limit: number,
+    private readonly intervalMs: number,
+    now: number,
+  ) {
+    this.tokens = limit;
+    this.lastRefillMs = now;
+  }
+
+  public tryConsume(now: number): boolean {
+    const elapsed = now - this.lastRefillMs;
+    if (elapsed > 0) {
+      this.tokens = Math.min(this.limit, this.tokens + (elapsed / this.intervalMs) * this.limit);
+      this.lastRefillMs = now;
+    }
+
+    if (this.tokens >= 1) {
+      this.tokens -= 1;
+      return true;
+    }
+
+    return false;
+  }
+}
+
 function createRelayServerConfigurationError(message: string): TypeError {
   const error = new TypeError(message);
   error.name = 'RelayServerConfigurationError';
@@ -560,6 +654,12 @@ export class RelayServerImpl implements RelayServer {
 
   private readonly maxRoomSize: number | undefined;
 
+  private readonly maxRooms: number | undefined;
+
+  private readonly messageRateLimit: RelayMessageRateLimit | undefined;
+
+  private readonly rateBuckets = new WeakMap<WebSocket, PeerRateBucket>();
+
   private readonly corsOrigin: string | undefined;
 
   private authHandler: RelayAuthHandler | null = null;
@@ -575,6 +675,8 @@ export class RelayServerImpl implements RelayServer {
     this.host = options.host ?? '127.0.0.1';
     this.maxConnections = normalizeMaxConnections(options.maxConnections);
     this.maxRoomSize = options.maxRoomSize;
+    this.maxRooms = normalizeMaxRooms(options.maxRooms);
+    this.messageRateLimit = normalizeMessageRateLimit(options.messageRateLimit);
     this.corsOrigin = options.corsOrigin;
     if (options.authSecret !== undefined && options.authorize === undefined) {
       const secret = options.authSecret;
@@ -815,6 +917,35 @@ export class RelayServerImpl implements RelayServer {
     return capacity !== undefined ? { maxPeers: capacity } : {};
   }
 
+  private allowMessage(socket: WebSocket): boolean {
+    const config = this.messageRateLimit;
+    if (config === undefined) {
+      return true;
+    }
+
+    const now = Date.now();
+    let bucket = this.rateBuckets.get(socket);
+    if (!bucket) {
+      bucket = new PeerRateBucket(config.limit, config.intervalMs, now);
+      this.rateBuckets.set(socket, bucket);
+    }
+
+    return bucket.tryConsume(now);
+  }
+
+  private wouldExceedRoomLimit(roomId: string): boolean {
+    if (this.maxRooms === undefined) {
+      return false;
+    }
+
+    if (this.rooms.has(roomId) || this.pollingRooms.has(roomId)) {
+      return false;
+    }
+
+    const distinctRooms = new Set<string>([...this.rooms.keys(), ...this.pollingRooms.keys()]);
+    return distinctRooms.size >= this.maxRooms;
+  }
+
   private handleUpgrade(
     wsServer: WebSocketServer,
     request: IncomingMessage,
@@ -857,6 +988,11 @@ export class RelayServerImpl implements RelayServer {
 
   private handleConnection(socket: WebSocket, request: IncomingMessage): void {
     socket.on('message', (rawData, isBinary) => {
+      if (!this.allowMessage(socket)) {
+        this.sendError(socket, 'RATE_LIMITED', 'Message rate limit exceeded.');
+        return;
+      }
+
       const payload = normalizeRawData(rawData, isBinary);
       const message = parseRelayClientMessage(payload);
       if (!message) {
@@ -956,6 +1092,11 @@ export class RelayServerImpl implements RelayServer {
 
     const authorized = await this.authorizeWebSocketJoin(socket, request, message);
     if (!authorized) {
+      return;
+    }
+
+    if (this.wouldExceedRoomLimit(message.roomId)) {
+      this.sendError(socket, 'ROOM_LIMIT', 'Relay room limit reached.');
       return;
     }
 
@@ -1249,6 +1390,14 @@ export class RelayServerImpl implements RelayServer {
       sendJsonResponse(response, 401, {
         code: 'AUTH_FAILED',
         message: 'Authorization failed.',
+      });
+      return;
+    }
+
+    if (this.wouldExceedRoomLimit(message.roomId)) {
+      sendJsonResponse(response, 429, {
+        code: 'ROOM_LIMIT',
+        message: 'Relay room limit reached.',
       });
       return;
     }
