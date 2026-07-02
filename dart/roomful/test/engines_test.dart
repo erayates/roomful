@@ -229,6 +229,26 @@ void main() {
       await pump();
       expect(cursors.remote.containsKey('js-1'), isFalse);
     });
+
+    test('setPosition emits a relay-conformant cursor', () async {
+      final fake = FakeTransport();
+      final client = await connectClient(fake);
+      CursorsEngine(client).setPosition(0.5, 0.25, name: 'Alice', color: '#5cc7ab');
+
+      final frame = fake.sentFrames.lastWhere((f) => f['type'] == 'transport');
+      final envelope = frame['message'] as Map<String, dynamic>;
+      expect(envelope['type'], 'cursor:update');
+      final cursor =
+          (envelope['payload'] as Map<String, dynamic>)['cursor'] as Map<String, dynamic>;
+      expect(cursor['userId'], 'dart-1');
+      expect(cursor['name'], 'Alice');
+      expect(cursor['color'], '#5cc7ab');
+      expect(cursor['x'], 0.5);
+      expect(cursor['y'], 0.25);
+      expect(cursor['xAbsolute'], isA<num>());
+      expect(cursor['yAbsolute'], isA<num>());
+      expect(cursor['idle'], isFalse);
+    });
   });
 
   group('LocksEngine', () {

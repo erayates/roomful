@@ -49,11 +49,12 @@ and any message you build by hand — must send these exact shapes. Application 
 | `state:update`    | `{ value, history, vectorClock, changedBy, timestamp, reason }` (`reason`: `set`/`patch`/…) |
 | `event`           | `{ name, payload, loopback? }`                                                              |
 
-The **JS SDK fills the required `peer` and `cursor` fields for you** (`id` / `joinedAt` / `lastSeen`
-on the peer, the full cursor field set). When you emit these from another SDK or by hand, include
-**all** required fields — a `presence:update` whose `peer` omits `joinedAt`/`lastSeen`, or a
-`cursor:update` missing `userId`/`xAbsolute`/`idle`, is rejected by the relay and never reaches
-other peers. `state:update` and `event` payloads are identical across SDKs.
+Both SDKs **fill the required `peer` and `cursor` fields for you**: presence is completed
+automatically, and cursors go through `useCursors` (JS) or `CursorsEngine.setPosition` (Dart). When
+you emit these by hand instead, include **all** required fields — a `presence:update` whose `peer`
+omits `joinedAt`/`lastSeen`, or a `cursor:update` missing `userId`/`xAbsolute`/`idle`, is rejected by
+the relay and never reaches other peers. `state:update` and `event` payloads are identical across
+SDKs.
 
 ## Coordinate space
 
