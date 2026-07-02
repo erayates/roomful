@@ -21,7 +21,7 @@ Four decisions frame the entire v2 → v3 arc:
 
 1. **Do not restart the roadmap.** Keep the current v1/v1.5 base; expand v2 instead of replacing it.
 2. **Flutter/Dart-first wedge.** Flutter is the market-entry wedge (web SDKs are preserved, but the
-   product message is no longer React/Vue/Svelte only). `roomful_dart` + `roomful_flutter` become an
+   product message is no longer React/Vue/Svelte only). `roomful` + `roomful_flutter` become an
    official product line.
 3. **Self-host + trust as the core argument.** The open-source, self-hostable relay is a primary
    product value, not a side feature — Docker, Redis, JWT, observability, audit log, deploy recipes.
@@ -40,7 +40,7 @@ framework-agnostic core, MIT-licensed forever, primitive-first). v2 adds six:
 | P1  | Primitive-first, **product-ready**        | Core stays primitive-first, but ship ready-made UI and vertical starters, not only low-level API.                                                 |
 | P2  | Self-hostable by default, hosted optional | Open-source relay + Docker is the core value; hosted cloud is a later, additive monetization layer.                                               |
 | P3  | Cross-platform protocol                   | The protocol is not TypeScript-bound; Dart, React Native, Node, and future native SDKs share one message model. Protocol versioning starts early. |
-| P4  | Flutter-first wedge                       | Flutter is the entry door; web is preserved. `roomful_dart`/`roomful_flutter` are the headline v2.1/v2.2 milestones.                              |
+| P4  | Flutter-first wedge                       | Flutter is the entry door; web is preserved. `roomful`/`roomful_flutter` are the headline v2.1/v2.2 milestones.                                   |
 | P5  | Human + AI collaboration                  | An AI peer looks like a user but carries a separate identity, permissions, and an auditable action model. AI is explicit opt-in.                  |
 | P6  | Trust before scale claims                 | No "production-ready enterprise" claim before latency, reconnect, auth, retention, audit, load tests, and docs exist (≈ v2.6).                    |
 
@@ -68,7 +68,7 @@ locked as a stable contract at v3.0. Milestones are release **gates**, not featu
 | Version    | Theme                           | Target output                                                                                                                  | Status    |
 | ---------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | --------- |
 | v2.0-beta  | Protocol + Relay Stabilization  | Versioned event envelope, message schema, replay model, relay hardening, protocol test vectors                                 | Planned   |
-| v2.1-alpha | Dart Core SDK                   | `roomful_dart` alpha: room lifecycle, WebSocket relay, presence, events, shared state, reconnect                               | Planned   |
+| v2.1-alpha | Dart Core SDK                   | `roomful` alpha: room lifecycle, WebSocket relay, presence, events, shared state, reconnect                                    | Planned   |
 | v2.2-beta  | Flutter SDK MVP                 | `roomful_flutter`: Provider, PresenceBuilder, PresenceAvatars, LiveCursorsOverlay, SharedStateController, Locks — pub.dev beta | Planned   |
 | v2.3       | Self-host + Mobile Trust        | Docker Compose, Redis coordination, JWT/Firebase/Supabase auth examples, mobile reconnect hardening, cross-platform demos      | Planned   |
 | v2.4       | B2B Collaboration Components    | Comments persistence, field presence, record locks, activity stream, dashboard/form/canvas starter kits                        | Planned   |

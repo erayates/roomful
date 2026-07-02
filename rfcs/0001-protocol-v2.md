@@ -242,11 +242,15 @@ Normative rules (gate **G1** applies these to all of v2.x):
 
 Conformance is defined by **shared fixtures**, not by any one implementation:
 
-- A `protocol-fixtures/` set of canonical `(session, message) → encoded bytes` vectors for both
-  codecs and both envelope versions, plus negotiation cases (compatible / incompatible / no-caps).
-- Each SDK (JS, Dart) and the relay run the **same** fixtures: encode-matches-bytes and
-  decode-round-trips. A "same-room" interop demo (JS ⇄ Dart via the relay) is the end-to-end gate
-  (G2).
+- A canonical vector set lives at [`protocol-fixtures/core-vectors.json`](../protocol-fixtures/README.md)
+  — `(session, message) → wire bytes` envelope vectors across the legacy v1 and modern v2 envelopes and
+  both codecs, plus negotiation vectors. It is generated from `@roomful/core` and drift-guarded by
+  `packages/core/src/protocol/protocol-fixtures.test.ts` (#102, delivered with this RFC). Because the
+  current capabilities fix `minVersion: 1`/`maxVersion: 2`, all valid capabilities overlap, so an
+  "incompatible" vector is reserved for when a non-overlapping version range becomes representable.
+- Each SDK (JS, the future `roomful` Dart client) and the relay run the **same** fixtures:
+  decode-round-trip is the primary order-independent gate; byte-exact encode is best-effort (map-key
+  order). A "same-room" interop demo (JS ⇄ Dart via the relay) is the end-to-end gate (G2).
 - Fixtures are versioned with the protocol; adding a reserved type ships new vectors.
 
 ## Drawbacks & alternatives
