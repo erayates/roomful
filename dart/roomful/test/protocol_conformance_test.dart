@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:roomful/roomful.dart';
 import 'package:test/test.dart';
@@ -55,40 +56,76 @@ void main() {
     }
   });
 
-  group('json envelope vectors', () {
+  group('envelope vectors', () {
     for (final raw in fixtures['envelopes'] as List<dynamic>) {
       final vector = raw as Map<String, dynamic>;
       final session = vector['session'] as Map<String, dynamic>;
-      if (session['codec'] != 'json') {
-        continue;
-      }
+      final codec = session['codec'] as String;
 
       test(vector['name'] as String, () {
-        final wire = vector['text'] as String;
         final message = revive(vector['message']) as Map<String, dynamic>;
 
         // Decode the JS-produced wire; it must match the fixture message.
-        final decoded = decodeJsonEnvelope(wire, now: () => fixedTs);
+        final WireMessage decoded;
+        if (codec == 'msgpack') {
+          decoded = decodeMsgpackEnvelope(
+            base64Decode(vector['wireBase64'] as String),
+            now: () => fixedTs,
+          );
+        } else {
+          decoded = decodeJsonEnvelope(vector['text'] as String, now: () => fixedTs);
+        }
+
         expect(decoded.type, message['type']);
         expect(decoded.roomId, message['roomId']);
         expect(decoded.fromPeerId, message['fromPeerId']);
         expect(decoded.toPeerId, message['toPeerId']);
         expect(decoded.timestamp, message['timestamp']);
         expect(decoded.payload, equals(message['payload']));
-
-        // Encode -> decode round-trips (order-independent).
-        final protocolSession = ProtocolSession(
-          version: session['version'] as int,
-          codec: session['codec'] as String,
-          legacy: session['legacy'] as bool,
-        );
-        final reDecoded = decodeJsonEnvelope(
-          encodeJsonEnvelope(decoded, protocolSession),
-          now: () => fixedTs,
-        );
-        expect(reDecoded.type, decoded.type);
-        expect(reDecoded.payload, equals(decoded.payload));
       });
     }
+  });
+
+  group('round-trip', () {
+    const jsonSession = ProtocolSession(version: 2, codec: 'json', legacy: false);
+    const msgpackSession = ProtocolSession(version: 2, codec: 'msgpack', legacy: false);
+
+    test('json envelope encode then decode', () {
+      final message = WireMessage(
+        type: 'event',
+        roomId: 'room-a',
+        fromPeerId: 'peer-a',
+        timestamp: fixedTs,
+        payload: <String, dynamic>{
+          'name': 'ping',
+          'payload': <String, dynamic>{'ok': true},
+        },
+      );
+      final decoded = decodeJsonEnvelope(
+        encodeJsonEnvelope(message, jsonSession),
+        now: () => fixedTs,
+      );
+      expect(decoded.type, 'event');
+      expect(decoded.payload, equals(message.payload));
+    });
+
+    test('msgpack envelope encode then decode, with binary', () {
+      final message = WireMessage(
+        type: 'crdt:sync',
+        roomId: 'room-a',
+        fromPeerId: 'peer-a',
+        timestamp: fixedTs,
+        payload: <String, dynamic>{
+          'kind': 'update',
+          'data': Uint8List.fromList(<int>[9, 8, 7]),
+        },
+      );
+      final decoded = decodeMsgpackEnvelope(
+        encodeMsgpackEnvelope(message, msgpackSession),
+        now: () => fixedTs,
+      );
+      expect(decoded.type, 'crdt:sync');
+      expect((decoded.payload as Map<String, dynamic>)['data'], equals(<int>[9, 8, 7]));
+    });
   });
 }
