@@ -44,6 +44,7 @@ When implementation and docs differ, open an issue with:
 
 - [Advanced features](advanced.md)
 - [Next.js auth tokens](auth-nextjs.md)
+- [Auth with Firebase, Supabase, and custom backends](auth-providers.md)
 - [UI components](ui-components.md)
 - [Devtools and debugging](devtools-debugging.md)
 - [Performance](performance.md)

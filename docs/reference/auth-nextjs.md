@@ -103,6 +103,8 @@ The relay's `--auth-secret` / `ROOMFUL_AUTH_SECRET` value and the `secret` you p
 
 ## Related Docs
 
+- [Auth with Firebase, Supabase, and custom backends](auth-providers.md)
+- [Self-hosting the relay](../getting-started/self-hosting.md)
 - [Reference index](README.md)
 - [Core API](core-api.md)
 - [Advanced features](advanced.md)
