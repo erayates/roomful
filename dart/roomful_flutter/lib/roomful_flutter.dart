@@ -10,6 +10,7 @@ library;
 
 export 'package:roomful/roomful.dart';
 
+export 'src/live_cursors_overlay.dart';
 export 'src/presence_avatars.dart';
 export 'src/room_controller.dart';
 export 'src/roomful_builder.dart';
