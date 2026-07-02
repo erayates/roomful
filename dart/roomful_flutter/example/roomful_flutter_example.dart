@@ -1,0 +1,147 @@
+import 'package:flutter/material.dart';
+import 'package:roomful_flutter/roomful_flutter.dart';
+
+/// A small end-to-end example wiring the whole `roomful_flutter` surface together: a
+/// [RoomfulProvider] hosting [PresenceAvatars], a [LiveCursorsOverlay] canvas, and a shared
+/// counter via [RoomfulSharedStateBuilder].
+///
+/// Point [_relayUrl] at your relay, then:
+/// `flutter run -t example/roomful_flutter_example.dart`.
+void main() {
+  runApp(const RoomfulExampleApp());
+}
+
+const String _roomId = 'roomful-flutter-demo';
+const String _relayUrl = 'wss://relay.example/?room=roomful-flutter-demo';
+
+class RoomfulExampleApp extends StatelessWidget {
+  const RoomfulExampleApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Roomful × Flutter',
+      theme: ThemeData.dark(),
+      home: const _ExampleHome(name: 'Flutter User', color: '#5cc7ab'),
+    );
+  }
+}
+
+class _ExampleHome extends StatelessWidget {
+  const _ExampleHome({required this.name, required this.color});
+
+  final String name;
+  final String color;
+
+  @override
+  Widget build(BuildContext context) {
+    return RoomfulProvider(
+      roomId: _roomId,
+      peerId: 'flutter-${identityHashCode(this)}',
+      relayUrl: _relayUrl,
+      child: _RoomScreen(name: name, color: color),
+    );
+  }
+}
+
+class _RoomScreen extends StatefulWidget {
+  const _RoomScreen({required this.name, required this.color});
+
+  final String name;
+  final String color;
+
+  @override
+  State<_RoomScreen> createState() => _RoomScreenState();
+}
+
+class _RoomScreenState extends State<_RoomScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      RoomfulProvider.of(context).setPresence(<String, dynamic>{
+        'name': widget.name,
+        'color': widget.color,
+      });
+    });
+  }
+
+  void _publishCursor(RoomController room, Offset local, BoxConstraints box) {
+    if (box.maxWidth == 0 || box.maxHeight == 0) {
+      return;
+    }
+    room.setCursor(<String, dynamic>{
+      'x': local.dx / box.maxWidth,
+      'y': local.dy / box.maxHeight,
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final room = RoomfulProvider.of(context);
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Roomful × Flutter'),
+        actions: const <Widget>[
+          Padding(
+            padding: EdgeInsets.only(right: 12),
+            child: Center(child: PresenceAvatars()),
+          ),
+        ],
+      ),
+      body: Column(
+        children: <Widget>[
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: RoomfulBuilder(
+              builder: (context, room) => Text(
+                '${room.peers.length} other peer(s) • ${room.state.name}',
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: RoomfulSharedStateBuilder<int>(
+              builder: (context, value, set) {
+                final count = value ?? 0;
+                return Row(
+                  children: <Widget>[
+                    Text('Shared counter: $count'),
+                    const SizedBox(width: 12),
+                    ElevatedButton(
+                      onPressed: () => set(count + 1),
+                      child: const Text('+1'),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+          Expanded(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return Listener(
+                  onPointerHover: (event) =>
+                      _publishCursor(room, event.localPosition, constraints),
+                  onPointerMove: (event) =>
+                      _publishCursor(room, event.localPosition, constraints),
+                  child: LiveCursorsOverlay(
+                    normalized: true,
+                    child: Container(
+                      color: const Color(0xFF0A0F0E),
+                      alignment: Alignment.center,
+                      child: const Text('Move your cursor here'),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
