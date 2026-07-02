@@ -1,0 +1,30 @@
+name: Dart
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'dart/**'
+      - 'protocol-fixtures/**'
+      - '.github/workflows/dart.yml'
+  pull_request:
+    paths:
+      - 'dart/**'
+      - 'protocol-fixtures/**'
+      - '.github/workflows/dart.yml'
+
+jobs:
+  roomful:
+    name: roomful (Dart)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: dart/roomful
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+      - run: dart pub get
+      - run: dart analyze
+      - run: dart test
