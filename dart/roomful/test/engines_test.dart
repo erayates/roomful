@@ -235,5 +235,52 @@ void main() {
       expect(locks.holder('row-1'), 'dart-1');
       expect(locks.isHeldByMe('row-1'), isTrue);
     });
+
+    test('acquireBlocking resolves immediately when the lock is free', () async {
+      final fake = FakeTransport();
+      final client = await connectClient(fake);
+      final locks = LocksEngine(client);
+
+      expect(await locks.acquireBlocking('row-1'), isTrue);
+      expect(locks.isHeldByMe('row-1'), isTrue);
+    });
+
+    test('acquireBlocking waits for an earlier holder to release', () async {
+      final fake = FakeTransport();
+      final client = await connectClient(fake);
+      final locks = LocksEngine(client);
+
+      // A remote peer already holds it (earlier claim).
+      fake.emit(transportFrame(lockEvent('roomful:lock:acquire', 'row-1', 'js-1', 5)));
+      await pump();
+
+      final pending =
+          locks.acquireBlocking('row-1', timeout: const Duration(seconds: 5));
+      expect(locks.isHeldByMe('row-1'), isFalse);
+
+      // The earlier holder releases; our pending claim wins.
+      fake.emit(transportFrame(lockEvent('roomful:lock:release', 'row-1', 'js-1', 6)));
+      expect(await pending, isTrue);
+      expect(locks.isHeldByMe('row-1'), isTrue);
+    });
+
+    test('acquireBlocking times out and retracts the claim', () async {
+      final fake = FakeTransport();
+      final client = await connectClient(fake);
+      final locks = LocksEngine(client);
+
+      // A remote peer holds it earlier and never releases.
+      fake.emit(transportFrame(lockEvent('roomful:lock:acquire', 'row-1', 'js-1', 5)));
+      await pump();
+
+      final acquired = await locks.acquireBlocking(
+        'row-1',
+        timeout: const Duration(milliseconds: 20),
+      );
+      expect(acquired, isFalse);
+      // The local claim was retracted; the earlier holder still owns it.
+      expect(locks.holder('row-1'), 'js-1');
+      expect(locks.isHeldByMe('row-1'), isFalse);
+    });
   });
 }

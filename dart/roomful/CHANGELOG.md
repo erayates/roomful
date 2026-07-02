@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.0-alpha.7
+
+- Add `LocksEngine.acquireBlocking(key, {timeout})`: claims the lock like `acquire`, then resolves
+  once the local peer is the resolved holder — immediately when the lock is free, or after an earlier
+  holder releases or leaves — and returns `false`, retracting the local claim, if the timeout elapses
+  first (EP-11). Unit-tested for the free, contended-then-released, and timeout paths.
+
 ## 0.1.0-alpha.6
 
 - Wire the MessagePack codec into `RoomfulClient` send and receive (EP-11 / S06). A client
