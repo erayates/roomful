@@ -198,12 +198,13 @@ Object? _fromLegacyPayload(String type, Object? payload) {
   return payload ?? <String, dynamic>{};
 }
 
-/// Encodes [message] into the RFC-0001 JSON transport envelope for [session] (the legacy
-/// v1 envelope for a legacy/v1 session, otherwise the modern v2 envelope). MessagePack
-/// encoding arrives in a later milestone.
-String encodeJsonEnvelope(WireMessage message, ProtocolSession session) {
+/// Builds the RFC-0001 JSON transport envelope object for [message] under [session] (the
+/// legacy v1 envelope for a legacy/v1 session, otherwise the modern v2 envelope). Returned
+/// as a map so it can be embedded in a relay `transport` frame or JSON-encoded directly.
+/// MessagePack encoding arrives in a later milestone.
+Map<String, dynamic> buildJsonEnvelope(WireMessage message, ProtocolSession session) {
   if (session.legacy || session.version == 1) {
-    return jsonEncode(<String, dynamic>{
+    return <String, dynamic>{
       'source': 'roomful',
       'version': 1,
       'signal': <String, dynamic>{
@@ -213,10 +214,10 @@ String encodeJsonEnvelope(WireMessage message, ProtocolSession session) {
         if (message.toPeerId != null) 'toPeerId': message.toPeerId,
         'payload': _toLegacyPayload(message.type, message.payload),
       },
-    });
+    };
   }
 
-  return jsonEncode(<String, dynamic>{
+  return <String, dynamic>{
     'source': 'roomful',
     'protocolVersion': 2,
     'codec': 'json',
@@ -226,19 +227,25 @@ String encodeJsonEnvelope(WireMessage message, ProtocolSession session) {
     'timestamp': message.timestamp,
     'type': message.type,
     'payload': message.payload,
-  });
+  };
 }
 
-/// Decodes a JSON transport envelope (v1 or v2) into a [WireMessage]. The v1 envelope has
-/// no `timestamp`, so [now] (defaulting to the wall clock) fills it.
-WireMessage decodeJsonEnvelope(String wire, {int Function()? now}) {
-  final decoded = jsonDecode(wire);
-  if (decoded is! Map<String, dynamic> || decoded['source'] != 'roomful') {
+/// Encodes [message] to a JSON envelope string.
+String encodeJsonEnvelope(WireMessage message, ProtocolSession session) =>
+    jsonEncode(buildJsonEnvelope(message, session));
+
+/// Decodes an already-parsed JSON transport envelope object (v1 or v2) into a [WireMessage].
+/// The v1 envelope has no `timestamp`, so [now] (defaulting to the wall clock) fills it.
+WireMessage decodeJsonEnvelopeObject(
+  Map<String, dynamic> envelope, {
+  int Function()? now,
+}) {
+  if (envelope['source'] != 'roomful') {
     throw const FormatException('Not a Roomful transport envelope.');
   }
 
-  if (decoded['version'] == 1) {
-    final signal = decoded['signal'] as Map<String, dynamic>;
+  if (envelope['version'] == 1) {
+    final signal = envelope['signal'] as Map<String, dynamic>;
     final type = signal['type'] as String;
     return WireMessage(
       type: type,
@@ -250,16 +257,25 @@ WireMessage decodeJsonEnvelope(String wire, {int Function()? now}) {
     );
   }
 
-  if (decoded['protocolVersion'] == 2) {
+  if (envelope['protocolVersion'] == 2) {
     return WireMessage(
-      type: decoded['type'] as String,
-      roomId: decoded['roomId'] as String,
-      fromPeerId: decoded['fromPeerId'] as String,
-      toPeerId: decoded['toPeerId'] as String?,
-      timestamp: decoded['timestamp'] as int,
-      payload: decoded['payload'],
+      type: envelope['type'] as String,
+      roomId: envelope['roomId'] as String,
+      fromPeerId: envelope['fromPeerId'] as String,
+      toPeerId: envelope['toPeerId'] as String?,
+      timestamp: envelope['timestamp'] as int,
+      payload: envelope['payload'],
     );
   }
 
   throw const FormatException('Unrecognized Roomful envelope version.');
+}
+
+/// Decodes a JSON transport envelope string into a [WireMessage].
+WireMessage decodeJsonEnvelope(String wire, {int Function()? now}) {
+  final decoded = jsonDecode(wire);
+  if (decoded is! Map<String, dynamic>) {
+    throw const FormatException('Not a JSON object envelope.');
+  }
+  return decodeJsonEnvelopeObject(decoded, now: now);
 }
