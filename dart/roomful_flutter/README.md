@@ -39,6 +39,16 @@ RoomfulProvider.of(context).setPresence({'name': 'Alice', 'color': '#5cc7ab'});
 
 The whole `roomful` core (client, protocol, engines) is re-exported, so a single import is enough.
 
+## Example
+
+[`example/roomful_flutter_example.dart`](example/roomful_flutter_example.dart) wires all four
+together — a `RoomfulProvider` hosting `PresenceAvatars`, a `LiveCursorsOverlay` canvas, and a
+shared counter. Point its `_relayUrl` at your relay and run:
+
+```sh
+flutter run -t example/roomful_flutter_example.dart
+```
+
 ## Roadmap
 
 See the [Roomful roadmap](../../ROADMAP.md) and the

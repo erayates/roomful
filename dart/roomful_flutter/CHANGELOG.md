@@ -13,4 +13,6 @@
   helpers with `PresenceAvatars`.
 - `RoomfulSharedStateBuilder<T>` — a typed, reactive view of the room's shared (last-write-wins)
   value, with a setter to publish changes. `RoomController` now owns a `SharedStateEngine` and
-  exposes `sharedValue` / `setSharedState`. (A runnable example app follows.)
+  exposes `sharedValue` / `setSharedState`.
+- `example/roomful_flutter_example.dart` — an end-to-end demo wiring a `RoomfulProvider` with
+  `PresenceAvatars`, a `LiveCursorsOverlay` canvas, and a shared counter.
