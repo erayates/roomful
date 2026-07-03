@@ -12,6 +12,8 @@ import type {
   CursorEngine,
   CursorPosition,
   EventEngine,
+  FieldPresenceEngine,
+  FieldPresenceState,
   HistoryEngine,
   LockEngine,
   LockState,
@@ -174,6 +176,15 @@ type TestActivityEngine = ActivityEngine & {
   record: ReturnType<typeof vi.fn<ActivityEngine['record']>>;
   subscriberCount(): number;
   subscribe: ReturnType<typeof vi.fn<(cb: ActivitySubscriber) => () => void>>;
+};
+
+type FieldPresenceSubscriber = (fields: FieldPresenceState[]) => void;
+
+type TestFieldPresenceEngine = FieldPresenceEngine & {
+  emit(fields: FieldPresenceState[]): void;
+  setActiveField: ReturnType<typeof vi.fn<FieldPresenceEngine['setActiveField']>>;
+  subscriberCount(): number;
+  subscribe: ReturnType<typeof vi.fn<(cb: FieldPresenceSubscriber) => () => void>>;
 };
 
 type TestHistoryEngine = HistoryEngine & {
@@ -793,6 +804,46 @@ function createActivityEntry(id: string, overrides: Partial<ActivityEntry> = {})
   };
 }
 
+function createFieldPresenceState(fieldId: string, peerIds: string[]): FieldPresenceState {
+  return { fieldId, peers: peerIds.map((peerId) => createPeer(peerId)) };
+}
+
+function createMockFieldPresenceEngine(
+  initial: FieldPresenceState[] = [],
+): TestFieldPresenceEngine {
+  const subscribers = new Set<FieldPresenceSubscriber>();
+  let fields = initial;
+
+  const engine = {
+    setActiveField: vi.fn(),
+    getFieldPeers(fieldId: string) {
+      return fields.find((field) => field.fieldId === fieldId)?.peers ?? [];
+    },
+    getActiveFields() {
+      return fields;
+    },
+    subscribe: vi.fn((callback: FieldPresenceSubscriber) => {
+      subscribers.add(callback);
+      callback(fields);
+
+      return () => {
+        subscribers.delete(callback);
+      };
+    }),
+    emit(nextFields: FieldPresenceState[]) {
+      fields = nextFields;
+      for (const subscriber of subscribers) {
+        subscriber(fields);
+      }
+    },
+    subscriberCount() {
+      return subscribers.size;
+    },
+  } as TestFieldPresenceEngine;
+
+  return engine;
+}
+
 function createMockActivityEngine(entries: ActivityEntry[] = []): TestActivityEngine {
   const subscribers = new Set<ActivitySubscriber>();
   let currentEntries = entries;
@@ -1066,6 +1117,7 @@ function createMockRoom(
   options: RoomOptions<PresenceData> = {},
   config: {
     activityEngine?: TestActivityEngine;
+    fieldPresenceEngine?: TestFieldPresenceEngine;
     awarenessEngine?: TestAwarenessEngine;
     commentsEngine?: TestCommentsEngine;
     cursorEngine?: TestCursorEngine;
@@ -1084,6 +1136,7 @@ function createMockRoom(
   const handlers = new Map<RoomEventName, Set<RoomEventHandler>>();
   const peerId = config.peerId ?? `${roomId}-peer`;
   const activityEngine = config.activityEngine ?? createMockActivityEngine();
+  const fieldPresenceEngine = config.fieldPresenceEngine ?? createMockFieldPresenceEngine();
   const awarenessEngine =
     config.awarenessEngine ?? createMockAwarenessEngine([createAwareness(peerId)]);
   const commentsEngine = config.commentsEngine ?? createMockCommentsEngine();
@@ -1173,6 +1226,9 @@ function createMockRoom(
     stateEngine,
     useActivity: vi.fn(() => {
       return activityEngine;
+    }),
+    useFieldPresence: vi.fn(() => {
+      return fieldPresenceEngine;
     }),
     useAwareness: vi.fn(() => {
       return awarenessEngine;
@@ -2005,6 +2061,54 @@ describe('roomful', () => {
     roomful('activity-options-room', { activity: { limit: 50 } });
 
     expect(room.useActivity.mock.calls[0]?.[0]).toEqual({ limit: 50 });
+  });
+
+  it('exposes field presence as a store, reflects remote changes, and forwards setActiveField', async () => {
+    const fieldPresenceEngine = createMockFieldPresenceEngine([
+      createFieldPresenceState('email', ['peer-a']),
+    ]);
+    createMockRoom(
+      'field-room',
+      {},
+      {
+        fieldPresenceEngine,
+      },
+    );
+
+    const adapter = roomful('field-room');
+    const snapshots: Array<FieldPresenceState[]> = [];
+    const unsubscribe = adapter.fieldPresence.subscribe((value) => {
+      snapshots.push(value);
+    });
+
+    expect(get(adapter.fieldPresence)).toEqual([expect.objectContaining({ fieldId: 'email' })]);
+    expect(adapter.fieldPresence.getFieldPeers('email').map((peer) => peer.id)).toEqual(['peer-a']);
+    expect(snapshots).toHaveLength(1);
+
+    await adapter.connect();
+
+    adapter.fieldPresence.setActiveField('name');
+    expect(fieldPresenceEngine.setActiveField).toHaveBeenCalledWith('name');
+
+    // A remote change is reflected in the store; a deep-equal re-emit is skipped.
+    const snapshotCountBeforeEmit = snapshots.length;
+    fieldPresenceEngine.emit([
+      createFieldPresenceState('email', ['peer-a']),
+      createFieldPresenceState('name', ['peer-b']),
+    ]);
+    expect(snapshots).toHaveLength(snapshotCountBeforeEmit + 1);
+    expect(snapshots.at(-1)?.map((field) => field.fieldId)).toEqual(['email', 'name']);
+
+    fieldPresenceEngine.emit([
+      createFieldPresenceState('email', ['peer-a']),
+      createFieldPresenceState('name', ['peer-b']),
+    ]);
+    expect(snapshots).toHaveLength(snapshotCountBeforeEmit + 1);
+
+    unsubscribe();
+
+    await adapter.destroy();
+    expect(fieldPresenceEngine.subscriberCount()).toBe(0);
   });
 
   it('exposes history as a store, reflects captures and remote entries, and forwards controls', async () => {

@@ -15,6 +15,8 @@ import type {
   CursorPosition,
   CursorRenderOptions,
   EventEngine,
+  FieldPresenceEngine,
+  FieldPresenceState,
   HistoryEngine,
   HistoryOptions,
   LockAcquireOptions,
@@ -124,6 +126,12 @@ interface ActivitySnapshotCache<TPresence extends PresenceData> {
   engine: ActivityEngine;
   room: Room<TPresence>;
   snapshot: ActivityEntry[];
+}
+
+interface FieldPresenceSnapshotCache<TPresence extends PresenceData> {
+  engine: FieldPresenceEngine;
+  room: Room<TPresence>;
+  snapshot: FieldPresenceState[];
 }
 
 interface HistorySnapshotCache<TPresence extends PresenceData> {
@@ -485,6 +493,23 @@ export interface ActivityStore extends Readable<ActivityEntry[]> {
 }
 
 /**
+ * Readable store of the active fields (which remote peers are on which field) augmented with the
+ * `setActiveField` control and a `getFieldPeers` reader. The store's value updates when peers enter
+ * or leave a field.
+ */
+export interface FieldPresenceStore extends Readable<FieldPresenceState[]> {
+  /**
+   * Declares the field the local peer is active on, or `null` to clear it.
+   */
+  setActiveField: FieldPresenceEngine['setActiveField'];
+
+  /**
+   * Returns the remote peers on a field from the current snapshot.
+   */
+  getFieldPeers(fieldId: string): Peer[];
+}
+
+/**
  * Readable store of the shared collaborative history timeline augmented with
  * reactive `canUndo`/`canRedo` stores and the undo/redo controls. The store's
  * own value is the timeline (oldest first), updating on any local or remote
@@ -578,6 +603,11 @@ export type { Comment, CommentAnchor, CommentsOptions, CommentThread };
  * Re-exports the collaborative activity types for adapter consumers.
  */
 export type { ActivityEngine, ActivityEntry, ActivityOptions };
+
+/**
+ * Re-exports the field-presence types for adapter consumers.
+ */
+export type { FieldPresenceEngine, FieldPresenceState };
 
 /**
  * Re-exports the collaborative history types for adapter consumers.
@@ -782,6 +812,11 @@ export interface RoomfulAdapter<
   activity: ActivityStore;
 
   /**
+   * Exposes the field-presence store plus `setActiveField` and `getFieldPeers`.
+   */
+  fieldPresence: FieldPresenceStore;
+
+  /**
    * Exposes the awareness store.
    */
   awareness: AwarenessStore;
@@ -904,6 +939,7 @@ export function roomful<
   const lockEngine = room.useLocks();
   const commentsEngine = room.useComments(commentsOptions);
   const activityEngine = room.useActivity(activityOptions);
+  const fieldPresenceEngine = room.useFieldPresence();
   const historyEngine = room.useHistory(historyOptions);
   const recordingEngine = room.useRecording();
   const eventEngine = room.useEvents();
@@ -923,6 +959,7 @@ export function roomful<
   let locksCache: LocksSnapshotCache<TPresence> | null = null;
   let commentsCache: CommentsSnapshotCache<TPresence> | null = null;
   let activityCache: ActivitySnapshotCache<TPresence> | null = null;
+  let fieldPresenceCache: FieldPresenceSnapshotCache<TPresence> | null = null;
   let historyCache: HistorySnapshotCache<TPresence> | null = null;
   let sharedStateController: SharedStateController<TPresence, unknown> | null = null;
 
@@ -1000,6 +1037,14 @@ export function roomful<
       current: activityCache,
       set(nextCache) {
         activityCache = nextCache;
+      },
+    }),
+  );
+  const fieldPresenceStore = createValueStore(
+    readFieldPresenceSnapshot(room, fieldPresenceEngine, {
+      current: fieldPresenceCache,
+      set(nextCache) {
+        fieldPresenceCache = nextCache;
       },
     }),
   );
@@ -1106,6 +1151,17 @@ export function roomful<
         current: activityCache,
         set(nextCache) {
           activityCache = nextCache;
+        },
+      }),
+    );
+  };
+
+  const refreshFieldPresence = (): void => {
+    fieldPresenceStore.publish(
+      readFieldPresenceSnapshot(room, fieldPresenceEngine, {
+        current: fieldPresenceCache,
+        set(nextCache) {
+          fieldPresenceCache = nextCache;
         },
       }),
     );
@@ -1282,6 +1338,20 @@ export function roomful<
     });
   };
 
+  const attachFieldPresenceSubscription = (): void => {
+    if (!runtimeStarted) {
+      return;
+    }
+
+    const unsubscribe = fieldPresenceEngine.subscribe(() => {
+      refreshFieldPresence();
+    });
+
+    registerCleanup(() => {
+      unsubscribe();
+    });
+  };
+
   const attachHistorySubscription = (): void => {
     if (!runtimeStarted) {
       return;
@@ -1402,6 +1472,7 @@ export function roomful<
     attachLocksSubscription();
     attachCommentsSubscription();
     attachActivitySubscription();
+    attachFieldPresenceSubscription();
     attachHistorySubscription();
     attachRecordingSubscription();
     attachSharedStateSubscription();
@@ -1705,6 +1776,19 @@ export function roomful<
     record(type, data) {
       assertAvailable('activity.record');
       return activityEngine.record(type, data);
+    },
+  };
+
+  const fieldPresence: FieldPresenceStore = {
+    subscribe(run, invalidate) {
+      return fieldPresenceStore.subscribe(run, invalidate);
+    },
+    setActiveField(fieldId) {
+      assertAvailable('fieldPresence.setActiveField');
+      fieldPresenceEngine.setActiveField(fieldId);
+    },
+    getFieldPeers(fieldId) {
+      return fieldPresenceEngine.getFieldPeers(fieldId);
     },
   };
 
@@ -2070,6 +2154,7 @@ export function roomful<
     pointerStore.clear();
     locksStore.clear();
     commentsStore.clear();
+    fieldPresenceStore.clear();
     historyStore.clear();
     historyCanUndoStore.clear();
     historyCanRedoStore.clear();
@@ -2099,6 +2184,7 @@ export function roomful<
     destroy,
     disconnect,
     events,
+    fieldPresence,
     history,
     locks,
     lockState,
@@ -2608,6 +2694,67 @@ function readActivitySnapshot<TPresence extends PresenceData>(
 
   cacheRef.set({
     engine: activity,
+    room,
+    snapshot: nextSnapshot,
+  });
+  return nextSnapshot;
+}
+
+function areFieldPresenceArraysEqual(
+  previous: readonly FieldPresenceState[],
+  next: readonly FieldPresenceState[],
+): boolean {
+  if (previous === next) {
+    return true;
+  }
+
+  if (previous.length !== next.length) {
+    return false;
+  }
+
+  for (let index = 0; index < previous.length; index += 1) {
+    const previousField = previous[index];
+    const nextField = next[index];
+
+    if (!previousField || !nextField || !areStructuredValuesEqual(previousField, nextField)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function readFieldPresenceSnapshot<TPresence extends PresenceData>(
+  room: Room<TPresence>,
+  fieldPresence: FieldPresenceEngine,
+  cacheRef: {
+    current: FieldPresenceSnapshotCache<TPresence> | null;
+    set(nextCache: FieldPresenceSnapshotCache<TPresence>): void;
+  },
+): FieldPresenceState[] {
+  const nextSnapshot = fieldPresence.getActiveFields();
+  const previous = cacheRef.current;
+
+  if (previous && previous.room === room && previous.engine === fieldPresence) {
+    const previousSnapshot = previous.snapshot;
+    if (areFieldPresenceArraysEqual(previousSnapshot, nextSnapshot)) {
+      return previousSnapshot;
+    }
+
+    const stableSnapshot = nextSnapshot.map((field, index) => {
+      const previousField = previousSnapshot[index];
+      if (previousField && areStructuredValuesEqual(previousField, field)) {
+        return previousField;
+      }
+
+      return field;
+    });
+    previous.snapshot = stableSnapshot;
+    return stableSnapshot;
+  }
+
+  cacheRef.set({
+    engine: fieldPresence,
     room,
     snapshot: nextSnapshot,
   });
