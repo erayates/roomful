@@ -56,6 +56,22 @@ import { createMemoryActivityStorage } from '@roomful/core';
 const storage = createMemoryActivityStorage();
 ```
 
+## Web Storage (browser, zero-server)
+
+`createLocalStorageActivityStorage(roomId)` persists the feed to the browser's `localStorage`, so it
+survives a reload without any backend. It is keyed per room (`roomful:<roomId>:activity`), versioned,
+and fails closed — an unavailable or faulting store degrades to an empty/no-op adapter rather than
+breaking the live feed. It is per-browser, not shared across devices; use a server adapter for that.
+
+```ts
+import { createLocalStorageActivityStorage, createRoom } from '@roomful/core';
+
+const room = createRoom('doc-1');
+const activity = room.useActivity({
+  storageAdapter: createLocalStorageActivityStorage('doc-1'),
+});
+```
+
 ## Postgres / SQLite (sketch)
 
 Implement the two methods against your database — one row per entry, keyed by room and `entry.id`,
