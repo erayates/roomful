@@ -1,5 +1,18 @@
 # @roomful/angular
 
+## 1.5.0
+
+### Minor Changes
+
+- fe8becb: Add the `injectFieldPresence` function (EP-15/16): returns a `Signal` of the active fields (which
+  remote peers are on which field) plus a `setActiveField(id | null)` control and `getFieldPeers(id)`.
+  Must run in an injection context. See `docs/reference/engines-field-presence.md`.
+
+### Patch Changes
+
+- Updated dependencies [db6c216]
+  - @roomful/core@1.6.0
+
 ## 1.4.0
 
 ### Minor Changes

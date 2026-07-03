@@ -1,5 +1,12 @@
 # @roomful/next
 
+## 1.1.7
+
+### Patch Changes
+
+- Updated dependencies [db6c216]
+  - @roomful/core@1.6.0
+
 ## 1.1.6
 
 ### Patch Changes

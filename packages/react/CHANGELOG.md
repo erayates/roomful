@@ -1,5 +1,19 @@
 # @roomful/react
 
+## 1.4.0
+
+### Minor Changes
+
+- db6c216: Add the `useFieldPresence` hook (EP-15/16): returns `{ fields, setActiveField, getFieldPeers }` — the
+  reactive list of fields with remote peers, a stable `setActiveField(id | null)` to declare the local
+  peer's field (e.g. on focus/blur), and `getFieldPeers(id)` to read the current snapshot. See
+  `docs/reference/engines-field-presence.md`.
+
+### Patch Changes
+
+- Updated dependencies [db6c216]
+  - @roomful/core@1.6.0
+
 ## 1.3.0
 
 ### Minor Changes
