@@ -80,6 +80,38 @@ your app's contract**, and every platform in the room must agree on them:
   nest fields in a `Map`/object if you need several.
 - **Events** — agree on event `name`s and payload shapes.
 
+## Run the cross-platform demo
+
+Two example clients ship in the repo and default to the **same room**, so they collaborate across
+platforms: [`examples/cross-platform-interop`](../../examples/cross-platform-interop) (React web)
+and the [`roomful_flutter` example](../../dart/roomful_flutter/example/roomful_flutter_example.dart)
+(Flutter).
+
+1. **Start a relay** from the repo root:
+
+   ```sh
+   docker compose up            # relay on ws://localhost:8787
+   ```
+
+2. **Run the web client** against that relay and the shared room:
+
+   ```sh
+   pnpm --filter @roomful/example-cross-platform-interop dev
+   # http://127.0.0.1:4175/?relay=ws://localhost:8787&room=roomful-interop-demo
+   ```
+
+3. **Run the Flutter client** in the same room:
+
+   ```sh
+   cd dart/roomful_flutter
+   flutter run -t example/roomful_flutter_example.dart \
+     --dart-define=ROOMFUL_RELAY_URL=ws://localhost:8787
+   ```
+
+Move your cursor in either client and watch presence and cursors appear in the other. From a phone
+or a second machine, replace `localhost` with your host's LAN address (and use a TLS-terminated
+`wss://` relay for anything public).
+
 ## Related docs
 
 - [Protocol RFC-0001](../../rfcs/0001-protocol-v2.md)
