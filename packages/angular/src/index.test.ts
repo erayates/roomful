@@ -1,5 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import type {
+  ActivityEngine,
+  ActivityEntry,
   AwarenessEngine,
   AwarenessState,
   CommentAnchor,
@@ -51,6 +53,7 @@ vi.mock('@roomful/core', async () => {
 });
 
 import {
+  injectActivity,
   injectAwareness,
   injectComments,
   injectConnectionStatus,
@@ -82,6 +85,7 @@ type PointerSubscriber = (beams: PointerBeam[]) => void;
 type LockStateSubscriber = (state: LockState) => void;
 type LocksSubscriber = (states: LockState[]) => void;
 type CommentsSubscriber = (threads: CommentThread[]) => void;
+type ActivitySubscriber = (entries: ActivityEntry[]) => void;
 type HistorySubscriber = (timeline: TimelineEntry[]) => void;
 type RecordingSubscriber = (state: RecordingState) => void;
 
@@ -159,6 +163,13 @@ type TestCommentsEngine = CommentsEngine & {
   reply: ReturnType<typeof vi.fn<(threadId: string, text: string) => Promise<CommentThread>>>;
   resolve: ReturnType<typeof vi.fn<(threadId: string) => Promise<CommentThread>>>;
   reopen: ReturnType<typeof vi.fn<(threadId: string) => Promise<CommentThread>>>;
+};
+
+type TestActivityEngine = ActivityEngine & {
+  emit(entries: ActivityEntry[]): void;
+  subscriberCount(): number;
+  subscribe: ReturnType<typeof vi.fn<(cb: ActivitySubscriber) => () => void>>;
+  record: ReturnType<typeof vi.fn<ActivityEngine['record']>>;
 };
 
 type TestHistoryEngine = HistoryEngine & {
@@ -684,6 +695,58 @@ function createMockCommentsEngine(threads: CommentThread[] = []): TestCommentsEn
   return engine;
 }
 
+function createActivityEntry(id: string, overrides: Partial<ActivityEntry> = {}): ActivityEntry {
+  return {
+    id,
+    type: 'seed',
+    actor: createPeer(`actor-${id}`),
+    timestamp: 1,
+    ...overrides,
+  };
+}
+
+function createMockActivityEngine(entries: ActivityEntry[] = []): TestActivityEngine {
+  const subscribers = new Set<ActivitySubscriber>();
+  let currentEntries = entries;
+
+  const engine = {
+    record: vi.fn((type: string, data?: unknown) => {
+      const entry = createActivityEntry(`entry-${currentEntries.length + 1}`, {
+        type,
+        data,
+        timestamp: currentEntries.length + 2,
+      });
+      currentEntries = [entry, ...currentEntries];
+      for (const subscriber of subscribers) {
+        subscriber(currentEntries);
+      }
+      return entry;
+    }),
+    getEntries() {
+      return currentEntries;
+    },
+    subscribe: vi.fn((callback: ActivitySubscriber) => {
+      subscribers.add(callback);
+      callback(currentEntries);
+
+      return () => {
+        subscribers.delete(callback);
+      };
+    }),
+    emit(nextEntries: ActivityEntry[]) {
+      currentEntries = nextEntries;
+      for (const subscriber of subscribers) {
+        subscriber(currentEntries);
+      }
+    },
+    subscriberCount() {
+      return subscribers.size;
+    },
+  } as TestActivityEngine;
+
+  return engine;
+}
+
 function createTimelineEntry(id: string, overrides: Partial<TimelineEntry> = {}): TimelineEntry {
   return {
     id,
@@ -949,6 +1012,7 @@ function createMockRoom(
   roomId = 'room-1',
   options: RoomOptions<PresenceData> = {},
   config: {
+    activityEngine?: TestActivityEngine;
     awarenessEngine?: TestAwarenessEngine;
     commentsEngine?: TestCommentsEngine;
     cursorEngine?: TestCursorEngine;
@@ -966,6 +1030,7 @@ function createMockRoom(
 ): TestRoom {
   const handlers = new Map<RoomEventName, Set<RoomEventHandler>>();
   const peerId = config.peerId ?? `${roomId}-peer`;
+  const activityEngine = config.activityEngine ?? createMockActivityEngine();
   const awarenessEngine = config.awarenessEngine ?? createMockAwarenessEngine();
   const commentsEngine = config.commentsEngine ?? createMockCommentsEngine();
   const cursorEngine = config.cursorEngine ?? createMockCursorEngine();
@@ -1086,6 +1151,9 @@ function createMockRoom(
     }),
     useComments: vi.fn(() => {
       return commentsEngine;
+    }),
+    useActivity: vi.fn(() => {
+      return activityEngine;
     }),
     useHistory: vi.fn(() => {
       return historyEngine;
@@ -1923,6 +1991,67 @@ describe('injectComments', () => {
   it('throws a typed error when injectComments() is called without provideRoomful', () => {
     expect(() => {
       TestBed.runInInjectionContext(() => injectComments());
+    }).toThrowError(RoomfulError);
+  });
+});
+
+describe('injectActivity', () => {
+  it('returns an entries signal and record and reflects recorded and remote entries', () => {
+    const activityEngine = createMockActivityEngine([
+      createActivityEntry('seed', { type: 'seed' }),
+    ]);
+    createMockRoom(
+      'activity-room',
+      {},
+      {
+        activityEngine,
+      },
+    );
+
+    const env = setupRoom('activity-room');
+    const result = env.run(() => injectActivity());
+
+    expect(result.entries()).toEqual([expect.objectContaining({ id: 'seed' })]);
+
+    // Recording an entry is reflected newest-first in the signal.
+    result.record('comment:added', { n: 1 });
+    expect(activityEngine.record).toHaveBeenCalledWith('comment:added', { n: 1 });
+    expect(result.entries()[0]).toEqual(expect.objectContaining({ type: 'comment:added' }));
+
+    // A remote entry is reflected in the signal.
+    activityEngine.emit([
+      createActivityEntry('remote', { type: 'record:locked', timestamp: 9 }),
+      createActivityEntry('seed', { type: 'seed' }),
+    ]);
+    expect(result.entries().map((entry) => entry.id)).toEqual(['remote', 'seed']);
+    expect(activityEngine.subscriberCount()).toBe(1);
+
+    env.destroy();
+    expect(activityEngine.subscriberCount()).toBe(0);
+  });
+
+  it('skips deep-equal activity snapshots', () => {
+    const activityEngine = createMockActivityEngine([createActivityEntry('seed')]);
+    createMockRoom(
+      'activity-reactivity',
+      {},
+      {
+        activityEngine,
+      },
+    );
+
+    const env = setupRoom('activity-reactivity');
+    const result = env.run(() => injectActivity());
+
+    const initialSnapshot = result.entries();
+
+    activityEngine.emit([createActivityEntry('seed')]);
+    expect(result.entries()).toBe(initialSnapshot);
+  });
+
+  it('throws a typed error when injectActivity() is called without provideRoomful', () => {
+    expect(() => {
+      TestBed.runInInjectionContext(() => injectActivity());
     }).toThrowError(RoomfulError);
   });
 });

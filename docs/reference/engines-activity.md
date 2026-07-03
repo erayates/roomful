@@ -158,6 +158,30 @@ function Feed() {
 
 `useActivity()` returns `{ entries, record }`; `entries` is an accessor for the reactive feed, newest first.
 
+### Angular
+
+`injectActivity()` must run in an injection context and returns `{ entries, record }`, where `entries` is a `Signal`:
+
+```ts
+import { Component } from '@angular/core';
+import { injectActivity } from '@roomful/angular';
+
+@Component({
+  selector: 'app-feed',
+  template: `
+    <button (click)="activity.record('note:added')">Add note</button>
+    <ul>
+      @for (entry of activity.entries(); track entry.id) {
+        <li>{{ entry.actor.name ?? entry.actor.id }}: {{ entry.type }}</li>
+      }
+    </ul>
+  `,
+})
+export class FeedComponent {
+  protected readonly activity = injectActivity();
+}
+```
+
 ## Related docs
 
 - [Comments engine](engines-comments.md)
