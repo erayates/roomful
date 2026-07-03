@@ -1392,6 +1392,61 @@ export interface AwarenessEngine {
 }
 
 /**
+ * Reports the remote peers currently active on one field, keyed by an app-defined field id (a form
+ * input, table cell, or record attribute). Used to render "who else is editing this" indicators.
+ */
+export interface FieldPresenceState {
+  /**
+   * The app-defined field identifier (e.g. `'user.email'` or `'row-42:status'`).
+   */
+  fieldId: string;
+
+  /**
+   * The remote peers currently on the field, resolved with live presence.
+   */
+  peers: Peer[];
+}
+
+/**
+ * A field-oriented view of the awareness channel: which remote peers are active on which field
+ * right now. `setActiveField` declares the local peer's field (e.g. on focus); the reads answer
+ * "who else is here". Rides the awareness transport, so no relay change is needed. Purpose-built for
+ * collaborative forms, tables, and admin records. See `docs/reference/engines-field-presence.md`.
+ */
+export interface FieldPresenceEngine {
+  /**
+   * Declares the field the local peer is active on, or `null` to clear it (e.g. on blur).
+   *
+   * @param fieldId - The active field id, or `null`.
+   * @returns Nothing.
+   */
+  setActiveField(fieldId: string | null): void;
+
+  /**
+   * Returns the remote peers currently active on a field.
+   *
+   * @param fieldId - The field to query.
+   * @returns The remote peers on the field (empty when none).
+   */
+  getFieldPeers(fieldId: string): Peer[];
+
+  /**
+   * Returns every field with at least one remote peer, ordered by field id.
+   *
+   * @returns The active fields.
+   */
+  getActiveFields(): FieldPresenceState[];
+
+  /**
+   * Subscribes to field-presence changes. Fires immediately with the current fields.
+   *
+   * @param callback - Invoked with the active fields on every change.
+   * @returns A function that removes the listener.
+   */
+  subscribe(callback: (fields: FieldPresenceState[]) => void): Unsubscribe;
+}
+
+/**
  * Exposes viewport synchronization for a room. A viewport engine streams this
  * peer's scroll/zoom/dimensions and applies a followed peer's viewport to the
  * mounted container.
@@ -2402,6 +2457,13 @@ export interface Room<TPresence extends PresenceData = PresenceData> {
    * @returns The activity engine.
    */
   useActivity(options?: ActivityOptions): ActivityEngine;
+
+  /**
+   * Accesses the field-presence engine: which remote peers are active on which field.
+   *
+   * @returns The field-presence engine.
+   */
+  useFieldPresence(): FieldPresenceEngine;
 
   /**
    * Accesses the collaborative history (undo/redo plus shared timeline) engine
