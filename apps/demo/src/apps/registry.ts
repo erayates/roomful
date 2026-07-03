@@ -1,9 +1,11 @@
 import type { ReactElement } from 'react';
 
 import type { DemoIdentity } from '../demo-types';
+import { ActivityApp } from './activity-app';
 import { CanvasApp } from './canvas-app';
 import { ChatApp } from './chat-app';
 import { ChecklistApp } from './checklist-app';
+import { CommentsApp } from './comments-app';
 import { CursorsApp } from './cursors-app';
 import { MoodApp } from './mood-app';
 import { NotesApp } from './notes-app';
@@ -89,6 +91,22 @@ export const MINI_APPS: readonly MiniAppDefinition[] = [
     icon: '◧',
     primitives: 'Shared state · Presence',
     Component: PollApp,
+  },
+  {
+    id: 'comments',
+    title: 'Comments',
+    tagline: 'Leave anchored comment threads and resolve them together.',
+    icon: '❞',
+    primitives: 'Comments engine',
+    Component: CommentsApp,
+  },
+  {
+    id: 'activity',
+    title: 'Activity feed',
+    tagline: 'A shared, durable feed — entries survive a reload.',
+    icon: '⟳',
+    primitives: 'Activity engine · Local storage',
+    Component: ActivityApp,
   },
 ];
 
