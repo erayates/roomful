@@ -42,12 +42,13 @@ Audience: users.
 
 ## Collaboration primitives (v1.5)
 
-`roomful()` also returns these as stores. Each is a readable store of its remote/collaborative value with methods attached; `viewport.mount` and `pointer.mount` are Svelte actions like `cursors.mount`. Storage/limit options are passed on the `roomful(...)` factory (`comments`, `history`).
+`roomful()` also returns these as stores. Each is a readable store of its remote/collaborative value with methods attached; `viewport.mount` and `pointer.mount` are Svelte actions like `cursors.mount`. Storage/limit options are passed on the `roomful(...)` factory (`comments`, `activity`, `history`).
 
 - `viewport` — a store of remote `ViewportState[]` with `mount` (action), `unmount`, `broadcast`, `stopBroadcast`, `present`, `stopPresenting`, `follow`, `unfollow`. See [Viewport engine](engines-viewport.md).
 - `locks` — a store of `LockState[]` with `acquire`/`release`/`releaseAll`/`isLocked`/`getHolder`; `lockState(key)` returns a store of a single key's `LockState | null`. See [Locking engine](engines-locks.md).
 - `pointer` — a store of remote `PointerBeam[]` with `mount` (action), `unmount`, `activate`, `deactivate`, `render`. See [Pointer engine](engines-pointer.md).
 - `comments` — a store of `CommentThread[]` with `add`/`reply`/`resolve`/`reopen`/`getByElement`/`getOpen`. See [Comments engine](engines-comments.md).
+- `activity` — a store of the `ActivityEntry[]` feed (newest first) with `record`. See [Activity engine](engines-activity.md).
 - `history` — a store of the `TimelineEntry[]` timeline with nested `canUndo`/`canRedo` boolean stores and `capture`/`transaction`/`undo`/`redo`. See [History engine](engines-history.md).
 
 ## Integration Notes

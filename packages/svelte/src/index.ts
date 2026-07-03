@@ -1,4 +1,7 @@
 import type {
+  ActivityEngine,
+  ActivityEntry,
+  ActivityOptions,
   AwarenessEngine,
   AwarenessSelection,
   AwarenessState,
@@ -115,6 +118,12 @@ interface CommentsSnapshotCache<TPresence extends PresenceData> {
   engine: CommentsEngine;
   room: Room<TPresence>;
   snapshot: CommentThread[];
+}
+
+interface ActivitySnapshotCache<TPresence extends PresenceData> {
+  engine: ActivityEngine;
+  room: Room<TPresence>;
+  snapshot: ActivityEntry[];
 }
 
 interface HistorySnapshotCache<TPresence extends PresenceData> {
@@ -465,6 +474,17 @@ export interface CommentsStore extends Readable<CommentThread[]> {
 }
 
 /**
+ * Readable store of the shared room activity feed (newest first) augmented with
+ * the `record` control. The store's value updates on any local or remote entry.
+ */
+export interface ActivityStore extends Readable<ActivityEntry[]> {
+  /**
+   * Records a new activity entry authored by the local peer and broadcasts it.
+   */
+  record: ActivityEngine['record'];
+}
+
+/**
  * Readable store of the shared collaborative history timeline augmented with
  * reactive `canUndo`/`canRedo` stores and the undo/redo controls. The store's
  * own value is the timeline (oldest first), updating on any local or remote
@@ -553,6 +573,11 @@ export interface RecordingStore {
  * Re-exports the collaborative comment types for adapter consumers.
  */
 export type { Comment, CommentAnchor, CommentsOptions, CommentThread };
+
+/**
+ * Re-exports the collaborative activity types for adapter consumers.
+ */
+export type { ActivityEngine, ActivityEntry, ActivityOptions };
 
 /**
  * Re-exports the collaborative history types for adapter consumers.
@@ -711,6 +736,11 @@ export interface RoomfulOptions<
   TPresence extends PresenceData = PresenceData,
 > extends RoomOptions<TPresence> {
   /**
+   * Configures the activity feed (entry cap).
+   */
+  activity?: ActivityOptions;
+
+  /**
    * Configures the comments store's storage backend.
    */
   comments?: CommentsOptions;
@@ -746,6 +776,11 @@ export interface RoomfulAdapter<
   TPresence extends PresenceData = PresenceData,
   TCursor extends CursorData = CursorData,
 > {
+  /**
+   * Exposes the shared room activity feed store plus the `record` control.
+   */
+  activity: ActivityStore;
+
   /**
    * Exposes the awareness store.
    */
@@ -852,6 +887,7 @@ export function roomful<
   TCursor extends CursorData = CursorData,
 >(roomId: string, options: RoomfulOptions<TPresence> = {}): RoomfulAdapter<TPresence, TCursor> {
   const {
+    activity: activityOptions,
     comments: commentsOptions,
     history: historyOptions,
     onConnect,
@@ -867,6 +903,7 @@ export function roomful<
   const pointerEngine = room.usePointer();
   const lockEngine = room.useLocks();
   const commentsEngine = room.useComments(commentsOptions);
+  const activityEngine = room.useActivity(activityOptions);
   const historyEngine = room.useHistory(historyOptions);
   const recordingEngine = room.useRecording();
   const eventEngine = room.useEvents();
@@ -885,6 +922,7 @@ export function roomful<
   let pointerCache: PointerSnapshotCache<TPresence> | null = null;
   let locksCache: LocksSnapshotCache<TPresence> | null = null;
   let commentsCache: CommentsSnapshotCache<TPresence> | null = null;
+  let activityCache: ActivitySnapshotCache<TPresence> | null = null;
   let historyCache: HistorySnapshotCache<TPresence> | null = null;
   let sharedStateController: SharedStateController<TPresence, unknown> | null = null;
 
@@ -954,6 +992,14 @@ export function roomful<
       current: commentsCache,
       set(nextCache) {
         commentsCache = nextCache;
+      },
+    }),
+  );
+  const activityStore = createValueStore(
+    readActivitySnapshot(room, activityEngine, {
+      current: activityCache,
+      set(nextCache) {
+        activityCache = nextCache;
       },
     }),
   );
@@ -1049,6 +1095,17 @@ export function roomful<
         current: commentsCache,
         set(nextCache) {
           commentsCache = nextCache;
+        },
+      }),
+    );
+  };
+
+  const refreshActivity = (): void => {
+    activityStore.publish(
+      readActivitySnapshot(room, activityEngine, {
+        current: activityCache,
+        set(nextCache) {
+          activityCache = nextCache;
         },
       }),
     );
@@ -1211,6 +1268,20 @@ export function roomful<
     });
   };
 
+  const attachActivitySubscription = (): void => {
+    if (!runtimeStarted) {
+      return;
+    }
+
+    const unsubscribe = activityEngine.subscribe(() => {
+      refreshActivity();
+    });
+
+    registerCleanup(() => {
+      unsubscribe();
+    });
+  };
+
   const attachHistorySubscription = (): void => {
     if (!runtimeStarted) {
       return;
@@ -1330,6 +1401,7 @@ export function roomful<
     attachPointerSubscription();
     attachLocksSubscription();
     attachCommentsSubscription();
+    attachActivitySubscription();
     attachHistorySubscription();
     attachRecordingSubscription();
     attachSharedStateSubscription();
@@ -1623,6 +1695,16 @@ export function roomful<
     },
     getOpen() {
       return commentsEngine.getOpen();
+    },
+  };
+
+  const activity: ActivityStore = {
+    subscribe(run, invalidate) {
+      return activityStore.subscribe(run, invalidate);
+    },
+    record(type, data) {
+      assertAvailable('activity.record');
+      return activityEngine.record(type, data);
     },
   };
 
@@ -2009,6 +2091,7 @@ export function roomful<
   };
 
   return {
+    activity,
     awareness,
     comments,
     connect,
@@ -2464,6 +2547,67 @@ function readCommentsSnapshot<TPresence extends PresenceData>(
 
   cacheRef.set({
     engine: comments,
+    room,
+    snapshot: nextSnapshot,
+  });
+  return nextSnapshot;
+}
+
+function areActivityEntryArraysEqual(
+  previous: readonly ActivityEntry[],
+  next: readonly ActivityEntry[],
+): boolean {
+  if (previous === next) {
+    return true;
+  }
+
+  if (previous.length !== next.length) {
+    return false;
+  }
+
+  for (let index = 0; index < previous.length; index += 1) {
+    const previousEntry = previous[index];
+    const nextEntry = next[index];
+
+    if (!previousEntry || !nextEntry || !areStructuredValuesEqual(previousEntry, nextEntry)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function readActivitySnapshot<TPresence extends PresenceData>(
+  room: Room<TPresence>,
+  activity: ActivityEngine,
+  cacheRef: {
+    current: ActivitySnapshotCache<TPresence> | null;
+    set(nextCache: ActivitySnapshotCache<TPresence>): void;
+  },
+): ActivityEntry[] {
+  const nextSnapshot = activity.getEntries();
+  const previous = cacheRef.current;
+
+  if (previous && previous.room === room && previous.engine === activity) {
+    const previousSnapshot = previous.snapshot;
+    if (areActivityEntryArraysEqual(previousSnapshot, nextSnapshot)) {
+      return previousSnapshot;
+    }
+
+    const stableSnapshot = nextSnapshot.map((entry, index) => {
+      const previousEntry = previousSnapshot[index];
+      if (previousEntry && areStructuredValuesEqual(previousEntry, entry)) {
+        return previousEntry;
+      }
+
+      return entry;
+    });
+    previous.snapshot = stableSnapshot;
+    return stableSnapshot;
+  }
+
+  cacheRef.set({
+    engine: activity,
     room,
     snapshot: nextSnapshot,
   });
