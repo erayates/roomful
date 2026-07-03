@@ -2154,6 +2154,7 @@ export function roomful<
     pointerStore.clear();
     locksStore.clear();
     commentsStore.clear();
+    activityStore.clear();
     fieldPresenceStore.clear();
     historyStore.clear();
     historyCanUndoStore.clear();
