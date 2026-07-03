@@ -13,6 +13,8 @@ describe('mini-app registry', () => {
       'notes',
       'checklist',
       'poll',
+      'comments',
+      'activity',
     ]);
   });
 
