@@ -11,10 +11,6 @@ type InteropPresence = {
 const config = resolveInteropConfig(window.location);
 
 export function App(): ReactElement {
-  if (config.relayUrl === undefined) {
-    return <RelayNotice roomId={config.roomId} />;
-  }
-
   return (
     <RoomfulProvider<InteropPresence>
       presence={{ name: config.name, color: config.color }}
@@ -75,28 +71,6 @@ function Stage({ config }: { config: InteropConfig }): ReactElement {
           </span>
         ))}
       </footer>
-    </div>
-  );
-}
-
-function RelayNotice({ roomId }: { roomId: string }): ReactElement {
-  return (
-    <div className="notice">
-      <h1>A relay is required</h1>
-      <p>
-        Cross-platform interop syncs through a WebSocket relay. Point this client at one and reload:
-      </p>
-      <ul>
-        <li>
-          Append <code>?relay=wss://your-relay</code> to the URL, or set{' '}
-          <code>VITE_ROOMFUL_RELAY_URL</code>.
-        </li>
-        <li>
-          Or run one locally with <code>docker compose up</code> and use{' '}
-          <code>?relay=ws://localhost:8787</code>.
-        </li>
-      </ul>
-      <p className="notice__room">Room: {roomId}</p>
     </div>
   );
 }
