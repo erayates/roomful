@@ -43,11 +43,16 @@ The whole `roomful` core (client, protocol, engines) is re-exported, so a single
 
 [`example/roomful_flutter_example.dart`](example/roomful_flutter_example.dart) wires all four
 together — a `RoomfulProvider` hosting `PresenceAvatars`, a `LiveCursorsOverlay` canvas, and a
-shared counter. Point its `_relayUrl` at your relay and run:
+shared counter. It defaults to the same relay and room as the React
+[`examples/cross-platform-interop`](../../examples/cross-platform-interop) client, so the two
+collaborate across platforms. Start a relay (`docker compose up`) and run:
 
 ```sh
-flutter run -t example/roomful_flutter_example.dart
+flutter run -t example/roomful_flutter_example.dart \
+  --dart-define=ROOMFUL_RELAY_URL=ws://localhost:8787
 ```
+
+From a real device, replace `localhost` with your machine's LAN address.
 
 ## Roadmap
 
