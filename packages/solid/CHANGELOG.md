@@ -1,5 +1,18 @@
 # @roomful/solid
 
+## 1.5.0
+
+### Minor Changes
+
+- f03738d: Add the `useFieldPresence` hook (EP-15/16): returns an accessor for the active fields (which remote
+  peers are on which field) plus a `setActiveField(id | null)` control and `getFieldPeers(id)`. See
+  `docs/reference/engines-field-presence.md`.
+
+### Patch Changes
+
+- Updated dependencies [db6c216]
+  - @roomful/core@1.6.0
+
 ## 1.4.0
 
 ### Minor Changes
