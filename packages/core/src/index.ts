@@ -15,6 +15,9 @@ export { addAIPeer, createHeuristicAgent } from './ai-peer';
 export type { CommentsStorageAdapter } from './engines/comments-storage';
 export { createMemoryCommentsStorage } from './engines/comments-storage';
 export type {
+  ActivityEngine,
+  ActivityEntry,
+  ActivityOptions,
   AwarenessEngine,
   AwarenessSelection,
   AwarenessState,
