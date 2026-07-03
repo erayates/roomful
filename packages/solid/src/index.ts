@@ -13,6 +13,8 @@ import type {
   CursorEngine,
   CursorOptions,
   CursorPosition,
+  FieldPresenceEngine,
+  FieldPresenceState,
   HistoryEngine,
   HistoryOptions,
   LockAcquireOptions,
@@ -414,6 +416,27 @@ export interface UseActivityResult {
 }
 
 /**
+ * Describes the return value of `useFieldPresence`.
+ */
+export interface UseFieldPresenceResult {
+  /**
+   * Exposes every field with at least one remote peer, ordered by field id. Reactive: updates when
+   * peers enter or leave a field.
+   */
+  fields: Accessor<FieldPresenceState[]>;
+
+  /**
+   * Declares the field the local peer is active on, or `null` to clear it.
+   */
+  setActiveField: FieldPresenceEngine['setActiveField'];
+
+  /**
+   * Returns the remote peers on a field from the current snapshot.
+   */
+  getFieldPeers(fieldId: string): Peer[];
+}
+
+/**
  * Describes the return value of `useHistory`.
  */
 export interface UseHistoryResult {
@@ -507,6 +530,11 @@ export type { Comment, CommentAnchor, CommentsOptions, CommentThread };
 export type { ActivityEngine, ActivityEntry, ActivityOptions };
 
 /**
+ * Re-exports the field-presence types for adapter consumers.
+ */
+export type { FieldPresenceEngine, FieldPresenceState };
+
+/**
  * Re-exports the collaborative history types for adapter consumers.
  */
 export type { HistoryEngine, HistoryOptions, TimelineEntry };
@@ -587,6 +615,12 @@ interface ActivitySnapshotCache<TPresence extends PresenceData> {
   room: Room<TPresence>;
   engine: ActivityEngine;
   snapshot: ActivityEntry[];
+}
+
+interface FieldPresenceSnapshotCache<TPresence extends PresenceData> {
+  room: Room<TPresence>;
+  engine: FieldPresenceEngine;
+  snapshot: FieldPresenceState[];
 }
 
 interface HistorySnapshotCache<TPresence extends PresenceData> {
@@ -1141,6 +1175,54 @@ export function useActivity<TPresence extends PresenceData = PresenceData>(
     entries,
     record: (type, data) => {
       return activityEngine.record(type, data);
+    },
+  };
+}
+
+/**
+ * Subscribes to field presence: which remote peers are active on which field. Declare the local
+ * peer's field with `setActiveField` (e.g. on focus/blur) and read `getFieldPeers(id)` to render
+ * "who else is editing this" indicators.
+ *
+ * @typeParam TPresence - The room presence shape.
+ * @returns The active fields accessor plus `setActiveField` and `getFieldPeers`.
+ */
+export function useFieldPresence<
+  TPresence extends PresenceData = PresenceData,
+>(): UseFieldPresenceResult {
+  const room = useRoom<TPresence>();
+  const fieldPresenceEngine = room.useFieldPresence();
+  const cacheRef: { current: FieldPresenceSnapshotCache<TPresence> | null } = {
+    current: null,
+  };
+  const [fields, setFields] = createSignal(
+    readFieldPresenceSnapshot(room, fieldPresenceEngine, cacheRef),
+  );
+
+  onMount(() => {
+    const sync = (): void => {
+      const nextSnapshot = readFieldPresenceSnapshot(room, fieldPresenceEngine, cacheRef);
+      setFields(() => nextSnapshot);
+    };
+
+    sync();
+
+    const unsubscribe = fieldPresenceEngine.subscribe(() => {
+      sync();
+    });
+
+    onCleanup(() => {
+      unsubscribe();
+    });
+  });
+
+  return {
+    fields,
+    setActiveField: (fieldId) => {
+      fieldPresenceEngine.setActiveField(fieldId);
+    },
+    getFieldPeers: (fieldId) => {
+      return fields().find((field) => field.fieldId === fieldId)?.peers ?? [];
     },
   };
 }
@@ -1982,6 +2064,63 @@ function readActivitySnapshot<TPresence extends PresenceData>(
   cacheRef.current = {
     room,
     engine: activity,
+    snapshot: nextSnapshot,
+  };
+  return nextSnapshot;
+}
+
+function areFieldPresenceArraysEqual(
+  previous: readonly FieldPresenceState[],
+  next: readonly FieldPresenceState[],
+): boolean {
+  if (previous === next) {
+    return true;
+  }
+
+  if (previous.length !== next.length) {
+    return false;
+  }
+
+  for (let index = 0; index < previous.length; index += 1) {
+    const previousField = previous[index];
+    const nextField = next[index];
+
+    if (!previousField || !nextField || !areStructuredValuesEqual(previousField, nextField)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function readFieldPresenceSnapshot<TPresence extends PresenceData>(
+  room: Room<TPresence>,
+  fieldPresence: FieldPresenceEngine,
+  cacheRef: { current: FieldPresenceSnapshotCache<TPresence> | null },
+): FieldPresenceState[] {
+  const nextSnapshot = fieldPresence.getActiveFields();
+  const previous = cacheRef.current;
+
+  if (previous !== null && previous.room === room && previous.engine === fieldPresence) {
+    const previousSnapshot = previous.snapshot;
+    if (areFieldPresenceArraysEqual(previousSnapshot, nextSnapshot)) {
+      return previousSnapshot;
+    }
+
+    previous.snapshot = nextSnapshot.map((field, index) => {
+      const previousField = previousSnapshot[index];
+      if (previousField !== undefined && areStructuredValuesEqual(previousField, field)) {
+        return previousField;
+      }
+
+      return field;
+    });
+    return previous.snapshot;
+  }
+
+  cacheRef.current = {
+    room,
+    engine: fieldPresence,
     snapshot: nextSnapshot,
   };
   return nextSnapshot;

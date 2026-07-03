@@ -137,6 +137,27 @@ The `roomful(...)` adapter exposes `fieldPresence` as a readable store of `Field
 </label>
 ```
 
+### Solid
+
+```tsx
+import { useFieldPresence } from '@roomful/solid';
+
+function Field(props: { id: string }) {
+  const { setActiveField, getFieldPeers } = useFieldPresence();
+  return (
+    <label>
+      <input onBlur={() => setActiveField(null)} onFocus={() => setActiveField(props.id)} />
+      <For each={getFieldPeers(props.id)}>
+        {(peer) => <span title={peer.name ?? peer.id}>●</span>}
+      </For>
+    </label>
+  );
+}
+```
+
+`useFieldPresence()` returns `{ fields, setActiveField, getFieldPeers }`; `fields` is an accessor and
+`getFieldPeers(id)` reads the reactive snapshot.
+
 ## Related docs
 
 - [State, awareness, events](engines-state-awareness-events.md)

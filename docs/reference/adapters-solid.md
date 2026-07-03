@@ -45,6 +45,7 @@ function App() {
 | `usePointer(opts?)`  | `{ ref, beams, activate, deactivate, render }`                                         | laser pointer beams ([pointer](engines-pointer.md))                |
 | `useComments(opts?)` | `{ threads, add, reply, resolve, reopen, getByElement, getOpen }`                      | anchored comment threads ([comments](engines-comments.md))         |
 | `useActivity(opts?)` | `{ entries, record }`                                                                  | room activity feed, newest first ([activity](engines-activity.md)) |
+| `useFieldPresence()` | `{ fields, setActiveField, getFieldPeers }`                                            | who's on which field ([field presence](engines-field-presence.md)) |
 | `useHistory(opts?)`  | `{ timeline, canUndo, canRedo, capture, transaction, undo, redo }`                     | undo/redo plus shared timeline ([history](engines-history.md))     |
 
 The reactive members (`states`, `beams`, `locks`, `threads`, `timeline`, `canUndo`, `canRedo`, and `useLockState`) are Solid accessors — call them to read.
