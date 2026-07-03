@@ -11,6 +11,8 @@ import type {
   CursorEngine,
   CursorPosition,
   EventEngine,
+  FieldPresenceEngine,
+  FieldPresenceState,
   HistoryEngine,
   LockEngine,
   LockState,
@@ -59,6 +61,7 @@ import {
   injectConnectionStatus,
   injectCursors,
   injectEvent,
+  injectFieldPresence,
   injectHistory,
   injectLocks,
   injectLockState,
@@ -170,6 +173,15 @@ type TestActivityEngine = ActivityEngine & {
   subscriberCount(): number;
   subscribe: ReturnType<typeof vi.fn<(cb: ActivitySubscriber) => () => void>>;
   record: ReturnType<typeof vi.fn<ActivityEngine['record']>>;
+};
+
+type FieldPresenceSubscriber = (fields: FieldPresenceState[]) => void;
+
+type TestFieldPresenceEngine = FieldPresenceEngine & {
+  emit(fields: FieldPresenceState[]): void;
+  subscriberCount(): number;
+  subscribe: ReturnType<typeof vi.fn<(cb: FieldPresenceSubscriber) => () => void>>;
+  setActiveField: ReturnType<typeof vi.fn<FieldPresenceEngine['setActiveField']>>;
 };
 
 type TestHistoryEngine = HistoryEngine & {
@@ -705,6 +717,46 @@ function createActivityEntry(id: string, overrides: Partial<ActivityEntry> = {})
   };
 }
 
+function createFieldPresenceState(fieldId: string, peerIds: string[]): FieldPresenceState {
+  return { fieldId, peers: peerIds.map((peerId) => createPeer(peerId)) };
+}
+
+function createMockFieldPresenceEngine(
+  initial: FieldPresenceState[] = [],
+): TestFieldPresenceEngine {
+  const subscribers = new Set<FieldPresenceSubscriber>();
+  let fields = initial;
+
+  const engine = {
+    setActiveField: vi.fn(),
+    getFieldPeers(fieldId: string) {
+      return fields.find((field) => field.fieldId === fieldId)?.peers ?? [];
+    },
+    getActiveFields() {
+      return fields;
+    },
+    subscribe: vi.fn((callback: FieldPresenceSubscriber) => {
+      subscribers.add(callback);
+      callback(fields);
+
+      return () => {
+        subscribers.delete(callback);
+      };
+    }),
+    emit(nextFields: FieldPresenceState[]) {
+      fields = nextFields;
+      for (const subscriber of subscribers) {
+        subscriber(fields);
+      }
+    },
+    subscriberCount() {
+      return subscribers.size;
+    },
+  } as TestFieldPresenceEngine;
+
+  return engine;
+}
+
 function createMockActivityEngine(entries: ActivityEntry[] = []): TestActivityEngine {
   const subscribers = new Set<ActivitySubscriber>();
   let currentEntries = entries;
@@ -1013,6 +1065,7 @@ function createMockRoom(
   options: RoomOptions<PresenceData> = {},
   config: {
     activityEngine?: TestActivityEngine;
+    fieldPresenceEngine?: TestFieldPresenceEngine;
     awarenessEngine?: TestAwarenessEngine;
     commentsEngine?: TestCommentsEngine;
     cursorEngine?: TestCursorEngine;
@@ -1031,6 +1084,7 @@ function createMockRoom(
   const handlers = new Map<RoomEventName, Set<RoomEventHandler>>();
   const peerId = config.peerId ?? `${roomId}-peer`;
   const activityEngine = config.activityEngine ?? createMockActivityEngine();
+  const fieldPresenceEngine = config.fieldPresenceEngine ?? createMockFieldPresenceEngine();
   const awarenessEngine = config.awarenessEngine ?? createMockAwarenessEngine();
   const commentsEngine = config.commentsEngine ?? createMockCommentsEngine();
   const cursorEngine = config.cursorEngine ?? createMockCursorEngine();
@@ -1154,6 +1208,9 @@ function createMockRoom(
     }),
     useActivity: vi.fn(() => {
       return activityEngine;
+    }),
+    useFieldPresence: vi.fn(() => {
+      return fieldPresenceEngine;
     }),
     useHistory: vi.fn(() => {
       return historyEngine;
@@ -2052,6 +2109,70 @@ describe('injectActivity', () => {
   it('throws a typed error when injectActivity() is called without provideRoomful', () => {
     expect(() => {
       TestBed.runInInjectionContext(() => injectActivity());
+    }).toThrowError(RoomfulError);
+  });
+});
+
+describe('injectFieldPresence', () => {
+  it('returns a fields signal and controls and reflects remote changes', () => {
+    const fieldPresenceEngine = createMockFieldPresenceEngine([
+      createFieldPresenceState('email', ['peer-a']),
+    ]);
+    createMockRoom(
+      'field-room',
+      {},
+      {
+        fieldPresenceEngine,
+      },
+    );
+
+    const env = setupRoom('field-room');
+    const result = env.run(() => injectFieldPresence());
+
+    expect(result.fields()).toEqual([expect.objectContaining({ fieldId: 'email' })]);
+    expect(result.getFieldPeers('email').map((peer) => peer.id)).toEqual(['peer-a']);
+    expect(result.getFieldPeers('missing')).toEqual([]);
+
+    result.setActiveField('name');
+    expect(fieldPresenceEngine.setActiveField).toHaveBeenCalledWith('name');
+
+    // A remote change is reflected in the signal.
+    fieldPresenceEngine.emit([
+      createFieldPresenceState('email', ['peer-a']),
+      createFieldPresenceState('name', ['peer-b']),
+    ]);
+    expect(result.fields().map((field) => field.fieldId)).toEqual(['email', 'name']);
+    expect(result.getFieldPeers('name').map((peer) => peer.id)).toEqual(['peer-b']);
+    expect(fieldPresenceEngine.subscriberCount()).toBe(1);
+
+    env.destroy();
+    expect(fieldPresenceEngine.subscriberCount()).toBe(0);
+  });
+
+  it('skips deep-equal field-presence snapshots', () => {
+    const fieldPresenceEngine = createMockFieldPresenceEngine([
+      createFieldPresenceState('email', ['peer-a']),
+    ]);
+    createMockRoom(
+      'field-reactivity',
+      {},
+      {
+        fieldPresenceEngine,
+      },
+    );
+
+    const env = setupRoom('field-reactivity');
+    const result = env.run(() => injectFieldPresence());
+
+    const initialSnapshot = result.fields();
+
+    fieldPresenceEngine.emit([createFieldPresenceState('email', ['peer-a'])]);
+    expect(result.fields()).toBe(initialSnapshot);
+  });
+
+  it('throws a typed error when injectFieldPresence() is called without provideRoomful', () => {
+    expect(() => {
+      TestBed.runInInjectionContext(() => injectFieldPresence());
     }).toThrowError(RoomfulError);
   });
 });

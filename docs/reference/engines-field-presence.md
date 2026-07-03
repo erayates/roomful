@@ -158,6 +158,28 @@ function Field(props: { id: string }) {
 `useFieldPresence()` returns `{ fields, setActiveField, getFieldPeers }`; `fields` is an accessor and
 `getFieldPeers(id)` reads the reactive snapshot.
 
+### Angular
+
+`injectFieldPresence()` must run in an injection context and returns `{ fields, setActiveField, getFieldPeers }`, where `fields` is a `Signal`:
+
+```ts
+import { Component } from '@angular/core';
+import { injectFieldPresence } from '@roomful/angular';
+
+@Component({
+  selector: 'app-email-field',
+  template: `
+    <input (blur)="fp.setActiveField(null)" (focus)="fp.setActiveField('user.email')" />
+    @for (peer of fp.getFieldPeers('user.email'); track peer.id) {
+      <span [title]="peer.name ?? peer.id">●</span>
+    }
+  `,
+})
+export class EmailFieldComponent {
+  protected readonly fp = injectFieldPresence();
+}
+```
+
 ## Related docs
 
 - [State, awareness, events](engines-state-awareness-events.md)
