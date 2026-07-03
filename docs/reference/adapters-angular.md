@@ -86,6 +86,7 @@ Reactive members are returned as signals; mount viewport/pointer on an element f
 | `injectPointer(opts?)`  | `{ beams, mount, unmount, activate, deactivate, render }`                                         | laser pointer beams ([pointer](engines-pointer.md))                |
 | `injectComments(opts?)` | `{ threads, add, reply, resolve, reopen, getByElement, getOpen }`                                 | anchored comment threads ([comments](engines-comments.md))         |
 | `injectActivity(opts?)` | `{ entries, record }`                                                                             | room activity feed, newest first ([activity](engines-activity.md)) |
+| `injectFieldPresence()` | `{ fields, setActiveField, getFieldPeers }`                                                       | who's on which field ([field presence](engines-field-presence.md)) |
 | `injectHistory(opts?)`  | `{ timeline, canUndo, canRedo, capture, transaction, undo, redo }`                                | undo/redo plus shared timeline ([history](engines-history.md))     |
 
 - `injectPresence()` returns `self`, `others`, and `all` as signals plus the `update`/`replace` presence mutators.

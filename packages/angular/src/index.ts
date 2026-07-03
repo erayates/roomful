@@ -22,6 +22,8 @@ import type {
   CursorEngine,
   CursorOptions,
   CursorPosition,
+  FieldPresenceEngine,
+  FieldPresenceState,
   HistoryEngine,
   HistoryOptions,
   LockAcquireOptions,
@@ -393,6 +395,27 @@ export interface InjectActivityResult {
 }
 
 /**
+ * Describes the return value of {@link injectFieldPresence}.
+ */
+export interface InjectFieldPresenceResult {
+  /**
+   * Exposes every field with at least one remote peer, ordered by field id. Reactive: updates when
+   * peers enter or leave a field.
+   */
+  fields: Signal<FieldPresenceState[]>;
+
+  /**
+   * Declares the field the local peer is active on, or `null` to clear it.
+   */
+  setActiveField: FieldPresenceEngine['setActiveField'];
+
+  /**
+   * Returns the remote peers on a field from the current snapshot.
+   */
+  getFieldPeers(fieldId: string): Peer[];
+}
+
+/**
  * Describes the return value of {@link injectHistory}.
  */
 export interface InjectHistoryResult {
@@ -486,6 +509,11 @@ export type { Comment, CommentAnchor, CommentsOptions, CommentThread };
 export type { ActivityEngine, ActivityEntry, ActivityOptions };
 
 /**
+ * Re-exports the field-presence types for adapter consumers.
+ */
+export type { FieldPresenceEngine, FieldPresenceState };
+
+/**
  * Re-exports the collaborative history types for adapter consumers.
  */
 export type { HistoryEngine, HistoryOptions, TimelineEntry };
@@ -561,6 +589,12 @@ interface ActivitySnapshotCache<TPresence extends PresenceData> {
   room: Room<TPresence>;
   engine: ActivityEngine;
   snapshot: ActivityEntry[];
+}
+
+interface FieldPresenceSnapshotCache<TPresence extends PresenceData> {
+  room: Room<TPresence>;
+  engine: FieldPresenceEngine;
+  snapshot: FieldPresenceState[];
 }
 
 interface HistorySnapshotCache<TPresence extends PresenceData> {
@@ -1064,6 +1098,42 @@ export function injectActivity<TPresence extends PresenceData = PresenceData>(
     entries,
     record: (type, data) => {
       return activityEngine.record(type, data);
+    },
+  };
+}
+
+/**
+ * Subscribes to field presence: which remote peers are active on which field.
+ *
+ * Must be called in an injection context.
+ *
+ * @typeParam TPresence - The room presence shape.
+ * @returns The active fields signal plus `setActiveField` and `getFieldPeers`.
+ */
+export function injectFieldPresence<
+  TPresence extends PresenceData = PresenceData,
+>(): InjectFieldPresenceResult {
+  assertInInjectionContext(injectFieldPresence);
+  const room = injectRoom<TPresence>();
+  const fieldPresenceEngine = room.useFieldPresence();
+  const cacheRef: { current: FieldPresenceSnapshotCache<TPresence> | null } = {
+    current: null,
+  };
+  const fields = signal(readFieldPresenceSnapshot(room, fieldPresenceEngine, cacheRef));
+
+  const unsubscribe = fieldPresenceEngine.subscribe(() => {
+    fields.set(readFieldPresenceSnapshot(room, fieldPresenceEngine, cacheRef));
+  });
+
+  inject(DestroyRef).onDestroy(unsubscribe);
+
+  return {
+    fields,
+    setActiveField: (fieldId) => {
+      fieldPresenceEngine.setActiveField(fieldId);
+    },
+    getFieldPeers: (fieldId) => {
+      return fields().find((field) => field.fieldId === fieldId)?.peers ?? [];
     },
   };
 }
@@ -1873,6 +1943,63 @@ function readActivitySnapshot<TPresence extends PresenceData>(
   cacheRef.current = {
     room,
     engine: activity,
+    snapshot: nextSnapshot,
+  };
+  return nextSnapshot;
+}
+
+function areFieldPresenceArraysEqual(
+  previous: readonly FieldPresenceState[],
+  next: readonly FieldPresenceState[],
+): boolean {
+  if (previous === next) {
+    return true;
+  }
+
+  if (previous.length !== next.length) {
+    return false;
+  }
+
+  for (let index = 0; index < previous.length; index += 1) {
+    const previousField = previous[index];
+    const nextField = next[index];
+
+    if (!previousField || !nextField || !areStructuredValuesEqual(previousField, nextField)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function readFieldPresenceSnapshot<TPresence extends PresenceData>(
+  room: Room<TPresence>,
+  fieldPresence: FieldPresenceEngine,
+  cacheRef: { current: FieldPresenceSnapshotCache<TPresence> | null },
+): FieldPresenceState[] {
+  const nextSnapshot = fieldPresence.getActiveFields();
+  const previous = cacheRef.current;
+
+  if (previous !== null && previous.room === room && previous.engine === fieldPresence) {
+    const previousSnapshot = previous.snapshot;
+    if (areFieldPresenceArraysEqual(previousSnapshot, nextSnapshot)) {
+      return previousSnapshot;
+    }
+
+    previous.snapshot = nextSnapshot.map((field, index) => {
+      const previousField = previousSnapshot[index];
+      if (previousField !== undefined && areStructuredValuesEqual(previousField, field)) {
+        return previousField;
+      }
+
+      return field;
+    });
+    return previous.snapshot;
+  }
+
+  cacheRef.current = {
+    room,
+    engine: fieldPresence,
     snapshot: nextSnapshot,
   };
   return nextSnapshot;
