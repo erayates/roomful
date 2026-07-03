@@ -1,6 +1,7 @@
 import { isObject, readNumber, readString } from '../internal/guards';
 import { cloneStateValue } from '../internal/state';
 import type { ActivityEngine, ActivityEntry, ActivityOptions, Peer, Unsubscribe } from '../types';
+import type { ActivityStorageAdapter } from './activity-storage';
 
 const DEFAULT_LIMIT = 100;
 
@@ -25,6 +26,12 @@ export interface ActivityEngineContext {
   broadcastEntry(frame: ActivityEntryFrame): void;
   onRemoteEntry(handler: (peerId: string, frame: ActivityEntryFrame) => void): void;
   now?: () => number;
+  /**
+   * Optional durable storage. When set, the feed is restored from it on startup and saved to it
+   * after every change, so activity survives reconnects and reloads. See
+   * {@link ActivityStorageAdapter}.
+   */
+  storage?: ActivityStorageAdapter;
 }
 
 /**
@@ -110,7 +117,17 @@ export function createActivityEngine(
     }
   };
 
-  const append = (entry: ActivityEntry): void => {
+  const persist = (): void => {
+    if (!context.storage) {
+      return;
+    }
+
+    void context.storage.save(snapshot()).catch(() => {
+      // Persistence is best-effort: a failed save never breaks the live, synced feed.
+    });
+  };
+
+  const append = (entry: ActivityEntry, persistChange = true): void => {
     if (seen.has(entry.id)) {
       return;
     }
@@ -132,11 +149,41 @@ export function createActivityEngine(
       }
     }
 
+    if (persistChange) {
+      persist();
+    }
+
     notify();
   };
 
   context.onRemoteEntry((peerId, frame) => {
     append(frameToEntry(frame, resolveActor(peerId)));
+  });
+
+  // Restore a persisted feed once on startup. Entries are merged (not replaced): append() dedupes
+  // by id and re-sorts, so live entries that arrived over the broadcast channel during the async
+  // load are preserved. One persist() at the end keeps the durable store consistent when a racing
+  // live record already saved a partial feed; the per-entry appends themselves skip persisting.
+  const hydrate = async (): Promise<void> => {
+    const storage = context.storage;
+    if (!storage) {
+      return;
+    }
+
+    const stored = await storage.load();
+    if (stored.length === 0) {
+      return;
+    }
+
+    for (const entry of stored) {
+      append(entry, false);
+    }
+
+    persist();
+  };
+
+  void hydrate().catch(() => {
+    // Hydration is best-effort: a failed restore never breaks the live feed.
   });
 
   return {

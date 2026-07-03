@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { createMockRoomHarness, type MockRoomHarness } from '../../test-utils/mock-room';
+import type { ActivityEntry } from '../types';
+import { createMemoryActivityStorage } from './activity-storage';
 
 let harness: MockRoomHarness | null = null;
 
@@ -65,5 +67,21 @@ describe('ActivityEngine', () => {
     const ids = activity.getEntries().map((entry) => entry.id);
     expect(ids).toEqual([c.id, b.id]);
     expect(ids).not.toContain(a.id);
+  });
+
+  it('restores a persisted feed through room.useActivity({ storageAdapter })', async () => {
+    harness = await createMockRoomHarness();
+    const past: ActivityEntry = {
+      id: 'past',
+      type: 'seed',
+      actor: { id: 'peer-x', joinedAt: 0, lastSeen: 0 },
+      timestamp: 5,
+    };
+    const storageAdapter = createMemoryActivityStorage([past]);
+    const room = harness.createRoom('activity-storage');
+    const activity = room.useActivity({ storageAdapter });
+
+    await harness.waitFor(() => activity.getEntries().some((entry) => entry.id === 'past'));
+    expect(activity.getEntries().map((entry) => entry.id)).toContain('past');
   });
 });

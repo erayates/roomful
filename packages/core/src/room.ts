@@ -1360,6 +1360,7 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
           onRemoteEntry: (handler) => {
             this.activityEntryHandlers.add(handler);
           },
+          ...(options?.storageAdapter ? { storage: options.storageAdapter } : {}),
         },
         () => {
           return createRuntimePeerId();
