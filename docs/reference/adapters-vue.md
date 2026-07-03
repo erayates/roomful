@@ -56,6 +56,7 @@ These composables follow the same Vue-ref conventions as the rest of the adapter
 - `usePointer(opts?)` — `{ ref, beams, activate, deactivate, render }` for laser-pointer beams. See [Pointer engine](engines-pointer.md).
 - `useComments(opts?)` — `{ threads, add, reply, resolve, reopen, getByElement, getOpen }` for anchored comment threads. See [Comments engine](engines-comments.md).
 - `useActivity(opts?)` — `{ entries, record }` for the shared room activity feed (newest first). See [Activity engine](engines-activity.md).
+- `useFieldPresence()` — `{ fields, setActiveField, getFieldPeers }` for who's active on which field. See [Field presence engine](engines-field-presence.md).
 - `useHistory(opts?)` — `{ timeline, canUndo, canRedo, capture, transaction, undo, redo }` for undo/redo plus a shared activity timeline. See [History engine](engines-history.md).
 
 ## Integration Notes

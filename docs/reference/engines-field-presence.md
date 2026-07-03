@@ -92,6 +92,29 @@ function Field({ id, label }: { id: string; label: string }): JSX.Element {
 `useFieldPresence()` returns `{ fields, setActiveField, getFieldPeers }`; `fields` is the reactive
 list of active fields, and `getFieldPeers(id)` reads that snapshot.
 
+### Vue
+
+```vue
+<script setup lang="ts">
+import { useFieldPresence } from '@roomful/vue';
+
+const { setActiveField, getFieldPeers } = useFieldPresence();
+</script>
+
+<template>
+  <label>
+    Email
+    <input @blur="setActiveField(null)" @focus="setActiveField('user.email')" />
+    <span v-for="peer in getFieldPeers('user.email')" :key="peer.id" :title="peer.name ?? peer.id">
+      ●
+    </span>
+  </label>
+</template>
+```
+
+`useFieldPresence()` returns `{ fields, setActiveField, getFieldPeers }`; `fields` is a readonly ref,
+and `getFieldPeers(id)` reads the reactive snapshot.
+
 ## Related docs
 
 - [State, awareness, events](engines-state-awareness-events.md)
