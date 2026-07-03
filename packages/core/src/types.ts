@@ -2389,6 +2389,14 @@ export interface Room<TPresence extends PresenceData = PresenceData> {
   useComments(options?: CommentsOptions): CommentsEngine;
 
   /**
+   * Accesses the room activity feed engine.
+   *
+   * @param options - Optional feed configuration (retention limit).
+   * @returns The activity engine.
+   */
+  useActivity(options?: ActivityOptions): ActivityEngine;
+
+  /**
    * Accesses the collaborative history (undo/redo plus shared timeline) engine
    * for this room.
    *

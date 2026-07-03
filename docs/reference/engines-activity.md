@@ -63,6 +63,32 @@ if (await locks.acquire(`record:${id}`)) {
 activity.subscribe((entries) => renderFeed(entries));
 ```
 
+## Adapter usage
+
+### React
+
+```tsx
+import { useActivity } from '@roomful/react';
+
+function Feed(): JSX.Element {
+  const { entries, record } = useActivity();
+  return (
+    <>
+      <button onClick={() => record('note:added')}>Add note</button>
+      <ul>
+        {entries.map((entry) => (
+          <li key={entry.id}>
+            {entry.actor.name ?? entry.actor.id}: {entry.type}
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
+```
+
+`useActivity()` returns `{ entries, record }`; `entries` is the reactive feed, newest first.
+
 ## Related docs
 
 - [Comments engine](engines-comments.md)

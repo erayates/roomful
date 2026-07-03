@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 
 import type {
+  ActivityEngine,
+  ActivityEntry,
   AwarenessEngine,
   AwarenessState,
   CommentsEngine,
@@ -51,6 +53,7 @@ vi.mock('@roomful/core', async () => {
 });
 
 import type {
+  UseActivityResult,
   UseAwarenessResult,
   UseCommentsResult,
   UseCursorsResult,
@@ -62,6 +65,7 @@ import type {
 } from './index';
 import {
   RoomfulProvider,
+  useActivity,
   useAwareness,
   useComments,
   useConnectionStatus,
@@ -153,6 +157,14 @@ type TestLockEngine = LockEngine & {
   acquire: ReturnType<typeof vi.fn<(key: string) => Promise<boolean>>>;
   release: ReturnType<typeof vi.fn<(key: string) => void>>;
   releaseAll: ReturnType<typeof vi.fn<() => void>>;
+};
+
+type ActivitySubscriber = (entries: ActivityEntry[]) => void;
+
+type TestActivityEngine = ActivityEngine & {
+  seed(entry: ActivityEntry): void;
+  record: ReturnType<typeof vi.fn<ActivityEngine['record']>>;
+  subscribe: ReturnType<typeof vi.fn<(cb: ActivitySubscriber) => () => void>>;
 };
 
 type CommentsSubscriber = (threads: CommentThread[]) => void;
@@ -603,6 +615,50 @@ function createTimelineEntry(id: string, overrides: Partial<TimelineEntry> = {})
   };
 }
 
+function createMockActivityEngine(): TestActivityEngine {
+  const subscribers = new Set<ActivitySubscriber>();
+  const entries: ActivityEntry[] = [];
+
+  const notify = (): void => {
+    for (const subscriber of subscribers) {
+      subscriber(entries.map((entry) => cloneTestValue(entry)));
+    }
+  };
+
+  const record = vi.fn<ActivityEngine['record']>((type, data) => {
+    const entry: ActivityEntry = {
+      id: `entry-${entries.length + 1}`,
+      type,
+      actor: createPeer('self'),
+      timestamp: entries.length + 1,
+      ...(data !== undefined ? { data } : {}),
+    };
+    entries.unshift(entry);
+    notify();
+    return cloneTestValue(entry);
+  });
+
+  const subscribe = vi.fn<(cb: ActivitySubscriber) => () => void>((callback) => {
+    subscribers.add(callback);
+    callback(entries.map((entry) => cloneTestValue(entry)));
+    return () => {
+      subscribers.delete(callback);
+    };
+  });
+
+  return {
+    seed(entry: ActivityEntry): void {
+      entries.unshift(cloneTestValue(entry));
+      notify();
+    },
+    record,
+    getEntries: (): ActivityEntry[] => {
+      return entries.map((entry) => cloneTestValue(entry));
+    },
+    subscribe,
+  };
+}
+
 function createMockCommentsEngine(initialThreads: CommentThread[] = []): TestCommentsEngine {
   const subscribers = new Set<CommentsSubscriber>();
   let threads = initialThreads.map((thread) => cloneTestValue(thread));
@@ -881,6 +937,7 @@ function createMockRoom(
   roomId = 'room-1',
   options: RoomOptions<PresenceData> = {},
   config: {
+    activityEngine?: TestActivityEngine;
     awarenessEngine?: TestAwarenessEngine;
     commentsEngine?: TestCommentsEngine;
     cursorEngine?: TestCursorEngine;
@@ -897,6 +954,7 @@ function createMockRoom(
 ): TestRoom {
   const handlers = new Map<RoomEventName, Set<RoomEventHandler>>();
   const peerId = config.peerId ?? `${roomId}-peer`;
+  const activityEngine = config.activityEngine ?? createMockActivityEngine();
   const awarenessEngine = config.awarenessEngine ?? createMockAwarenessEngine();
   const commentsEngine = config.commentsEngine ?? createMockCommentsEngine();
   const cursorEngine = config.cursorEngine ?? createMockCursorEngine();
@@ -1016,6 +1074,9 @@ function createMockRoom(
     }),
     useComments: vi.fn(() => {
       return commentsEngine;
+    }),
+    useActivity: vi.fn(() => {
+      return activityEngine;
     }),
     useHistory: vi.fn(() => {
       return historyEngine;
@@ -3077,6 +3138,42 @@ describe('useLocks', () => {
     expect(() => {
       renderToString(createElement(MissingProviderConsumer));
     }).toThrowError(RoomfulError);
+  });
+});
+
+describe('useActivity', () => {
+  it('exposes the activity feed newest-first and forwards record', async () => {
+    const activityEngine = createMockActivityEngine();
+    activityEngine.seed({
+      id: 'e1',
+      type: 'seed',
+      actor: createPeer('owner-peer'),
+      timestamp: 1,
+    });
+    createMockRoom('activity-room', {}, { activityEngine });
+    let observed: UseActivityResult | null = null;
+
+    function ActivityConsumer(): ReactNode {
+      observed = useActivity();
+      return null;
+    }
+
+    const harness = await renderElement(
+      createElement(
+        RoomfulProvider,
+        {
+          roomId: 'activity-room',
+        },
+        createElement(ActivityConsumer),
+      ),
+    );
+
+    expect(observed?.entries).toEqual([expect.objectContaining({ id: 'e1', type: 'seed' })]);
+
+    observed?.record('comment:added', { n: 1 });
+    expect(activityEngine.record).toHaveBeenCalledWith('comment:added', { n: 1 });
+
+    await harness.unmount();
   });
 });
 
