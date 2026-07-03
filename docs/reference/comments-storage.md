@@ -27,6 +27,22 @@ interface CommentsStorageAdapter {
 Both are **best-effort** from the engine's point of view — a rejected `load` or `save` is swallowed,
 so a storage outage never breaks the live, synced comments.
 
+## Wiring it up
+
+Pass an adapter as `storageAdapter` to `useComments`:
+
+```ts
+import { createMemoryCommentsStorage, createRoom } from '@roomful/core';
+
+const room = createRoom('doc-1', { relayUrl: 'wss://relay.example' });
+const comments = room.useComments({
+  storageAdapter: createMemoryCommentsStorage(),
+});
+```
+
+Threads are then restored from the adapter on startup (into an otherwise-empty room) and saved after
+every change. It composes with the default `storage: 'memory'` backend.
+
 ## Memory (reference)
 
 `createMemoryCommentsStorage()` is the reference adapter — handy in tests and as a template. It is

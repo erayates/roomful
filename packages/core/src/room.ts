@@ -1357,6 +1357,7 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
           return this.selfPeer;
         },
         ...(onLocalMutation ? { onLocalMutation } : {}),
+        ...(options.storageAdapter ? { storage: options.storageAdapter } : {}),
       },
       () => {
         return createRuntimePeerId();

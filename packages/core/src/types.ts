@@ -1,6 +1,7 @@
 import type { Awareness as YjsAwareness } from 'y-protocols/awareness';
 import type { Doc as YDoc } from 'yjs';
 
+import type { CommentsStorageAdapter } from './engines/comments-storage';
 import type { RoomfulError, RoomfulErrorCode } from './roomful-error';
 import type { RoomTransportSignal, TransportKind } from './transports/transport';
 
@@ -1748,6 +1749,15 @@ export interface CommentsOptions {
    * it on init and mutations are POSTed back to it.
    */
   restEndpoint?: string;
+
+  /**
+   * A custom durable {@link CommentsStorageAdapter}. When set, threads are
+   * restored from it on startup (into an otherwise-empty room) and saved after
+   * every change, so comments survive reconnects and reloads. Use this with the
+   * default `storage: 'memory'` to back comments with Postgres, SQLite, or any
+   * store; see `docs/reference/comments-storage.md`.
+   */
+  storageAdapter?: CommentsStorageAdapter;
 }
 
 /**
