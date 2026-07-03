@@ -132,6 +132,32 @@ The `roomful(...)` adapter exposes `activity` as a readable store of `ActivityEn
 
 The feed cap is configured on the factory: `roomful('my-room', { activity: { limit: 200 } })`.
 
+### Solid
+
+```tsx
+import { useActivity } from '@roomful/solid';
+
+function Feed() {
+  const { entries, record } = useActivity();
+  return (
+    <>
+      <button onClick={() => record('note:added')}>Add note</button>
+      <ul>
+        <For each={entries()}>
+          {(entry) => (
+            <li>
+              {entry.actor.name ?? entry.actor.id}: {entry.type}
+            </li>
+          )}
+        </For>
+      </ul>
+    </>
+  );
+}
+```
+
+`useActivity()` returns `{ entries, record }`; `entries` is an accessor for the reactive feed, newest first.
+
 ## Related docs
 
 - [Comments engine](engines-comments.md)

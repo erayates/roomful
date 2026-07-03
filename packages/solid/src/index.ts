@@ -1,4 +1,7 @@
 import type {
+  ActivityEngine,
+  ActivityEntry,
+  ActivityOptions,
   AwarenessEngine,
   AwarenessState,
   Comment,
@@ -395,6 +398,22 @@ export interface UseCommentsResult {
 }
 
 /**
+ * Describes the return value of `useActivity`.
+ */
+export interface UseActivityResult {
+  /**
+   * Exposes the current activity feed, newest first. Reactive: updates on any
+   * local or remote entry.
+   */
+  entries: Accessor<ActivityEntry[]>;
+
+  /**
+   * Records a new activity entry authored by the local peer and broadcasts it.
+   */
+  record: ActivityEngine['record'];
+}
+
+/**
  * Describes the return value of `useHistory`.
  */
 export interface UseHistoryResult {
@@ -483,6 +502,11 @@ export interface UseRecordingResult {
 export type { Comment, CommentAnchor, CommentsOptions, CommentThread };
 
 /**
+ * Re-exports the collaborative activity types for adapter consumers.
+ */
+export type { ActivityEngine, ActivityEntry, ActivityOptions };
+
+/**
  * Re-exports the collaborative history types for adapter consumers.
  */
 export type { HistoryEngine, HistoryOptions, TimelineEntry };
@@ -557,6 +581,12 @@ interface CommentsSnapshotCache<TPresence extends PresenceData> {
   room: Room<TPresence>;
   engine: CommentsEngine;
   snapshot: CommentThread[];
+}
+
+interface ActivitySnapshotCache<TPresence extends PresenceData> {
+  room: Room<TPresence>;
+  engine: ActivityEngine;
+  snapshot: ActivityEntry[];
 }
 
 interface HistorySnapshotCache<TPresence extends PresenceData> {
@@ -1068,6 +1098,49 @@ export function useComments<TPresence extends PresenceData = PresenceData>(
     },
     getOpen: () => {
       return commentsEngine.getOpen();
+    },
+  };
+}
+
+/**
+ * Subscribes to the shared activity engine: a reactive, bounded, newest-first
+ * feed of room activity plus a `record` control.
+ *
+ * @typeParam TPresence - The room presence shape.
+ * @param options - Optional activity configuration (e.g. `limit`).
+ * @returns The entries accessor plus `record`.
+ */
+export function useActivity<TPresence extends PresenceData = PresenceData>(
+  options?: ActivityOptions,
+): UseActivityResult {
+  const room = useRoom<TPresence>();
+  const activityEngine = room.useActivity(options);
+  const cacheRef: { current: ActivitySnapshotCache<TPresence> | null } = {
+    current: null,
+  };
+  const [entries, setEntries] = createSignal(readActivitySnapshot(room, activityEngine, cacheRef));
+
+  onMount(() => {
+    const sync = (): void => {
+      const nextSnapshot = readActivitySnapshot(room, activityEngine, cacheRef);
+      setEntries(() => nextSnapshot);
+    };
+
+    sync();
+
+    const unsubscribe = activityEngine.subscribe(() => {
+      sync();
+    });
+
+    onCleanup(() => {
+      unsubscribe();
+    });
+  });
+
+  return {
+    entries,
+    record: (type, data) => {
+      return activityEngine.record(type, data);
     },
   };
 }
@@ -1852,6 +1925,63 @@ function readCommentsSnapshot<TPresence extends PresenceData>(
   cacheRef.current = {
     room,
     engine: comments,
+    snapshot: nextSnapshot,
+  };
+  return nextSnapshot;
+}
+
+function areActivityEntryArraysEqual(
+  previous: readonly ActivityEntry[],
+  next: readonly ActivityEntry[],
+): boolean {
+  if (previous === next) {
+    return true;
+  }
+
+  if (previous.length !== next.length) {
+    return false;
+  }
+
+  for (let index = 0; index < previous.length; index += 1) {
+    const previousEntry = previous[index];
+    const nextEntry = next[index];
+
+    if (!previousEntry || !nextEntry || !areStructuredValuesEqual(previousEntry, nextEntry)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function readActivitySnapshot<TPresence extends PresenceData>(
+  room: Room<TPresence>,
+  activity: ActivityEngine,
+  cacheRef: { current: ActivitySnapshotCache<TPresence> | null },
+): ActivityEntry[] {
+  const nextSnapshot = activity.getEntries();
+  const previous = cacheRef.current;
+
+  if (previous !== null && previous.room === room && previous.engine === activity) {
+    const previousSnapshot = previous.snapshot;
+    if (areActivityEntryArraysEqual(previousSnapshot, nextSnapshot)) {
+      return previousSnapshot;
+    }
+
+    previous.snapshot = nextSnapshot.map((entry, index) => {
+      const previousEntry = previousSnapshot[index];
+      if (previousEntry !== undefined && areStructuredValuesEqual(previousEntry, entry)) {
+        return previousEntry;
+      }
+
+      return entry;
+    });
+    return previous.snapshot;
+  }
+
+  cacheRef.current = {
+    room,
+    engine: activity,
     snapshot: nextSnapshot,
   };
   return nextSnapshot;
