@@ -15,6 +15,7 @@ describe('mini-app registry', () => {
       'poll',
       'comments',
       'activity',
+      'form',
     ]);
   });
 

@@ -7,6 +7,7 @@ import { ChatApp } from './chat-app';
 import { ChecklistApp } from './checklist-app';
 import { CommentsApp } from './comments-app';
 import { CursorsApp } from './cursors-app';
+import { FormApp } from './form-app';
 import { MoodApp } from './mood-app';
 import { NotesApp } from './notes-app';
 import { PollApp } from './poll-app';
@@ -107,6 +108,14 @@ export const MINI_APPS: readonly MiniAppDefinition[] = [
     icon: '⟳',
     primitives: 'Activity engine · Local storage',
     Component: ActivityApp,
+  },
+  {
+    id: 'form',
+    title: 'Safe form',
+    tagline: 'Edit a shared form together — presence + locks keep it conflict-free.',
+    icon: '▤',
+    primitives: 'Field presence · Locks · CRDT state',
+    Component: FormApp,
   },
 ];
 
