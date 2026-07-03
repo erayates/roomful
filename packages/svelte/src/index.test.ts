@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 
 import type {
+  ActivityEngine,
+  ActivityEntry,
   AwarenessEngine,
   AwarenessState,
   CommentAnchor,
@@ -96,6 +98,7 @@ type PointerSubscriber = (beams: PointerBeam[]) => void;
 type LockStateSubscriber = (state: LockState) => void;
 type LocksSubscriber = (states: LockState[]) => void;
 type CommentsSubscriber = (threads: CommentThread[]) => void;
+type ActivitySubscriber = (entries: ActivityEntry[]) => void;
 type HistorySubscriber = (timeline: TimelineEntry[]) => void;
 type RecordingSubscriber = (state: RecordingState) => void;
 
@@ -164,6 +167,13 @@ type TestCommentsEngine = CommentsEngine & {
   resolve: ReturnType<typeof vi.fn<(threadId: string) => Promise<CommentThread>>>;
   subscriberCount(): number;
   subscribe: ReturnType<typeof vi.fn<(cb: CommentsSubscriber) => () => void>>;
+};
+
+type TestActivityEngine = ActivityEngine & {
+  emit(entries: ActivityEntry[]): void;
+  record: ReturnType<typeof vi.fn<ActivityEngine['record']>>;
+  subscriberCount(): number;
+  subscribe: ReturnType<typeof vi.fn<(cb: ActivitySubscriber) => () => void>>;
 };
 
 type TestHistoryEngine = HistoryEngine & {
@@ -773,6 +783,58 @@ function createMockCommentsEngine(threads: CommentThread[] = []): TestCommentsEn
   return engine;
 }
 
+function createActivityEntry(id: string, overrides: Partial<ActivityEntry> = {}): ActivityEntry {
+  return {
+    id,
+    type: 'seed',
+    actor: createPeer(`actor-${id}`),
+    timestamp: 1,
+    ...overrides,
+  };
+}
+
+function createMockActivityEngine(entries: ActivityEntry[] = []): TestActivityEngine {
+  const subscribers = new Set<ActivitySubscriber>();
+  let currentEntries = entries;
+
+  const engine = {
+    record: vi.fn((type: string, data?: unknown) => {
+      const entry = createActivityEntry(`entry-${currentEntries.length + 1}`, {
+        type,
+        data,
+        timestamp: currentEntries.length + 2,
+      });
+      currentEntries = [entry, ...currentEntries];
+      for (const subscriber of subscribers) {
+        subscriber(currentEntries);
+      }
+      return entry;
+    }),
+    getEntries() {
+      return currentEntries;
+    },
+    subscribe: vi.fn((callback: ActivitySubscriber) => {
+      subscribers.add(callback);
+      callback(currentEntries);
+
+      return () => {
+        subscribers.delete(callback);
+      };
+    }),
+    emit(nextEntries: ActivityEntry[]) {
+      currentEntries = nextEntries;
+      for (const subscriber of subscribers) {
+        subscriber(currentEntries);
+      }
+    },
+    subscriberCount() {
+      return subscribers.size;
+    },
+  } as TestActivityEngine;
+
+  return engine;
+}
+
 function createTimelineEntry(id: string, overrides: Partial<TimelineEntry> = {}): TimelineEntry {
   return {
     action: id,
@@ -1003,6 +1065,7 @@ function createMockRoom(
   roomId = 'room-1',
   options: RoomOptions<PresenceData> = {},
   config: {
+    activityEngine?: TestActivityEngine;
     awarenessEngine?: TestAwarenessEngine;
     commentsEngine?: TestCommentsEngine;
     cursorEngine?: TestCursorEngine;
@@ -1020,6 +1083,7 @@ function createMockRoom(
 ): TestRoom {
   const handlers = new Map<RoomEventName, Set<RoomEventHandler>>();
   const peerId = config.peerId ?? `${roomId}-peer`;
+  const activityEngine = config.activityEngine ?? createMockActivityEngine();
   const awarenessEngine =
     config.awarenessEngine ?? createMockAwarenessEngine([createAwareness(peerId)]);
   const commentsEngine = config.commentsEngine ?? createMockCommentsEngine();
@@ -1107,6 +1171,9 @@ function createMockRoom(
       currentStatus = status;
     },
     stateEngine,
+    useActivity: vi.fn(() => {
+      return activityEngine;
+    }),
     useAwareness: vi.fn(() => {
       return awarenessEngine;
     }),
@@ -1874,6 +1941,70 @@ describe('roomful', () => {
     roomful('comments-options-room', { comments: { storage: 'indexeddb' } });
 
     expect(room.useComments.mock.calls[0]?.[0]).toEqual({ storage: 'indexeddb' });
+  });
+
+  it('exposes activity as a store, reflects remote entries, and forwards record', async () => {
+    const activityEngine = createMockActivityEngine([
+      createActivityEntry('seed', { type: 'seed' }),
+    ]);
+    createMockRoom(
+      'activity-room',
+      {},
+      {
+        activityEngine,
+      },
+    );
+
+    const adapter = roomful('activity-room');
+    const snapshots: Array<ActivityEntry[]> = [];
+    const unsubscribe = adapter.activity.subscribe((value) => {
+      snapshots.push(value);
+    });
+
+    expect(get(adapter.activity)).toEqual([expect.objectContaining({ id: 'seed' })]);
+    expect(snapshots).toHaveLength(1);
+
+    await adapter.connect();
+
+    // Recording an entry is reflected newest-first in the store.
+    adapter.activity.record('comment:added', { n: 1 });
+    expect(activityEngine.record).toHaveBeenCalledWith('comment:added', { n: 1 });
+    expect(get(adapter.activity)[0]).toEqual(expect.objectContaining({ type: 'comment:added' }));
+
+    // A remote entry is reflected in the store; a deep-equal re-emit is skipped.
+    const snapshotCountBeforeEmit = snapshots.length;
+    activityEngine.emit([
+      createActivityEntry('remote', { type: 'record:locked', timestamp: 9 }),
+      createActivityEntry('seed', { type: 'seed' }),
+    ]);
+    expect(snapshots).toHaveLength(snapshotCountBeforeEmit + 1);
+    expect(snapshots.at(-1)?.map((entry) => entry.id)).toEqual(['remote', 'seed']);
+
+    activityEngine.emit([
+      createActivityEntry('remote', { type: 'record:locked', timestamp: 9 }),
+      createActivityEntry('seed', { type: 'seed' }),
+    ]);
+    expect(snapshots).toHaveLength(snapshotCountBeforeEmit + 1);
+
+    unsubscribe();
+
+    await adapter.destroy();
+    expect(activityEngine.subscriberCount()).toBe(0);
+  });
+
+  it('forwards activity options to room.useActivity', () => {
+    const activityEngine = createMockActivityEngine();
+    const room = createMockRoom(
+      'activity-options-room',
+      {},
+      {
+        activityEngine,
+      },
+    );
+
+    roomful('activity-options-room', { activity: { limit: 50 } });
+
+    expect(room.useActivity.mock.calls[0]?.[0]).toEqual({ limit: 50 });
   });
 
   it('exposes history as a store, reflects captures and remote entries, and forwards controls', async () => {

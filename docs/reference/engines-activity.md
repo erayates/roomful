@@ -110,6 +110,28 @@ const { entries, record } = useActivity();
 
 `useActivity()` returns `{ entries, record }`; `entries` is a readonly ref to the reactive feed, newest first.
 
+### Svelte
+
+The `roomful(...)` adapter exposes `activity` as a readable store of `ActivityEntry[]` (newest first) with `record` attached:
+
+```svelte
+<script lang="ts">
+  import { roomful } from '@roomful/svelte';
+
+  const room = roomful('my-room');
+  const { activity } = room;
+</script>
+
+<button on:click={() => activity.record('note:added')}>Add note</button>
+<ul>
+  {#each $activity as entry (entry.id)}
+    <li>{entry.actor.name ?? entry.actor.id}: {entry.type}</li>
+  {/each}
+</ul>
+```
+
+The feed cap is configured on the factory: `roomful('my-room', { activity: { limit: 200 } })`.
+
 ## Related docs
 
 - [Comments engine](engines-comments.md)
