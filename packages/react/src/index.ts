@@ -1,4 +1,7 @@
 import type {
+  ActivityEngine,
+  ActivityEntry,
+  ActivityOptions,
   AwarenessEngine,
   AwarenessState,
   CommentsEngine,
@@ -343,6 +346,21 @@ export interface UseCommentsResult {
    * Returns the unresolved threads.
    */
   getOpen: CommentsEngine['getOpen'];
+}
+
+/**
+ * Describes the return value of `useActivity`.
+ */
+export interface UseActivityResult {
+  /**
+   * The activity feed, newest first. Reactive: re-renders on any local or remote entry.
+   */
+  entries: ActivityEntry[];
+
+  /**
+   * Records an activity entry and broadcasts it to peers.
+   */
+  record: ActivityEngine['record'];
 }
 
 /**
@@ -1177,6 +1195,95 @@ export function useComments<TPresence extends PresenceData = PresenceData>(
     reopen,
     getByElement,
     getOpen,
+  };
+}
+
+interface ActivitySnapshotCache<TPresence extends PresenceData> {
+  room: Room<TPresence>;
+  engine: ActivityEngine;
+  snapshot: ActivityEntry[];
+}
+
+function areActivityEntryArraysEqual(previous: ActivityEntry[], next: ActivityEntry[]): boolean {
+  if (previous.length !== next.length) {
+    return false;
+  }
+
+  for (let index = 0; index < previous.length; index += 1) {
+    if (!areStructuredValuesEqual(previous[index], next[index])) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function readActivitySnapshot<TPresence extends PresenceData>(
+  room: Room<TPresence>,
+  activity: ActivityEngine,
+  cacheRef: { current: ActivitySnapshotCache<TPresence> | null },
+): ActivityEntry[] {
+  const nextSnapshot = activity.getEntries();
+  const previous = cacheRef.current;
+
+  if (previous && previous.room === room && previous.engine === activity) {
+    if (areActivityEntryArraysEqual(previous.snapshot, nextSnapshot)) {
+      return previous.snapshot;
+    }
+
+    previous.snapshot = nextSnapshot;
+    return nextSnapshot;
+  }
+
+  cacheRef.current = {
+    room,
+    engine: activity,
+    snapshot: nextSnapshot,
+  };
+  return nextSnapshot;
+}
+
+/**
+ * Subscribes to the room activity feed and returns it newest-first, plus a `record` function.
+ *
+ * @typeParam TPresence - The room presence shape.
+ * @param options - Optional feed configuration (retention limit).
+ * @returns The reactive activity feed and recorder.
+ */
+export function useActivity<TPresence extends PresenceData = PresenceData>(
+  options?: ActivityOptions,
+): UseActivityResult {
+  const room = useRoom<TPresence>();
+  const optionsRef = useRef(options);
+  const activityEngine = room.useActivity(optionsRef.current);
+  const engineRef = useRef(activityEngine);
+  engineRef.current = activityEngine;
+
+  const snapshotCacheRef = useRef<ActivitySnapshotCache<TPresence> | null>(null);
+
+  const record = useCallback<ActivityEngine['record']>((type, data) => {
+    return engineRef.current.record(type, data);
+  }, []);
+
+  const subscribe = useCallback(
+    (onStoreChange: () => void) => {
+      return activityEngine.subscribe(() => {
+        const previousSnapshot = snapshotCacheRef.current?.snapshot ?? null;
+        const nextSnapshot = readActivitySnapshot(room, activityEngine, snapshotCacheRef);
+        if (nextSnapshot !== previousSnapshot) {
+          onStoreChange();
+        }
+      });
+    },
+    [activityEngine, room],
+  );
+  const getSnapshot = useCallback(() => {
+    return readActivitySnapshot(room, activityEngine, snapshotCacheRef);
+  }, [activityEngine, room]);
+
+  return {
+    entries: useSyncExternalStore(subscribe, getSnapshot, getSnapshot),
+    record,
   };
 }
 
