@@ -1,5 +1,24 @@
 # @roomful/svelte
 
+## 1.3.0
+
+### Minor Changes
+
+- a233622: Add the `activity` store (EP-15): the `roomful(...)` adapter now exposes a readable store of the
+  room activity feed (newest-first, referentially stable) with a `record(type, data?)` control, plus
+  an `activity` factory option for the entry cap. See `docs/reference/engines-activity.md`.
+
+### Patch Changes
+
+- Updated dependencies [2dd0386]
+- Updated dependencies [8f0c6ff]
+- Updated dependencies [bc3f52c]
+- Updated dependencies [0e9aa21]
+- Updated dependencies [58d8843]
+- Updated dependencies [8114214]
+- Updated dependencies [6472822]
+  - @roomful/core@1.5.0
+
 ## 1.2.2
 
 ### Patch Changes

@@ -1,5 +1,43 @@
 # @roomful/core
 
+## 1.5.0
+
+### Minor Changes
+
+- 2dd0386: Add the activity engine (EP-15 / S14): `room.useActivity()` exposes a shared, bounded, newest-first
+  feed of room activity. `record(type, data?)` broadcasts an entry to every peer over the reserved
+  event channel; `getEntries()` returns the feed newest first (de-duplicated by id, capped at `limit`,
+  default 100), and `subscribe` fires on every change. Entries carry the actor peer with live presence.
+  Content-agnostic — record comment, lock, or any app events. See `docs/reference/engines-activity.md`.
+- 8f0c6ff: Add `createLocalStorageActivityStorage(roomId)` (EP-15): a Web Storage–backed
+  `ActivityStorageAdapter` for zero-server browser durability — the activity feed survives a reload
+  with no backend. Keyed per room (`roomful:<roomId>:activity`), versioned, and fails closed. Mirrors
+  the comments IndexedDB/localStorage backend. See `docs/reference/activity-storage.md`.
+- bc3f52c: Declare `useActivity` on the public `Room` interface (EP-15). The activity engine shipped on the
+  concrete room, but the interface method was omitted, so TypeScript callers typed as `Room` could not
+  reach it; `room.useActivity(options?)` is now part of the public type.
+- 0e9aa21: Add durable activity storage (EP-15): `ActivityStorageAdapter` + `createMemoryActivityStorage`, and
+  an `storageAdapter` option on `room.useActivity({ storageAdapter })`. When set, the feed is restored
+  on startup (merged, de-duplicated by id) and saved after every change, so activity survives
+  reconnects and reloads. Best-effort: a failed load/save never breaks the live feed. See
+  `docs/reference/activity-storage.md`.
+- 58d8843: Extend comment anchors (EP-15 / #152): a `CommentAnchor` can now pin a thread to a record
+  (`{ recordId }`), a field within a record (`{ recordId, fieldId }`, e.g. a table cell), a standalone
+  form field (`{ fieldId }`), or a tree/graph node (`{ nodeId }`) — alongside the existing element,
+  point, and text-range anchors. This enables collaborative comments on forms, tables, and node
+  graphs. Anchors are validated on `add` and round-trip through sync and storage unchanged.
+- 8114214: Expose the comments storage adapter through the public API (EP-15 / S13): `useComments` now accepts
+  a `storageAdapter` option, so custom durable comments (Postgres, SQLite, or any backend) can be
+  configured without touching engine internals. Threads restore from the adapter on startup and save
+  after every change; it composes with the default in-memory backend. See
+  `docs/reference/comments-storage.md`.
+- 6472822: Add a `CommentsStorageAdapter` contract and a `createMemoryCommentsStorage` reference adapter for
+  durable comments (EP-15). When the comments engine is given a storage adapter, threads are restored
+  from it on startup — into an otherwise-empty room, so the live CRDT is never clobbered — and saved
+  after every change, so comments survive reconnects and reloads. Back the adapter with Postgres,
+  SQLite, or any store; see `docs/reference/comments-storage.md`. Persistence is best-effort and never
+  blocks the live, CRDT-synced comments.
+
 ## 1.4.0
 
 ### Minor Changes
