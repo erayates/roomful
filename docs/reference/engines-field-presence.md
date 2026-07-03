@@ -115,6 +115,28 @@ const { setActiveField, getFieldPeers } = useFieldPresence();
 `useFieldPresence()` returns `{ fields, setActiveField, getFieldPeers }`; `fields` is a readonly ref,
 and `getFieldPeers(id)` reads the reactive snapshot.
 
+### Svelte
+
+The `roomful(...)` adapter exposes `fieldPresence` as a readable store of `FieldPresenceState[]` with
+`setActiveField` and `getFieldPeers` attached:
+
+```svelte
+<script lang="ts">
+  import { roomful } from '@roomful/svelte';
+
+  const room = roomful('my-room');
+  const { fieldPresence } = room;
+</script>
+
+<label>
+  Email
+  <input on:blur={() => fieldPresence.setActiveField(null)} on:focus={() => fieldPresence.setActiveField('user.email')} />
+  {#each fieldPresence.getFieldPeers('user.email') as peer (peer.id)}
+    <span title={peer.name ?? peer.id}>●</span>
+  {/each}
+</label>
+```
+
 ## Related docs
 
 - [State, awareness, events](engines-state-awareness-events.md)

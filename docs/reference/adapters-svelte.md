@@ -49,6 +49,7 @@ Audience: users.
 - `pointer` — a store of remote `PointerBeam[]` with `mount` (action), `unmount`, `activate`, `deactivate`, `render`. See [Pointer engine](engines-pointer.md).
 - `comments` — a store of `CommentThread[]` with `add`/`reply`/`resolve`/`reopen`/`getByElement`/`getOpen`. See [Comments engine](engines-comments.md).
 - `activity` — a store of the `ActivityEntry[]` feed (newest first) with `record`. See [Activity engine](engines-activity.md).
+- `fieldPresence` — a store of the active `FieldPresenceState[]` (who's on which field) with `setActiveField` and `getFieldPeers`. See [Field presence engine](engines-field-presence.md).
 - `history` — a store of the `TimelineEntry[]` timeline with nested `canUndo`/`canRedo` boolean stores and `capture`/`transaction`/`undo`/`redo`. See [History engine](engines-history.md).
 
 ## Integration Notes
