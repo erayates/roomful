@@ -11,6 +11,8 @@ import type {
   CursorEngine,
   CursorPosition,
   EventEngine,
+  FieldPresenceEngine,
+  FieldPresenceState,
   HistoryEngine,
   LockEngine,
   LockState,
@@ -57,6 +59,7 @@ import type {
   UseAwarenessResult,
   UseCommentsResult,
   UseCursorsResult,
+  UseFieldPresenceResult,
   UseHistoryResult,
   UseLocksResult,
   UsePointerResult,
@@ -71,6 +74,7 @@ import {
   useConnectionStatus,
   useCursors,
   useEvent,
+  useFieldPresence,
   useHistory,
   useLocks,
   useLockState,
@@ -165,6 +169,14 @@ type TestActivityEngine = ActivityEngine & {
   seed(entry: ActivityEntry): void;
   record: ReturnType<typeof vi.fn<ActivityEngine['record']>>;
   subscribe: ReturnType<typeof vi.fn<(cb: ActivitySubscriber) => () => void>>;
+};
+
+type FieldPresenceSubscriber = (fields: FieldPresenceState[]) => void;
+
+type TestFieldPresenceEngine = FieldPresenceEngine & {
+  emit(fields: FieldPresenceState[]): void;
+  setActiveField: ReturnType<typeof vi.fn<FieldPresenceEngine['setActiveField']>>;
+  subscribe: ReturnType<typeof vi.fn<(cb: FieldPresenceSubscriber) => () => void>>;
 };
 
 type CommentsSubscriber = (threads: CommentThread[]) => void;
@@ -659,6 +671,45 @@ function createMockActivityEngine(): TestActivityEngine {
   };
 }
 
+function createMockFieldPresenceEngine(
+  initial: FieldPresenceState[] = [],
+): TestFieldPresenceEngine {
+  const subscribers = new Set<FieldPresenceSubscriber>();
+  let fields = initial.map((field) => cloneTestValue(field));
+
+  const notify = (): void => {
+    for (const subscriber of subscribers) {
+      subscriber(fields.map((field) => cloneTestValue(field)));
+    }
+  };
+
+  const setActiveField = vi.fn<FieldPresenceEngine['setActiveField']>();
+
+  const subscribe = vi.fn<(cb: FieldPresenceSubscriber) => () => void>((callback) => {
+    subscribers.add(callback);
+    callback(fields.map((field) => cloneTestValue(field)));
+    return () => {
+      subscribers.delete(callback);
+    };
+  });
+
+  return {
+    emit(next: FieldPresenceState[]): void {
+      fields = next.map((field) => cloneTestValue(field));
+      notify();
+    },
+    setActiveField,
+    getFieldPeers: (fieldId): Peer[] => {
+      const match = fields.find((field) => field.fieldId === fieldId);
+      return match ? match.peers.map((peer) => cloneTestValue(peer)) : [];
+    },
+    getActiveFields: (): FieldPresenceState[] => {
+      return fields.map((field) => cloneTestValue(field));
+    },
+    subscribe,
+  };
+}
+
 function createMockCommentsEngine(initialThreads: CommentThread[] = []): TestCommentsEngine {
   const subscribers = new Set<CommentsSubscriber>();
   let threads = initialThreads.map((thread) => cloneTestValue(thread));
@@ -942,6 +993,7 @@ function createMockRoom(
     commentsEngine?: TestCommentsEngine;
     cursorEngine?: TestCursorEngine;
     eventEngine?: TestEventEngine;
+    fieldPresenceEngine?: TestFieldPresenceEngine;
     historyEngine?: TestHistoryEngine;
     lockEngine?: TestLockEngine;
     peerId?: string;
@@ -956,6 +1008,7 @@ function createMockRoom(
   const peerId = config.peerId ?? `${roomId}-peer`;
   const activityEngine = config.activityEngine ?? createMockActivityEngine();
   const awarenessEngine = config.awarenessEngine ?? createMockAwarenessEngine();
+  const fieldPresenceEngine = config.fieldPresenceEngine ?? createMockFieldPresenceEngine();
   const commentsEngine = config.commentsEngine ?? createMockCommentsEngine();
   const cursorEngine = config.cursorEngine ?? createMockCursorEngine();
   const eventEngine = config.eventEngine ?? createMockEventEngine();
@@ -1077,6 +1130,9 @@ function createMockRoom(
     }),
     useActivity: vi.fn(() => {
       return activityEngine;
+    }),
+    useFieldPresence: vi.fn(() => {
+      return fieldPresenceEngine;
     }),
     useHistory: vi.fn(() => {
       return historyEngine;
@@ -3172,6 +3228,50 @@ describe('useActivity', () => {
 
     observed?.record('comment:added', { n: 1 });
     expect(activityEngine.record).toHaveBeenCalledWith('comment:added', { n: 1 });
+
+    await harness.unmount();
+  });
+});
+
+describe('useFieldPresence', () => {
+  it('exposes active fields, forwards setActiveField, and reflects remote changes', async () => {
+    const fieldPresenceEngine = createMockFieldPresenceEngine([
+      { fieldId: 'email', peers: [createPeer('peer-a')] },
+    ]);
+    createMockRoom('field-room', {}, { fieldPresenceEngine });
+    let observed: UseFieldPresenceResult | null = null;
+
+    function FieldPresenceConsumer(): ReactNode {
+      observed = useFieldPresence();
+      return null;
+    }
+
+    const harness = await renderElement(
+      createElement(
+        RoomfulProvider,
+        {
+          roomId: 'field-room',
+        },
+        createElement(FieldPresenceConsumer),
+      ),
+    );
+
+    expect(observed?.fields).toEqual([expect.objectContaining({ fieldId: 'email' })]);
+    expect(observed?.getFieldPeers('email').map((peer) => peer.id)).toEqual(['peer-a']);
+    expect(observed?.getFieldPeers('missing')).toEqual([]);
+
+    observed?.setActiveField('name');
+    expect(fieldPresenceEngine.setActiveField).toHaveBeenCalledWith('name');
+
+    await act(async () => {
+      fieldPresenceEngine.emit([
+        { fieldId: 'email', peers: [createPeer('peer-a')] },
+        { fieldId: 'name', peers: [createPeer('peer-b')] },
+      ]);
+    });
+
+    expect(observed?.fields.map((field) => field.fieldId)).toEqual(['email', 'name']);
+    expect(observed?.getFieldPeers('name').map((peer) => peer.id)).toEqual(['peer-b']);
 
     await harness.unmount();
   });

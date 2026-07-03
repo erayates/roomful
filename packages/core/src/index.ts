@@ -42,6 +42,8 @@ export type {
   EncryptionOptions,
   EventEngine,
   EventOptions,
+  FieldPresenceEngine,
+  FieldPresenceState,
   HistoryEngine,
   HistoryOptions,
   LockAcquireOptions,

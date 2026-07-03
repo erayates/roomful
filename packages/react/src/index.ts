@@ -11,6 +11,8 @@ import type {
   CursorEngine,
   CursorOptions,
   CursorPosition,
+  FieldPresenceEngine,
+  FieldPresenceState,
   HistoryEngine,
   HistoryOptions,
   LockEngine,
@@ -361,6 +363,27 @@ export interface UseActivityResult {
    * Records an activity entry and broadcasts it to peers.
    */
   record: ActivityEngine['record'];
+}
+
+/**
+ * Describes the return value of `useFieldPresence`.
+ */
+export interface UseFieldPresenceResult {
+  /**
+   * Every field with at least one remote peer, ordered by field id. Reactive: re-renders when peers
+   * enter or leave a field.
+   */
+  fields: FieldPresenceState[];
+
+  /**
+   * Declares the field the local peer is active on, or `null` to clear it. Stable across renders.
+   */
+  setActiveField: FieldPresenceEngine['setActiveField'];
+
+  /**
+   * Returns the remote peers on a field from the current snapshot.
+   */
+  getFieldPeers(fieldId: string): Peer[];
 }
 
 /**
@@ -1284,6 +1307,108 @@ export function useActivity<TPresence extends PresenceData = PresenceData>(
   return {
     entries: useSyncExternalStore(subscribe, getSnapshot, getSnapshot),
     record,
+  };
+}
+
+interface FieldPresenceSnapshotCache<TPresence extends PresenceData> {
+  room: Room<TPresence>;
+  engine: FieldPresenceEngine;
+  snapshot: FieldPresenceState[];
+}
+
+function areFieldPresenceArraysEqual(
+  previous: FieldPresenceState[],
+  next: FieldPresenceState[],
+): boolean {
+  if (previous.length !== next.length) {
+    return false;
+  }
+
+  for (let index = 0; index < previous.length; index += 1) {
+    if (!areStructuredValuesEqual(previous[index], next[index])) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function readFieldPresenceSnapshot<TPresence extends PresenceData>(
+  room: Room<TPresence>,
+  fieldPresence: FieldPresenceEngine,
+  cacheRef: { current: FieldPresenceSnapshotCache<TPresence> | null },
+): FieldPresenceState[] {
+  const nextSnapshot = fieldPresence.getActiveFields();
+  const previous = cacheRef.current;
+
+  if (previous && previous.room === room && previous.engine === fieldPresence) {
+    if (areFieldPresenceArraysEqual(previous.snapshot, nextSnapshot)) {
+      return previous.snapshot;
+    }
+
+    previous.snapshot = nextSnapshot;
+    return nextSnapshot;
+  }
+
+  cacheRef.current = {
+    room,
+    engine: fieldPresence,
+    snapshot: nextSnapshot,
+  };
+  return nextSnapshot;
+}
+
+/**
+ * Subscribes to field presence: which remote peers are active on which field. Declare the local
+ * peer's field with `setActiveField` (e.g. on input focus) and read `getFieldPeers(id)` to render
+ * "who else is editing this" avatars. Purpose-built for collaborative forms, tables, and records.
+ *
+ * @typeParam TPresence - The room presence shape.
+ * @returns The reactive active fields plus `setActiveField` and `getFieldPeers`.
+ */
+export function useFieldPresence<
+  TPresence extends PresenceData = PresenceData,
+>(): UseFieldPresenceResult {
+  const room = useRoom<TPresence>();
+  const fieldPresenceEngine = room.useFieldPresence();
+  const engineRef = useRef(fieldPresenceEngine);
+  engineRef.current = fieldPresenceEngine;
+
+  const snapshotCacheRef = useRef<FieldPresenceSnapshotCache<TPresence> | null>(null);
+
+  const setActiveField = useCallback<FieldPresenceEngine['setActiveField']>((fieldId) => {
+    engineRef.current.setActiveField(fieldId);
+  }, []);
+
+  const subscribe = useCallback(
+    (onStoreChange: () => void) => {
+      return fieldPresenceEngine.subscribe(() => {
+        const previousSnapshot = snapshotCacheRef.current?.snapshot ?? null;
+        const nextSnapshot = readFieldPresenceSnapshot(room, fieldPresenceEngine, snapshotCacheRef);
+        if (nextSnapshot !== previousSnapshot) {
+          onStoreChange();
+        }
+      });
+    },
+    [fieldPresenceEngine, room],
+  );
+  const getSnapshot = useCallback(() => {
+    return readFieldPresenceSnapshot(room, fieldPresenceEngine, snapshotCacheRef);
+  }, [fieldPresenceEngine, room]);
+
+  const fields = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+
+  const getFieldPeers = useCallback(
+    (fieldId: string): Peer[] => {
+      return fields.find((field) => field.fieldId === fieldId)?.peers ?? [];
+    },
+    [fields],
+  );
+
+  return {
+    fields,
+    setActiveField,
+    getFieldPeers,
   };
 }
 

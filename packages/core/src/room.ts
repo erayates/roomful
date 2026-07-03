@@ -16,6 +16,7 @@ import { createAwarenessEngine } from './engines/awareness';
 import { createCommentsEngine } from './engines/comments';
 import { createCursorEngine } from './engines/cursors';
 import { createEventEngine } from './engines/events';
+import { createFieldPresenceEngine } from './engines/field-presence';
 import { createHistoryEngine } from './engines/history';
 import {
   createLockEngine,
@@ -118,6 +119,7 @@ import type {
   CursorPosition,
   EventEngine,
   EventOptions,
+  FieldPresenceEngine,
   HistoryEngine,
   HistoryOptions,
   LockEngine,
@@ -551,6 +553,7 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
   private lockEngineInstance: LockEngine | null = null;
 
   private activityEngineInstance: ActivityEngine | null = null;
+  private fieldPresenceEngineInstance: FieldPresenceEngine | null = null;
 
   private commentsEngineInstance: CommentsEngine | null = null;
 
@@ -1370,6 +1373,20 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     }
 
     return this.activityEngineInstance;
+  }
+
+  public useFieldPresence(): FieldPresenceEngine {
+    if (!this.fieldPresenceEngineInstance) {
+      this.fieldPresenceEngineInstance = createFieldPresenceEngine({
+        selfPeerId: this.peerId,
+        awareness: this.useAwareness(),
+        resolvePeer: (peerId) => {
+          return this.resolveLockHolderPeer(peerId);
+        },
+      });
+    }
+
+    return this.fieldPresenceEngineInstance;
   }
 
   public useComments(options: CommentsOptions = {}): CommentsEngine {
