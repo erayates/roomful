@@ -1,5 +1,24 @@
 # @roomful/angular
 
+## 1.4.0
+
+### Minor Changes
+
+- ed6e6cb: Add the `injectActivity` function (EP-15): returns a `Signal` of the room activity feed
+  (newest-first, reactive, referentially stable) plus a `record(type, data?)` control. Must run in an
+  injection context. See `docs/reference/engines-activity.md`.
+
+### Patch Changes
+
+- Updated dependencies [2dd0386]
+- Updated dependencies [8f0c6ff]
+- Updated dependencies [bc3f52c]
+- Updated dependencies [0e9aa21]
+- Updated dependencies [58d8843]
+- Updated dependencies [8114214]
+- Updated dependencies [6472822]
+  - @roomful/core@1.5.0
+
 ## 1.3.2
 
 ### Patch Changes

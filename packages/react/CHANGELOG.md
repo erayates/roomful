@@ -1,5 +1,24 @@
 # @roomful/react
 
+## 1.3.0
+
+### Minor Changes
+
+- bc3f52c: Add the `useActivity` hook (EP-15): subscribes to the room activity feed and returns it newest-first
+  (reactive, referentially stable) plus a `record(type, data?)` function. See
+  `docs/reference/engines-activity.md`.
+
+### Patch Changes
+
+- Updated dependencies [2dd0386]
+- Updated dependencies [8f0c6ff]
+- Updated dependencies [bc3f52c]
+- Updated dependencies [0e9aa21]
+- Updated dependencies [58d8843]
+- Updated dependencies [8114214]
+- Updated dependencies [6472822]
+  - @roomful/core@1.5.0
+
 ## 1.2.2
 
 ### Patch Changes
