@@ -159,6 +159,25 @@ function readAnchor(value: unknown): CommentAnchor | null {
     return { elementId };
   }
 
+  const recordId = readString(value, 'recordId');
+  const fieldId = readString(value, 'fieldId');
+  if (recordId !== null && fieldId !== null) {
+    return { recordId, fieldId };
+  }
+
+  if (recordId !== null) {
+    return { recordId };
+  }
+
+  if (fieldId !== null) {
+    return { fieldId };
+  }
+
+  const nodeId = readString(value, 'nodeId');
+  if (nodeId !== null) {
+    return { nodeId };
+  }
+
   const x = readFiniteNumber(value, 'x');
   const y = readFiniteNumber(value, 'y');
   if (x !== null && y !== null) {
@@ -400,7 +419,8 @@ export function createCommentsEngine(
     if (!anchor) {
       throw createRoomfulError(
         'INVALID_STATE',
-        'Comment anchor must be { elementId }, { x, y }, or { from, to, elementId }.',
+        'Comment anchor must be { elementId }, { x, y }, { from, to, elementId }, ' +
+          '{ recordId }, { recordId, fieldId }, { fieldId }, or { nodeId }.',
         false,
         { anchor: input.anchor },
       );

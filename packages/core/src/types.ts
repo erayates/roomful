@@ -1661,7 +1661,11 @@ export interface LockEngine {
 export type CommentAnchor =
   | { elementId: string }
   | { x: number; y: number }
-  | { from: number; to: number; elementId: string };
+  | { from: number; to: number; elementId: string }
+  | { recordId: string }
+  | { recordId: string; fieldId: string }
+  | { fieldId: string }
+  | { nodeId: string };
 
 /**
  * A single reply within a comment thread.

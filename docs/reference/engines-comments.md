@@ -42,7 +42,11 @@ Behavior notes:
 type CommentAnchor =
   | { elementId: string } // pin to an element
   | { x: number; y: number } // pin to a point in canvas/coordinate space
-  | { from: number; to: number; elementId: string }; // pin to a text-selection range
+  | { from: number; to: number; elementId: string } // pin to a text-selection range
+  | { recordId: string } // pin to a record/row
+  | { recordId: string; fieldId: string } // pin to a field within a record (e.g. a table cell)
+  | { fieldId: string } // pin to a form field
+  | { nodeId: string }; // pin to a tree/graph node
 
 interface Comment {
   id: string;

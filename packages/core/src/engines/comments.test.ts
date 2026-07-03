@@ -69,6 +69,25 @@ describe('CommentsEngine', () => {
     expect(range.anchor).toEqual({ from: 3, to: 9, elementId: 'doc' });
   });
 
+  it('supports record, field, and node anchors', async () => {
+    harness = await createMockRoomHarness();
+    const room = harness.createRoom('comments-anchors-records');
+    const comments = room.useComments();
+
+    const record = await comments.add({ anchor: { recordId: 'row-42' }, text: 'record' });
+    const field = await comments.add({
+      anchor: { recordId: 'row-42', fieldId: 'email' },
+      text: 'cell',
+    });
+    const fieldOnly = await comments.add({ anchor: { fieldId: 'title' }, text: 'field' });
+    const node = await comments.add({ anchor: { nodeId: 'node-1' }, text: 'node' });
+
+    expect(record.anchor).toEqual({ recordId: 'row-42' });
+    expect(field.anchor).toEqual({ recordId: 'row-42', fieldId: 'email' });
+    expect(fieldOnly.anchor).toEqual({ fieldId: 'title' });
+    expect(node.anchor).toEqual({ nodeId: 'node-1' });
+  });
+
   it('rejects an invalid anchor', async () => {
     harness = await createMockRoomHarness();
     const room = harness.createRoom('comments-bad-anchor');
