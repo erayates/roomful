@@ -55,6 +55,7 @@ These composables follow the same Vue-ref conventions as the rest of the adapter
 - `useLocks()` — `{ locks, acquire, release, releaseAll, isLocked, getHolder }` for advisory locks over UI keys, with `useLockState(key)` returning a single key's `LockState | null` ref (the lock-on-focus pattern). See [Locking engine](engines-locks.md).
 - `usePointer(opts?)` — `{ ref, beams, activate, deactivate, render }` for laser-pointer beams. See [Pointer engine](engines-pointer.md).
 - `useComments(opts?)` — `{ threads, add, reply, resolve, reopen, getByElement, getOpen }` for anchored comment threads. See [Comments engine](engines-comments.md).
+- `useActivity(opts?)` — `{ entries, record }` for the shared room activity feed (newest first). See [Activity engine](engines-activity.md).
 - `useHistory(opts?)` — `{ timeline, canUndo, canRedo, capture, transaction, undo, redo }` for undo/redo plus a shared activity timeline. See [History engine](engines-history.md).
 
 ## Integration Notes

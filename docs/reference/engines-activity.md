@@ -89,6 +89,27 @@ function Feed(): JSX.Element {
 
 `useActivity()` returns `{ entries, record }`; `entries` is the reactive feed, newest first.
 
+### Vue
+
+```vue
+<script setup lang="ts">
+import { useActivity } from '@roomful/vue';
+
+const { entries, record } = useActivity();
+</script>
+
+<template>
+  <button @click="record('note:added')">Add note</button>
+  <ul>
+    <li v-for="entry in entries" :key="entry.id">
+      {{ entry.actor.name ?? entry.actor.id }}: {{ entry.type }}
+    </li>
+  </ul>
+</template>
+```
+
+`useActivity()` returns `{ entries, record }`; `entries` is a readonly ref to the reactive feed, newest first.
+
 ## Related docs
 
 - [Comments engine](engines-comments.md)

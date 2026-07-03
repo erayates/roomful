@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 
 import type {
+  ActivityEngine,
+  ActivityEntry,
   AwarenessEngine,
   AwarenessState,
   CommentAnchor,
@@ -38,6 +40,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, nextTick, watchEffect } from 'vue';
 
 import type {
+  UseActivityResult,
   UseAwarenessResult,
   UseCommentsResult,
   UseCursorsResult,
@@ -50,6 +53,7 @@ import type {
 } from './index';
 import {
   RoomfulPlugin,
+  useActivity,
   useAwareness,
   useComments,
   useConnectionStatus,
@@ -92,6 +96,7 @@ type PointerSubscriber = (beams: PointerBeam[]) => void;
 type LockStateSubscriber = (state: LockState) => void;
 type LocksSubscriber = (states: LockState[]) => void;
 type CommentsSubscriber = (threads: CommentThread[]) => void;
+type ActivitySubscriber = (entries: ActivityEntry[]) => void;
 type HistorySubscriber = (timeline: TimelineEntry[]) => void;
 type RecordingSubscriber = (state: RecordingState) => void;
 
@@ -161,6 +166,12 @@ type TestCommentsEngine = CommentsEngine & {
   reply: ReturnType<typeof vi.fn<(threadId: string, text: string) => Promise<CommentThread>>>;
   resolve: ReturnType<typeof vi.fn<(threadId: string) => Promise<CommentThread>>>;
   reopen: ReturnType<typeof vi.fn<(threadId: string) => Promise<CommentThread>>>;
+};
+
+type TestActivityEngine = ActivityEngine & {
+  emit(entries: ActivityEntry[]): void;
+  subscriberCount(): number;
+  record: ReturnType<typeof vi.fn<ActivityEngine['record']>>;
 };
 
 type TestHistoryEngine = HistoryEngine & {
@@ -675,6 +686,57 @@ function createMockCommentsEngine(threads: CommentThread[] = []): TestCommentsEn
   return engine;
 }
 
+function createActivityEntry(id: string, overrides: Partial<ActivityEntry> = {}): ActivityEntry {
+  return {
+    id,
+    type: 'seed',
+    actor: createPeer(`actor-${id}`),
+    timestamp: 1,
+    ...overrides,
+  };
+}
+
+function createMockActivityEngine(entries: ActivityEntry[] = []): TestActivityEngine {
+  const subscribers = new Set<ActivitySubscriber>();
+  let currentEntries = entries;
+
+  const engine = {
+    record: vi.fn((type: string, data?: unknown) => {
+      const entry = createActivityEntry(`entry-${currentEntries.length + 1}`, {
+        type,
+        data,
+        timestamp: currentEntries.length + 2,
+      });
+      currentEntries = [entry, ...currentEntries];
+      for (const subscriber of subscribers) {
+        subscriber(currentEntries);
+      }
+      return entry;
+    }),
+    getEntries() {
+      return currentEntries;
+    },
+    subscribe(callback: ActivitySubscriber) {
+      subscribers.add(callback);
+      callback(currentEntries);
+      return () => {
+        subscribers.delete(callback);
+      };
+    },
+    emit(nextEntries: ActivityEntry[]) {
+      currentEntries = nextEntries;
+      for (const subscriber of subscribers) {
+        subscriber(currentEntries);
+      }
+    },
+    subscriberCount() {
+      return subscribers.size;
+    },
+  } as TestActivityEngine;
+
+  return engine;
+}
+
 function createTimelineEntry(id: string, overrides: Partial<TimelineEntry> = {}): TimelineEntry {
   return {
     id,
@@ -941,6 +1003,7 @@ function createMockRoom(
   roomId = 'room-1',
   options: RoomOptions<PresenceData> = {},
   config: {
+    activityEngine?: TestActivityEngine;
     awarenessEngine?: TestAwarenessEngine;
     commentsEngine?: TestCommentsEngine;
     cursorEngine?: TestCursorEngine;
@@ -957,6 +1020,7 @@ function createMockRoom(
 ): TestRoom {
   const handlers = new Map<RoomEventName, Set<RoomEventHandler>>();
   const peerId = config.peerId ?? `${roomId}-peer`;
+  const activityEngine = config.activityEngine ?? createMockActivityEngine();
   const awarenessEngine = config.awarenessEngine ?? createMockAwarenessEngine();
   const commentsEngine = config.commentsEngine ?? createMockCommentsEngine();
   const cursorEngine = config.cursorEngine ?? createMockCursorEngine();
@@ -1067,6 +1131,9 @@ function createMockRoom(
     }),
     useComments: vi.fn(() => {
       return commentsEngine;
+    }),
+    useActivity: vi.fn(() => {
+      return activityEngine;
     }),
     useHistory: vi.fn(() => {
       return historyEngine;
@@ -1808,6 +1875,79 @@ describe('useComments', () => {
         defineComponent({
           setup() {
             useComments();
+            return {};
+          },
+          template: '<div />',
+        }),
+      );
+    }).toThrowError(RoomfulError);
+  });
+});
+
+describe('useActivity', () => {
+  it('exposes the feed reactively, records an entry, and reflects remote entries', async () => {
+    const activityEngine = createMockActivityEngine([
+      createActivityEntry('seed', { type: 'seed' }),
+    ]);
+    createMockRoom(
+      'activity-room',
+      {},
+      {
+        activityEngine,
+      },
+    );
+    let observedActivity: UseActivityResult | null = null;
+
+    const wrapper = mount(
+      defineComponent({
+        setup() {
+          observedActivity = useActivity();
+          return {
+            entries: observedActivity.entries,
+          };
+        },
+        template: '<span>{{ entries.length }}</span>',
+      }),
+      {
+        global: {
+          plugins: [[RoomfulPlugin, { roomId: 'activity-room' }]],
+        },
+      },
+    );
+
+    expect(wrapper.text()).toContain('1');
+    expect(observedActivity?.entries.value).toEqual([expect.objectContaining({ id: 'seed' })]);
+
+    // Recording an entry is reflected newest-first in the reactive feed.
+    observedActivity?.record('comment:added', { n: 1 });
+    await nextTick();
+
+    expect(wrapper.text()).toContain('2');
+    expect(activityEngine.record).toHaveBeenCalledWith('comment:added', { n: 1 });
+    expect(observedActivity?.entries.value[0]).toEqual(
+      expect.objectContaining({ type: 'comment:added' }),
+    );
+
+    // A remote entry is reflected in the reactive feed.
+    activityEngine.emit([
+      createActivityEntry('remote', { type: 'record:locked', timestamp: 9 }),
+      createActivityEntry('seed', { type: 'seed' }),
+    ]);
+    await nextTick();
+
+    expect(wrapper.text()).toContain('2');
+    expect(observedActivity?.entries.value[0]).toEqual(expect.objectContaining({ id: 'remote' }));
+
+    wrapper.unmount();
+    expect(activityEngine.subscriberCount()).toBe(0);
+  });
+
+  it('throws a typed error when useActivity() is called outside the plugin', () => {
+    expect(() => {
+      mount(
+        defineComponent({
+          setup() {
+            useActivity();
             return {};
           },
           template: '<div />',
