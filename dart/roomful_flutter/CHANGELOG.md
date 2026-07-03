@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.0-alpha.3
+
+- Point the example at the same relay and room as the React `examples/cross-platform-interop`
+  client by default (relay overridable with `--dart-define=ROOMFUL_RELAY_URL=...`), so a Flutter app
+  and a web client collaborate in the same room across platforms.
+
 ## 0.1.0-alpha.2
 
 - Update the example to publish cursors through `CursorsEngine.setPosition`, so its live cursors
