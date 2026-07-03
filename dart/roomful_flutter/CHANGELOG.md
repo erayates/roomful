@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.0-alpha.4
+
+- Default the example to the public `wss://relay.roomful.dev` relay, so it runs and collaborates
+  cross-platform out of the box. Override with `--dart-define=ROOMFUL_RELAY_URL=...` for a local relay.
+
 ## 0.1.0-alpha.3
 
 - Point the example at the same relay and room as the React `examples/cross-platform-interop`

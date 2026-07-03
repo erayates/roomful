@@ -9,25 +9,24 @@ for the protocol contract it relies on.
 
 ## Run
 
-Interop needs a relay — the in-browser transports don't cross devices. Point the client at one:
+Works out of the box against the public Roomful relay (`wss://relay.roomful.dev`) — no setup:
 
 ```bash
-# From the repo root, start a local relay:
-docker compose up            # relay on ws://localhost:8787
-
-# Then run this example and open it with the relay + a shared room:
 pnpm --filter @roomful/example-cross-platform-interop dev
-# http://127.0.0.1:4175/?relay=ws://localhost:8787&room=demo
+# http://127.0.0.1:4175/
 ```
 
-Open that URL in two tabs (or add `&name=Alice` / `&name=Bob`) to see presence and cursors sync.
-Open the same relay + room from a Flutter client to see it work across platforms.
+Open it in two tabs (add `&name=Alice` / `&name=Bob`) to see presence and cursors sync, or open the
+same room from a Flutter client to see it work across platforms.
+
+To use your own relay instead, run one locally (`docker compose up` — relay on `ws://localhost:8787`)
+and pass `?relay=ws://localhost:8787`.
 
 ## Configuration
 
 All optional, via query string (or `VITE_ROOMFUL_RELAY_URL` for the relay):
 
-- `?relay=` — the relay URL (`ws://` / `wss://`). Required for syncing; without it the app explains how to set one.
+- `?relay=` — the relay URL (`ws://` / `wss://`). Defaults to `wss://relay.roomful.dev`.
 - `?room=` — the shared room id (default `roomful-interop-demo`).
 - `?name=` / `?color=` — this peer's identity (otherwise random).
 

@@ -82,35 +82,31 @@ your app's contract**, and every platform in the room must agree on them:
 
 ## Run the cross-platform demo
 
-Two example clients ship in the repo and default to the **same room**, so they collaborate across
-platforms: [`examples/cross-platform-interop`](../../examples/cross-platform-interop) (React web)
-and the [`roomful_flutter` example](../../dart/roomful_flutter/example/roomful_flutter_example.dart)
+Two example clients ship in the repo and default to the **same relay and room** — the public
+`wss://relay.roomful.dev` — so they collaborate across platforms out of the box:
+[`examples/cross-platform-interop`](../../examples/cross-platform-interop) (React web) and the
+[`roomful_flutter` example](../../dart/roomful_flutter/example/roomful_flutter_example.dart)
 (Flutter).
 
-1. **Start a relay** from the repo root:
+Run the web client:
 
-   ```sh
-   docker compose up            # relay on ws://localhost:8787
-   ```
+```sh
+pnpm --filter @roomful/example-cross-platform-interop dev
+# http://127.0.0.1:4175/
+```
 
-2. **Run the web client** against that relay and the shared room:
+Run the Flutter client in the same room:
 
-   ```sh
-   pnpm --filter @roomful/example-cross-platform-interop dev
-   # http://127.0.0.1:4175/?relay=ws://localhost:8787&room=roomful-interop-demo
-   ```
+```sh
+cd dart/roomful_flutter
+flutter run -t example/roomful_flutter_example.dart
+```
 
-3. **Run the Flutter client** in the same room:
+Move your cursor in either client and watch presence and cursors appear in the other.
 
-   ```sh
-   cd dart/roomful_flutter
-   flutter run -t example/roomful_flutter_example.dart \
-     --dart-define=ROOMFUL_RELAY_URL=ws://localhost:8787
-   ```
-
-Move your cursor in either client and watch presence and cursors appear in the other. From a phone
-or a second machine, replace `localhost` with your host's LAN address (and use a TLS-terminated
-`wss://` relay for anything public).
+To run against **your own** relay instead, start one (`docker compose up` — relay on
+`ws://localhost:8787`) and point both clients at it: the web client with `?relay=ws://localhost:8787`,
+the Flutter client with `--dart-define=ROOMFUL_RELAY_URL=ws://<your-host>:8787`.
 
 ## Related docs
 

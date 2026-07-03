@@ -6,23 +6,25 @@ import 'package:roomful_flutter/roomful_flutter.dart';
 /// counter via [RoomfulSharedStateBuilder].
 ///
 /// Defaults to the same relay and room as the React `examples/cross-platform-interop` client, so
-/// the two collaborate across platforms. Start a relay (`docker compose up`) and run:
+/// the two collaborate across platforms out of the box:
 ///
 /// ```sh
-/// flutter run -t example/roomful_flutter_example.dart \
-///   --dart-define=ROOMFUL_RELAY_URL=ws://<your-host>:8787
+/// flutter run -t example/roomful_flutter_example.dart
 /// ```
+///
+/// Override the relay for a local one with
+/// `--dart-define=ROOMFUL_RELAY_URL=ws://<your-host>:8787`.
 void main() {
   runApp(const RoomfulExampleApp());
 }
 
-// Shared with the React interop client so both join the same room; override the relay for a device
-// (localhost is not reachable from a phone) with --dart-define=ROOMFUL_RELAY_URL=ws://<host>:8787.
+// Shared with the React interop client so both join the same room. Defaults to the public Roomful
+// relay; point at a local one with --dart-define=ROOMFUL_RELAY_URL=ws://<host>:8787.
 const String _roomId =
     String.fromEnvironment('ROOMFUL_ROOM', defaultValue: 'roomful-interop-demo');
 const String _relayUrl = String.fromEnvironment(
   'ROOMFUL_RELAY_URL',
-  defaultValue: 'ws://localhost:8787',
+  defaultValue: 'wss://relay.roomful.dev',
 );
 
 class RoomfulExampleApp extends StatelessWidget {
