@@ -31,6 +31,7 @@ When implementation and docs differ, open an issue with:
 - [Pointer engine](engines-pointer.md)
 - [Comments engine](engines-comments.md)
 - [History engine](engines-history.md)
+- [Activity engine](engines-activity.md)
 
 ### Adapters
 

@@ -1735,6 +1735,78 @@ export interface CommentThread {
 }
 
 /**
+ * A single entry in the room activity feed.
+ */
+export interface ActivityEntry {
+  /**
+   * Identifies the entry within the room.
+   */
+  id: string;
+
+  /**
+   * The activity type — an app-defined label, e.g. `'comment:added'` or `'record:locked'`.
+   */
+  type: string;
+
+  /**
+   * The peer that produced the activity, carrying live presence.
+   */
+  actor: Peer;
+
+  /**
+   * An optional structured payload describing the activity.
+   */
+  data?: unknown;
+
+  /**
+   * The epoch-millisecond timestamp when the activity was recorded.
+   */
+  timestamp: number;
+}
+
+/**
+ * Configures the {@link ActivityEngine}.
+ */
+export interface ActivityOptions {
+  /**
+   * The maximum number of entries retained in the feed (default `100`); the oldest are dropped
+   * first once the cap is exceeded.
+   */
+  limit?: number;
+}
+
+/**
+ * A shared, bounded, newest-first feed of room activity. Every `record` is broadcast to peers and
+ * entries are ordered by timestamp, so all peers converge on the same recent feed. See
+ * `docs/reference/engines-activity.md`.
+ */
+export interface ActivityEngine {
+  /**
+   * Records an activity entry and broadcasts it to peers.
+   *
+   * @param type - The activity type label.
+   * @param data - An optional structured payload.
+   * @returns The recorded entry.
+   */
+  record(type: string, data?: unknown): ActivityEntry;
+
+  /**
+   * Returns the current feed, newest first.
+   *
+   * @returns The activity entries.
+   */
+  getEntries(): ActivityEntry[];
+
+  /**
+   * Subscribes to feed changes; fires immediately with the current feed, then on every change.
+   *
+   * @param callback - The callback invoked with the latest entries.
+   * @returns A function that removes the listener.
+   */
+  subscribe(callback: (entries: ActivityEntry[]) => void): Unsubscribe;
+}
+
+/**
  * Configures the comments engine.
  */
 export interface CommentsOptions {

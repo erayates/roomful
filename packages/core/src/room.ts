@@ -7,6 +7,11 @@ import {
   type ResolvedRoomEncryption,
   resolveRoomEncryption,
 } from './encryption';
+import {
+  type ActivityEntryFrame,
+  createActivityEngine,
+  parseActivityEntryFrame,
+} from './engines/activity';
 import { createAwarenessEngine } from './engines/awareness';
 import { createCommentsEngine } from './engines/comments';
 import { createCursorEngine } from './engines/cursors';
@@ -100,6 +105,8 @@ import {
 } from './transports/transport.protocol';
 import { isWebSocketPollingFallbackEligibleError } from './transports/websocket';
 import type {
+  ActivityEngine,
+  ActivityOptions,
   AwarenessEngine,
   AwarenessState,
   CommentsEngine,
@@ -152,6 +159,7 @@ const POINTER_UPDATE_EVENT = '__roomful:pointer:update__';
 const POINTER_STOP_EVENT = '__roomful:pointer:stop__';
 const LOCK_CLAIM_EVENT = '__roomful:lock:claim__';
 const LOCK_RELEASE_EVENT = '__roomful:lock:release__';
+const ACTIVITY_ENTRY_EVENT = '__roomful:activity:entry__';
 
 interface ConnectContext {
   isReconnectAttempt: boolean;
@@ -516,6 +524,10 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
 
   private readonly lockClaimHandlers = new Set<(peerId: string, frame: LockClaimFrame) => void>();
 
+  private readonly activityEntryHandlers = new Set<
+    (peerId: string, frame: ActivityEntryFrame) => void
+  >();
+
   private readonly lockReleaseHandlers = new Set<
     (peerId: string, frame: LockReleaseFrame) => void
   >();
@@ -537,6 +549,8 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
   private pointerEngineInstance: PointerEngine | null = null;
 
   private lockEngineInstance: LockEngine | null = null;
+
+  private activityEngineInstance: ActivityEngine | null = null;
 
   private commentsEngineInstance: CommentsEngine | null = null;
 
@@ -1323,6 +1337,38 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     }
 
     return this.lockEngineInstance;
+  }
+
+  /**
+   * Returns the room's activity engine — a shared, bounded, newest-first feed of activity entries.
+   * `record(type, data)` broadcasts an entry to every peer.
+   *
+   * @param options - Optional feed configuration (retention limit).
+   * @returns The activity engine.
+   */
+  public useActivity(options?: ActivityOptions): ActivityEngine {
+    if (!this.activityEngineInstance) {
+      this.activityEngineInstance = createActivityEngine(
+        {
+          selfPeerId: this.peerId,
+          getPeer: (peerId) => {
+            return this.resolveLockHolderPeer(peerId);
+          },
+          broadcastEntry: (frame) => {
+            this.broadcastInternalEvent(ACTIVITY_ENTRY_EVENT, frame);
+          },
+          onRemoteEntry: (handler) => {
+            this.activityEntryHandlers.add(handler);
+          },
+        },
+        () => {
+          return createRuntimePeerId();
+        },
+        options,
+      );
+    }
+
+    return this.activityEngineInstance;
   }
 
   public useComments(options: CommentsOptions = {}): CommentsEngine {
@@ -2657,6 +2703,11 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
       return;
     }
 
+    if (signal.payload.name === ACTIVITY_ENTRY_EVENT) {
+      this.handleActivityEntryEvent(signal.fromPeerId, signal.payload.payload);
+      return;
+    }
+
     this.customEventMessagesReceived += 1;
     this.recordDevtoolsEvent(
       'incoming',
@@ -3800,6 +3851,17 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     }
 
     for (const handler of this.lockReleaseHandlers) {
+      handler(fromPeerId, frame);
+    }
+  }
+
+  private handleActivityEntryEvent(fromPeerId: string, payload: unknown): void {
+    const frame = parseActivityEntryFrame(payload);
+    if (!frame) {
+      return;
+    }
+
+    for (const handler of this.activityEntryHandlers) {
       handler(fromPeerId, frame);
     }
   }
