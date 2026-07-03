@@ -22,8 +22,8 @@ describe('ActivityEngine', () => {
   it('records local activity newest-first, with the actor and data', async () => {
     harness = await createMockRoomHarness();
     const room = harness.createRoom('activity-local');
-    const activity = room.useActivity();
     useIncreasingClock();
+    const activity = room.useActivity();
 
     const first = activity.record('comment:added', { threadId: 't1' });
     const second = activity.record('record:locked');
@@ -55,8 +55,8 @@ describe('ActivityEngine', () => {
   it('caps the feed at the configured limit, dropping the oldest', async () => {
     harness = await createMockRoomHarness();
     const room = harness.createRoom('activity-limit');
-    const activity = room.useActivity({ limit: 2 });
     useIncreasingClock();
+    const activity = room.useActivity({ limit: 2 });
 
     const a = activity.record('a');
     const b = activity.record('b');
