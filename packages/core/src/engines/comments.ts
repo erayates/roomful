@@ -12,6 +12,7 @@ import type {
   Unsubscribe,
 } from '../types';
 import { LocalCrdtTransactionOrigin } from '../yjs/origin';
+import type { CommentsStorageAdapter } from './comments-storage';
 
 /**
  * The root Y.Map name the Comments primitive owns inside the room's shared
@@ -71,6 +72,13 @@ export interface CommentsEngineContext {
    * thread list. Used by the `'indexeddb'` and `'rest'` backends.
    */
   onLocalMutation?(threads: CommentThread[]): void;
+
+  /**
+   * Optional durable storage. When set, threads are restored from it on startup
+   * (into an empty room) and saved to it after every change, so comments survive
+   * reconnects and reloads. See {@link CommentsStorageAdapter}.
+   */
+  storage?: CommentsStorageAdapter;
 }
 
 interface SerializedComment {
@@ -226,6 +234,27 @@ function anchorElementId(anchor: CommentAnchor): string | null {
 }
 
 /**
+ * Converts a public {@link CommentThread} into the stored map shape, used to seed threads loaded
+ * from a {@link CommentsStorageAdapter} back into the shared document.
+ */
+function toSerializedThread(thread: CommentThread): SerializedThread {
+  return {
+    id: thread.id,
+    anchor: thread.anchor,
+    author: thread.author,
+    text: thread.text,
+    createdAt: thread.createdAt,
+    resolved: thread.resolved,
+    replies: thread.replies.map((reply) => ({
+      id: reply.id,
+      author: reply.author,
+      text: reply.text,
+      createdAt: reply.createdAt,
+    })),
+  };
+}
+
+/**
  * Creates a comments engine bound to a room. Threads are held in a dedicated
  * `Y.Map` on the room's shared document, so every `add`/`reply`/`resolve`/
  * `reopen` is a CRDT mutation that converges across peers and reaches late
@@ -290,6 +319,11 @@ export function createCommentsEngine(
   const notify = (): void => {
     const threads = snapshot();
     context.onLocalMutation?.(threads);
+    if (context.storage) {
+      void context.storage.save(threads).catch(() => {
+        // Persistence is best-effort: a failed save never breaks the live, synced comments.
+      });
+    }
     for (const subscriber of subscribers) {
       subscriber(threads.map((thread) => cloneStateValue(thread)));
     }
@@ -427,6 +461,30 @@ export function createCommentsEngine(
 
     return requireThread(threadId);
   };
+
+  // Restore persisted threads on startup, but only into an empty room — if threads already exist
+  // (seeded locally or synced from a peer), the live CRDT is the source of truth and is left alone.
+  const hydrate = async (): Promise<void> => {
+    const storage = context.storage;
+    if (!storage) {
+      return;
+    }
+
+    const stored = await storage.load();
+    if (stored.length === 0 || snapshot().length > 0) {
+      return;
+    }
+
+    transact((threadsMap) => {
+      for (const thread of stored) {
+        writeThread(threadsMap, toSerializedThread(thread));
+      }
+    });
+  };
+
+  void hydrate().catch(() => {
+    // Persistence is best-effort: a failed restore leaves live comments working normally.
+  });
 
   return {
     add,
