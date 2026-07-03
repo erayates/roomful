@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { createMockRoomHarness, type MockRoomHarness } from '../../test-utils/mock-room';
 import type { CommentThread } from '../types';
+import { createMemoryCommentsStorage } from './comments-storage';
 
 interface CommentPresence {
   name: string;
@@ -192,5 +193,18 @@ describe('CommentsEngine', () => {
     await harness.waitFor(() => commentsB.getAll().length === 1);
     expect(commentsB.getAll()[0]?.id).toBe(created.id);
     expect(commentsB.getAll()[0]?.anchor).toEqual({ x: 5, y: 6 });
+  });
+
+  it('persists threads through a storageAdapter passed to useComments', async () => {
+    harness = await createMockRoomHarness();
+    const storage = createMemoryCommentsStorage();
+    const room = harness.createRoom('comments-durable');
+    const comments = room.useComments({ storageAdapter: storage });
+
+    const created = await comments.add({ anchor: { elementId: 'cell' }, text: 'durable' });
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+
+    const persisted = await storage.load();
+    expect(persisted.map((thread) => thread.id)).toContain(created.id);
   });
 });
