@@ -40,9 +40,10 @@ interface ActivityEntry {
 
 - **Shared** — entries ride the room's event channel (a reserved internal event), so no relay
   change is needed; peers already connected converge on the same feed.
-- **Best-effort / not persistent** — entries live in memory and reach only peers connected when
-  they are recorded, so a late joiner does not see earlier activity. Pair it with your own store
-  (or the [comments storage adapter](comments-storage.md) pattern) if you need durability.
+- **Best-effort by default** — entries live in memory and reach only peers connected when they are
+  recorded, so a late joiner does not see earlier activity. Pass a
+  [storage adapter](activity-storage.md) (`useActivity({ storageAdapter })`) to make the feed
+  durable — restored on startup and saved after every change.
 - **Bounded** — the feed retains at most `limit` entries.
 
 ## Example
@@ -184,6 +185,7 @@ export class FeedComponent {
 
 ## Related docs
 
+- [Persistent activity storage](activity-storage.md)
 - [Comments engine](engines-comments.md)
 - [Locking engine](engines-locks.md)
 - [Reference index](README.md)

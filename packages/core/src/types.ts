@@ -1,6 +1,7 @@
 import type { Awareness as YjsAwareness } from 'y-protocols/awareness';
 import type { Doc as YDoc } from 'yjs';
 
+import type { ActivityStorageAdapter } from './engines/activity-storage';
 import type { CommentsStorageAdapter } from './engines/comments-storage';
 import type { RoomfulError, RoomfulErrorCode } from './roomful-error';
 import type { RoomTransportSignal, TransportKind } from './transports/transport';
@@ -1773,6 +1774,12 @@ export interface ActivityOptions {
    * first once the cap is exceeded.
    */
   limit?: number;
+
+  /**
+   * Optional durable storage. When set, the feed is restored from it on startup and saved after
+   * every change, so activity survives reconnects and reloads. See {@link ActivityStorageAdapter}.
+   */
+  storageAdapter?: ActivityStorageAdapter;
 }
 
 /**
