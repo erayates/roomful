@@ -1,3 +1,4 @@
+import { readPersistedActivity, writePersistedActivity } from '../internal/activity.persistence';
 import { cloneStateValue } from '../internal/state';
 import type { ActivityEntry } from '../types';
 
@@ -45,6 +46,27 @@ export function createMemoryActivityStorage(
     },
     save(next: readonly ActivityEntry[]): Promise<void> {
       entries = next.map((entry) => cloneStateValue(entry));
+      return Promise.resolve();
+    },
+  };
+}
+
+/**
+ * A Web Storage–backed {@link ActivityStorageAdapter} for zero-server browser durability — the feed
+ * survives a reload without any backend. Keyed per room (`roomful:<roomId>:activity`), versioned,
+ * and fails closed: an unavailable or faulting store degrades to an empty/no-op adapter rather than
+ * breaking the live feed. Not shared across devices; back the feed with a server adapter for that.
+ *
+ * @param roomId - The room whose feed is persisted (used as the storage key).
+ * @returns A `localStorage`-backed storage adapter.
+ */
+export function createLocalStorageActivityStorage(roomId: string): ActivityStorageAdapter {
+  return {
+    load(): Promise<readonly ActivityEntry[]> {
+      return Promise.resolve(readPersistedActivity(roomId));
+    },
+    save(next: readonly ActivityEntry[]): Promise<void> {
+      writePersistedActivity(roomId, next);
       return Promise.resolve();
     },
   };

@@ -1,8 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 
+import { createPersistedActivityStorageKey } from '../internal/activity.persistence';
 import type { ActivityEntry, Peer } from '../types';
 import { type ActivityEngineContext, createActivityEngine } from './activity';
-import { createMemoryActivityStorage } from './activity-storage';
+import { createLocalStorageActivityStorage, createMemoryActivityStorage } from './activity-storage';
 
 const SELF: Peer = { id: 'peer-a', joinedAt: 0, lastSeen: 0, name: 'Ada' };
 
@@ -27,6 +28,29 @@ function makeContext(storage?: ActivityEngineContext['storage']): ActivityEngine
 
 function flush(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 0));
+}
+
+function createMemoryStorage(): {
+  getItem(key: string): string | null;
+  setItem(key: string, value: string): void;
+  store: Map<string, string>;
+} {
+  const store = new Map<string, string>();
+  return {
+    store,
+    getItem(key) {
+      return store.get(key) ?? null;
+    },
+    setItem(key, value) {
+      store.set(key, value);
+    },
+  };
+}
+
+const originalLocalStorage = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+
+function setLocalStorage(value: unknown): void {
+  Object.defineProperty(globalThis, 'localStorage', { configurable: true, writable: true, value });
 }
 
 describe('createMemoryActivityStorage', () => {
@@ -100,5 +124,67 @@ describe('ActivityEngine storage', () => {
     const persisted = (await storage.load()).map((entry) => entry.id);
     expect(persisted).toContain(live.id);
     expect(persisted).toContain('old');
+  });
+});
+
+describe('createLocalStorageActivityStorage', () => {
+  afterEach(() => {
+    if (originalLocalStorage) {
+      Object.defineProperty(globalThis, 'localStorage', originalLocalStorage);
+    } else {
+      Reflect.deleteProperty(globalThis, 'localStorage');
+    }
+  });
+
+  it('round-trips entries through Web Storage, keyed per room', async () => {
+    const backing = createMemoryStorage();
+    setLocalStorage(backing);
+    const storage = createLocalStorageActivityStorage('room-1');
+
+    expect(await storage.load()).toEqual([]);
+
+    const entry: ActivityEntry = { id: 'e1', type: 'seed', actor: SELF, timestamp: 1 };
+    await storage.save([entry]);
+
+    expect(backing.store.has(createPersistedActivityStorageKey('room-1'))).toBe(true);
+    expect(await storage.load()).toEqual([entry]);
+  });
+
+  it('degrades to an empty, no-op adapter when Web Storage is unavailable', async () => {
+    setLocalStorage(undefined);
+    const storage = createLocalStorageActivityStorage('room-1');
+
+    const entry: ActivityEntry = { id: 'e1', type: 'seed', actor: SELF, timestamp: 1 };
+    // Neither call throws; load stays empty.
+    await storage.save([entry]);
+    expect(await storage.load()).toEqual([]);
+  });
+
+  it('returns an empty feed for malformed stored data', async () => {
+    const backing = createMemoryStorage();
+    backing.store.set(createPersistedActivityStorageKey('room-1'), 'not json {');
+    setLocalStorage(backing);
+
+    const storage = createLocalStorageActivityStorage('room-1');
+    expect(await storage.load()).toEqual([]);
+  });
+
+  it('restores a persisted feed into a fresh engine', async () => {
+    setLocalStorage(createMemoryStorage());
+
+    const engineA = createActivityEngine(
+      makeContext(createLocalStorageActivityStorage('room-1')),
+      makeIds(),
+    );
+    const created = engineA.record('comment:added', { n: 1 });
+    await flush();
+
+    const engineB = createActivityEngine(
+      makeContext(createLocalStorageActivityStorage('room-1')),
+      makeIds(),
+    );
+    await flush();
+
+    expect(engineB.getEntries().map((entry) => entry.id)).toContain(created.id);
   });
 });
