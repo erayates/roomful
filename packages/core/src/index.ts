@@ -35,6 +35,12 @@ export {
   createMemoryCommentsStorage,
 } from './engines/comments-storage';
 export type {
+  SessionParticipant,
+  SessionSummarizerOptions,
+  SessionSummary,
+} from './engines/session-summary';
+export { summarizeSession } from './engines/session-summary';
+export type {
   ActivityEngine,
   ActivityEntry,
   ActivityOptions,
