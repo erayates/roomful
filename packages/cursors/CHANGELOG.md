@@ -1,5 +1,13 @@
 # @roomful/cursors
 
+## 1.0.9
+
+### Patch Changes
+
+- Updated dependencies [804681c]
+  - @roomful/core@1.7.0
+  - @roomful/react@1.4.1
+
 ## 1.0.8
 
 ### Patch Changes

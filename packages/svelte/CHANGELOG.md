@@ -1,5 +1,15 @@
 # @roomful/svelte
 
+## 1.4.1
+
+### Patch Changes
+
+- 732172f: Release the `activity` store's subscribers on `roomful(...)` teardown. The adapter's destroy path
+  clears every value store except `activityStore`, which was omitted when the activity store shipped —
+  so its subscribers leaked past `destroy()`. Now cleared alongside the others.
+- Updated dependencies [804681c]
+  - @roomful/core@1.7.0
+
 ## 1.4.0
 
 ### Minor Changes
