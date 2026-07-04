@@ -1,5 +1,13 @@
 # @roomful/example-cross-platform-interop
 
+## 0.0.3
+
+### Patch Changes
+
+- Updated dependencies [804681c]
+  - @roomful/core@1.7.0
+  - @roomful/react@1.4.1
+
 ## 0.0.2
 
 ### Patch Changes
