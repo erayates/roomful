@@ -3,10 +3,13 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createMockRoomHarness, type MockRoomHarness } from '../test-utils/mock-room';
 import {
   AGENT_IDENTITY_KEY,
+  AGENT_STATE_KEY,
+  type AgentState,
   type AIPeer,
   type AIPeerContext,
   createHeuristicAgent,
   getAgentIdentity,
+  getAgentState,
   isAgentPeer,
 } from './ai-peer';
 import type { Peer } from './types';
@@ -102,6 +105,34 @@ describe('addAIPeer', () => {
     expect(isAgentPeer(human.usePresence().getSelf())).toBe(false);
   });
 
+  it('announces the agent state on presence for every peer to read', async () => {
+    harness = await createMockRoomHarness();
+    const { addAIPeer } = await import('./ai-peer');
+
+    const human = harness.createRoom<DemoPresence>('ai-state-room', {
+      presence: { name: 'Human' },
+    });
+    await human.connect();
+
+    aiPeer = addAIPeer<DemoPresence>('ai-state-room', {
+      transport: 'websocket',
+      presence: { name: 'AI Bot' },
+      tickMs: 100_000,
+      agent: (context) => {
+        context.setState('editing');
+      },
+    });
+    const botId = aiPeer.peerId;
+
+    await harness.waitFor(() => {
+      const bot = human.peers.find((peer) => peer.id === botId);
+      return bot !== undefined && getAgentState(bot) === 'editing';
+    });
+
+    // The human peer carries no agent state.
+    expect(getAgentState(human.usePresence().getSelf())).toBeNull();
+  });
+
   it('stop() removes the AI peer from the room', async () => {
     harness = await createMockRoomHarness();
     const { addAIPeer } = await import('./ai-peer');
@@ -133,6 +164,7 @@ describe('createHeuristicAgent', () => {
     let moves = 0;
     let emits = 0;
     let presences = 0;
+    const states: AgentState[] = [];
     const makeContext = (tick: number): AIPeerContext => ({
       tick,
       self: { id: 'bot', joinedAt: 0, lastSeen: 0, name: 'Bot' },
@@ -144,6 +176,9 @@ describe('createHeuristicAgent', () => {
       },
       setPresence: () => {
         presences += 1;
+      },
+      setState: (state) => {
+        states.push(state);
       },
       emit: () => {
         emits += 1;
@@ -157,6 +192,9 @@ describe('createHeuristicAgent', () => {
     expect(moves).toBe(4); // cursor moves on every tick
     expect(emits).toBeGreaterThan(0); // reacts on the periodic ticks
     expect(presences).toBeGreaterThan(0); // sets a mood on tick 0
+    expect(states).toHaveLength(4); // announces a state every tick
+    expect(states).toContain('editing'); // tick 0 changes mood
+    expect(states).toContain('typing'); // reacts on a periodic tick
   });
 });
 
@@ -200,5 +238,24 @@ describe('getAgentIdentity / isAgentPeer', () => {
       [AGENT_IDENTITY_KEY]: { kind: 'ai', role: 42, disclosure: null },
     };
     expect(getAgentIdentity(wrongTypes)).toEqual({ kind: 'ai' });
+  });
+});
+
+describe('getAgentState', () => {
+  it('reads a valid state and rejects missing / unknown / wrong-typed values', () => {
+    const idle: Peer = { id: 'a', joinedAt: 0, lastSeen: 0, [AGENT_STATE_KEY]: 'idle' };
+    expect(getAgentState(idle)).toBe('idle');
+
+    const editing: Peer = { id: 'b', joinedAt: 0, lastSeen: 0, [AGENT_STATE_KEY]: 'editing' };
+    expect(getAgentState(editing)).toBe('editing');
+
+    const human: Peer = { id: 'c', joinedAt: 0, lastSeen: 0, name: 'Ada' };
+    expect(getAgentState(human)).toBeNull();
+
+    const bogus: Peer = { id: 'd', joinedAt: 0, lastSeen: 0, [AGENT_STATE_KEY]: 'dreaming' };
+    expect(getAgentState(bogus)).toBeNull();
+
+    const wrongType: Peer = { id: 'e', joinedAt: 0, lastSeen: 0, [AGENT_STATE_KEY]: 42 };
+    expect(getAgentState(wrongType)).toBeNull();
   });
 });

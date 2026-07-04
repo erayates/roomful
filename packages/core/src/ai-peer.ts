@@ -63,6 +63,38 @@ export function isAgentPeer<TPresence extends PresenceData = PresenceData>(
 }
 
 /**
+ * The reserved presence key that carries a peer's live {@link AgentState}.
+ */
+export const AGENT_STATE_KEY = '__roomful:agent-state__';
+
+/**
+ * What an AI peer is doing right now, so UIs can show a live "thinking…/typing…" indicator and
+ * (with {@link AgentState.waiting-approval}) surface an agent that is blocked on a human decision.
+ */
+export type AgentState = 'idle' | 'thinking' | 'typing' | 'editing' | 'waiting-approval';
+
+const AGENT_STATES: readonly AgentState[] = [
+  'idle',
+  'thinking',
+  'typing',
+  'editing',
+  'waiting-approval',
+];
+
+/**
+ * Reads a peer's live {@link AgentState} from its presence, or `null` when absent or malformed.
+ *
+ * @param peer - The peer to inspect.
+ * @returns The agent's current state, or `null`.
+ */
+export function getAgentState<TPresence extends PresenceData = PresenceData>(
+  peer: Peer<TPresence>,
+): AgentState | null {
+  const value = Reflect.get(peer, AGENT_STATE_KEY);
+  return AGENT_STATES.find((state) => state === value) ?? null;
+}
+
+/**
  * A custom event the AI peer observed since the previous agent tick.
  */
 export interface AIPeerEvent<TPresence extends PresenceData = PresenceData> {
@@ -94,6 +126,8 @@ export interface AIPeerContext<TPresence extends PresenceData = PresenceData> {
   moveCursor(x: number, y: number): void;
   /** Merges a patch into the AI peer's presence. */
   setPresence(data: Partial<TPresence>): void;
+  /** Announces what the agent is doing right now, for a live UI indicator. */
+  setState(state: AgentState): void;
   /** Emits a custom event to the room. */
   emit(name: string, payload: unknown): void;
 }
@@ -163,6 +197,7 @@ export function addAIPeer<TPresence extends PresenceData = PresenceData>(
   const presenceWithIdentity = {
     ...(options.presence ?? {}),
     [AGENT_IDENTITY_KEY]: agentIdentity,
+    [AGENT_STATE_KEY]: 'idle',
   };
   // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
   const initialPresence = presenceWithIdentity as unknown as TPresence;
@@ -214,6 +249,10 @@ export function addAIPeer<TPresence extends PresenceData = PresenceData>(
       },
       setPresence: (data) => {
         presence.update(data);
+      },
+      setState: (state) => {
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+        presence.update({ [AGENT_STATE_KEY]: state } as unknown as Partial<TPresence>);
       },
       emit: (name, payload) => {
         eventEngine.emit(name, payload);
@@ -326,6 +365,7 @@ export function createHeuristicAgent(options: HeuristicAgentOptions = {}): AIPee
 
     // React back when someone else just reacted, otherwise fire one periodically.
     const reactionPool = options.reactions ?? [];
+    let reacted = false;
     if (typeof options.reactionEvent === 'string' && reactionPool.length > 0) {
       const reactedThisTick = context.events.some((event) => event.name === options.reactionEvent);
       const periodic = context.tick % reactEvery === reactEvery - 1;
@@ -333,10 +373,12 @@ export function createHeuristicAgent(options: HeuristicAgentOptions = {}): AIPee
         const payload = pick(reactionPool);
         if (payload !== undefined) {
           context.emit(options.reactionEvent, payload);
+          reacted = true;
         }
       }
     }
 
+    let changedMood = false;
     if (
       typeof options.moodField === 'string' &&
       options.moods !== undefined &&
@@ -346,7 +388,11 @@ export function createHeuristicAgent(options: HeuristicAgentOptions = {}): AIPee
       const mood = pick(options.moods);
       if (mood !== undefined) {
         context.setPresence({ [options.moodField]: mood });
+        changedMood = true;
       }
     }
+
+    // Announce a lifelike state so a UI can show what the agent is doing this tick.
+    context.setState(reacted ? 'typing' : changedMood ? 'editing' : 'thinking');
   };
 }
