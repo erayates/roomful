@@ -1,4 +1,5 @@
-import type { RoomStatus } from '@roomful/core';
+import type { AgentState, RoomStatus } from '@roomful/core';
+import { getAgentState, isAgentPeer } from '@roomful/core';
 import { LiveIndicator, PresenceBar } from '@roomful/cursors';
 import { useConnectionStatus, usePresence } from '@roomful/react';
 import { type ReactElement, useEffect } from 'react';
@@ -25,6 +26,21 @@ function statusLabel(status: RoomStatus): string {
   }
 }
 
+function agentStateLabel(state: AgentState | null): string {
+  switch (state) {
+    case 'thinking':
+      return 'thinking…';
+    case 'typing':
+      return 'typing…';
+    case 'editing':
+      return 'editing…';
+    case 'waiting-approval':
+      return 'waiting for approval';
+    default:
+      return 'idle';
+  }
+}
+
 interface MiniAppStageProps {
   app: MiniAppDefinition;
   identity: DemoIdentity;
@@ -45,6 +61,10 @@ export function MiniAppStage({
   const { all, others, update } = usePresence<DemoPresence>();
   const status = useConnectionStatus<DemoPresence>();
   const AppComponent = app.Component;
+
+  // Surface the AI teammate's live state (thinking/typing/editing…) straight from presence.
+  const agentPeer = all.find((peer) => isAgentPeer(peer));
+  const agentState = agentPeer ? getAgentState(agentPeer) : null;
 
   useEffect(() => {
     update({ color: identity.color, name: identity.name });
@@ -81,6 +101,11 @@ export function MiniAppStage({
             : `${String(others.length)} other ${others.length === 1 ? 'person' : 'people'} here`}
         </span>
         <AITeammate relayUrl={relayUrl} roomId={roomId} transport={transport} />
+        {agentPeer ? (
+          <span className="stage__badge" data-agent-state={agentState ?? 'idle'}>
+            🤖 {agentPeer.name ?? 'AI'} · {agentStateLabel(agentState)}
+          </span>
+        ) : null}
       </div>
 
       <div className="stage__app" data-app={app.id}>

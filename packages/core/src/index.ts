@@ -6,6 +6,7 @@ export { RoomfulError };
 export type {
   AddAIPeerOptions,
   AgentIdentity,
+  AgentState,
   AIPeer,
   AIPeerAgent,
   AIPeerContext,
@@ -15,8 +16,10 @@ export type {
 export {
   addAIPeer,
   AGENT_IDENTITY_KEY,
+  AGENT_STATE_KEY,
   createHeuristicAgent,
   getAgentIdentity,
+  getAgentState,
   isAgentPeer,
 } from './ai-peer';
 export type { ActivityStorageAdapter } from './engines/activity-storage';
