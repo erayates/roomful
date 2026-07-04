@@ -57,6 +57,7 @@ These composables follow the same Vue-ref conventions as the rest of the adapter
 - `useComments(opts?)` — `{ threads, add, reply, resolve, reopen, getByElement, getOpen }` for anchored comment threads. See [Comments engine](engines-comments.md).
 - `useActivity(opts?)` — `{ entries, record }` for the shared room activity feed (newest first). See [Activity engine](engines-activity.md).
 - `useFieldPresence()` — `{ fields, setActiveField, getFieldPeers }` for who's active on which field. See [Field presence engine](engines-field-presence.md).
+- `useAgentApprovals(opts?)` — `{ proposals, pending, approve, reject, propose }` for the human-in-the-loop agent approval workflow. See [Agent approvals engine](engines-agent-approvals.md).
 - `useHistory(opts?)` — `{ timeline, canUndo, canRedo, capture, transaction, undo, redo }` for undo/redo plus a shared activity timeline. See [History engine](engines-history.md).
 
 ## Integration Notes

@@ -32,6 +32,8 @@ When implementation and docs differ, open an issue with:
 - [Comments engine](engines-comments.md)
 - [History engine](engines-history.md)
 - [Activity engine](engines-activity.md)
+- [Agent approvals engine](engines-agent-approvals.md)
+- [Session summarizer](session-summarizer.md)
 
 ### Adapters
 

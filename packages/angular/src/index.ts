@@ -1,6 +1,7 @@
 import type { EnvironmentProviders, Signal } from '@angular/core';
 import {
   assertInInjectionContext,
+  computed,
   DestroyRef,
   inject,
   InjectionToken,
@@ -11,6 +12,9 @@ import type {
   ActivityEngine,
   ActivityEntry,
   ActivityOptions,
+  AgentApprovalEngine,
+  AgentApprovalOptions,
+  AgentProposal,
   AwarenessEngine,
   AwarenessState,
   Comment,
@@ -395,6 +399,38 @@ export interface InjectActivityResult {
 }
 
 /**
+ * Describes the return value of {@link injectAgentApprovals}.
+ */
+export interface InjectAgentApprovalsResult {
+  /**
+   * Exposes every proposal, newest first. Reactive: updates on any local or
+   * remote change.
+   */
+  proposals: Signal<AgentProposal[]>;
+
+  /**
+   * Exposes the proposals still awaiting a decision, newest first. Reactive:
+   * derived from `proposals`.
+   */
+  pending: Signal<AgentProposal[]>;
+
+  /**
+   * Approves a pending proposal (if permitted) and broadcasts the decision.
+   */
+  approve: AgentApprovalEngine['approve'];
+
+  /**
+   * Rejects a pending proposal (if permitted) and broadcasts the decision.
+   */
+  reject: AgentApprovalEngine['reject'];
+
+  /**
+   * Proposes an action for approval and broadcasts it as pending.
+   */
+  propose: AgentApprovalEngine['propose'];
+}
+
+/**
  * Describes the return value of {@link injectFieldPresence}.
  */
 export interface InjectFieldPresenceResult {
@@ -589,6 +625,12 @@ interface ActivitySnapshotCache<TPresence extends PresenceData> {
   room: Room<TPresence>;
   engine: ActivityEngine;
   snapshot: ActivityEntry[];
+}
+
+interface AgentApprovalsSnapshotCache<TPresence extends PresenceData> {
+  room: Room<TPresence>;
+  engine: AgentApprovalEngine;
+  snapshot: AgentProposal[];
 }
 
 interface FieldPresenceSnapshotCache<TPresence extends PresenceData> {
@@ -1098,6 +1140,54 @@ export function injectActivity<TPresence extends PresenceData = PresenceData>(
     entries,
     record: (type, data) => {
       return activityEngine.record(type, data);
+    },
+  };
+}
+
+/**
+ * Subscribes to the room's agent-approval workflow: agents `propose` actions and humans
+ * `approve`/`reject` them, with every peer seeing the synced proposal list. Returns a reactive
+ * `proposals` signal (newest first) plus a derived `pending` signal and the decision actions.
+ *
+ * Must be called in an injection context.
+ *
+ * @typeParam TPresence - The room presence shape.
+ * @param options - Optional configuration (permission hook).
+ * @returns The proposals and derived pending signals plus `approve`/`reject`/`propose`.
+ */
+export function injectAgentApprovals<TPresence extends PresenceData = PresenceData>(
+  options?: AgentApprovalOptions,
+): InjectAgentApprovalsResult {
+  assertInInjectionContext(injectAgentApprovals);
+  const room = injectRoom<TPresence>();
+  const approvalsEngine = room.useAgentApprovals(options);
+  const cacheRef: { current: AgentApprovalsSnapshotCache<TPresence> | null } = {
+    current: null,
+  };
+  const proposals = signal(readApprovalsSnapshot(room, approvalsEngine, cacheRef));
+  const pending = computed(() => {
+    return proposals().filter((proposal) => {
+      return proposal.status === 'pending';
+    });
+  });
+
+  const unsubscribe = approvalsEngine.subscribe(() => {
+    proposals.set(readApprovalsSnapshot(room, approvalsEngine, cacheRef));
+  });
+
+  inject(DestroyRef).onDestroy(unsubscribe);
+
+  return {
+    proposals,
+    pending,
+    approve: (id) => {
+      approvalsEngine.approve(id);
+    },
+    reject: (id) => {
+      approvalsEngine.reject(id);
+    },
+    propose: (input) => {
+      return approvalsEngine.propose(input);
     },
   };
 }
@@ -1943,6 +2033,67 @@ function readActivitySnapshot<TPresence extends PresenceData>(
   cacheRef.current = {
     room,
     engine: activity,
+    snapshot: nextSnapshot,
+  };
+  return nextSnapshot;
+}
+
+function areProposalArraysEqual(
+  previous: readonly AgentProposal[],
+  next: readonly AgentProposal[],
+): boolean {
+  if (previous === next) {
+    return true;
+  }
+
+  if (previous.length !== next.length) {
+    return false;
+  }
+
+  for (let index = 0; index < previous.length; index += 1) {
+    const previousProposal = previous[index];
+    const nextProposal = next[index];
+
+    if (
+      !previousProposal ||
+      !nextProposal ||
+      !areStructuredValuesEqual(previousProposal, nextProposal)
+    ) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function readApprovalsSnapshot<TPresence extends PresenceData>(
+  room: Room<TPresence>,
+  approvals: AgentApprovalEngine,
+  cacheRef: { current: AgentApprovalsSnapshotCache<TPresence> | null },
+): AgentProposal[] {
+  const nextSnapshot = approvals.getProposals();
+  const previous = cacheRef.current;
+
+  if (previous !== null && previous.room === room && previous.engine === approvals) {
+    const previousSnapshot = previous.snapshot;
+    if (areProposalArraysEqual(previousSnapshot, nextSnapshot)) {
+      return previousSnapshot;
+    }
+
+    previous.snapshot = nextSnapshot.map((proposal, index) => {
+      const previousProposal = previousSnapshot[index];
+      if (previousProposal !== undefined && areStructuredValuesEqual(previousProposal, proposal)) {
+        return previousProposal;
+      }
+
+      return proposal;
+    });
+    return previous.snapshot;
+  }
+
+  cacheRef.current = {
+    room,
+    engine: approvals,
     snapshot: nextSnapshot,
   };
   return nextSnapshot;

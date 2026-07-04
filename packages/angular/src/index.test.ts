@@ -3,6 +3,7 @@ import type {
   ActivityEngine,
   ActivityEntry,
   AgentApprovalEngine,
+  AgentProposal,
   AwarenessEngine,
   AwarenessState,
   CommentAnchor,
@@ -57,6 +58,7 @@ vi.mock('@roomful/core', async () => {
 
 import {
   injectActivity,
+  injectAgentApprovals,
   injectAwareness,
   injectComments,
   injectConnectionStatus,
@@ -90,6 +92,7 @@ type LockStateSubscriber = (state: LockState) => void;
 type LocksSubscriber = (states: LockState[]) => void;
 type CommentsSubscriber = (threads: CommentThread[]) => void;
 type ActivitySubscriber = (entries: ActivityEntry[]) => void;
+type AgentApprovalsSubscriber = (proposals: AgentProposal[]) => void;
 type HistorySubscriber = (timeline: TimelineEntry[]) => void;
 type RecordingSubscriber = (state: RecordingState) => void;
 
@@ -174,6 +177,15 @@ type TestActivityEngine = ActivityEngine & {
   subscriberCount(): number;
   subscribe: ReturnType<typeof vi.fn<(cb: ActivitySubscriber) => () => void>>;
   record: ReturnType<typeof vi.fn<ActivityEngine['record']>>;
+};
+
+type TestAgentApprovalEngine = AgentApprovalEngine & {
+  seed(proposals: AgentProposal[]): void;
+  subscriberCount(): number;
+  propose: ReturnType<typeof vi.fn<AgentApprovalEngine['propose']>>;
+  approve: ReturnType<typeof vi.fn<AgentApprovalEngine['approve']>>;
+  reject: ReturnType<typeof vi.fn<AgentApprovalEngine['reject']>>;
+  subscribe: ReturnType<typeof vi.fn<(cb: AgentApprovalsSubscriber) => () => void>>;
 };
 
 type FieldPresenceSubscriber = (fields: FieldPresenceState[]) => void;
@@ -718,6 +730,17 @@ function createActivityEntry(id: string, overrides: Partial<ActivityEntry> = {})
   };
 }
 
+function createProposal(id: string, overrides: Partial<AgentProposal> = {}): AgentProposal {
+  return {
+    id,
+    proposer: createPeer(`proposer-${id}`),
+    type: 'seed',
+    status: 'pending',
+    timestamp: 1,
+    ...overrides,
+  };
+}
+
 function createFieldPresenceState(fieldId: string, peerIds: string[]): FieldPresenceState {
   return { fieldId, peers: peerIds.map((peerId) => createPeer(peerId)) };
 }
@@ -796,6 +819,71 @@ function createMockActivityEngine(entries: ActivityEntry[] = []): TestActivityEn
       return subscribers.size;
     },
   } as TestActivityEngine;
+
+  return engine;
+}
+
+function createMockAgentApprovalEngine(proposals: AgentProposal[] = []): TestAgentApprovalEngine {
+  const subscribers = new Set<AgentApprovalsSubscriber>();
+  const decider = createPeer('approvals-decider');
+  let currentProposals = proposals;
+
+  const notify = (): void => {
+    for (const subscriber of subscribers) {
+      subscriber(currentProposals);
+    }
+  };
+
+  const decide = (id: string, status: 'approved' | 'rejected'): void => {
+    currentProposals = currentProposals.map((proposal) => {
+      return proposal.id === id && proposal.status === 'pending'
+        ? { ...proposal, status, decidedBy: decider }
+        : proposal;
+    });
+    notify();
+  };
+
+  const engine = {
+    propose: vi.fn((input: { type: string; payload?: unknown }) => {
+      const proposal = createProposal(`proposal-${currentProposals.length + 1}`, {
+        type: input.type,
+        payload: input.payload,
+        timestamp: currentProposals.length + 2,
+      });
+      currentProposals = [proposal, ...currentProposals];
+      notify();
+      return proposal;
+    }),
+    approve: vi.fn((id: string) => {
+      decide(id, 'approved');
+    }),
+    reject: vi.fn((id: string) => {
+      decide(id, 'rejected');
+    }),
+    getProposals() {
+      return currentProposals;
+    },
+    getPending() {
+      return currentProposals.filter((proposal) => {
+        return proposal.status === 'pending';
+      });
+    },
+    subscribe: vi.fn((callback: AgentApprovalsSubscriber) => {
+      subscribers.add(callback);
+      callback(currentProposals);
+
+      return () => {
+        subscribers.delete(callback);
+      };
+    }),
+    seed(nextProposals: AgentProposal[]) {
+      currentProposals = nextProposals;
+      notify();
+    },
+    subscriberCount() {
+      return subscribers.size;
+    },
+  } as TestAgentApprovalEngine;
 
   return engine;
 }
@@ -1066,6 +1154,7 @@ function createMockRoom(
   options: RoomOptions<PresenceData> = {},
   config: {
     activityEngine?: TestActivityEngine;
+    agentApprovalEngine?: TestAgentApprovalEngine;
     fieldPresenceEngine?: TestFieldPresenceEngine;
     awarenessEngine?: TestAwarenessEngine;
     commentsEngine?: TestCommentsEngine;
@@ -1085,6 +1174,7 @@ function createMockRoom(
   const handlers = new Map<RoomEventName, Set<RoomEventHandler>>();
   const peerId = config.peerId ?? `${roomId}-peer`;
   const activityEngine = config.activityEngine ?? createMockActivityEngine();
+  const agentApprovalEngine = config.agentApprovalEngine ?? createMockAgentApprovalEngine();
   const fieldPresenceEngine = config.fieldPresenceEngine ?? createMockFieldPresenceEngine();
   const awarenessEngine = config.awarenessEngine ?? createMockAwarenessEngine();
   const commentsEngine = config.commentsEngine ?? createMockCommentsEngine();
@@ -1210,21 +1300,8 @@ function createMockRoom(
     useActivity: vi.fn(() => {
       return activityEngine;
     }),
-    useAgentApprovals: vi.fn((): AgentApprovalEngine => {
-      return {
-        propose: () => ({
-          id: '',
-          proposer: createPeer('self'),
-          type: '',
-          status: 'pending',
-          timestamp: 0,
-        }),
-        approve: () => undefined,
-        reject: () => undefined,
-        getProposals: () => [],
-        getPending: () => [],
-        subscribe: () => () => undefined,
-      };
+    useAgentApprovals: vi.fn(() => {
+      return agentApprovalEngine;
     }),
     useFieldPresence: vi.fn(() => {
       return fieldPresenceEngine;
@@ -2126,6 +2203,84 @@ describe('injectActivity', () => {
   it('throws a typed error when injectActivity() is called without provideRoomful', () => {
     expect(() => {
       TestBed.runInInjectionContext(() => injectActivity());
+    }).toThrowError(RoomfulError);
+  });
+});
+
+describe('injectAgentApprovals', () => {
+  it('returns proposals and pending signals plus actions and reflects decisions and remote changes', () => {
+    const agentApprovalEngine = createMockAgentApprovalEngine([
+      createProposal('seed', { type: 'delete:doc' }),
+    ]);
+    createMockRoom(
+      'approvals-room',
+      {},
+      {
+        agentApprovalEngine,
+      },
+    );
+
+    const env = setupRoom('approvals-room');
+    const result = env.run(() => injectAgentApprovals());
+
+    expect(result.proposals()).toEqual([
+      expect.objectContaining({ id: 'seed', status: 'pending' }),
+    ]);
+    expect(result.pending().map((proposal) => proposal.id)).toEqual(['seed']);
+
+    // Proposing an action is reflected newest-first in the proposals signal.
+    result.propose({ type: 'rename:doc', payload: { title: 'Notes' } });
+    expect(agentApprovalEngine.propose).toHaveBeenCalledWith({
+      type: 'rename:doc',
+      payload: { title: 'Notes' },
+    });
+    expect(result.proposals()[0]).toEqual(expect.objectContaining({ type: 'rename:doc' }));
+    expect(result.pending().map((proposal) => proposal.id)).toEqual(['proposal-2', 'seed']);
+
+    // Approving a proposal flips its status and drops it from pending.
+    result.approve('seed');
+    expect(agentApprovalEngine.approve).toHaveBeenCalledWith('seed');
+    expect(result.proposals().find((proposal) => proposal.id === 'seed')).toEqual(
+      expect.objectContaining({ status: 'approved' }),
+    );
+    expect(result.pending().map((proposal) => proposal.id)).toEqual(['proposal-2']);
+
+    // Rejecting a proposal flips its status and drops it from pending.
+    result.reject('proposal-2');
+    expect(agentApprovalEngine.reject).toHaveBeenCalledWith('proposal-2');
+    expect(result.pending()).toEqual([]);
+
+    // A remote proposal is reflected in the signal.
+    agentApprovalEngine.seed([createProposal('remote', { type: 'archive:doc', timestamp: 9 })]);
+    expect(result.proposals().map((proposal) => proposal.id)).toEqual(['remote']);
+    expect(agentApprovalEngine.subscriberCount()).toBe(1);
+
+    env.destroy();
+    expect(agentApprovalEngine.subscriberCount()).toBe(0);
+  });
+
+  it('skips deep-equal proposal snapshots', () => {
+    const agentApprovalEngine = createMockAgentApprovalEngine([createProposal('seed')]);
+    createMockRoom(
+      'approvals-reactivity',
+      {},
+      {
+        agentApprovalEngine,
+      },
+    );
+
+    const env = setupRoom('approvals-reactivity');
+    const result = env.run(() => injectAgentApprovals());
+
+    const initialSnapshot = result.proposals();
+
+    agentApprovalEngine.seed([createProposal('seed')]);
+    expect(result.proposals()).toBe(initialSnapshot);
+  });
+
+  it('throws a typed error when injectAgentApprovals() is called without provideRoomful', () => {
+    expect(() => {
+      TestBed.runInInjectionContext(() => injectAgentApprovals());
     }).toThrowError(RoomfulError);
   });
 });
