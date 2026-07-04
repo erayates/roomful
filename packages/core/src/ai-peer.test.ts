@@ -1,7 +1,15 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { createMockRoomHarness, type MockRoomHarness } from '../test-utils/mock-room';
-import { type AIPeer, type AIPeerContext, createHeuristicAgent } from './ai-peer';
+import {
+  AGENT_IDENTITY_KEY,
+  type AIPeer,
+  type AIPeerContext,
+  createHeuristicAgent,
+  getAgentIdentity,
+  isAgentPeer,
+} from './ai-peer';
+import type { Peer } from './types';
 
 let harness: MockRoomHarness | null = null;
 let aiPeer: AIPeer | null = null;
@@ -63,6 +71,37 @@ describe('addAIPeer', () => {
     );
   });
 
+  it('stamps the AI peer with a detectable agent identity every peer can see', async () => {
+    harness = await createMockRoomHarness();
+    const { addAIPeer } = await import('./ai-peer');
+
+    const human = harness.createRoom<DemoPresence>('ai-identity-room', {
+      presence: { name: 'Human' },
+    });
+    await human.connect();
+
+    aiPeer = addAIPeer<DemoPresence>('ai-identity-room', {
+      transport: 'websocket',
+      presence: { name: 'AI Bot' },
+      identity: { role: 'assistant', disclosure: 'Demo AI' },
+      tickMs: 100_000,
+      agent: () => undefined,
+    });
+    const botId = aiPeer.peerId;
+
+    await harness.waitFor(() => human.peers.some((peer) => peer.id === botId));
+    const bot = human.peers.find((peer) => peer.id === botId);
+    expect(bot !== undefined && isAgentPeer(bot)).toBe(true);
+    expect(bot !== undefined ? getAgentIdentity(bot) : null).toEqual({
+      kind: 'ai',
+      role: 'assistant',
+      disclosure: 'Demo AI',
+    });
+
+    // The human is not an agent.
+    expect(isAgentPeer(human.usePresence().getSelf())).toBe(false);
+  });
+
   it('stop() removes the AI peer from the room', async () => {
     harness = await createMockRoomHarness();
     const { addAIPeer } = await import('./ai-peer');
@@ -118,5 +157,48 @@ describe('createHeuristicAgent', () => {
     expect(moves).toBe(4); // cursor moves on every tick
     expect(emits).toBeGreaterThan(0); // reacts on the periodic ticks
     expect(presences).toBeGreaterThan(0); // sets a mood on tick 0
+  });
+});
+
+describe('getAgentIdentity / isAgentPeer', () => {
+  it('reads the identity from a marked peer and null from a human', () => {
+    const human: Peer = { id: 'h', joinedAt: 0, lastSeen: 0, name: 'Ada' };
+    expect(getAgentIdentity(human)).toBeNull();
+    expect(isAgentPeer(human)).toBe(false);
+
+    const agent: Peer = {
+      id: 'a',
+      joinedAt: 0,
+      lastSeen: 0,
+      name: 'Bot',
+      [AGENT_IDENTITY_KEY]: { kind: 'ai', role: 'assistant', disclosure: 'AI assistant' },
+    };
+    expect(isAgentPeer(agent)).toBe(true);
+    expect(getAgentIdentity(agent)).toEqual({
+      kind: 'ai',
+      role: 'assistant',
+      disclosure: 'AI assistant',
+    });
+  });
+
+  it('ignores malformed or non-ai markers, and drops wrong-typed fields', () => {
+    const notAi: Peer = {
+      id: 'x',
+      joinedAt: 0,
+      lastSeen: 0,
+      [AGENT_IDENTITY_KEY]: { kind: 'human' },
+    };
+    expect(getAgentIdentity(notAi)).toBeNull();
+
+    const garbage: Peer = { id: 'y', joinedAt: 0, lastSeen: 0, [AGENT_IDENTITY_KEY]: 'nope' };
+    expect(getAgentIdentity(garbage)).toBeNull();
+
+    const wrongTypes: Peer = {
+      id: 'z',
+      joinedAt: 0,
+      lastSeen: 0,
+      [AGENT_IDENTITY_KEY]: { kind: 'ai', role: 42, disclosure: null },
+    };
+    expect(getAgentIdentity(wrongTypes)).toEqual({ kind: 'ai' });
   });
 });

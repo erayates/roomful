@@ -1,5 +1,66 @@
+import { isObject, readString } from './internal/guards';
 import { createRoom } from './room';
 import type { CursorPosition, Peer, PresenceData, TransportMode, Unsubscribe } from './types';
+
+/**
+ * The reserved presence key that carries a peer's {@link AgentIdentity}. Riding presence means any
+ * peer detects an AI participant through the same channel as name/color — no new wire protocol.
+ */
+export const AGENT_IDENTITY_KEY = '__roomful:agent__';
+
+/**
+ * Marks a peer as a non-human agent and describes it, so UIs can disclose AI participants and
+ * downstream features (agent cursor states, action streams, approvals) can key off it.
+ */
+export interface AgentIdentity {
+  /** Always `'ai'` — distinguishes an agent peer from a human. */
+  kind: 'ai';
+  /** An app-defined role, e.g. `'assistant'`, `'reviewer'`, `'summarizer'`. */
+  role?: string;
+  /** A human-readable disclosure line, e.g. `'AI assistant'`. */
+  disclosure?: string;
+}
+
+/**
+ * Reads a peer's {@link AgentIdentity} from its presence, or `null` when the peer is human. Safe
+ * against malformed remote presence.
+ *
+ * @param peer - The peer to inspect.
+ * @returns The agent identity, or `null` for a human peer.
+ */
+export function getAgentIdentity<TPresence extends PresenceData = PresenceData>(
+  peer: Peer<TPresence>,
+): AgentIdentity | null {
+  const value = Reflect.get(peer, AGENT_IDENTITY_KEY);
+  if (!isObject(value) || value.kind !== 'ai') {
+    return null;
+  }
+
+  const identity: AgentIdentity = { kind: 'ai' };
+  const role = readString(value, 'role');
+  if (role !== undefined) {
+    identity.role = role;
+  }
+
+  const disclosure = readString(value, 'disclosure');
+  if (disclosure !== undefined) {
+    identity.disclosure = disclosure;
+  }
+
+  return identity;
+}
+
+/**
+ * Reports whether a peer is an AI/agent participant (carries an {@link AgentIdentity}).
+ *
+ * @param peer - The peer to inspect.
+ * @returns `true` when the peer is an agent.
+ */
+export function isAgentPeer<TPresence extends PresenceData = PresenceData>(
+  peer: Peer<TPresence>,
+): boolean {
+  return getAgentIdentity(peer) !== null;
+}
 
 /**
  * A custom event the AI peer observed since the previous agent tick.
@@ -54,6 +115,11 @@ export interface AddAIPeerOptions<TPresence extends PresenceData = PresenceData>
   agent: AIPeerAgent<TPresence>;
   /** The peer's initial presence (name, color, custom fields). */
   presence?: TPresence;
+  /**
+   * Declares the agent's role and disclosure. The peer is always stamped as an AI agent (so every
+   * peer can detect it via {@link isAgentPeer}); this adds the optional `role`/`disclosure`.
+   */
+  identity?: Omit<AgentIdentity, 'kind'>;
   /** The transport to join on. Match the human room's transport. */
   transport?: TransportMode;
   /** The relay URL, when joining over `websocket`. */
@@ -92,10 +158,19 @@ export function addAIPeer<TPresence extends PresenceData = PresenceData>(
   roomId: string,
   options: AddAIPeerOptions<TPresence>,
 ): AIPeer {
+  // Always stamp the peer as an AI agent so every peer can detect it, riding the presence channel.
+  const agentIdentity: AgentIdentity = { kind: 'ai', ...(options.identity ?? {}) };
+  const presenceWithIdentity = {
+    ...(options.presence ?? {}),
+    [AGENT_IDENTITY_KEY]: agentIdentity,
+  };
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+  const initialPresence = presenceWithIdentity as unknown as TPresence;
+
   const room = createRoom<TPresence>(roomId, {
     ...(options.transport ? { transport: options.transport } : {}),
     ...(options.relayUrl ? { relayUrl: options.relayUrl } : {}),
-    ...(options.presence ? { presence: options.presence } : {}),
+    presence: initialPresence,
   });
 
   const presence = room.usePresence();
