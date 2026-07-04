@@ -1,7 +1,7 @@
-import type { AgentState, RoomStatus } from '@roomful/core';
-import { getAgentState, isAgentPeer } from '@roomful/core';
+import type { ActivityEntry, AgentState, RoomStatus } from '@roomful/core';
+import { AGENT_ACTION_PREFIX, getAgentActions, getAgentState, isAgentPeer } from '@roomful/core';
 import { LiveIndicator, PresenceBar } from '@roomful/cursors';
-import { useConnectionStatus, usePresence } from '@roomful/react';
+import { useActivity, useConnectionStatus, usePresence } from '@roomful/react';
 import { type ReactElement, useEffect } from 'react';
 
 import type { MiniAppDefinition } from '../apps/registry';
@@ -41,6 +41,12 @@ function agentStateLabel(state: AgentState | null): string {
   }
 }
 
+function actionLabel(entry: ActivityEntry): string {
+  return entry.type.startsWith(AGENT_ACTION_PREFIX)
+    ? entry.type.slice(AGENT_ACTION_PREFIX.length)
+    : entry.type;
+}
+
 interface MiniAppStageProps {
   app: MiniAppDefinition;
   identity: DemoIdentity;
@@ -60,11 +66,15 @@ export function MiniAppStage({
 }: MiniAppStageProps): ReactElement {
   const { all, others, update } = usePresence<DemoPresence>();
   const status = useConnectionStatus<DemoPresence>();
+  const { entries } = useActivity<DemoPresence>();
   const AppComponent = app.Component;
 
   // Surface the AI teammate's live state (thinking/typing/editing…) straight from presence.
   const agentPeer = all.find((peer) => isAgentPeer(peer));
   const agentState = agentPeer ? getAgentState(agentPeer) : null;
+  // The agent's structured, auditable action log (newest first).
+  const agentActions = getAgentActions(entries);
+  const lastAction = agentActions[0];
 
   useEffect(() => {
     update({ color: identity.color, name: identity.name });
@@ -104,6 +114,12 @@ export function MiniAppStage({
         {agentPeer ? (
           <span className="stage__badge" data-agent-state={agentState ?? 'idle'}>
             🤖 {agentPeer.name ?? 'AI'} · {agentStateLabel(agentState)}
+          </span>
+        ) : null}
+        {lastAction ? (
+          <span className="stage__hint" data-testid="agent-action-log">
+            {agentActions.length} agent {agentActions.length === 1 ? 'action' : 'actions'} · last:{' '}
+            {actionLabel(lastAction)}
           </span>
         ) : null}
       </div>

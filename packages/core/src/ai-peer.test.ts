@@ -2,17 +2,19 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { createMockRoomHarness, type MockRoomHarness } from '../test-utils/mock-room';
 import {
+  AGENT_ACTION_PREFIX,
   AGENT_IDENTITY_KEY,
   AGENT_STATE_KEY,
   type AgentState,
   type AIPeer,
   type AIPeerContext,
   createHeuristicAgent,
+  getAgentActions,
   getAgentIdentity,
   getAgentState,
   isAgentPeer,
 } from './ai-peer';
-import type { Peer } from './types';
+import type { ActivityEntry, Peer } from './types';
 
 let harness: MockRoomHarness | null = null;
 let aiPeer: AIPeer | null = null;
@@ -133,6 +135,44 @@ describe('addAIPeer', () => {
     expect(getAgentState(human.usePresence().getSelf())).toBeNull();
   });
 
+  it('records the agent actions into the activity feed for every peer to audit', async () => {
+    harness = await createMockRoomHarness();
+    const { addAIPeer } = await import('./ai-peer');
+
+    const human = harness.createRoom<DemoPresence>('ai-actions-room', {
+      presence: { name: 'Human' },
+    });
+    await human.connect();
+    const activity = human.useActivity();
+
+    aiPeer = addAIPeer<DemoPresence>('ai-actions-room', {
+      transport: 'websocket',
+      presence: { name: 'AI Bot' },
+      recordActions: true,
+      tickMs: 100_000,
+      agent: (context) => {
+        context.emit('greeting', { text: 'hi' });
+        context.recordAction('proposed-edit', { field: 'title', value: 'New' });
+      },
+    });
+
+    // The human sees the agent's actions in the shared, auditable feed.
+    await harness.waitFor(() => getAgentActions(activity.getEntries()).length >= 2);
+
+    const actions = getAgentActions(activity.getEntries());
+    const types = actions.map((entry) => entry.type);
+    expect(types).toContain(`${AGENT_ACTION_PREFIX}event`);
+    expect(types).toContain(`${AGENT_ACTION_PREFIX}proposed-edit`);
+    // Every logged action is attributed to the agent, not a human.
+    expect(actions.every((entry) => isAgentPeer(entry.actor))).toBe(true);
+
+    // A human recording activity is not an agent action.
+    activity.record('user:did-thing');
+    expect(getAgentActions(activity.getEntries()).some((entry) => entry.type === 'user:did-thing')).toBe(
+      false,
+    );
+  });
+
   it('stop() removes the AI peer from the room', async () => {
     harness = await createMockRoomHarness();
     const { addAIPeer } = await import('./ai-peer');
@@ -183,6 +223,7 @@ describe('createHeuristicAgent', () => {
       emit: () => {
         emits += 1;
       },
+      recordAction: () => undefined,
     });
 
     for (let tick = 0; tick < 4; tick += 1) {
@@ -257,5 +298,27 @@ describe('getAgentState', () => {
 
     const wrongType: Peer = { id: 'e', joinedAt: 0, lastSeen: 0, [AGENT_STATE_KEY]: 42 };
     expect(getAgentState(wrongType)).toBeNull();
+  });
+});
+
+describe('getAgentActions', () => {
+  it('keeps only the entries whose actor is an agent, in order', () => {
+    const agentActor: Peer = {
+      id: 'bot',
+      joinedAt: 0,
+      lastSeen: 0,
+      [AGENT_IDENTITY_KEY]: { kind: 'ai' },
+    };
+    const humanActor: Peer = { id: 'ada', joinedAt: 0, lastSeen: 0, name: 'Ada' };
+
+    const entries: ActivityEntry[] = [
+      { id: '1', type: 'agent:event', actor: agentActor, timestamp: 3 },
+      { id: '2', type: 'user:did', actor: humanActor, timestamp: 2 },
+      { id: '3', type: 'agent:proposed-edit', actor: agentActor, timestamp: 1 },
+    ];
+
+    const actions = getAgentActions(entries);
+    expect(actions.map((entry) => entry.id)).toEqual(['1', '3']);
+    expect(getAgentActions([])).toEqual([]);
   });
 });

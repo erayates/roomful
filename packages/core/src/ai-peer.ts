@@ -1,6 +1,13 @@
 import { isObject, readString } from './internal/guards';
 import { createRoom } from './room';
-import type { CursorPosition, Peer, PresenceData, TransportMode, Unsubscribe } from './types';
+import type {
+  ActivityEntry,
+  CursorPosition,
+  Peer,
+  PresenceData,
+  TransportMode,
+  Unsubscribe,
+} from './types';
 
 /**
  * The reserved presence key that carries a peer's {@link AgentIdentity}. Riding presence means any
@@ -95,6 +102,25 @@ export function getAgentState<TPresence extends PresenceData = PresenceData>(
 }
 
 /**
+ * The activity `type` prefix under which agent actions are recorded, e.g. `agent:event`. Strip it
+ * to get the action kind for display.
+ */
+export const AGENT_ACTION_PREFIX = 'agent:';
+
+/**
+ * Filters an activity feed down to the actions taken by AI agents, giving a structured, auditable,
+ * replayable "what the agents did" log. An entry is an agent action when its actor is an agent peer
+ * (see {@link isAgentPeer}) — so it works whether the action was auto-recorded by {@link addAIPeer}
+ * (`recordActions`) or logged explicitly via `context.recordAction`.
+ *
+ * @param entries - Activity entries, e.g. from `room.useActivity().getEntries()`.
+ * @returns Only the entries whose actor is an AI agent, in the feed's original order.
+ */
+export function getAgentActions(entries: readonly ActivityEntry[]): ActivityEntry[] {
+  return entries.filter((entry) => isAgentPeer(entry.actor));
+}
+
+/**
  * A custom event the AI peer observed since the previous agent tick.
  */
 export interface AIPeerEvent<TPresence extends PresenceData = PresenceData> {
@@ -130,6 +156,12 @@ export interface AIPeerContext<TPresence extends PresenceData = PresenceData> {
   setState(state: AgentState): void;
   /** Emits a custom event to the room. */
   emit(name: string, payload: unknown): void;
+  /**
+   * Records a structured, auditable action into the room's activity feed (prefixed
+   * {@link AGENT_ACTION_PREFIX}), e.g. `recordAction('proposed-edit', { field, value })`. Read the
+   * agent's actions back anywhere with {@link getAgentActions}.
+   */
+  recordAction(type: string, payload?: unknown): void;
 }
 
 /**
@@ -162,6 +194,13 @@ export interface AddAIPeerOptions<TPresence extends PresenceData = PresenceData>
   tickMs?: number;
   /** Event channel names to buffer and surface to the agent via `context.events`. */
   observeEvents?: string[];
+  /**
+   * Auto-records the agent's semantic actions (events it emits, presence patches it applies) into
+   * the room's activity feed, so every peer has an auditable log via {@link getAgentActions}. Its
+   * cursor and state are continuous status, not discrete actions, so they are not logged — call
+   * `context.recordAction` for anything else you want on the record. Defaults to `false`.
+   */
+  recordActions?: boolean;
 }
 
 /**
@@ -211,6 +250,8 @@ export function addAIPeer<TPresence extends PresenceData = PresenceData>(
   const presence = room.usePresence();
   const cursors = room.useCursors();
   const eventEngine = room.useEvents();
+  const activity = room.useActivity();
+  const recordActions = options.recordActions === true;
 
   let tick = 0;
   let running = true;
@@ -249,6 +290,9 @@ export function addAIPeer<TPresence extends PresenceData = PresenceData>(
       },
       setPresence: (data) => {
         presence.update(data);
+        if (recordActions) {
+          activity.record(`${AGENT_ACTION_PREFIX}presence`, data);
+        }
       },
       setState: (state) => {
         // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
@@ -256,6 +300,12 @@ export function addAIPeer<TPresence extends PresenceData = PresenceData>(
       },
       emit: (name, payload) => {
         eventEngine.emit(name, payload);
+        if (recordActions) {
+          activity.record(`${AGENT_ACTION_PREFIX}event`, { name, payload });
+        }
+      },
+      recordAction: (type, payload) => {
+        activity.record(`${AGENT_ACTION_PREFIX}${type}`, payload);
       },
     };
 
