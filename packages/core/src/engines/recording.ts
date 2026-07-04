@@ -45,6 +45,13 @@ export interface RecordingEngineContext {
 
   /** Overrides the clock used for frame timestamps. Defaults to `Date.now`. */
   now?: () => number;
+
+  /**
+   * A privacy hook run on every captured frame before it is stored. Return the frame (its `signal`
+   * is a fresh clone, safe to mask in place) to keep it, or `null` to drop it. See
+   * {@link RecordingOptions.redact}.
+   */
+  redact?: (frame: RecordingFrame) => RecordingFrame | null;
 }
 
 function cloneSignal(signal: RoomTransportSignal): RoomTransportSignal {
@@ -224,11 +231,18 @@ export function createRecordingEngine(context: RecordingEngineContext): Recordin
         return;
       }
 
-      frames.push({
+      const frame: RecordingFrame = {
         t: now() - startedAt,
         direction,
         signal: cloneSignal(signal),
-      });
+      };
+      // Privacy hook: drop the frame (null) or store the app's masked version.
+      const kept = context.redact ? context.redact(frame) : frame;
+      if (kept === null) {
+        return;
+      }
+
+      frames.push(kept);
       notify();
     },
   };

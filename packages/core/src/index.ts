@@ -86,6 +86,7 @@ export type {
   RecordingDirection,
   RecordingEngine,
   RecordingFrame,
+  RecordingOptions,
   RecordingState,
   RelayAuthToken,
   ReplayEvent,

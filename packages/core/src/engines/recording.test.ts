@@ -71,6 +71,35 @@ describe('createRecordingEngine', () => {
     }
   });
 
+  it('applies the redact privacy hook: drops null frames and stores the masked frame', () => {
+    const engine = createRecordingEngine({
+      roomId: 'room-rec',
+      peerId: 'peer-a',
+      now: () => clock,
+      redact: (frame) => {
+        if (frame.signal.type === 'event' && frame.signal.payload.name === 'secret') {
+          return null; // drop sensitive frames entirely
+        }
+        if (frame.signal.type === 'event') {
+          frame.signal.payload.name = `masked:${frame.signal.payload.name}`; // mask in place
+        }
+        return frame;
+      },
+    });
+
+    engine.start();
+    engine.ingest('inbound', eventSignal('secret'));
+    engine.ingest('inbound', eventSignal('public'));
+
+    const frames = engine.getFrames();
+    expect(frames).toHaveLength(1); // the 'secret' frame was dropped
+    const frame = frames[0];
+    expect(frame?.signal.type).toBe('event');
+    if (frame?.signal.type === 'event') {
+      expect(frame.signal.payload.name).toBe('masked:public');
+    }
+  });
+
   it('preserves binary crdt:sync payloads through capture and export', () => {
     const engine = engineWithClock();
     const signal: RoomTransportSignal = {

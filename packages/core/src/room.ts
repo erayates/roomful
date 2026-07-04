@@ -139,6 +139,7 @@ import type {
   PresenceData,
   PresenceEngine,
   RecordingEngine,
+  RecordingOptions,
   Room,
   RoomDiagnostics,
   RoomEventHandler,
@@ -1535,7 +1536,7 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     return historyEngine;
   }
 
-  public useRecording(): RecordingEngine {
+  public useRecording(options: RecordingOptions = {}): RecordingEngine {
     if (this.recordingEngineInstance) {
       return this.recordingEngineInstance;
     }
@@ -1543,6 +1544,7 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     const recordingEngine = createRecordingEngine({
       roomId: this.id,
       peerId: this.peerId,
+      ...(options.redact ? { redact: options.redact } : {}),
     });
 
     this.recordingEngineInstance = recordingEngine;

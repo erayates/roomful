@@ -27,6 +27,7 @@ import type {
   PresenceData,
   PresenceEngine,
   RecordingEngine,
+  RecordingOptions,
   Room,
   RoomOptions,
   RoomStatus,
@@ -1639,9 +1640,12 @@ export function useHistory<TPresence extends PresenceData = PresenceData>(
  * @typeParam TPresence - The room presence shape.
  * @returns The recorder state and controls.
  */
-export function useRecording<TPresence extends PresenceData = PresenceData>(): UseRecordingResult {
+export function useRecording<TPresence extends PresenceData = PresenceData>(
+  options?: RecordingOptions,
+): UseRecordingResult {
   const room = useRoom<TPresence>();
-  const recordingEngine = room.useRecording();
+  const optionsRef = useRef(options);
+  const recordingEngine = room.useRecording(optionsRef.current);
   const engineRef = useRef(recordingEngine);
   engineRef.current = recordingEngine;
 

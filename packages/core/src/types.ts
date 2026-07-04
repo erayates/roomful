@@ -2301,6 +2301,21 @@ export interface RecordingState {
 }
 
 /**
+ * Configures the recording engine, including privacy controls.
+ */
+export interface RecordingOptions {
+  /**
+   * A privacy hook applied to every frame before it is stored, so sensitive data never enters the
+   * recording. Return the frame (optionally with its `signal` masked in place) to keep it, or `null`
+   * to drop it entirely. The frame's `signal` is a fresh clone, so mutating it is safe.
+   *
+   * @param frame - The candidate frame (with a cloned signal).
+   * @returns The frame to store, or `null` to drop it.
+   */
+  redact?: (frame: RecordingFrame) => RecordingFrame | null;
+}
+
+/**
  * A single emission from a {@link ReplaySession}.
  */
 export interface ReplayEvent {
@@ -2600,9 +2615,10 @@ export interface Room<TPresence extends PresenceData = PresenceData> {
    * Accesses the session-recording engine for this room: capture the room's
    * wire signals, then export or replay them. Local to this peer.
    *
+   * @param options - Optional configuration, including a `redact` privacy hook.
    * @returns The recording engine.
    */
-  useRecording(): RecordingEngine;
+  useRecording(options?: RecordingOptions): RecordingEngine;
 
   /**
    * Applies a previously recorded wire signal to this room's engines, as if it

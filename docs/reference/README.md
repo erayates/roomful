@@ -33,6 +33,7 @@ When implementation and docs differ, open an issue with:
 - [History engine](engines-history.md)
 - [Activity engine](engines-activity.md)
 - [Agent approvals engine](engines-agent-approvals.md)
+- [Recording engine](engines-recording.md)
 - [Session summarizer](session-summarizer.md)
 
 ### Adapters
