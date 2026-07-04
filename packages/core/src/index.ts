@@ -18,7 +18,10 @@ export {
   createMemoryActivityStorage,
 } from './engines/activity-storage';
 export type { CommentsStorageAdapter } from './engines/comments-storage';
-export { createMemoryCommentsStorage } from './engines/comments-storage';
+export {
+  createLocalStorageCommentsStorage,
+  createMemoryCommentsStorage,
+} from './engines/comments-storage';
 export type {
   ActivityEngine,
   ActivityEntry,
