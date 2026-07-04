@@ -2,6 +2,7 @@ import { isObject, readString } from './internal/guards';
 import { createRoom } from './room';
 import type {
   ActivityEntry,
+  AgentProposal,
   CursorPosition,
   Peer,
   PresenceData,
@@ -148,6 +149,8 @@ export interface AIPeerContext<TPresence extends PresenceData = PresenceData> {
   readonly cursors: CursorPosition[];
   /** Events observed since the previous tick (only for `observeEvents` names). */
   readonly events: readonly AIPeerEvent<TPresence>[];
+  /** The room's agent-approval proposals (snapshot at tick start), newest first. */
+  readonly proposals: readonly AgentProposal[];
   /** Moves the AI peer's cursor to a normalized position (each axis 0..1). */
   moveCursor(x: number, y: number): void;
   /** Merges a patch into the AI peer's presence. */
@@ -162,6 +165,13 @@ export interface AIPeerContext<TPresence extends PresenceData = PresenceData> {
    * agent's actions back anywhere with {@link getAgentActions}.
    */
   recordAction(type: string, payload?: unknown): void;
+  /**
+   * Proposes an action for human approval instead of applying it, and sets the agent's state to
+   * `waiting-approval`. Watch `proposals` on later ticks for the decision, then apply or drop it.
+   *
+   * @returns The new proposal's id.
+   */
+  propose(type: string, payload?: unknown): string;
 }
 
 /**
@@ -251,6 +261,7 @@ export function addAIPeer<TPresence extends PresenceData = PresenceData>(
   const cursors = room.useCursors();
   const eventEngine = room.useEvents();
   const activity = room.useActivity();
+  const approvals = room.useAgentApprovals();
   const recordActions = options.recordActions === true;
 
   let tick = 0;
@@ -285,6 +296,7 @@ export function addAIPeer<TPresence extends PresenceData = PresenceData>(
       }),
       cursors: cursors.getPositions(),
       events: observed,
+      proposals: approvals.getProposals(),
       moveCursor: (x, y) => {
         cursors.setPosition({ x, y });
       },
@@ -306,6 +318,12 @@ export function addAIPeer<TPresence extends PresenceData = PresenceData>(
       },
       recordAction: (type, payload) => {
         activity.record(`${AGENT_ACTION_PREFIX}${type}`, payload);
+      },
+      propose: (type, payload) => {
+        const proposal = approvals.propose({ type, payload });
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+        presence.update({ [AGENT_STATE_KEY]: 'waiting-approval' } as unknown as Partial<TPresence>);
+        return proposal.id;
       },
     };
 

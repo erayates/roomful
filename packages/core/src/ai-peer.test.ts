@@ -173,6 +173,53 @@ describe('addAIPeer', () => {
     ).toBe(false);
   });
 
+  it('proposes an action and applies it once a human approves', async () => {
+    harness = await createMockRoomHarness();
+    const { addAIPeer } = await import('./ai-peer');
+
+    const human = harness.createRoom<DemoPresence>('ai-approve-room', {
+      presence: { name: 'Human' },
+    });
+    await human.connect();
+    const approvals = human.useAgentApprovals();
+
+    const applied: string[] = [];
+    human.useEvents().on('applied', (payload: { id: string }) => {
+      applied.push(payload.id);
+    });
+
+    let proposedId: string | null = null;
+    aiPeer = addAIPeer<DemoPresence>('ai-approve-room', {
+      transport: 'websocket',
+      presence: { name: 'AI Bot' },
+      tickMs: 20,
+      agent: (context) => {
+        if (proposedId === null) {
+          proposedId = context.propose('clear-canvas', { scope: 'all' });
+          return;
+        }
+
+        const mine = context.proposals.find((proposal) => proposal.id === proposedId);
+        if (mine?.status === 'approved' && applied.length === 0) {
+          context.emit('applied', { id: mine.id });
+        }
+      },
+    });
+
+    // The human sees a pending proposal from the agent (carrying its agent identity).
+    await harness.waitFor(() => approvals.getPending().length === 1);
+    const pending = approvals.getPending()[0];
+    expect(pending?.proposer.id).toBe(aiPeer.peerId);
+    expect(pending !== undefined && isAgentPeer(pending.proposer)).toBe(true);
+    if (pending) {
+      approvals.approve(pending.id);
+    }
+
+    // The agent observes the approval on a later tick and applies the action.
+    await harness.waitFor(() => applied.length === 1);
+    expect(applied[0]).toBe(proposedId);
+  });
+
   it('stop() removes the AI peer from the room', async () => {
     harness = await createMockRoomHarness();
     const { addAIPeer } = await import('./ai-peer');
@@ -211,6 +258,7 @@ describe('createHeuristicAgent', () => {
       others: [],
       cursors: [],
       events: [],
+      proposals: [],
       moveCursor: () => {
         moves += 1;
       },
@@ -224,6 +272,7 @@ describe('createHeuristicAgent', () => {
         emits += 1;
       },
       recordAction: () => undefined,
+      propose: () => '',
     });
 
     for (let tick = 0; tick < 4; tick += 1) {

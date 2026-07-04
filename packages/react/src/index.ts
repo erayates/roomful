@@ -2,6 +2,9 @@ import type {
   ActivityEngine,
   ActivityEntry,
   ActivityOptions,
+  AgentApprovalEngine,
+  AgentApprovalOptions,
+  AgentProposal,
   AwarenessEngine,
   AwarenessState,
   CommentsEngine,
@@ -363,6 +366,36 @@ export interface UseActivityResult {
    * Records an activity entry and broadcasts it to peers.
    */
   record: ActivityEngine['record'];
+}
+
+/**
+ * Describes the return value of `useAgentApprovals`.
+ */
+export interface UseAgentApprovalsResult {
+  /**
+   * Every proposal, newest first. Reactive: re-renders on any local or remote change.
+   */
+  proposals: AgentProposal[];
+
+  /**
+   * The proposals still awaiting a decision, newest first.
+   */
+  pending: AgentProposal[];
+
+  /**
+   * Approves a pending proposal (if permitted) and broadcasts the decision.
+   */
+  approve: AgentApprovalEngine['approve'];
+
+  /**
+   * Rejects a pending proposal (if permitted) and broadcasts the decision.
+   */
+  reject: AgentApprovalEngine['reject'];
+
+  /**
+   * Proposes an action for approval and broadcasts it as pending.
+   */
+  propose: AgentApprovalEngine['propose'];
 }
 
 /**
@@ -1307,6 +1340,107 @@ export function useActivity<TPresence extends PresenceData = PresenceData>(
   return {
     entries: useSyncExternalStore(subscribe, getSnapshot, getSnapshot),
     record,
+  };
+}
+
+interface AgentApprovalsSnapshotCache<TPresence extends PresenceData> {
+  room: Room<TPresence>;
+  engine: AgentApprovalEngine;
+  snapshot: AgentProposal[];
+}
+
+function areProposalArraysEqual(previous: AgentProposal[], next: AgentProposal[]): boolean {
+  if (previous.length !== next.length) {
+    return false;
+  }
+
+  for (let index = 0; index < previous.length; index += 1) {
+    if (!areStructuredValuesEqual(previous[index], next[index])) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function readApprovalsSnapshot<TPresence extends PresenceData>(
+  room: Room<TPresence>,
+  approvals: AgentApprovalEngine,
+  cacheRef: { current: AgentApprovalsSnapshotCache<TPresence> | null },
+): AgentProposal[] {
+  const nextSnapshot = approvals.getProposals();
+  const previous = cacheRef.current;
+
+  if (previous && previous.room === room && previous.engine === approvals) {
+    if (areProposalArraysEqual(previous.snapshot, nextSnapshot)) {
+      return previous.snapshot;
+    }
+
+    previous.snapshot = nextSnapshot;
+    return nextSnapshot;
+  }
+
+  cacheRef.current = {
+    room,
+    engine: approvals,
+    snapshot: nextSnapshot,
+  };
+  return nextSnapshot;
+}
+
+/**
+ * Subscribes to the room's agent-approval workflow: agents propose actions and humans approve or
+ * reject them. Returns the proposal list (all + pending, newest first) and the decision actions.
+ *
+ * @typeParam TPresence - The room presence shape.
+ * @param options - Optional configuration (permission hook).
+ * @returns The reactive proposals plus `approve`/`reject`/`propose`.
+ */
+export function useAgentApprovals<TPresence extends PresenceData = PresenceData>(
+  options?: AgentApprovalOptions,
+): UseAgentApprovalsResult {
+  const room = useRoom<TPresence>();
+  const optionsRef = useRef(options);
+  const approvalsEngine = room.useAgentApprovals(optionsRef.current);
+  const engineRef = useRef(approvalsEngine);
+  engineRef.current = approvalsEngine;
+
+  const snapshotCacheRef = useRef<AgentApprovalsSnapshotCache<TPresence> | null>(null);
+
+  const approve = useCallback<AgentApprovalEngine['approve']>((id) => {
+    engineRef.current.approve(id);
+  }, []);
+  const reject = useCallback<AgentApprovalEngine['reject']>((id) => {
+    engineRef.current.reject(id);
+  }, []);
+  const propose = useCallback<AgentApprovalEngine['propose']>((input) => {
+    return engineRef.current.propose(input);
+  }, []);
+
+  const subscribe = useCallback(
+    (onStoreChange: () => void) => {
+      return approvalsEngine.subscribe(() => {
+        const previousSnapshot = snapshotCacheRef.current?.snapshot ?? null;
+        const nextSnapshot = readApprovalsSnapshot(room, approvalsEngine, snapshotCacheRef);
+        if (nextSnapshot !== previousSnapshot) {
+          onStoreChange();
+        }
+      });
+    },
+    [approvalsEngine, room],
+  );
+  const getSnapshot = useCallback(() => {
+    return readApprovalsSnapshot(room, approvalsEngine, snapshotCacheRef);
+  }, [approvalsEngine, room]);
+
+  const proposals = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+
+  return {
+    proposals,
+    pending: proposals.filter((proposal) => proposal.status === 'pending'),
+    approve,
+    reject,
+    propose,
   };
 }
 

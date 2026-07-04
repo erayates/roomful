@@ -1869,6 +1869,119 @@ export interface ActivityEngine {
 }
 
 /**
+ * The lifecycle of an {@link AgentProposal}: awaiting a human decision, then accepted or declined.
+ */
+export type AgentProposalStatus = 'pending' | 'approved' | 'rejected';
+
+/**
+ * An action an AI agent proposes but does not apply itself — it waits for a human to approve or
+ * reject it, so AI actions are inspectable before they commit. Synced to every peer.
+ */
+export interface AgentProposal {
+  /**
+   * Identifies the proposal within the room.
+   */
+  id: string;
+
+  /**
+   * The peer that proposed the action (an AI agent), carrying live presence.
+   */
+  proposer: Peer;
+
+  /**
+   * The proposed action type — an app-defined label, e.g. `'clear-canvas'` or `'set-field'`.
+   */
+  type: string;
+
+  /**
+   * An optional structured payload describing the action, e.g. `{ field, value }`.
+   */
+  payload?: unknown;
+
+  /**
+   * The current decision state.
+   */
+  status: AgentProposalStatus;
+
+  /**
+   * When the proposal was created (ms epoch).
+   */
+  timestamp: number;
+
+  /**
+   * The peer that approved or rejected it, once decided.
+   */
+  decidedBy?: Peer;
+}
+
+/**
+ * Configures the agent-approval engine.
+ */
+export interface AgentApprovalOptions {
+  /**
+   * Gates who may approve or reject a proposal. Returns `true` to allow the local peer to decide.
+   * Defaults to allowing everyone. This is a cooperative UI-level gate — the proposer re-checks
+   * `decidedBy` before it applies an approved action, which is the real enforcement point.
+   *
+   * @param proposal - The proposal being decided.
+   * @param self - The local peer attempting the decision.
+   * @returns `true` when the local peer may decide.
+   */
+  canDecide?(proposal: AgentProposal, self: Peer): boolean;
+}
+
+/**
+ * A room's agent-approval workflow: agents `propose` actions, humans `approve`/`reject` them, and
+ * every peer sees the synced proposal list. The proposer watches for the decision and applies (or
+ * rolls back) the action, so nothing an agent proposes commits without a human in the loop.
+ */
+export interface AgentApprovalEngine {
+  /**
+   * Proposes an action for approval and broadcasts it to peers as `pending`.
+   *
+   * @param input - The action type and optional payload.
+   * @returns The created proposal.
+   */
+  propose(input: { type: string; payload?: unknown }): AgentProposal;
+
+  /**
+   * Approves a pending proposal (if permitted) and broadcasts the decision.
+   *
+   * @param id - The proposal id.
+   */
+  approve(id: string): void;
+
+  /**
+   * Rejects a pending proposal (if permitted) and broadcasts the decision.
+   *
+   * @param id - The proposal id.
+   */
+  reject(id: string): void;
+
+  /**
+   * Returns every proposal, newest first.
+   *
+   * @returns The proposals.
+   */
+  getProposals(): AgentProposal[];
+
+  /**
+   * Returns the proposals still awaiting a decision, newest first.
+   *
+   * @returns The pending proposals.
+   */
+  getPending(): AgentProposal[];
+
+  /**
+   * Subscribes to proposal changes; fires immediately with the current list, then on every change.
+   *
+   * @param callback - The callback invoked with the latest proposals.
+   * @returns A function that removes the listener.
+   */
+  subscribe(callback: (proposals: AgentProposal[]) => void): Unsubscribe;
+}
+
+/**
  * Configures the comments engine.
  */
 export interface CommentsOptions {
@@ -2457,6 +2570,15 @@ export interface Room<TPresence extends PresenceData = PresenceData> {
    * @returns The activity engine.
    */
   useActivity(options?: ActivityOptions): ActivityEngine;
+
+  /**
+   * Accesses the agent-approval engine: the human-in-the-loop workflow where agents propose actions
+   * and humans approve or reject them.
+   *
+   * @param options - Optional configuration (permission hook).
+   * @returns The agent-approval engine.
+   */
+  useAgentApprovals(options?: AgentApprovalOptions): AgentApprovalEngine;
 
   /**
    * Accesses the field-presence engine: which remote peers are active on which field.

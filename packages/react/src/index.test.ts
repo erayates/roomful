@@ -3,6 +3,8 @@
 import type {
   ActivityEngine,
   ActivityEntry,
+  AgentApprovalEngine,
+  AgentProposal,
   AwarenessEngine,
   AwarenessState,
   CommentsEngine,
@@ -56,6 +58,7 @@ vi.mock('@roomful/core', async () => {
 
 import type {
   UseActivityResult,
+  UseAgentApprovalsResult,
   UseAwarenessResult,
   UseCommentsResult,
   UseCursorsResult,
@@ -69,6 +72,7 @@ import type {
 import {
   RoomfulProvider,
   useActivity,
+  useAgentApprovals,
   useAwareness,
   useComments,
   useConnectionStatus,
@@ -169,6 +173,16 @@ type TestActivityEngine = ActivityEngine & {
   seed(entry: ActivityEntry): void;
   record: ReturnType<typeof vi.fn<ActivityEngine['record']>>;
   subscribe: ReturnType<typeof vi.fn<(cb: ActivitySubscriber) => () => void>>;
+};
+
+type ApprovalsSubscriber = (proposals: AgentProposal[]) => void;
+
+type TestAgentApprovalEngine = AgentApprovalEngine & {
+  seed(proposal: AgentProposal): void;
+  approve: ReturnType<typeof vi.fn<AgentApprovalEngine['approve']>>;
+  reject: ReturnType<typeof vi.fn<AgentApprovalEngine['reject']>>;
+  propose: ReturnType<typeof vi.fn<AgentApprovalEngine['propose']>>;
+  subscribe: ReturnType<typeof vi.fn<(cb: ApprovalsSubscriber) => () => void>>;
 };
 
 type FieldPresenceSubscriber = (fields: FieldPresenceState[]) => void;
@@ -671,6 +685,74 @@ function createMockActivityEngine(): TestActivityEngine {
   };
 }
 
+function createMockAgentApprovalEngine(): TestAgentApprovalEngine {
+  const subscribers = new Set<ApprovalsSubscriber>();
+  const proposals: AgentProposal[] = [];
+
+  const notify = (): void => {
+    for (const subscriber of subscribers) {
+      subscriber(proposals.map((proposal) => cloneTestValue(proposal)));
+    }
+  };
+
+  const propose = vi.fn<AgentApprovalEngine['propose']>(({ type, payload }) => {
+    const proposal: AgentProposal = {
+      id: `proposal-${proposals.length + 1}`,
+      proposer: createPeer('self'),
+      type,
+      status: 'pending',
+      timestamp: proposals.length + 1,
+      ...(payload !== undefined ? { payload } : {}),
+    };
+    proposals.unshift(proposal);
+    notify();
+    return cloneTestValue(proposal);
+  });
+
+  const decide = (id: string, status: 'approved' | 'rejected'): void => {
+    const proposal = proposals.find((entry) => entry.id === id);
+    if (proposal && proposal.status === 'pending') {
+      proposal.status = status;
+      proposal.decidedBy = createPeer('self');
+      notify();
+    }
+  };
+
+  const approve = vi.fn<AgentApprovalEngine['approve']>((id) => {
+    decide(id, 'approved');
+  });
+  const reject = vi.fn<AgentApprovalEngine['reject']>((id) => {
+    decide(id, 'rejected');
+  });
+
+  const subscribe = vi.fn<(cb: ApprovalsSubscriber) => () => void>((callback) => {
+    subscribers.add(callback);
+    callback(proposals.map((proposal) => cloneTestValue(proposal)));
+    return () => {
+      subscribers.delete(callback);
+    };
+  });
+
+  return {
+    seed(proposal: AgentProposal): void {
+      proposals.unshift(cloneTestValue(proposal));
+      notify();
+    },
+    propose,
+    approve,
+    reject,
+    getProposals: (): AgentProposal[] => {
+      return proposals.map((proposal) => cloneTestValue(proposal));
+    },
+    getPending: (): AgentProposal[] => {
+      return proposals
+        .filter((proposal) => proposal.status === 'pending')
+        .map((proposal) => cloneTestValue(proposal));
+    },
+    subscribe,
+  };
+}
+
 function createMockFieldPresenceEngine(
   initial: FieldPresenceState[] = [],
 ): TestFieldPresenceEngine {
@@ -989,6 +1071,7 @@ function createMockRoom(
   options: RoomOptions<PresenceData> = {},
   config: {
     activityEngine?: TestActivityEngine;
+    agentApprovalEngine?: TestAgentApprovalEngine;
     awarenessEngine?: TestAwarenessEngine;
     commentsEngine?: TestCommentsEngine;
     cursorEngine?: TestCursorEngine;
@@ -1007,6 +1090,7 @@ function createMockRoom(
   const handlers = new Map<RoomEventName, Set<RoomEventHandler>>();
   const peerId = config.peerId ?? `${roomId}-peer`;
   const activityEngine = config.activityEngine ?? createMockActivityEngine();
+  const agentApprovalEngine = config.agentApprovalEngine ?? createMockAgentApprovalEngine();
   const awarenessEngine = config.awarenessEngine ?? createMockAwarenessEngine();
   const fieldPresenceEngine = config.fieldPresenceEngine ?? createMockFieldPresenceEngine();
   const commentsEngine = config.commentsEngine ?? createMockCommentsEngine();
@@ -1130,6 +1214,9 @@ function createMockRoom(
     }),
     useActivity: vi.fn(() => {
       return activityEngine;
+    }),
+    useAgentApprovals: vi.fn(() => {
+      return agentApprovalEngine;
     }),
     useFieldPresence: vi.fn(() => {
       return fieldPresenceEngine;
@@ -3228,6 +3315,68 @@ describe('useActivity', () => {
 
     observed?.record('comment:added', { n: 1 });
     expect(activityEngine.record).toHaveBeenCalledWith('comment:added', { n: 1 });
+
+    await harness.unmount();
+  });
+});
+
+describe('useAgentApprovals', () => {
+  it('exposes proposals + pending, forwards decisions, and reflects remote changes', async () => {
+    const agentApprovalEngine = createMockAgentApprovalEngine();
+    agentApprovalEngine.seed({
+      id: 'p1',
+      proposer: createPeer('bot-peer'),
+      type: 'clear-canvas',
+      status: 'pending',
+      timestamp: 1,
+    });
+    createMockRoom('approvals-room', {}, { agentApprovalEngine });
+    let observed: UseAgentApprovalsResult | null = null;
+
+    function ApprovalsConsumer(): ReactNode {
+      observed = useAgentApprovals();
+      return null;
+    }
+
+    const harness = await renderElement(
+      createElement(
+        RoomfulProvider,
+        {
+          roomId: 'approvals-room',
+        },
+        createElement(ApprovalsConsumer),
+      ),
+    );
+
+    expect(observed?.proposals).toEqual([
+      expect.objectContaining({ id: 'p1', type: 'clear-canvas', status: 'pending' }),
+    ]);
+    expect(observed?.pending.map((proposal) => proposal.id)).toEqual(['p1']);
+
+    await act(async () => {
+      observed?.approve('p1');
+    });
+    expect(agentApprovalEngine.approve).toHaveBeenCalledWith('p1');
+
+    // The decision propagates: the proposal is no longer pending.
+    expect(observed?.pending).toEqual([]);
+    expect(observed?.proposals[0]?.status).toBe('approved');
+
+    // A remote proposal re-renders the list.
+    await act(async () => {
+      agentApprovalEngine.seed({
+        id: 'p2',
+        proposer: createPeer('bot-peer'),
+        type: 'set-title',
+        status: 'pending',
+        timestamp: 2,
+      });
+    });
+
+    expect(observed?.pending.map((proposal) => proposal.id)).toEqual(['p2']);
+
+    observed?.reject('p2');
+    expect(agentApprovalEngine.reject).toHaveBeenCalledWith('p2');
 
     await harness.unmount();
   });

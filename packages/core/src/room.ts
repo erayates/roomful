@@ -12,6 +12,13 @@ import {
   createActivityEngine,
   parseActivityEntryFrame,
 } from './engines/activity';
+import {
+  type AgentDecisionFrame,
+  type AgentProposalFrame,
+  createAgentApprovalEngine,
+  parseAgentDecisionFrame,
+  parseAgentProposalFrame,
+} from './engines/agent-approval';
 import { createAwarenessEngine } from './engines/awareness';
 import { createCommentsEngine } from './engines/comments';
 import { createLocalStorageCommentsStorage } from './engines/comments-storage';
@@ -108,6 +115,8 @@ import { isWebSocketPollingFallbackEligibleError } from './transports/websocket'
 import type {
   ActivityEngine,
   ActivityOptions,
+  AgentApprovalEngine,
+  AgentApprovalOptions,
   AwarenessEngine,
   AwarenessState,
   CommentsEngine,
@@ -162,6 +171,8 @@ const POINTER_STOP_EVENT = '__roomful:pointer:stop__';
 const LOCK_CLAIM_EVENT = '__roomful:lock:claim__';
 const LOCK_RELEASE_EVENT = '__roomful:lock:release__';
 const ACTIVITY_ENTRY_EVENT = '__roomful:activity:entry__';
+const AGENT_PROPOSAL_EVENT = '__roomful:agent:proposal__';
+const AGENT_DECISION_EVENT = '__roomful:agent:decision__';
 
 interface ConnectContext {
   isReconnectAttempt: boolean;
@@ -530,6 +541,14 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     (peerId: string, frame: ActivityEntryFrame) => void
   >();
 
+  private readonly agentProposalHandlers = new Set<
+    (peerId: string, frame: AgentProposalFrame) => void
+  >();
+
+  private readonly agentDecisionHandlers = new Set<
+    (peerId: string, frame: AgentDecisionFrame) => void
+  >();
+
   private readonly lockReleaseHandlers = new Set<
     (peerId: string, frame: LockReleaseFrame) => void
   >();
@@ -553,6 +572,7 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
   private lockEngineInstance: LockEngine | null = null;
 
   private activityEngineInstance: ActivityEngine | null = null;
+  private agentApprovalEngineInstance: AgentApprovalEngine | null = null;
   private fieldPresenceEngineInstance: FieldPresenceEngine | null = null;
 
   private commentsEngineInstance: CommentsEngine | null = null;
@@ -1373,6 +1393,44 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     }
 
     return this.activityEngineInstance;
+  }
+
+  /**
+   * Returns the room's agent-approval engine — the human-in-the-loop workflow for AI actions. Agents
+   * `propose` actions, humans `approve`/`reject` them, and every peer sees the synced proposal list.
+   *
+   * @param options - Optional configuration (permission hook).
+   * @returns The agent-approval engine.
+   */
+  public useAgentApprovals(options?: AgentApprovalOptions): AgentApprovalEngine {
+    if (!this.agentApprovalEngineInstance) {
+      this.agentApprovalEngineInstance = createAgentApprovalEngine(
+        {
+          selfPeerId: this.peerId,
+          getPeer: (peerId) => {
+            return this.resolveLockHolderPeer(peerId);
+          },
+          broadcastProposal: (frame) => {
+            this.broadcastInternalEvent(AGENT_PROPOSAL_EVENT, frame);
+          },
+          broadcastDecision: (frame) => {
+            this.broadcastInternalEvent(AGENT_DECISION_EVENT, frame);
+          },
+          onRemoteProposal: (handler) => {
+            this.agentProposalHandlers.add(handler);
+          },
+          onRemoteDecision: (handler) => {
+            this.agentDecisionHandlers.add(handler);
+          },
+        },
+        () => {
+          return createRuntimePeerId();
+        },
+        options,
+      );
+    }
+
+    return this.agentApprovalEngineInstance;
   }
 
   public useFieldPresence(): FieldPresenceEngine {
@@ -2694,6 +2752,16 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
       return;
     }
 
+    if (signal.payload.name === AGENT_PROPOSAL_EVENT) {
+      this.handleAgentProposalEvent(signal.fromPeerId, signal.payload.payload);
+      return;
+    }
+
+    if (signal.payload.name === AGENT_DECISION_EVENT) {
+      this.handleAgentDecisionEvent(signal.fromPeerId, signal.payload.payload);
+      return;
+    }
+
     this.customEventMessagesReceived += 1;
     this.recordDevtoolsEvent(
       'incoming',
@@ -3848,6 +3916,28 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     }
 
     for (const handler of this.activityEntryHandlers) {
+      handler(fromPeerId, frame);
+    }
+  }
+
+  private handleAgentProposalEvent(fromPeerId: string, payload: unknown): void {
+    const frame = parseAgentProposalFrame(payload);
+    if (!frame) {
+      return;
+    }
+
+    for (const handler of this.agentProposalHandlers) {
+      handler(fromPeerId, frame);
+    }
+  }
+
+  private handleAgentDecisionEvent(fromPeerId: string, payload: unknown): void {
+    const frame = parseAgentDecisionFrame(payload);
+    if (!frame) {
+      return;
+    }
+
+    for (const handler of this.agentDecisionHandlers) {
       handler(fromPeerId, frame);
     }
   }
