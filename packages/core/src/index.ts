@@ -5,13 +5,20 @@ export { createRoom };
 export { RoomfulError };
 export type {
   AddAIPeerOptions,
+  AgentIdentity,
   AIPeer,
   AIPeerAgent,
   AIPeerContext,
   AIPeerEvent,
   HeuristicAgentOptions,
 } from './ai-peer';
-export { addAIPeer, createHeuristicAgent } from './ai-peer';
+export {
+  addAIPeer,
+  AGENT_IDENTITY_KEY,
+  createHeuristicAgent,
+  getAgentIdentity,
+  isAgentPeer,
+} from './ai-peer';
 export type { ActivityStorageAdapter } from './engines/activity-storage';
 export {
   createLocalStorageActivityStorage,
