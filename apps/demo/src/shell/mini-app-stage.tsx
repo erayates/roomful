@@ -1,7 +1,13 @@
 import type { ActivityEntry, AgentProposal, AgentState, RoomStatus } from '@roomful/core';
 import { AGENT_ACTION_PREFIX, getAgentActions, getAgentState, isAgentPeer } from '@roomful/core';
 import { LiveIndicator, PresenceBar } from '@roomful/cursors';
-import { useActivity, useAgentApprovals, useConnectionStatus, usePresence } from '@roomful/react';
+import {
+  useActivity,
+  useAgentApprovals,
+  useConnectionStatus,
+  usePresence,
+  useSessionSummarizer,
+} from '@roomful/react';
 import { type ReactElement, useEffect } from 'react';
 
 import type { MiniAppDefinition } from '../apps/registry';
@@ -76,6 +82,7 @@ export function MiniAppStage({
   const status = useConnectionStatus<DemoPresence>();
   const { entries } = useActivity<DemoPresence>();
   const { pending, approve, reject } = useAgentApprovals<DemoPresence>();
+  const summary = useSessionSummarizer<DemoPresence>();
   const AppComponent = app.Component;
 
   // Surface the AI teammate's live state (thinking/typing/editing…) straight from presence.
@@ -129,6 +136,11 @@ export function MiniAppStage({
           <span className="stage__hint" data-testid="agent-action-log">
             {agentActions.length} agent {agentActions.length === 1 ? 'action' : 'actions'} · last:{' '}
             {actionLabel(lastAction)}
+          </span>
+        ) : null}
+        {summary.eventCount > 0 ? (
+          <span className="stage__hint" data-testid="session-summary">
+            📋 {summary.text}
           </span>
         ) : null}
       </div>

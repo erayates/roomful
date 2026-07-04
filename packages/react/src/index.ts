@@ -30,6 +30,8 @@ import type {
   Room,
   RoomOptions,
   RoomStatus,
+  SessionSummarizerOptions,
+  SessionSummary,
   StateEngine,
   StateOptions,
   TimelineEntry,
@@ -37,7 +39,7 @@ import type {
   ViewportOptions,
   ViewportState,
 } from '@roomful/core';
-import { createRoom, RoomfulError } from '@roomful/core';
+import { createRoom, RoomfulError, summarizeSession } from '@roomful/core';
 import {
   areAwarenessArraysEqual,
   areCursorArraysEqual,
@@ -58,6 +60,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useSyncExternalStore,
 } from 'react';
@@ -1341,6 +1344,25 @@ export function useActivity<TPresence extends PresenceData = PresenceData>(
     entries: useSyncExternalStore(subscribe, getSnapshot, getSnapshot),
     record,
   };
+}
+
+/**
+ * Summarizes the current room session (participants, action counts, agent activity, duration) from
+ * the activity feed, recomputing as the feed changes. Alpha. Pass `narrate` to render the summary
+ * text with an LLM instead of the built-in heuristic.
+ *
+ * @typeParam TPresence - The room presence shape.
+ * @param options - Optional narration hook.
+ * @returns The reactive {@link SessionSummary}.
+ */
+export function useSessionSummarizer<TPresence extends PresenceData = PresenceData>(
+  options?: SessionSummarizerOptions,
+): SessionSummary {
+  const { entries } = useActivity<TPresence>();
+  const narrate = options?.narrate;
+  return useMemo(() => {
+    return summarizeSession(entries, narrate ? { narrate } : undefined);
+  }, [entries, narrate]);
 }
 
 interface AgentApprovalsSnapshotCache<TPresence extends PresenceData> {

@@ -86,6 +86,7 @@ import {
   usePointer,
   usePresence,
   useRoom,
+  useSessionSummarizer,
   useSharedState,
   useViewport,
 } from './index';
@@ -3315,6 +3316,48 @@ describe('useActivity', () => {
 
     observed?.record('comment:added', { n: 1 });
     expect(activityEngine.record).toHaveBeenCalledWith('comment:added', { n: 1 });
+
+    await harness.unmount();
+  });
+});
+
+describe('useSessionSummarizer', () => {
+  it('summarizes the activity feed and recomputes on change', async () => {
+    const activityEngine = createMockActivityEngine();
+    activityEngine.seed({
+      id: 's1',
+      type: 'stroke',
+      actor: createPeer('owner-peer'),
+      timestamp: 1000,
+    });
+    createMockRoom('summary-room', {}, { activityEngine });
+    let observed: ReturnType<typeof useSessionSummarizer> | null = null;
+
+    function SummaryConsumer(): ReactNode {
+      observed = useSessionSummarizer();
+      return null;
+    }
+
+    const harness = await renderElement(
+      createElement(RoomfulProvider, { roomId: 'summary-room' }, createElement(SummaryConsumer)),
+    );
+
+    expect(observed?.eventCount).toBe(1);
+    expect(observed?.participants.map((participant) => participant.peer.id)).toEqual([
+      'owner-peer',
+    ]);
+
+    await act(async () => {
+      activityEngine.seed({
+        id: 's2',
+        type: 'stroke',
+        actor: createPeer('owner-peer'),
+        timestamp: 2000,
+      });
+    });
+
+    expect(observed?.eventCount).toBe(2);
+    expect(observed?.actionCounts).toEqual({ stroke: 2 });
 
     await harness.unmount();
   });
