@@ -1,5 +1,20 @@
 # @roomful/svelte
 
+## 1.5.0
+
+### Minor Changes
+
+- 589753f: Add the `agentApprovals` store binding for `room.useAgentApprovals`. The store is a readable of every proposal (newest first) augmented with a reactive `pending` sub-store and the `approve`, `reject`, and `propose` actions, so a Svelte UI can present an agent's proposed actions and let a human approve or reject them.
+
+### Patch Changes
+
+- Updated dependencies [7ffc235]
+- Updated dependencies [9bd411a]
+- Updated dependencies [c4369d9]
+- Updated dependencies [bbba327]
+- Updated dependencies [018f001]
+  - @roomful/core@1.8.0
+
 ## 1.4.1
 
 ### Patch Changes

@@ -1,5 +1,16 @@
 # @roomful/next
 
+## 1.1.9
+
+### Patch Changes
+
+- Updated dependencies [7ffc235]
+- Updated dependencies [9bd411a]
+- Updated dependencies [c4369d9]
+- Updated dependencies [bbba327]
+- Updated dependencies [018f001]
+  - @roomful/core@1.8.0
+
 ## 1.1.8
 
 ### Patch Changes

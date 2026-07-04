@@ -1,7 +1,7 @@
 {
   "name": "@roomful/core",
   "description": "Framework-agnostic SDK for realtime collaboration — presence, cursors, shared state, awareness, events, viewport, locking, pointer, comments, and history.",
-  "version": "1.7.0",
+  "version": "1.8.0",
   "private": false,
   "type": "module",
   "main": "dist/index.js",
