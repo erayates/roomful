@@ -1,5 +1,20 @@
 # @roomful/solid
 
+## 1.6.0
+
+### Minor Changes
+
+- 589753f: Add the `useAgentApprovals` binding for `room.useAgentApprovals`. It returns the reactive proposal list as Solid accessors (`proposals` and derived `pending`, newest first) plus `approve`, `reject`, and `propose`, so a SolidJS UI can present an agent's proposed actions and let a human approve or reject them.
+
+### Patch Changes
+
+- Updated dependencies [7ffc235]
+- Updated dependencies [9bd411a]
+- Updated dependencies [c4369d9]
+- Updated dependencies [bbba327]
+- Updated dependencies [018f001]
+  - @roomful/core@1.8.0
+
 ## 1.5.1
 
 ### Patch Changes

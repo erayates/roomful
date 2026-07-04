@@ -1,5 +1,15 @@
 # @roomful/core
 
+## 1.8.0
+
+### Minor Changes
+
+- 7ffc235: Add a structured agent action stream. AI peers can now log their actions to the room's activity feed — auditable, replayable, and synced to every peer. New `context.recordAction(type, payload?)` records an explicit action; the new `recordActions` option on `addAIPeer` auto-records the semantic actions an agent takes (events it emits, presence patches it applies). Read the log back anywhere with `getAgentActions(entries)` (exported with `AGENT_ACTION_PREFIX`), which filters an activity feed down to agent-authored entries. Reuses the existing activity engine — no new wire protocol.
+- 9bd411a: Add a human-in-the-loop agent approval workflow. Agents can now `propose` an action instead of applying it, and humans `approve` or `reject` it — so AI actions are inspectable before they commit. New `room.useAgentApprovals(options?)` engine (propose/approve/reject/getProposals/getPending/subscribe) rides a reserved event channel and syncs proposals to every peer, with a `canDecide` permission hook. AI peers get a `context.propose(type, payload?)` action (which sets the `waiting-approval` state) and see live proposals via `context.proposals`, so an agent can apply an action once it's approved. Exports `AgentProposal`, `AgentProposalStatus`, `AgentApprovalEngine`, and `AgentApprovalOptions`.
+- c4369d9: Add live agent presence states. An AI peer now announces what it is doing — `idle`, `thinking`, `typing`, `editing`, or `waiting-approval` — via a new `context.setState(...)` action that rides presence (no protocol change). Read it from any peer with `getAgentState(peer)` (exported alongside the `AgentState` type and `AGENT_STATE_KEY`). `createHeuristicAgent` now announces a lifelike state each tick, so demos show a live "thinking…/typing…" indicator out of the box.
+- bbba327: Add an AI agent identity model. `addAIPeer` now stamps every AI peer with a detectable identity that rides the presence channel (no protocol change), and a new `identity` option declares its `role`/`disclosure`. Any peer can detect and describe an agent with the new `isAgentPeer(peer)` / `getAgentIdentity(peer)` helpers (exported alongside `AgentIdentity` and `AGENT_IDENTITY_KEY`). This is the foundation for agent-aware UIs and downstream agent collaboration features.
+- 018f001: Add an alpha session summarizer. `summarizeSession(entries, options?)` turns a room's activity feed into a structured, replayable rollup — participants (most active first, agents flagged), per-type action counts, agent vs human counts, time span, and a summary line. Pass a `narrate` hook to render the text with an LLM, or use the built-in heuristic. Exports `SessionSummary`, `SessionParticipant`, and `SessionSummarizerOptions`. Alpha: the shape may change in a minor release. See `docs/reference/session-summarizer.md`.
+
 ## 1.7.0
 
 ### Minor Changes

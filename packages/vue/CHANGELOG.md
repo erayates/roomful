@@ -1,5 +1,20 @@
 # @roomful/vue
 
+## 1.5.0
+
+### Minor Changes
+
+- 589753f: Add the `useAgentApprovals` binding for `room.useAgentApprovals`. It returns a reactive `proposals` ref (every proposal, newest first) plus a derived `pending` ref and the `approve`, `reject`, and `propose` actions, so a Vue UI can present an agent's proposed actions and let a human approve or reject them.
+
+### Patch Changes
+
+- Updated dependencies [7ffc235]
+- Updated dependencies [9bd411a]
+- Updated dependencies [c4369d9]
+- Updated dependencies [bbba327]
+- Updated dependencies [018f001]
+  - @roomful/core@1.8.0
+
 ## 1.4.1
 
 ### Patch Changes

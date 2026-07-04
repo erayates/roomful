@@ -1,5 +1,21 @@
 # @roomful/react
 
+## 1.5.0
+
+### Minor Changes
+
+- 9bd411a: Add the `useAgentApprovals` hook binding `room.useAgentApprovals`. It returns the reactive proposal list (`proposals` and `pending`, newest first) plus `approve`, `reject`, and `propose`, so a React UI can present an agent's proposed actions and let a human approve or reject them.
+- 018f001: Add the `useSessionSummarizer` hook (alpha). It summarizes the current room session from the activity feed and recomputes as the feed changes, returning the reactive `SessionSummary`. Pass a `narrate` hook to render the summary text with an LLM.
+
+### Patch Changes
+
+- Updated dependencies [7ffc235]
+- Updated dependencies [9bd411a]
+- Updated dependencies [c4369d9]
+- Updated dependencies [bbba327]
+- Updated dependencies [018f001]
+  - @roomful/core@1.8.0
+
 ## 1.4.1
 
 ### Patch Changes
