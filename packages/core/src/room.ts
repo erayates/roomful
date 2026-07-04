@@ -14,6 +14,7 @@ import {
 } from './engines/activity';
 import { createAwarenessEngine } from './engines/awareness';
 import { createCommentsEngine } from './engines/comments';
+import { createLocalStorageCommentsStorage } from './engines/comments-storage';
 import { createCursorEngine } from './engines/cursors';
 import { createEventEngine } from './engines/events';
 import { createFieldPresenceEngine } from './engines/field-presence';
@@ -36,7 +37,6 @@ import {
   type ViewportFrame,
 } from './engines/viewport';
 import { TypedEventEmitter } from './event-emitter';
-import { readPersistedComments, writePersistedComments } from './internal/comments.persistence';
 import {
   DEVTOOLS_BRIDGE_VERSION,
   DEVTOOLS_MAX_EVENT_LOG_ENTRIES,
@@ -1406,12 +1406,19 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
       );
     }
 
+    // The 'indexeddb' backend is a local-storage-backed CommentsStorageAdapter, so it reuses the
+    // engine's own hydrate/save — restoring full threads (replies + resolved flag), not just the
+    // root text. A caller-provided storageAdapter takes precedence. 'rest' keeps its own path.
+    const storageAdapter =
+      options.storageAdapter ??
+      (storage === 'indexeddb' ? createLocalStorageCommentsStorage(this.id) : undefined);
+
     const onLocalMutation =
-      storage === 'memory'
-        ? undefined
-        : (threads: CommentThread[]): void => {
-            this.persistComments(storage, restEndpoint, threads);
-          };
+      storage === 'rest' && restEndpoint
+        ? (threads: CommentThread[]): void => {
+            this.persistCommentsToRest(restEndpoint, threads);
+          }
+        : undefined;
 
     const commentsEngine = createCommentsEngine(
       {
@@ -1421,7 +1428,7 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
           return this.selfPeer;
         },
         ...(onLocalMutation ? { onLocalMutation } : {}),
-        ...(options.storageAdapter ? { storage: options.storageAdapter } : {}),
+        ...(storageAdapter ? { storage: storageAdapter } : {}),
       },
       () => {
         return createRuntimePeerId();
@@ -1429,10 +1436,6 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     );
 
     this.commentsEngineInstance = commentsEngine;
-
-    if (storage === 'indexeddb') {
-      this.loadPersistedComments(commentsEngine);
-    }
 
     if (storage === 'rest' && restEndpoint) {
       void this.loadRestComments(commentsEngine, restEndpoint);
@@ -1498,32 +1501,6 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     // peer's own outbound frames rebuilds that peer too. Outbound sends no-op
     // here (a replay room has no transport), so this is side-effect-free.
     this.handleRoomSignal(signal);
-  }
-
-  // Hydrates the comments engine from local persistence, seeding any thread the
-  // engine has not already synced. Existing (synced) threads win, so a reload
-  // never clobbers live collaborative state.
-  private loadPersistedComments(commentsEngine: CommentsEngine): void {
-    const known = new Set(
-      commentsEngine.getAll().map((thread) => {
-        return thread.id;
-      }),
-    );
-
-    for (const thread of readPersistedComments(this.id)) {
-      if (known.has(thread.id)) {
-        continue;
-      }
-
-      void commentsEngine
-        .add({
-          anchor: thread.anchor,
-          text: thread.text,
-        })
-        .catch(() => {
-          return undefined;
-        });
-    }
   }
 
   // Best-effort REST hydration: GET the endpoint and seed any thread not already
@@ -1592,20 +1569,11 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     }
   }
 
-  // Routes a comments mutation to the configured backend. IndexedDB rewrites the
-  // full thread list locally; REST POSTs the snapshot to the endpoint. Both are
-  // best-effort and never block the synced in-room state.
-  private persistComments(
-    storage: 'indexeddb' | 'rest',
-    restEndpoint: string | undefined,
-    threads: CommentThread[],
-  ): void {
-    if (storage === 'indexeddb') {
-      writePersistedComments(this.id, threads);
-      return;
-    }
-
-    if (!restEndpoint || typeof fetch !== 'function') {
+  // POSTs the full thread snapshot to the REST endpoint after every change.
+  // Best-effort and never blocks the synced in-room state. (The local backend is
+  // a CommentsStorageAdapter, so it goes through the engine's own save path.)
+  private persistCommentsToRest(restEndpoint: string, threads: CommentThread[]): void {
+    if (typeof fetch !== 'function') {
       return;
     }
 

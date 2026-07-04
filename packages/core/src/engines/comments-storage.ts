@@ -1,3 +1,4 @@
+import { readPersistedComments, writePersistedComments } from '../internal/comments.persistence';
 import { cloneStateValue } from '../internal/state';
 import type { CommentThread } from '../types';
 
@@ -44,6 +45,27 @@ export function createMemoryCommentsStorage(
     },
     save(next: readonly CommentThread[]): Promise<void> {
       threads = next.map((thread) => cloneStateValue(thread));
+      return Promise.resolve();
+    },
+  };
+}
+
+/**
+ * A Web Storage–backed {@link CommentsStorageAdapter} for zero-server browser durability — comment
+ * threads (with their replies and resolved state) survive a reload with no backend. Keyed per room
+ * (`roomful:<roomId>:comments`), versioned, and fails closed. This is the adapter that backs the
+ * `storage: 'indexeddb'` option, so it hydrates full threads through the engine's own restore path.
+ *
+ * @param roomId - The room whose threads are persisted (used as the storage key).
+ * @returns A `localStorage`-backed storage adapter.
+ */
+export function createLocalStorageCommentsStorage(roomId: string): CommentsStorageAdapter {
+  return {
+    load(): Promise<readonly CommentThread[]> {
+      return Promise.resolve(readPersistedComments(roomId));
+    },
+    save(next: readonly CommentThread[]): Promise<void> {
+      writePersistedComments(roomId, [...next]);
       return Promise.resolve();
     },
   };
