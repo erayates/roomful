@@ -36,6 +36,19 @@
       </section>
 
       <section class="example-panel">
+        <h2>Comments</h2>
+        <p class="hint">
+          Select text in the document, write a comment, and post it. Threads are anchored to the
+          selection, sync to every editor, and are saved locally so they survive a reload.
+        </p>
+        <div class="controls">
+          <input id="comment-input" placeholder="Comment on the selected text…" />
+          <button id="add-comment" type="button">Comment on selection</button>
+        </div>
+        <ol id="comments" class="comment-list"></ol>
+      </section>
+
+      <section class="example-panel">
         <h2>Collaborators</h2>
         <ul id="peers" class="peer-list"></ul>
         <h2>Awareness</h2>
