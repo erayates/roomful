@@ -130,3 +130,30 @@ canvas {
     grid-template-columns: 1fr;
   }
 }
+
+.mode-toggle {
+  display: inline-flex;
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.mode-toggle button {
+  padding: 6px 12px;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--ink);
+}
+
+.mode-toggle button[data-active='true'] {
+  background: var(--accent);
+  color: #ffffff;
+}
+
+.hint {
+  margin: 10px 0 0;
+  color: #4f6b64;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
