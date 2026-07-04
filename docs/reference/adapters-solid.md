@@ -37,16 +37,17 @@ function App() {
 
 ### Collaboration primitives (v1.5)
 
-| Hook                 | Returns                                                                                | Purpose                                                            |
-| -------------------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
-| `useViewport(opts?)` | `{ ref, states, broadcast, stopBroadcast, present, stopPresenting, follow, unfollow }` | follow a peer's scroll/zoom ([viewport](engines-viewport.md))      |
-| `useLocks()`         | `{ locks, acquire, release, releaseAll, isLocked, getHolder }`                         | advisory locks over UI keys ([locks](engines-locks.md))            |
-| `useLockState(key)`  | `Accessor<LockState \| null>`                                                          | one key's holder, for lock-on-focus ([locks](engines-locks.md))    |
-| `usePointer(opts?)`  | `{ ref, beams, activate, deactivate, render }`                                         | laser pointer beams ([pointer](engines-pointer.md))                |
-| `useComments(opts?)` | `{ threads, add, reply, resolve, reopen, getByElement, getOpen }`                      | anchored comment threads ([comments](engines-comments.md))         |
-| `useActivity(opts?)` | `{ entries, record }`                                                                  | room activity feed, newest first ([activity](engines-activity.md)) |
-| `useFieldPresence()` | `{ fields, setActiveField, getFieldPeers }`                                            | who's on which field ([field presence](engines-field-presence.md)) |
-| `useHistory(opts?)`  | `{ timeline, canUndo, canRedo, capture, transaction, undo, redo }`                     | undo/redo plus shared timeline ([history](engines-history.md))     |
+| Hook                       | Returns                                                                                | Purpose                                                                           |
+| -------------------------- | -------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| `useViewport(opts?)`       | `{ ref, states, broadcast, stopBroadcast, present, stopPresenting, follow, unfollow }` | follow a peer's scroll/zoom ([viewport](engines-viewport.md))                     |
+| `useLocks()`               | `{ locks, acquire, release, releaseAll, isLocked, getHolder }`                         | advisory locks over UI keys ([locks](engines-locks.md))                           |
+| `useLockState(key)`        | `Accessor<LockState \| null>`                                                          | one key's holder, for lock-on-focus ([locks](engines-locks.md))                   |
+| `usePointer(opts?)`        | `{ ref, beams, activate, deactivate, render }`                                         | laser pointer beams ([pointer](engines-pointer.md))                               |
+| `useComments(opts?)`       | `{ threads, add, reply, resolve, reopen, getByElement, getOpen }`                      | anchored comment threads ([comments](engines-comments.md))                        |
+| `useActivity(opts?)`       | `{ entries, record }`                                                                  | room activity feed, newest first ([activity](engines-activity.md))                |
+| `useFieldPresence()`       | `{ fields, setActiveField, getFieldPeers }`                                            | who's on which field ([field presence](engines-field-presence.md))                |
+| `useAgentApprovals(opts?)` | `{ proposals, pending, approve, reject, propose }`                                     | human-in-the-loop agent approvals ([agent approvals](engines-agent-approvals.md)) |
+| `useHistory(opts?)`        | `{ timeline, canUndo, canRedo, capture, transaction, undo, redo }`                     | undo/redo plus shared timeline ([history](engines-history.md))                    |
 
 The reactive members (`states`, `beams`, `locks`, `threads`, `timeline`, `canUndo`, `canRedo`, and `useLockState`) are Solid accessors — call them to read.
 

@@ -2,6 +2,9 @@ import type {
   ActivityEngine,
   ActivityEntry,
   ActivityOptions,
+  AgentApprovalEngine,
+  AgentApprovalOptions,
+  AgentProposal,
   AwarenessEngine,
   AwarenessState,
   Comment,
@@ -53,8 +56,15 @@ import {
   readSelfPeer,
   type SharedStateBinding,
 } from '@roomful/core/adapter-runtime';
-import type { Directive, InjectionKey, ObjectDirective, Plugin, ShallowRef } from 'vue';
-import { getCurrentInstance, inject, markRaw, shallowRef, watch } from 'vue';
+import type {
+  ComputedRef,
+  Directive,
+  InjectionKey,
+  ObjectDirective,
+  Plugin,
+  ShallowRef,
+} from 'vue';
+import { computed, getCurrentInstance, inject, markRaw, shallowRef, watch } from 'vue';
 
 /**
  * Configures the Vue plugin.
@@ -400,6 +410,38 @@ export interface UseActivityResult {
 }
 
 /**
+ * Describes the return value of `useAgentApprovals`.
+ */
+export interface UseAgentApprovalsResult {
+  /**
+   * Exposes every proposal, newest first. Reactive: updates on any local or
+   * remote change.
+   */
+  proposals: ReadonlyRef<AgentProposal[]>;
+
+  /**
+   * Exposes the proposals still awaiting a decision, newest first. Reactive:
+   * derived from `proposals`.
+   */
+  pending: ComputedRef<AgentProposal[]>;
+
+  /**
+   * Approves a pending proposal (if permitted) and broadcasts the decision.
+   */
+  approve: AgentApprovalEngine['approve'];
+
+  /**
+   * Rejects a pending proposal (if permitted) and broadcasts the decision.
+   */
+  reject: AgentApprovalEngine['reject'];
+
+  /**
+   * Proposes an action for approval and broadcasts it as pending.
+   */
+  propose: AgentApprovalEngine['propose'];
+}
+
+/**
  * Describes the return value of `useFieldPresence`.
  */
 export interface UseFieldPresenceResult {
@@ -615,6 +657,12 @@ interface ActivitySnapshotCache<TPresence extends PresenceData> {
   room: Room<TPresence>;
   engine: ActivityEngine;
   snapshot: ActivityEntry[];
+}
+
+interface AgentApprovalsSnapshotCache<TPresence extends PresenceData> {
+  room: Room<TPresence>;
+  engine: AgentApprovalEngine;
+  snapshot: AgentProposal[];
 }
 
 interface FieldPresenceSnapshotCache<TPresence extends PresenceData> {
@@ -1338,6 +1386,82 @@ export function useActivity<TPresence extends PresenceData = PresenceData>(
       return requireTypedRoom<TPresence>(context.room.value, 'useActivity')
         .useActivity(options)
         .record(type, data);
+    },
+  };
+}
+
+/**
+ * Subscribes to the room's agent-approval workflow: agents `propose` actions and humans
+ * `approve`/`reject` them, with every peer seeing the synced proposal list. Returns a reactive
+ * `proposals` ref (newest first) plus a derived `pending` ref and the decision actions.
+ *
+ * @typeParam TPresence - The room presence shape.
+ * @param options - Optional configuration (permission hook).
+ * @returns Readonly refs for the proposals and pending proposals plus `approve`/`reject`/`propose`.
+ */
+export function useAgentApprovals<TPresence extends PresenceData = PresenceData>(
+  options?: AgentApprovalOptions,
+): UseAgentApprovalsResult {
+  const context = useRoomfulContext('useAgentApprovals');
+  const initialRoom = requireTypedRoom<TPresence>(context.room.value, 'useAgentApprovals');
+  const initialEngine = initialRoom.useAgentApprovals(options);
+  const cacheRef: { current: AgentApprovalsSnapshotCache<TPresence> | null } = {
+    current: null,
+  };
+  const proposals = shallowRef(readApprovalsSnapshot(initialRoom, initialEngine, cacheRef));
+  const pending = computed(() => {
+    return proposals.value.filter((proposal) => {
+      return proposal.status === 'pending';
+    });
+  });
+
+  watch(
+    context.room,
+    (room, _previousRoom, onCleanup) => {
+      const typedRoom = requireTypedRoom<TPresence>(room, 'useAgentApprovals');
+      const engine = typedRoom.useAgentApprovals(options);
+
+      const syncSnapshot = (): void => {
+        const nextSnapshot = readApprovalsSnapshot(typedRoom, engine, cacheRef);
+        if (proposals.value === nextSnapshot) {
+          return;
+        }
+
+        proposals.value = nextSnapshot;
+      };
+
+      syncSnapshot();
+
+      const unsubscribe = engine.subscribe(() => {
+        syncSnapshot();
+      });
+
+      onCleanup(() => {
+        unsubscribe();
+      });
+    },
+    {
+      immediate: true,
+    },
+  );
+
+  return {
+    proposals,
+    pending,
+    approve(id) {
+      requireTypedRoom<TPresence>(context.room.value, 'useAgentApprovals')
+        .useAgentApprovals(options)
+        .approve(id);
+    },
+    reject(id) {
+      requireTypedRoom<TPresence>(context.room.value, 'useAgentApprovals')
+        .useAgentApprovals(options)
+        .reject(id);
+    },
+    propose(input) {
+      return requireTypedRoom<TPresence>(context.room.value, 'useAgentApprovals')
+        .useAgentApprovals(options)
+        .propose(input);
     },
   };
 }
@@ -2362,6 +2486,67 @@ function readActivitySnapshot<TPresence extends PresenceData>(
   cacheRef.current = {
     room,
     engine: activity,
+    snapshot: nextSnapshot,
+  };
+  return nextSnapshot;
+}
+
+function areProposalArraysEqual(
+  previous: readonly AgentProposal[],
+  next: readonly AgentProposal[],
+): boolean {
+  if (previous === next) {
+    return true;
+  }
+
+  if (previous.length !== next.length) {
+    return false;
+  }
+
+  for (let index = 0; index < previous.length; index += 1) {
+    const previousProposal = previous[index];
+    const nextProposal = next[index];
+
+    if (
+      !previousProposal ||
+      !nextProposal ||
+      !areStructuredValuesEqual(previousProposal, nextProposal)
+    ) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function readApprovalsSnapshot<TPresence extends PresenceData>(
+  room: Room<TPresence>,
+  approvals: AgentApprovalEngine,
+  cacheRef: { current: AgentApprovalsSnapshotCache<TPresence> | null },
+): AgentProposal[] {
+  const nextSnapshot = approvals.getProposals();
+  const previous = cacheRef.current;
+
+  if (previous !== null && previous.room === room && previous.engine === approvals) {
+    const previousSnapshot = previous.snapshot;
+    if (areProposalArraysEqual(previousSnapshot, nextSnapshot)) {
+      return previousSnapshot;
+    }
+
+    previous.snapshot = nextSnapshot.map((proposal, index) => {
+      const previousProposal = previousSnapshot[index];
+      if (previousProposal !== undefined && areStructuredValuesEqual(previousProposal, proposal)) {
+        return previousProposal;
+      }
+
+      return proposal;
+    });
+    return previous.snapshot;
+  }
+
+  cacheRef.current = {
+    room,
+    engine: approvals,
     snapshot: nextSnapshot,
   };
   return nextSnapshot;

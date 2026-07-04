@@ -50,6 +50,7 @@ Audience: users.
 - `comments` — a store of `CommentThread[]` with `add`/`reply`/`resolve`/`reopen`/`getByElement`/`getOpen`. See [Comments engine](engines-comments.md).
 - `activity` — a store of the `ActivityEntry[]` feed (newest first) with `record`. See [Activity engine](engines-activity.md).
 - `fieldPresence` — a store of the active `FieldPresenceState[]` (who's on which field) with `setActiveField` and `getFieldPeers`. See [Field presence engine](engines-field-presence.md).
+- `agentApprovals` — a store of `AgentProposal[]` with a nested `pending` store and `approve`/`reject`/`propose`. See [Agent approvals engine](engines-agent-approvals.md).
 - `history` — a store of the `TimelineEntry[]` timeline with nested `canUndo`/`canRedo` boolean stores and `capture`/`transaction`/`undo`/`redo`. See [History engine](engines-history.md).
 
 ## Integration Notes

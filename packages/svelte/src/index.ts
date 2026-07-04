@@ -2,6 +2,9 @@ import type {
   ActivityEngine,
   ActivityEntry,
   ActivityOptions,
+  AgentApprovalEngine,
+  AgentApprovalOptions,
+  AgentProposal,
   AwarenessEngine,
   AwarenessSelection,
   AwarenessState,
@@ -126,6 +129,12 @@ interface ActivitySnapshotCache<TPresence extends PresenceData> {
   engine: ActivityEngine;
   room: Room<TPresence>;
   snapshot: ActivityEntry[];
+}
+
+interface AgentApprovalsSnapshotCache<TPresence extends PresenceData> {
+  engine: AgentApprovalEngine;
+  room: Room<TPresence>;
+  snapshot: AgentProposal[];
 }
 
 interface FieldPresenceSnapshotCache<TPresence extends PresenceData> {
@@ -493,6 +502,34 @@ export interface ActivityStore extends Readable<ActivityEntry[]> {
 }
 
 /**
+ * Readable store of the room's agent-approval proposals (newest first) augmented
+ * with a reactive `pending` sub-store and the `approve`/`reject`/`propose`
+ * controls. The store's value updates on any local or remote proposal change.
+ */
+export interface AgentApprovalsStore extends Readable<AgentProposal[]> {
+  /**
+   * A readable store of the pending proposals awaiting a decision (newest
+   * first).
+   */
+  pending: Readable<AgentProposal[]>;
+
+  /**
+   * Approves a pending proposal (if permitted) and broadcasts the decision.
+   */
+  approve: AgentApprovalEngine['approve'];
+
+  /**
+   * Rejects a pending proposal (if permitted) and broadcasts the decision.
+   */
+  reject: AgentApprovalEngine['reject'];
+
+  /**
+   * Proposes an action for approval and broadcasts it as pending.
+   */
+  propose: AgentApprovalEngine['propose'];
+}
+
+/**
  * Readable store of the active fields (which remote peers are on which field) augmented with the
  * `setActiveField` control and a `getFieldPeers` reader. The store's value updates when peers enter
  * or leave a field.
@@ -603,6 +640,11 @@ export type { Comment, CommentAnchor, CommentsOptions, CommentThread };
  * Re-exports the collaborative activity types for adapter consumers.
  */
 export type { ActivityEngine, ActivityEntry, ActivityOptions };
+
+/**
+ * Re-exports the agent-approval types for adapter consumers.
+ */
+export type { AgentApprovalEngine, AgentApprovalOptions, AgentProposal };
 
 /**
  * Re-exports the field-presence types for adapter consumers.
@@ -771,6 +813,11 @@ export interface RoomfulOptions<
   activity?: ActivityOptions;
 
   /**
+   * Configures the agent-approval workflow (who may decide proposals).
+   */
+  agentApprovals?: AgentApprovalOptions;
+
+  /**
    * Configures the comments store's storage backend.
    */
   comments?: CommentsOptions;
@@ -810,6 +857,12 @@ export interface RoomfulAdapter<
    * Exposes the shared room activity feed store plus the `record` control.
    */
   activity: ActivityStore;
+
+  /**
+   * Exposes the agent-approval proposals store plus the `pending` sub-store and
+   * the `approve`/`reject`/`propose` controls.
+   */
+  agentApprovals: AgentApprovalsStore;
 
   /**
    * Exposes the field-presence store plus `setActiveField` and `getFieldPeers`.
@@ -923,6 +976,7 @@ export function roomful<
 >(roomId: string, options: RoomfulOptions<TPresence> = {}): RoomfulAdapter<TPresence, TCursor> {
   const {
     activity: activityOptions,
+    agentApprovals: agentApprovalsOptions,
     comments: commentsOptions,
     history: historyOptions,
     onConnect,
@@ -939,6 +993,7 @@ export function roomful<
   const lockEngine = room.useLocks();
   const commentsEngine = room.useComments(commentsOptions);
   const activityEngine = room.useActivity(activityOptions);
+  const agentApprovalsEngine = room.useAgentApprovals(agentApprovalsOptions);
   const fieldPresenceEngine = room.useFieldPresence();
   const historyEngine = room.useHistory(historyOptions);
   const recordingEngine = room.useRecording();
@@ -959,6 +1014,7 @@ export function roomful<
   let locksCache: LocksSnapshotCache<TPresence> | null = null;
   let commentsCache: CommentsSnapshotCache<TPresence> | null = null;
   let activityCache: ActivitySnapshotCache<TPresence> | null = null;
+  let agentApprovalsCache: AgentApprovalsSnapshotCache<TPresence> | null = null;
   let fieldPresenceCache: FieldPresenceSnapshotCache<TPresence> | null = null;
   let historyCache: HistorySnapshotCache<TPresence> | null = null;
   let sharedStateController: SharedStateController<TPresence, unknown> | null = null;
@@ -1039,6 +1095,16 @@ export function roomful<
         activityCache = nextCache;
       },
     }),
+  );
+  const initialAgentProposals = readAgentApprovalsSnapshot(room, agentApprovalsEngine, {
+    current: agentApprovalsCache,
+    set(nextCache) {
+      agentApprovalsCache = nextCache;
+    },
+  });
+  const agentApprovalsStore = createValueStore(initialAgentProposals);
+  const agentApprovalsPendingStore = createValueStore(
+    filterPendingProposals(initialAgentProposals),
   );
   const fieldPresenceStore = createValueStore(
     readFieldPresenceSnapshot(room, fieldPresenceEngine, {
@@ -1154,6 +1220,17 @@ export function roomful<
         },
       }),
     );
+  };
+
+  const refreshAgentApprovals = (): void => {
+    const proposals = readAgentApprovalsSnapshot(room, agentApprovalsEngine, {
+      current: agentApprovalsCache,
+      set(nextCache) {
+        agentApprovalsCache = nextCache;
+      },
+    });
+    agentApprovalsStore.publish(proposals);
+    agentApprovalsPendingStore.publish(filterPendingProposals(proposals));
   };
 
   const refreshFieldPresence = (): void => {
@@ -1338,6 +1415,20 @@ export function roomful<
     });
   };
 
+  const attachAgentApprovalsSubscription = (): void => {
+    if (!runtimeStarted) {
+      return;
+    }
+
+    const unsubscribe = agentApprovalsEngine.subscribe(() => {
+      refreshAgentApprovals();
+    });
+
+    registerCleanup(() => {
+      unsubscribe();
+    });
+  };
+
   const attachFieldPresenceSubscription = (): void => {
     if (!runtimeStarted) {
       return;
@@ -1472,6 +1563,7 @@ export function roomful<
     attachLocksSubscription();
     attachCommentsSubscription();
     attachActivitySubscription();
+    attachAgentApprovalsSubscription();
     attachFieldPresenceSubscription();
     attachHistorySubscription();
     attachRecordingSubscription();
@@ -1776,6 +1868,29 @@ export function roomful<
     record(type, data) {
       assertAvailable('activity.record');
       return activityEngine.record(type, data);
+    },
+  };
+
+  const agentApprovals: AgentApprovalsStore = {
+    subscribe(run, invalidate) {
+      return agentApprovalsStore.subscribe(run, invalidate);
+    },
+    pending: {
+      subscribe(run, invalidate) {
+        return agentApprovalsPendingStore.subscribe(run, invalidate);
+      },
+    },
+    approve(id) {
+      assertAvailable('agentApprovals.approve');
+      return agentApprovalsEngine.approve(id);
+    },
+    reject(id) {
+      assertAvailable('agentApprovals.reject');
+      return agentApprovalsEngine.reject(id);
+    },
+    propose(input) {
+      assertAvailable('agentApprovals.propose');
+      return agentApprovalsEngine.propose(input);
     },
   };
 
@@ -2155,6 +2270,8 @@ export function roomful<
     locksStore.clear();
     commentsStore.clear();
     activityStore.clear();
+    agentApprovalsStore.clear();
+    agentApprovalsPendingStore.clear();
     fieldPresenceStore.clear();
     historyStore.clear();
     historyCanUndoStore.clear();
@@ -2178,6 +2295,7 @@ export function roomful<
 
   return {
     activity,
+    agentApprovals,
     awareness,
     comments,
     connect,
@@ -2695,6 +2813,75 @@ function readActivitySnapshot<TPresence extends PresenceData>(
 
   cacheRef.set({
     engine: activity,
+    room,
+    snapshot: nextSnapshot,
+  });
+  return nextSnapshot;
+}
+
+function filterPendingProposals(proposals: readonly AgentProposal[]): AgentProposal[] {
+  return proposals.filter((proposal) => proposal.status === 'pending');
+}
+
+function areAgentProposalArraysEqual(
+  previous: readonly AgentProposal[],
+  next: readonly AgentProposal[],
+): boolean {
+  if (previous === next) {
+    return true;
+  }
+
+  if (previous.length !== next.length) {
+    return false;
+  }
+
+  for (let index = 0; index < previous.length; index += 1) {
+    const previousProposal = previous[index];
+    const nextProposal = next[index];
+
+    if (
+      !previousProposal ||
+      !nextProposal ||
+      !areStructuredValuesEqual(previousProposal, nextProposal)
+    ) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function readAgentApprovalsSnapshot<TPresence extends PresenceData>(
+  room: Room<TPresence>,
+  approvals: AgentApprovalEngine,
+  cacheRef: {
+    current: AgentApprovalsSnapshotCache<TPresence> | null;
+    set(nextCache: AgentApprovalsSnapshotCache<TPresence>): void;
+  },
+): AgentProposal[] {
+  const nextSnapshot = approvals.getProposals();
+  const previous = cacheRef.current;
+
+  if (previous && previous.room === room && previous.engine === approvals) {
+    const previousSnapshot = previous.snapshot;
+    if (areAgentProposalArraysEqual(previousSnapshot, nextSnapshot)) {
+      return previousSnapshot;
+    }
+
+    const stableSnapshot = nextSnapshot.map((proposal, index) => {
+      const previousProposal = previousSnapshot[index];
+      if (previousProposal && areStructuredValuesEqual(previousProposal, proposal)) {
+        return previousProposal;
+      }
+
+      return proposal;
+    });
+    previous.snapshot = stableSnapshot;
+    return stableSnapshot;
+  }
+
+  cacheRef.set({
+    engine: approvals,
     room,
     snapshot: nextSnapshot,
   });
