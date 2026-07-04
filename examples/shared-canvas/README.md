@@ -1,7 +1,9 @@
 # Shared Canvas Example
 
-A minimal browser canvas that stores completed strokes in CRDT-backed shared state. Open two tabs
-with the same room ID, draw in either tab, and late joiners receive the existing stroke history.
+A browser whiteboard that stores completed strokes in CRDT-backed shared state and adds a shared
+**laser pointer**. Open two tabs with the same room ID, draw in either tab (late joiners receive the
+existing stroke history), then switch to **Laser** to point at things — your cursor broadcasts as a
+laser beam every peer sees. A starter for collaborative canvas and whiteboard apps.
 
 ## Run
 
@@ -16,4 +18,6 @@ The example defaults to `broadcast` transport so it works locally without a rela
 - `createRoom()` with local presence.
 - `room.useState(..., { strategy: 'crdt' })` for late-join stroke history.
 - Canvas pointer handling with compact stroke payloads.
+- A shared **laser pointer** via `room.usePointer()` — `activate()`/`deactivate()` toggles
+  broadcasting, and `subscribe()` streams remote peers' beams (drawn on the canvas).
 - Presence list updates for connected collaborators.

@@ -25,8 +25,16 @@
           </label>
           <button id="connect" type="button">Connect</button>
           <button id="clear" type="button">Clear canvas</button>
+          <span class="mode-toggle" role="group" aria-label="Pointer mode">
+            <button id="mode-draw" type="button" data-active="true">✏ Draw</button>
+            <button id="mode-laser" type="button" data-active="false">⌖ Laser</button>
+          </span>
         </div>
         <p id="status" class="status">idle</p>
+        <p class="hint">
+          Switch to <strong>Laser</strong> to point instead of draw — your cursor broadcasts as a
+          laser beam to everyone in the room. Open a second tab to see each other's lasers.
+        </p>
       </section>
 
       <section class="canvas-frame" aria-label="Shared drawing surface">
