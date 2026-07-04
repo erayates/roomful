@@ -1,4 +1,6 @@
+import { isObject, readNumber, readString } from '../internal/guards';
 import type { RoomTransportSignal } from '../transports/transport';
+import { parseTransportSignal } from '../transports/transport.protocol';
 import type {
   RecordingDirection,
   RecordingEngine,
@@ -16,6 +18,58 @@ import type {
  * shape it does not understand.
  */
 export const RECORDING_FORMAT_VERSION = 1 as const;
+
+/**
+ * Parses and validates a value loaded from a `.roomful` file (e.g. `JSON.parse(fileText)`) into a
+ * {@link RoomfulRecording}, or returns `null` when it is malformed or an unsupported version — so a
+ * bad or incompatible file can never be handed to {@link RecordingEngine.replay}. Each frame's
+ * `signal` is validated through the same transport-signal parser the live wire path uses.
+ *
+ * @param value - The parsed JSON value from a `.roomful` file.
+ * @returns The validated recording, or `null`.
+ */
+export function parseRoomfulRecording(value: unknown): RoomfulRecording | null {
+  if (!isObject(value) || readNumber(value, 'version') !== RECORDING_FORMAT_VERSION) {
+    return null;
+  }
+
+  const roomId = readString(value, 'roomId');
+  const peerId = readString(value, 'peerId');
+  const startedAt = readNumber(value, 'startedAt');
+  const durationMs = readNumber(value, 'durationMs');
+  const rawFrames = value.frames;
+  if (
+    roomId === undefined ||
+    peerId === undefined ||
+    startedAt === undefined ||
+    durationMs === undefined ||
+    !Array.isArray(rawFrames)
+  ) {
+    return null;
+  }
+
+  const frames: RecordingFrame[] = [];
+  for (const raw of rawFrames) {
+    if (!isObject(raw)) {
+      return null;
+    }
+
+    const t = readNumber(raw, 't');
+    const direction = readString(raw, 'direction');
+    const signal = parseTransportSignal(raw.signal);
+    if (
+      t === undefined ||
+      (direction !== 'inbound' && direction !== 'outbound') ||
+      signal === null
+    ) {
+      return null;
+    }
+
+    frames.push({ t, direction, signal });
+  }
+
+  return { version: RECORDING_FORMAT_VERSION, roomId, peerId, startedAt, durationMs, frames };
+}
 
 /**
  * Bindings the room runtime supplies to a recording engine.
