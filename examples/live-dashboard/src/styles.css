@@ -129,6 +129,13 @@ button {
   padding: 8px 10px;
 }
 
+.hint {
+  margin: 0 0 12px;
+  color: #5b6e55;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
 @media (max-width: 760px) {
   .metric-grid {
     grid-template-columns: 1fr;
