@@ -15,9 +15,11 @@ export type {
 } from './ai-peer';
 export {
   addAIPeer,
+  AGENT_ACTION_PREFIX,
   AGENT_IDENTITY_KEY,
   AGENT_STATE_KEY,
   createHeuristicAgent,
+  getAgentActions,
   getAgentIdentity,
   getAgentState,
   isAgentPeer,

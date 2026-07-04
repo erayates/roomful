@@ -41,6 +41,7 @@ export function AITeammate({ roomId, transport, relayUrl }: AITeammateProps): Re
       ...(relayUrl ? { relayUrl } : {}),
       presence: { name: 'Roomy (AI)', color: '#a78bfa' },
       tickMs: 900,
+      recordActions: true,
       observeEvents: ['reactions'],
       agent: createHeuristicAgent({
         reactionEvent: 'reactions',
