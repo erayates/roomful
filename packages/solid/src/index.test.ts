@@ -3,6 +3,7 @@
 import type {
   ActivityEngine,
   ActivityEntry,
+  AgentApprovalEngine,
   AwarenessEngine,
   AwarenessState,
   CommentAnchor,
@@ -1215,6 +1216,22 @@ function createMockRoom(
     }),
     useActivity: vi.fn(() => {
       return activityEngine;
+    }),
+    useAgentApprovals: vi.fn((): AgentApprovalEngine => {
+      return {
+        propose: () => ({
+          id: '',
+          proposer: createPeer('self'),
+          type: '',
+          status: 'pending',
+          timestamp: 0,
+        }),
+        approve: () => undefined,
+        reject: () => undefined,
+        getProposals: () => [],
+        getPending: () => [],
+        subscribe: () => () => undefined,
+      };
     }),
     useFieldPresence: vi.fn(() => {
       return fieldPresenceEngine;

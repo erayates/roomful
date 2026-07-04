@@ -453,6 +453,30 @@ textarea {
   font-size: 0.82rem;
 }
 
+.stage__approvals {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  border-radius: var(--radius);
+  background: rgba(251, 191, 36, 0.08);
+}
+
+.stage__approval {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.stage__approval-label {
+  flex: 1;
+  min-width: 12rem;
+  font-size: 0.85rem;
+  color: var(--text);
+}
+
 .stage__app {
   position: relative;
 }

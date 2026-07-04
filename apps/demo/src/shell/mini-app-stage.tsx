@@ -1,7 +1,7 @@
-import type { ActivityEntry, AgentState, RoomStatus } from '@roomful/core';
+import type { ActivityEntry, AgentProposal, AgentState, RoomStatus } from '@roomful/core';
 import { AGENT_ACTION_PREFIX, getAgentActions, getAgentState, isAgentPeer } from '@roomful/core';
 import { LiveIndicator, PresenceBar } from '@roomful/cursors';
-import { useActivity, useConnectionStatus, usePresence } from '@roomful/react';
+import { useActivity, useAgentApprovals, useConnectionStatus, usePresence } from '@roomful/react';
 import { type ReactElement, useEffect } from 'react';
 
 import type { MiniAppDefinition } from '../apps/registry';
@@ -47,6 +47,14 @@ function actionLabel(entry: ActivityEntry): string {
     : entry.type;
 }
 
+function proposalLabel(proposal: AgentProposal): string {
+  const payload = proposal.payload;
+  if (payload !== null && typeof payload === 'object' && 'emoji' in payload) {
+    return `${proposal.type} ${String(payload.emoji)}`;
+  }
+  return proposal.type;
+}
+
 interface MiniAppStageProps {
   app: MiniAppDefinition;
   identity: DemoIdentity;
@@ -67,6 +75,7 @@ export function MiniAppStage({
   const { all, others, update } = usePresence<DemoPresence>();
   const status = useConnectionStatus<DemoPresence>();
   const { entries } = useActivity<DemoPresence>();
+  const { pending, approve, reject } = useAgentApprovals<DemoPresence>();
   const AppComponent = app.Component;
 
   // Surface the AI teammate's live state (thinking/typing/editing…) straight from presence.
@@ -123,6 +132,36 @@ export function MiniAppStage({
           </span>
         ) : null}
       </div>
+
+      {pending.length > 0 ? (
+        <div className="stage__approvals" data-testid="agent-approvals">
+          {pending.map((proposal) => (
+            <div className="stage__approval" key={proposal.id}>
+              <span className="stage__approval-label">
+                🤖 {proposal.proposer.name ?? 'AI'} proposes: {proposalLabel(proposal)}
+              </span>
+              <button
+                className="button button--sm button--primary"
+                onClick={() => {
+                  approve(proposal.id);
+                }}
+                type="button"
+              >
+                Approve
+              </button>
+              <button
+                className="button button--sm button--ghost"
+                onClick={() => {
+                  reject(proposal.id);
+                }}
+                type="button"
+              >
+                Reject
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : null}
 
       <div className="stage__app" data-app={app.id}>
         <AppComponent identity={identity} />
