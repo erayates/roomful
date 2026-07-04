@@ -168,9 +168,9 @@ describe('addAIPeer', () => {
 
     // A human recording activity is not an agent action.
     activity.record('user:did-thing');
-    expect(getAgentActions(activity.getEntries()).some((entry) => entry.type === 'user:did-thing')).toBe(
-      false,
-    );
+    expect(
+      getAgentActions(activity.getEntries()).some((entry) => entry.type === 'user:did-thing'),
+    ).toBe(false);
   });
 
   it('stop() removes the AI peer from the room', async () => {
