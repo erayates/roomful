@@ -151,6 +151,7 @@ The `locks` and `comments` sections report advisory-lock and comment-thread acti
 
 - [Reference index](README.md)
 - [Core API](core-api.md)
+- [Error catalog](errors.md)
 - [Performance](performance.md)
 - [Release process](../project/release-process.md)
 - [Docs index](../README.md)
