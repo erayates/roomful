@@ -31,6 +31,8 @@ interface RecordingEngine {
 interface RecordingOptions {
   // Privacy hook: runs on every frame before it is stored.
   redact?: (frame: RecordingFrame) => RecordingFrame | null;
+  // Retention cap: keep only the most recent N frames (oldest dropped first).
+  maxFrames?: number;
 }
 ```
 
@@ -58,6 +60,19 @@ const recording = room.useRecording({
 
 Because redaction happens at capture time, the exported `.roomful` and any replay only ever contain
 the redacted frames — there is no separate scrubbing step to forget.
+
+## Retention — `maxFrames`
+
+`maxFrames` caps how many frames a recording holds: once the cap is reached, the oldest frame is
+dropped as each new one arrives, so a long-running capture keeps a bounded sliding window of the most
+recent activity instead of growing without limit.
+
+```ts
+const recording = room.useRecording({ maxFrames: 5000 }); // keep the last 5k signals
+```
+
+Pair it with `redact` as a data-retention policy: `redact` controls _what_ is ever recorded,
+`maxFrames` controls _how much_ is kept.
 
 ## Semantics
 
