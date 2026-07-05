@@ -2998,7 +2998,8 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
   }
 
   private queueOfflineEventSignal(signal: Extract<RoomTransportSignal, { type: 'event' }>): void {
-    const key = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
+    // ponytail: crypto.randomUUID() available in all supported runtimes (Node 19+, modern browsers)
+    const key = crypto.randomUUID();
     this.setOfflineQueue(
       appendOfflineQueueEntry(this.offlineQueue, {
         type: 'event',
