@@ -638,6 +638,18 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
 
   private peakRemotePeerCount = 0;
 
+  // Ephemeral room: when set, disables all durable persistence and optionally
+  // auto-disconnects after TTL. `true` = no TTL; number = TTL in ms.
+  private readonly isEphemeral: boolean;
+
+  private readonly ephemeralTtlMs: number | null = null;
+
+  // ponytail: absolute expiry timestamp so getRemainingTime() works without
+  // introspecting the timer handle
+  private ephemeralExpiresAt: number | null = null;
+
+  private ephemeralTimer: ReturnType<typeof setTimeout> | null = null;
+
   private devtoolsStateTracker: DevtoolsStateTracker | null = null;
 
   private devtoolsStateValue: DevtoolsSerializedValue | null = null;
@@ -699,6 +711,19 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     });
 
     this.awarenessByPeer.set(this.peerId, { peerId: this.peerId });
+
+    // ponytail: ephemeral room — disable persistence, arm TTL timer if set
+    const ephemeral = options.ephemeral;
+    this.isEphemeral = ephemeral !== undefined;
+    if (this.isEphemeral) {
+      this.ephemeralTtlMs = typeof ephemeral === 'number' ? ephemeral : null;
+      if (this.ephemeralTtlMs !== null && this.ephemeralTtlMs > 0) {
+        this.ephemeralExpiresAt = Date.now() + this.ephemeralTtlMs;
+        this.ephemeralTimer = setTimeout(() => {
+          void this.disconnect();
+        }, this.ephemeralTtlMs);
+      }
+    }
   }
 
   private get selfPeer(): Peer<TPresence> {
@@ -1016,6 +1041,11 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
   public async disconnect(): Promise<void> {
     this.cancelReconnect();
     this.cancelOfflineQueueReplay();
+    if (this.ephemeralTimer !== null) {
+      clearTimeout(this.ephemeralTimer);
+      this.ephemeralTimer = null;
+      this.ephemeralExpiresAt = null;
+    }
     this.offlineReplayRequested = false;
     this.offlineWindowActive = false;
     this.connectStartedAt = null;
@@ -1151,6 +1181,14 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
       broadcastsSent: this.customEventBroadcastsSent,
       directSends: this.customEventDirectSends,
     };
+  }
+
+  // ponytail: ephemeral room TTL query — returns null for non-ephemeral rooms
+  public getRemainingTime(): number | null {
+    if (this.ephemeralTtlMs === null) return null;
+    if (this.ephemeralExpiresAt === null) return 0;
+    const remaining = this.ephemeralExpiresAt - Date.now();
+    return remaining > 0 ? remaining : 0;
   }
 
   // Read the lock/comments engines only if they were ever instantiated — diagnostics must never
@@ -1493,6 +1531,15 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
   public useComments(options: CommentsOptions = {}): CommentsEngine {
     if (this.commentsEngineInstance) {
       return this.commentsEngineInstance;
+    }
+
+    // ponytail: ephemeral rooms have no durable storage
+    if (this.isEphemeral && options.storage && options.storage !== 'memory') {
+      throw createRoomfulError(
+        'INVALID_STATE',
+        'Durable comments storage is unavailable in an ephemeral room.',
+        false,
+      );
     }
 
     const storage = options.storage ?? 'memory';
@@ -1996,6 +2043,15 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     strategy: 'lww' | 'crdt' | 'custom',
     persist: StateOptions<unknown>['persist'],
   ): void {
+    // ponytail: ephemeral rooms block all persistence
+    if (this.isEphemeral) {
+      throw createRoomfulError(
+        'INVALID_STATE',
+        'State persistence is unavailable in an ephemeral room.',
+        false,
+      );
+    }
+
     if (persist !== true || strategy === 'lww') {
       return;
     }
