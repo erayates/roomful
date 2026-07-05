@@ -1545,6 +1545,7 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
       roomId: this.id,
       peerId: this.peerId,
       ...(options.redact ? { redact: options.redact } : {}),
+      ...(options.maxFrames !== undefined ? { maxFrames: options.maxFrames } : {}),
     });
 
     this.recordingEngineInstance = recordingEngine;

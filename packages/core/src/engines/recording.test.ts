@@ -104,6 +104,28 @@ describe('createRecordingEngine', () => {
     }
   });
 
+  it('maxFrames retains only the most recent frames, dropping the oldest', () => {
+    const engine = createRecordingEngine({
+      roomId: 'room-rec',
+      peerId: 'peer-a',
+      now: () => clock,
+      maxFrames: 2,
+    });
+
+    engine.start();
+    engine.ingest('inbound', eventSignal('a'));
+    engine.ingest('inbound', eventSignal('b'));
+    engine.ingest('inbound', eventSignal('c'));
+
+    const frames = engine.getFrames();
+    expect(frames).toHaveLength(2); // capped
+    const names = frames.map((frame) =>
+      frame.signal.type === 'event' ? frame.signal.payload.name : '',
+    );
+    expect(names).toEqual(['b', 'c']); // oldest ('a') dropped
+    expect(engine.getState().frameCount).toBe(2);
+  });
+
   it('preserves binary crdt:sync payloads through capture and export', () => {
     const engine = engineWithClock();
     const signal: RoomTransportSignal = {

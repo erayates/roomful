@@ -2313,6 +2313,12 @@ export interface RecordingOptions {
    * @returns The frame to store, or `null` to drop it.
    */
   redact?: (frame: RecordingFrame) => RecordingFrame | null;
+
+  /**
+   * A retention cap: keep only the most recent `maxFrames` frames, dropping the oldest first. Bounds
+   * the memory a long-running capture holds. Omit for no cap (keep everything).
+   */
+  maxFrames?: number;
 }
 
 /**

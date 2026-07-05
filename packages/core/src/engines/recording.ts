@@ -106,6 +106,9 @@ export interface RecordingEngineContext {
    * {@link RecordingOptions.redact}.
    */
   redact?: (frame: RecordingFrame) => RecordingFrame | null;
+
+  /** Retention cap: keep only the most recent `maxFrames` frames. See {@link RecordingOptions.maxFrames}. */
+  maxFrames?: number;
 }
 
 function cloneSignal(signal: RoomTransportSignal): RoomTransportSignal {
@@ -314,6 +317,13 @@ export function createRecordingEngine(context: RecordingEngineContext): Recordin
       }
 
       frames.push(kept);
+      // Retention: keep only the most recent `maxFrames` (oldest dropped first).
+      if (context.maxFrames !== undefined) {
+        while (frames.length > context.maxFrames) {
+          frames.shift();
+        }
+      }
+
       notify();
     },
   };
