@@ -20,6 +20,7 @@ When implementation and docs differ, open an issue with:
 ## Reference Pages
 
 - [Core API](core-api.md)
+- [Error catalog](errors.md)
 - [Presence engine](engines-presence.md)
 - [Cursor engine](engines-cursors.md)
 - [State, awareness, events](engines-state-awareness-events.md)

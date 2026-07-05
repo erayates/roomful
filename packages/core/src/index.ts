@@ -41,6 +41,8 @@ export type {
   SessionSummary,
 } from './engines/session-summary';
 export { summarizeSession } from './engines/session-summary';
+export type { ErrorCatalogEntry } from './error-catalog';
+export { describeRoomfulError, ROOMFUL_ERROR_CATALOG } from './error-catalog';
 export type {
   ActivityEngine,
   ActivityEntry,
