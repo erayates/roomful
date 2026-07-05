@@ -130,6 +130,19 @@ The `network` section reports a recent throughput estimate (`messagesPerSecond`)
 
 The `locks` and `comments` sections report advisory-lock and comment-thread activity — `heldCount`/`heldKeys` for locks currently held by any peer, and `threadCount`/`openCount` (unresolved) for comment threads. Both read from the lock/comments engines only if the room ever used them, so an app that never called `useLocks`/`useComments` reports zeros.
 
+## Usage metrics
+
+`getDiagnostics()` is a point-in-time snapshot; `room.getUsageMetrics()` returns **cumulative** counters for the room's lifetime that survive reconnects — feed them to analytics/telemetry (e.g. on disconnect):
+
+```ts
+const m = room.getUsageMetrics();
+// { connectCount, reconnectCount, peakRemotePeerCount,
+//   messagesSent, messagesReceived, broadcastsSent, directSends }
+analytics.track('room_session', m);
+```
+
+`connectCount` counts sessions (each time the room reaches `connected`), `reconnectCount` accumulates reconnect attempts, and `peakRemotePeerCount` is the busiest the room got.
+
 ## Common Issues
 
 | Symptom                            | Likely cause                | Action                            |

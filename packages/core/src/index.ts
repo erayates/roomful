@@ -124,6 +124,7 @@ export type {
   TimelineEntry,
   TransportMode,
   Unsubscribe,
+  UsageMetrics,
   ViewportEngine,
   ViewportOptions,
   ViewportState,
