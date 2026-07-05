@@ -127,10 +127,38 @@ describe('Room diagnostics', () => {
         incompatiblePeerIds: [],
         decryptionErrorPeerIds: [],
       },
+      locks: {
+        heldCount: 0,
+        heldKeys: [],
+      },
+      comments: {
+        threadCount: 0,
+        openCount: 0,
+      },
     });
     expect(diagnostics.timestamp).toEqual(expect.any(Number));
     expect(diagnostics.peerId).toEqual(expect.any(String));
     expect(diagnostics.presence.selfLastSeen).toEqual(expect.any(Number));
+  });
+
+  it('reports lock and comment diagnostics from the engines when used', async () => {
+    const adapter = new MockTransportAdapter();
+    const room = await createMockedRoom(() => {
+      return adapter;
+    });
+
+    const locks = room.useLocks();
+    await locks.acquire('cell-1');
+    await locks.acquire('cell-2');
+
+    const comments = room.useComments();
+    const thread = await comments.add({ anchor: { elementId: 'doc' }, text: 'first' });
+    await comments.add({ anchor: { elementId: 'doc' }, text: 'second' });
+    await comments.thread(thread.id).resolve();
+
+    const diagnostics = await room.getDiagnostics();
+    expect(diagnostics.locks).toEqual({ heldCount: 2, heldKeys: ['cell-1', 'cell-2'] });
+    expect(diagnostics.comments).toEqual({ threadCount: 2, openCount: 1 }); // one resolved
   });
 
   it('returns connected state diagnostics with peers, state, and event registrations', async () => {

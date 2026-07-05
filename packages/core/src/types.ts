@@ -352,6 +352,36 @@ export interface RoomDiagnosticsNetwork {
 }
 
 /**
+ * Captures advisory-lock diagnostics for a room.
+ */
+export interface RoomDiagnosticsLocks {
+  /**
+   * The number of keys currently held by some peer.
+   */
+  heldCount: number;
+
+  /**
+   * The keys currently held, sorted. Empty when the lock engine is unused or nothing is held.
+   */
+  heldKeys: string[];
+}
+
+/**
+ * Captures comment-thread diagnostics for a room.
+ */
+export interface RoomDiagnosticsComments {
+  /**
+   * The total number of comment threads.
+   */
+  threadCount: number;
+
+  /**
+   * The number of threads that are not resolved.
+   */
+  openCount: number;
+}
+
+/**
  * Aggregates room diagnostics across transports, presence, state, and events.
  */
 export interface RoomDiagnostics {
@@ -414,6 +444,16 @@ export interface RoomDiagnostics {
    * Reports network throughput and per-peer latency diagnostics.
    */
   network: RoomDiagnosticsNetwork;
+
+  /**
+   * Reports advisory-lock diagnostics.
+   */
+  locks: RoomDiagnosticsLocks;
+
+  /**
+   * Reports comment-thread diagnostics.
+   */
+  comments: RoomDiagnosticsComments;
 }
 
 /**
