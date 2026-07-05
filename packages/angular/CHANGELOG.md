@@ -1,5 +1,15 @@
 # @roomful/angular
 
+## 1.6.1
+
+### Patch Changes
+
+- Updated dependencies [dbb633e]
+- Updated dependencies [5138c44]
+- Updated dependencies [bd210b1]
+- Updated dependencies [a5fdc0e]
+  - @roomful/core@1.9.0
+
 ## 1.6.0
 
 ### Minor Changes

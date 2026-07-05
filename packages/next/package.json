@@ -1,7 +1,7 @@
 {
   "name": "@roomful/next",
   "description": "Next.js server-side auth-token helpers for Roomful realtime rooms.",
-  "version": "1.1.9",
+  "version": "1.1.10",
   "private": false,
   "type": "module",
   "main": "dist/index.js",

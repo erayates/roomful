@@ -1,5 +1,19 @@
 # @roomful/react
 
+## 1.6.0
+
+### Minor Changes
+
+- dbb633e: `useRecording(options?)` now forwards `RecordingOptions` (including the `redact` privacy hook) to the room's recording engine.
+
+### Patch Changes
+
+- Updated dependencies [dbb633e]
+- Updated dependencies [5138c44]
+- Updated dependencies [bd210b1]
+- Updated dependencies [a5fdc0e]
+  - @roomful/core@1.9.0
+
 ## 1.5.0
 
 ### Minor Changes
