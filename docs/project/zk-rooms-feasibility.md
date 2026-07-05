@@ -20,6 +20,7 @@ A ZK room would prove to the relay that messages are valid without revealing the
 ## Approach: ZK Proof of Message Validity
 
 The relay needs to know only two things about each message:
+
 1. Is it from an authorized peer? (auth)
 2. Does it follow room rules? (rate limits, content size)
 
@@ -27,13 +28,13 @@ A ZK-SNARK could prove both without revealing the peer identity or message conte
 
 ### Feasibility Assessment
 
-| Concern | Status |
-|---------|--------|
-| **Proof generation in browser** | SNARK provers (Groth16, PLONK) require 100MB+ WASM and 10-30s per proof on a mid-range device. Not real-time viable. |
-| **Circuit complexity** | The "message is valid" circuit would need to encode the entire signaling protocol. Estimated 100K+ constraints — weeks of circuit design. |
-| **Library maturity** | No production-grade WASM SNARK library exists for browsers. `snarkjs` works but is slow and unmaintained. |
-| **Key management** | Trusted setup ceremony required for Groth16. Transparent setups (STARKs) have 100KB+ proofs — too large for WebSocket frames. |
-| **Latency** | 10-30s proof time vs. 100ms latency target. **Blocked on proving time.** |
+| Concern                         | Status                                                                                                                                    |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| **Proof generation in browser** | SNARK provers (Groth16, PLONK) require 100MB+ WASM and 10-30s per proof on a mid-range device. Not real-time viable.                      |
+| **Circuit complexity**          | The "message is valid" circuit would need to encode the entire signaling protocol. Estimated 100K+ constraints — weeks of circuit design. |
+| **Library maturity**            | No production-grade WASM SNARK library exists for browsers. `snarkjs` works but is slow and unmaintained.                                 |
+| **Key management**              | Trusted setup ceremony required for Groth16. Transparent setups (STARKs) have 100KB+ proofs — too large for WebSocket frames.             |
+| **Latency**                     | 10-30s proof time vs. 100ms latency target. **Blocked on proving time.**                                                                  |
 
 ## Recommendation: Do Not Implement
 
@@ -42,6 +43,7 @@ ZK for real-time collaboration is not feasible on 2026 browser hardware. The pro
 ## Alternative: Ephemeral + Self-Host
 
 The pragmatic path to metadata privacy:
+
 1. **Self-host the relay** — metadata stays in your network. Already supported.
 2. **Ephemeral rooms** (`ephemeral: true`) — no durable storage. Done (EP-20 #203).
 3. **Audit log** — tamper-evident verification that no data leaked. Done (EP-20 #202).
