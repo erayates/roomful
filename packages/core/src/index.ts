@@ -43,6 +43,8 @@ export type {
 export { summarizeSession } from './engines/session-summary';
 export type { ErrorCatalogEntry } from './error-catalog';
 export { describeRoomfulError, ROOMFUL_ERROR_CATALOG } from './error-catalog';
+export type { AuditEntry, AuditVerifyResult } from './internal/audit-log';
+export { AuditLog } from './internal/audit-log';
 export type {
   ActivityEngine,
   ActivityEntry,
