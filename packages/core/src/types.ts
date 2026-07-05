@@ -2706,6 +2706,14 @@ export interface Room<TPresence extends PresenceData = PresenceData> {
   useFieldPresence(): FieldPresenceEngine;
 
   /**
+   * Accesses the tamper-evident audit log for this room.
+   * Entries are hash-chained; call `verify()` to detect tampering.
+   *
+   * @returns The audit log.
+   */
+  useAuditLog(): import('./internal/audit-log').AuditLog;
+
+  /**
    * Accesses the collaborative history (undo/redo plus shared timeline) engine
    * for this room.
    *

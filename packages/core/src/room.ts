@@ -88,6 +88,7 @@ import {
   type StateSnapshot,
 } from './internal/state';
 import { readPersistedLwwState, writePersistedLwwState } from './internal/state.persistence';
+import { AuditLog } from './internal/audit-log';
 import { coerceTypedPeer } from './internal/typed-peer';
 import {
   decodeMessagePack,
@@ -582,6 +583,8 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
   private commentsEngineInstance: CommentsEngine | null = null;
 
   private historyEngineInstance: HistoryEngine | null = null;
+
+  private auditLogInstance: AuditLog | null = null;
 
   private recordingEngineInstance: RecordingEngine | null = null;
 
@@ -1512,6 +1515,15 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     }
 
     return this.agentApprovalEngineInstance;
+  }
+
+  // ponytail: hash-chained audit log — tamper-evident, in-memory.
+  // Callers push entries via `useAuditLog().record(event, actor, detail?)`.
+  public useAuditLog(): AuditLog {
+    if (!this.auditLogInstance) {
+      this.auditLogInstance = new AuditLog();
+    }
+    return this.auditLogInstance;
   }
 
   public useFieldPresence(): FieldPresenceEngine {
