@@ -1,7 +1,14 @@
 import type { RoomfulRecording } from '@roomful/core';
 import { PeerCursor } from '@roomful/cursors';
 import { RoomfulProvider, useCursors, usePresence, useRecording, useRoom } from '@roomful/react';
-import { type ReactElement, useCallback, useEffect, useRef, useState } from 'react';
+import {
+  type ChangeEvent,
+  type ReactElement,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 
 import type { DemoPresence } from '../demo-types';
 
@@ -16,10 +23,11 @@ function ReplayStage({ recording }: ReplayProps): ReactElement {
   const { replay } = useRecording();
   const { cursors } = useCursors(); // no ref attached → read-only, no local tracking
   const { others } = usePresence<DemoPresence>();
-  const [progress, setProgress] = useState(0);
+  const [cursor, setCursor] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const sessionRef = useRef<ReturnType<typeof replay> | null>(null);
   const startedRef = useRef(false);
+  const frameCount = recording.frames.length;
 
   const stop = useCallback(() => {
     sessionRef.current?.stop();
@@ -28,20 +36,24 @@ function ReplayStage({ recording }: ReplayProps): ReactElement {
 
   const play = useCallback(() => {
     stop();
-    setProgress(0);
-    const durationMs = recording.durationMs || 1;
+    setCursor(0);
     const session = replay(recording);
     sessionRef.current = session;
     session.subscribe((event) => {
       setIsPlaying(event.isPlaying);
+      setCursor(event.cursor);
       if (event.frame) {
         // Apply the recorded signal to the sandbox room → engines reconstruct it.
         room.applyReplaySignal(event.frame.signal);
-        setProgress(Math.min(1, event.frame.t / durationMs));
       }
     });
     session.play();
   }, [recording, replay, room, stop]);
+
+  // Scrub the timeline: seek re-emits frames up to the point, rebuilding the state there.
+  const handleSeek = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+    sessionRef.current?.seek(Number(event.currentTarget.value));
+  }, []);
 
   // Auto-play once on open; stop on unmount.
   useEffect(() => {
@@ -53,7 +65,7 @@ function ReplayStage({ recording }: ReplayProps): ReactElement {
     return stop;
   }, [play, stop]);
 
-  const finished = !isPlaying && progress > 0;
+  const finished = !isPlaying && cursor >= frameCount && frameCount > 0;
 
   return (
     <div className="replay-stage">
@@ -83,9 +95,20 @@ function ReplayStage({ recording }: ReplayProps): ReactElement {
         <button className="button button--ghost" disabled={isPlaying} onClick={play} type="button">
           {finished ? '↺ Replay again' : '▶ Play'}
         </button>
-        <progress className="replay-progress" max={1} value={progress} />
-        <span className="replay-meta">
-          {others.length} peer{others.length === 1 ? '' : 's'} · {recording.frames.length} signals
+        <input
+          aria-label="Replay timeline"
+          className="replay-scrubber"
+          disabled={frameCount === 0}
+          max={frameCount}
+          min={0}
+          onChange={handleSeek}
+          step={1}
+          type="range"
+          value={Math.min(cursor, frameCount)}
+        />
+        <span className="replay-meta" data-testid="replay-position">
+          {Math.min(cursor, frameCount)}/{frameCount} · {others.length} peer
+          {others.length === 1 ? '' : 's'}
         </span>
       </div>
     </div>

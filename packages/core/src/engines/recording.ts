@@ -188,6 +188,23 @@ function createReplaySession(frames: readonly RecordingFrame[]): ReplaySession {
       playing = false;
       emit(null);
     },
+    seek(index) {
+      clearTimer();
+      playing = false;
+      // Re-emit from the start so a listener rebuilds cumulative state (last-write-wins engines like
+      // cursors/presence converge). ponytail: O(index) per scrub — fine for demo-sized recordings.
+      const target = Math.max(0, Math.min(Math.trunc(index), frames.length));
+      cursor = 0;
+      while (cursor < target) {
+        const frame = frames[cursor];
+        cursor += 1;
+        if (frame) {
+          emit(cloneFrame(frame));
+        }
+      }
+
+      emit(null);
+    },
     subscribe(callback): Unsubscribe {
       subscribers.add(callback);
       callback({ frame: null, isPlaying: playing, cursor });

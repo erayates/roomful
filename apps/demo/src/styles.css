@@ -1256,29 +1256,39 @@ textarea {
   cursor: not-allowed;
 }
 
-.replay-progress {
+.replay-scrubber {
   flex: 1;
   height: 6px;
   appearance: none;
+  -webkit-appearance: none;
   border: 0;
   border-radius: 999px;
   background: var(--card);
-  overflow: hidden;
+  cursor: pointer;
 }
 
-.replay-progress::-webkit-progress-bar {
-  background: var(--card);
-  border-radius: 999px;
+.replay-scrubber:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
-.replay-progress::-webkit-progress-value {
+.replay-scrubber::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
   background: var(--teal);
-  border-radius: 999px;
+  cursor: pointer;
 }
 
-.replay-progress::-moz-progress-bar {
+.replay-scrubber::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border: 0;
+  border-radius: 50%;
   background: var(--teal);
-  border-radius: 999px;
+  cursor: pointer;
 }
 
 .replay-meta {

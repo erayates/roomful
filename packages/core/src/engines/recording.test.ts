@@ -193,6 +193,38 @@ describe('createRecordingEngine', () => {
       expect(seen.filter((entry) => entry.hasFrame)).toHaveLength(2); // second frame
       expect(seen.at(-1)).toEqual({ cursor: 2, playing: false, hasFrame: false }); // ended
     });
+
+    it('seek(index) re-emits frames up to the index and pauses there', () => {
+      const engine = createRecordingEngine({
+        roomId: 'room-rec',
+        peerId: 'peer-a',
+        now: () => clock,
+      });
+      engine.start();
+      clock = 1_200;
+      engine.ingest('inbound', eventSignal('a'));
+      clock = 1_700;
+      engine.ingest('inbound', eventSignal('b'));
+      clock = 2_100;
+      engine.ingest('inbound', eventSignal('c'));
+
+      const session = engine.replay();
+      const frames: string[] = [];
+      let last: { cursor: number; playing: boolean } = { cursor: -1, playing: true };
+      session.subscribe((event) => {
+        last = { cursor: event.cursor, playing: event.isPlaying };
+        if (event.frame?.signal.type === 'event') {
+          frames.push(event.frame.signal.payload.name);
+        }
+      });
+
+      session.seek(2); // rebuild state up to frame index 2
+      expect(frames).toEqual(['a', 'b']); // re-emitted the first two frames from the start
+      expect(last).toEqual({ cursor: 2, playing: false }); // paused at the scrub point
+
+      session.seek(999); // clamps to the frame count
+      expect(last.cursor).toBe(3);
+    });
   });
 });
 
