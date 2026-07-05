@@ -65,16 +65,16 @@ framework-agnostic core, MIT-licensed forever, primitive-first). v2 adds six:
 v2.x is planned as a **~24-sprint / ~48-week** transition. Big v3 ideas are designed early but only
 locked as a stable contract at v3.0. Milestones are release **gates**, not feature checklists.
 
-| Version    | Theme                           | Target output                                                                                                                  | Status    |
-| ---------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | --------- |
-| v2.0-beta  | Protocol + Relay Stabilization  | Versioned event envelope, message schema, replay model, relay hardening, protocol test vectors                                 | Planned   |
-| v2.1-alpha | Dart Core SDK                   | `roomful` alpha: room lifecycle, WebSocket relay, presence, events, shared state, reconnect                                    | Planned   |
-| v2.2-beta  | Flutter SDK MVP                 | `roomful_flutter`: Provider, PresenceBuilder, PresenceAvatars, LiveCursorsOverlay, SharedStateController, Locks — pub.dev beta | Planned   |
-| v2.3       | Self-host + Mobile Trust        | Docker Compose, Redis coordination, JWT/Firebase/Supabase auth examples, mobile reconnect hardening, cross-platform demos      | Planned   |
-| v2.4       | B2B Collaboration Components    | Comments persistence, field presence, record locks, activity stream, dashboard/form/canvas starter kits                        | Planned   |
-| v2.5       | AI Agent Collaboration          | AI peer identity, agent cursor, action stream, approval flow, session summarizer alpha, comment anchors                        | Planned   |
-| v2.6       | Observability + Trust           | Room Inspector, network topology, audit log, retention policy, usage metrics, error catalog, intent states                     | Planned   |
-| v2.7       | Offline / Local-first           | Offline queue, deterministic merge, CRDT adapter review, reconnect recovery, conflict UI, AI policy engine                     | Planned   |
+| Version    | Theme                           | Target output                                                                                                                  | Status     |
+| ---------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ---------- |
+| v2.0-beta  | Protocol + Relay Stabilization  | Versioned event envelope, message schema, replay model, relay hardening, protocol test vectors                                 | ✅ Released |
+| v2.1-alpha | Dart Core SDK                   | `roomful` alpha: room lifecycle, WebSocket relay, presence, events, shared state, reconnect                                    | ✅ Released |
+| v2.2-beta  | Flutter SDK MVP                 | `roomful_flutter`: Provider, PresenceBuilder, PresenceAvatars, LiveCursorsOverlay, SharedStateController, Locks — pub.dev beta | ✅ Released |
+| v2.3       | Self-host + Mobile Trust        | Docker Compose, Redis coordination, JWT/Firebase/Supabase auth examples, mobile reconnect hardening, cross-platform demos      | ✅ Released |
+| v2.4       | B2B Collaboration Components    | Comments persistence, field presence, record locks, activity stream, dashboard/form/canvas starter kits                        | ✅ Released |
+| v2.5       | AI Agent Collaboration          | AI peer identity, agent cursor, action stream, approval flow, session summarizer alpha, comment anchors                        | ✅ Released |
+| v2.6       | Observability + Trust           | Room Inspector, network topology, audit log, retention policy, usage metrics, error catalog, intent states                     | ✅ Released |
+| v2.7       | Offline / Local-first           | Offline queue, deterministic merge, CRDT adapter review, reconnect recovery, conflict UI, AI policy engine                     | ✅ Released |
 | v2.8       | Cloud / Open-Core Readiness     | Hosted relay beta, dashboard, teams/projects, quotas, billing-ready usage events, async notes/summary                          | Planned   |
 | v3.0-rc    | RoomfulScript + Stable Protocol | Declarative collaboration-as-code, protocol v3 freeze, migration guide/tooling                                                 | Needs RFC |
 
