@@ -1,5 +1,13 @@
 # @roomful/core
 
+## 1.10.0
+
+### Minor Changes
+
+- 7300eee: Complete the room diagnostics inspection surface with locks and comments. `room.getDiagnostics()` now reports a `locks` section (`heldCount`, `heldKeys`) and a `comments` section (`threadCount`, `openCount`), so all six inspectable categories (peers, state, locks, comments, events, transports) are covered. Both read from the lock/comments engines only if the room ever used them (no forced instantiation). Exports the new `RoomDiagnosticsLocks` and `RoomDiagnosticsComments` types.
+- d6ea99d: Add an error catalog. `ROOMFUL_ERROR_CATALOG` maps every `RoomfulErrorCode` to a `{ title, description, remediation, recoverable }` entry, and `describeRoomfulError(code)` looks one up — so an app can turn a thrown `RoomfulError` into an actionable message. The catalog is typed as an exhaustive record (a new code is a compile error until documented). Exports `ErrorCatalogEntry`. The codes are also documented in `docs/reference/errors.md`.
+- 9da3d61: Add `room.getUsageMetrics()` for telemetry. Unlike the point-in-time `getDiagnostics()` snapshot, it returns cumulative counters for the room's lifetime that survive reconnects — `connectCount` (sessions), `reconnectCount`, `peakRemotePeerCount`, and message counters (`messagesSent`/`messagesReceived`/`broadcastsSent`/`directSends`) — so an app can feed room usage to analytics. Exports the new `UsageMetrics` type.
+
 ## 1.9.0
 
 ### Minor Changes
