@@ -769,3 +769,37 @@ describe('createRoom', () => {
     }
   });
 });
+
+describe('ephemeral rooms', () => {
+  it('getRemainingTime returns null for a non-ephemeral room', () => {
+    const room = createRoom('ephemeral-test-1');
+    expect(room.getRemainingTime()).toBeNull();
+  });
+
+  it('getRemainingTime returns ms for ephemeral room with TTL', () => {
+    const room = createRoom('ephemeral-test-2', { ephemeral: 10000 });
+    const remaining = room.getRemainingTime();
+    expect(remaining).not.toBeNull();
+    expect(remaining!).toBeGreaterThan(0);
+    expect(remaining!).toBeLessThanOrEqual(10000);
+  });
+
+  it('getRemainingTime returns null for ephemeral:true (no TTL)', () => {
+    const room = createRoom('ephemeral-test-3', { ephemeral: true });
+    expect(room.getRemainingTime()).toBeNull();
+  });
+
+  it('ephemeral room blocks state persistence', () => {
+    const room = createRoom('ephemeral-test-4', { ephemeral: true });
+    expect(() => {
+      room.useState({ initialValue: 'Hello', persist: true });
+    }).toThrow('ephemeral');
+  });
+
+  it('ephemeral room blocks durable comments storage', () => {
+    const room = createRoom('ephemeral-test-5', { ephemeral: true });
+    expect(() => {
+      room.useComments({ storage: 'indexeddb' });
+    }).toThrow('ephemeral');
+  });
+});

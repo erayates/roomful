@@ -544,6 +544,12 @@ export interface RoomOptions<TPresence extends PresenceData = PresenceData> {
    * Enables broad debug logging or fine-grained debug flags.
    */
   debug?: boolean | DebugOptions;
+
+  /**
+   * Marks the room as ephemeral — no durable storage (state, comments, locks), and optionally
+   * disconnects after `ttlMs`. Pass `true` for no-persistence only, or a number for TTL in ms.
+   */
+  ephemeral?: boolean | number;
 }
 
 /**
@@ -2602,6 +2608,13 @@ export interface Room<TPresence extends PresenceData = PresenceData> {
    * @returns The current usage metrics.
    */
   getUsageMetrics(): UsageMetrics;
+
+  /**
+   * Returns the remaining TTL in ms for an ephemeral room, or `null` when not applicable.
+   *
+   * @returns Milliseconds until auto-disconnect, or null.
+   */
+  getRemainingTime(): number | null;
 
   /**
    * Accesses the presence engine for this room.
