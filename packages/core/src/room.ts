@@ -1527,8 +1527,8 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
       // ponytail: one-shot subscription, survives reconnects
       this.roomEventEmitter.on('connected', () => { this.auditLogInstance?.record('room.connected', this.peerId); });
       this.roomEventEmitter.on('disconnected', () => { this.auditLogInstance?.record('room.disconnected', this.peerId); });
-      this.roomEventEmitter.on('peer:join', (peer) => { this.auditLogInstance?.record('peer.join', this.peerId, { joined: (peer as { id: string }).id }); });
-      this.roomEventEmitter.on('peer:leave', (peer) => { this.auditLogInstance?.record('peer.leave', this.peerId, { left: (peer as { id: string }).id }); });
+      this.roomEventEmitter.on('peer:join', (data: unknown) => { const id = isObject(data) ? String(data.id) : 'unknown'; this.auditLogInstance?.record('peer.join', this.peerId, { joined: id }); });
+      this.roomEventEmitter.on('peer:leave', (data: unknown) => { const id = isObject(data) ? String(data.id) : 'unknown'; this.auditLogInstance?.record('peer.leave', this.peerId, { left: id }); });
     }
     return this.auditLogInstance;
   }
