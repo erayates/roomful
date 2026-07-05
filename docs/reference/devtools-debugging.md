@@ -115,10 +115,20 @@ console.log(diagnostics);
 //     messagesPerSecond: 12,
 //     latency: { 'peer-b': 34, 'peer-c': 41 },
 //   },
+//   locks: {
+//     heldCount: 2,
+//     heldKeys: ['cell-1', 'cell-2'],
+//   },
+//   comments: {
+//     threadCount: 5,
+//     openCount: 2,
+//   },
 // }
 ```
 
 The `network` section reports a recent throughput estimate (`messagesPerSecond`) and a `latency` map of remote `peerId` to round-trip milliseconds.
+
+The `locks` and `comments` sections report advisory-lock and comment-thread activity — `heldCount`/`heldKeys` for locks currently held by any peer, and `threadCount`/`openCount` (unresolved) for comment threads. Both read from the lock/comments engines only if the room ever used them, so an app that never called `useLocks`/`useComments` reports zeros.
 
 ## Common Issues
 

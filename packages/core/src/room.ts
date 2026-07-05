@@ -142,6 +142,8 @@ import type {
   RecordingOptions,
   Room,
   RoomDiagnostics,
+  RoomDiagnosticsComments,
+  RoomDiagnosticsLocks,
   RoomEventHandler,
   RoomEventMap,
   RoomEventName,
@@ -1126,6 +1128,26 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
           }),
         ),
       },
+      locks: this.getLockDiagnostics(),
+      comments: this.getCommentsDiagnostics(),
+    };
+  }
+
+  // Read the lock/comments engines only if they were ever instantiated — diagnostics must never
+  // force-create an engine the app didn't use.
+  private getLockDiagnostics(): RoomDiagnosticsLocks {
+    const held = this.lockEngineInstance?.getAll() ?? [];
+    return {
+      heldCount: held.length,
+      heldKeys: held.map((lock) => lock.key).sort(),
+    };
+  }
+
+  private getCommentsDiagnostics(): RoomDiagnosticsComments {
+    const threads = this.commentsEngineInstance?.getAll() ?? [];
+    return {
+      threadCount: threads.length,
+      openCount: threads.filter((thread) => !thread.resolved).length,
     };
   }
 
