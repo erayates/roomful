@@ -606,6 +606,9 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
 
   private offlineQueue: OfflineQueueEntry[] = [];
 
+  // ponytail: idempotency keys already dispatched — skip on replay. Reset on disconnect.
+  private dispatchedEventKeys = new Set<string>();
+
   private offlineReplayTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
 
   private offlineReplayInProgress = false;
@@ -1051,6 +1054,7 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
     }
     this.offlineReplayRequested = false;
     this.offlineWindowActive = false;
+    this.dispatchedEventKeys.clear();
     this.connectStartedAt = null;
     this.disconnectSimulatedPeer();
     this.websocketFallbackTransportPreference = null;
@@ -2994,10 +2998,12 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
   }
 
   private queueOfflineEventSignal(signal: Extract<RoomTransportSignal, { type: 'event' }>): void {
+    const key = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
     this.setOfflineQueue(
       appendOfflineQueueEntry(this.offlineQueue, {
         type: 'event',
         signal,
+        idempotencyKey: key,
       }),
     );
     this.scheduleOfflineQueueReplay();
@@ -3071,7 +3077,12 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
 
         if (entry.type === 'event') {
           this.setOfflineQueue(remaining);
+          // ponytail: skip event if key was already dispatched in a previous replay pass
+          if (entry.idempotencyKey && this.dispatchedEventKeys.has(entry.idempotencyKey)) {
+            continue;
+          }
           this.dispatchRoomSignal(entry.signal);
+          if (entry.idempotencyKey) this.dispatchedEventKeys.add(entry.idempotencyKey);
           replayedEntries += 1;
           continue;
         }

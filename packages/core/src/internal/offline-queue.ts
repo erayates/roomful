@@ -48,6 +48,8 @@ export type OfflineQueueEntry =
   | {
       type: 'event';
       signal: EventSignal;
+      /** ponytail: caller-assigned key — skipped on replay if already dispatched this session. */
+      idempotencyKey?: string;
     };
 
 function cloneOfflineStateMutation(mutation: OfflineStateMutation): OfflineStateMutation {
@@ -82,6 +84,7 @@ function cloneOfflineQueueEntry(entry: OfflineQueueEntry): OfflineQueueEntry {
   return {
     type: 'event',
     signal: cloneStateValue(entry.signal),
+    ...(entry.idempotencyKey !== undefined ? { idempotencyKey: entry.idempotencyKey } : {}),
   };
 }
 
