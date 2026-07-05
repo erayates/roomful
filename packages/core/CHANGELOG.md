@@ -1,5 +1,11 @@
 # @roomful/core
 
+## 2.0.0
+
+### Major Changes
+
+- Promote to v2.0.0 — the protocol v2 era (RFC-0001 accepted, EP-10–EP-20 shipped). All v1.x features (Dart/Flutter SDKs, relay hardening, AI peers, recording, observability, security) are stable. No breaking changes from v1.11.0; the major bump signals the roadmap transition from v1.x to v2.x per the v2→v3 backlog.
+
 ## 1.11.0
 
 ### Minor Changes

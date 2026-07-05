@@ -1,5 +1,12 @@
 # @roomful/svelte
 
+## 1.5.4
+
+### Patch Changes
+
+- Updated dependencies
+  - @roomful/core@2.0.0
+
 ## 1.5.3
 
 ### Patch Changes

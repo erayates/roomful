@@ -1,5 +1,12 @@
 # @roomful/solid
 
+## 1.6.4
+
+### Patch Changes
+
+- Updated dependencies
+  - @roomful/core@2.0.0
+
 ## 1.6.3
 
 ### Patch Changes
