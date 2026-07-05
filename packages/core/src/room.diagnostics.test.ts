@@ -216,6 +216,40 @@ describe('Room diagnostics', () => {
     await room.disconnect();
   });
 
+  it('accumulates usage metrics across connect, a peer join, and a broadcast', async () => {
+    const adapter = new MockTransportAdapter();
+    const room = await createMockedRoom(() => {
+      return adapter;
+    });
+    const protocol = getTransportProtocolCapabilities('webrtc');
+
+    expect(room.getUsageMetrics().connectCount).toBe(0);
+
+    await room.connect();
+    // A remote peer joins → peak rises to 1.
+    adapter.emit({
+      type: 'hello',
+      roomId: room.id,
+      fromPeerId: 'peer-b',
+      timestamp: 1,
+      payload: { peer: { id: 'peer-b', joinedAt: 1, lastSeen: 1 }, protocol },
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+
+    room.useEvents().emit('cheer', { n: 1 }); // a broadcast
+
+    const metrics = room.getUsageMetrics();
+    expect(metrics.connectCount).toBe(1);
+    expect(metrics.reconnectCount).toBe(0);
+    expect(metrics.peakRemotePeerCount).toBe(1);
+    expect(metrics.messagesSent).toBe(1);
+    expect(metrics.broadcastsSent).toBe(1);
+    expect(metrics.directSends).toBe(0);
+
+    await room.disconnect();
+  });
+
   it('reports queued offline state and event counters after disconnect', async () => {
     const adapter = new MockTransportAdapter();
     const room = await createMockedRoom(() => {

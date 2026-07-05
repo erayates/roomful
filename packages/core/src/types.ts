@@ -457,6 +457,34 @@ export interface RoomDiagnostics {
 }
 
 /**
+ * Cumulative usage metrics for a room session, for feeding telemetry/analytics. Unlike
+ * {@link RoomDiagnostics} (a point-in-time snapshot), these counters accumulate over the room's
+ * lifetime and do not reset on reconnect.
+ */
+export interface UsageMetrics {
+  /** How many times the room reached the `connected` state (each is a session). */
+  connectCount: number;
+
+  /** How many reconnect attempts have been made across the room's lifetime. */
+  reconnectCount: number;
+
+  /** The most remote peers seen in the room at once. */
+  peakRemotePeerCount: number;
+
+  /** Custom events sent by the local peer. */
+  messagesSent: number;
+
+  /** Custom events received by the local peer. */
+  messagesReceived: number;
+
+  /** Custom events sent as a room-wide broadcast. */
+  broadcastsSent: number;
+
+  /** Custom events sent directly to a single peer. */
+  directSends: number;
+}
+
+/**
  * Configures room creation.
  *
  * @typeParam TPresence - The local and remote presence shape carried by the room.
@@ -2567,6 +2595,13 @@ export interface Room<TPresence extends PresenceData = PresenceData> {
    * @returns A promise that resolves to the current diagnostics snapshot.
    */
   getDiagnostics(): Promise<RoomDiagnostics>;
+
+  /**
+   * Returns cumulative usage metrics for the room session, for telemetry/analytics.
+   *
+   * @returns The current usage metrics.
+   */
+  getUsageMetrics(): UsageMetrics;
 
   /**
    * Accesses the presence engine for this room.

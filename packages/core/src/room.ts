@@ -154,6 +154,7 @@ import type {
   StateEngine,
   StateOptions,
   Unsubscribe,
+  UsageMetrics,
   ViewportEngine,
   ViewportOptions,
   ViewportState,
@@ -629,6 +630,13 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
   private customEventBroadcastsSent = 0;
 
   private customEventDirectSends = 0;
+
+  // Cumulative usage metrics — accumulate over the room's lifetime, never reset on reconnect.
+  private connectCount = 0;
+
+  private reconnectCount = 0;
+
+  private peakRemotePeerCount = 0;
 
   private devtoolsStateTracker: DevtoolsStateTracker | null = null;
 
@@ -1130,6 +1138,18 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
       },
       locks: this.getLockDiagnostics(),
       comments: this.getCommentsDiagnostics(),
+    };
+  }
+
+  public getUsageMetrics(): UsageMetrics {
+    return {
+      connectCount: this.connectCount,
+      reconnectCount: this.reconnectCount,
+      peakRemotePeerCount: this.peakRemotePeerCount,
+      messagesSent: this.customEventMessagesSent,
+      messagesReceived: this.customEventMessagesReceived,
+      broadcastsSent: this.customEventBroadcastsSent,
+      directSends: this.customEventDirectSends,
     };
   }
 
@@ -2386,6 +2406,7 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
   private async connectInternal(context: ConnectContext): Promise<void> {
     if (context.isReconnectAttempt) {
       this.reconnectAttempt += 1;
+      this.reconnectCount += 1;
       this.setStatus('reconnecting');
       this.roomEventEmitter.emit('reconnecting', { attempt: this.reconnectAttempt });
     }
@@ -3460,6 +3481,7 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
 
     this.registerUnloadHandlers();
     this.hasConnectedBefore = true;
+    this.connectCount += 1;
     this.reconnectAttempt = 0;
     this.lastDisconnectReason = null;
     this.latestConnectDurationMs =
@@ -3723,6 +3745,10 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
   }
 
   private notifyPeerSubscribers(): void {
+    this.peakRemotePeerCount = Math.max(
+      this.peakRemotePeerCount,
+      this.peerRegistry.getRemoteCount(),
+    );
     const snapshot = this.getSelfAndPeersSnapshot();
     for (const subscriber of this.peerSubscribers) {
       subscriber(snapshot);
