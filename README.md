@@ -10,7 +10,7 @@ Roomful is an open-source, framework-agnostic SDK designed to help frontend team
 
 ## Project Status
 
-> **Stable — v1.5.** Roomful is feature-complete and tested across 10 public packages. Install with `npm install @roomful/core` and please [open an issue](https://github.com/erayates/roomful/issues) with any feedback.
+> **Stable — v2.0.0.** Roomful is feature-complete and tested across 10 public packages. Install with `npm install @roomful/core` and please [open an issue](https://github.com/erayates/roomful/issues) with any feedback.
 
 All major features are implemented and tested across 10 public packages.
 
@@ -55,6 +55,16 @@ Building collaboration features usually requires you to stitch together transpor
 | Next.js auth tokens | server-side relay JWTs (`@roomful/next`)      | Available |
 | Relay server        | optional WebSocket relay for scale            | Available |
 | Prebuilt UI kit     | cursors/presence/typing components            | Available |
+| AI peers            | agent identity, action stream, approvals (v1.7) | Available |
+| Session recording   | capture, .roomful export, time-travel replay (v1.6-v1.8) | Available |
+| WebTransport        | HTTP/3 transport + edge relay (v1.8)           | Available |
+| Diagnostics         | peer/state/locks/comments inspector (v1.10)    | Available |
+| Error catalog       | typed codes + remediation docs (v1.10)         | Available |
+| Network topology    | SVG live peer graph (v1.10)                    | Available |
+| Ephemeral rooms     | no persistence, auto-disconnect TTL (v1.11)    | Available |
+| Audit log           | hash-chained tamper-evident events (v1.11)     | Available |
+| Dart SDK            | `roomful` alpha (v2.0)                         | Available |
+| Flutter SDK         | Provider, cursors, avatars, state (v2.0)       | Available |
 
 CRDT note: `strategy: 'crdt'`, `room.getYDoc()`, and `room.getYProvider()` require installing the `yjs` and `y-protocols` peer dependencies.
 
