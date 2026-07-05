@@ -2,6 +2,7 @@ import type { ReactElement } from 'react';
 
 import type { DemoIdentity } from '../demo-types';
 import { ActivityApp } from './activity-app';
+import { AuditLogApp } from './audit-log-app';
 import { CanvasApp } from './canvas-app';
 import { ChatApp } from './chat-app';
 import { ChecklistApp } from './checklist-app';
@@ -125,6 +126,14 @@ export const MINI_APPS: readonly MiniAppDefinition[] = [
     icon: '◉',
     primitives: 'Diagnostics · Presence · Transport',
     Component: TopologyApp,
+  },
+  {
+    id: 'audit-log',
+    title: 'Audit log',
+    tagline: 'Tamper-evident hash chain — record events, verify integrity.',
+    icon: '🔗',
+    primitives: 'AuditLog',
+    Component: AuditLogApp,
   },
 ];
 
