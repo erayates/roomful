@@ -1,5 +1,12 @@
 # @roomful/next
 
+## 1.1.12
+
+### Patch Changes
+
+- Updated dependencies [290c934]
+  - @roomful/core@1.11.0
+
 ## 1.1.11
 
 ### Patch Changes

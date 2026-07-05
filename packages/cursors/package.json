@@ -1,7 +1,7 @@
 {
   "name": "@roomful/cursors",
   "description": "Prebuilt cursor, presence, and typing UI components for Roomful.",
-  "version": "1.0.12",
+  "version": "1.0.13",
   "private": false,
   "type": "module",
   "main": "dist/index.js",

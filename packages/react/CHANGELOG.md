@@ -1,5 +1,12 @@
 # @roomful/react
 
+## 1.6.2
+
+### Patch Changes
+
+- Updated dependencies [290c934]
+  - @roomful/core@1.11.0
+
 ## 1.6.1
 
 ### Patch Changes
