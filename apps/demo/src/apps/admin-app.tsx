@@ -22,11 +22,19 @@ export function AdminApp(props: MiniAppProps): ReactElement {
       </header>
       <table>
         <thead>
-          <tr><th>Peer</th><th>Joined</th></tr>
+          <tr>
+            <th>Peer</th>
+            <th>Joined</th>
+          </tr>
         </thead>
         <tbody>
           {peers.map((p) => (
-            <tr key={p.id}><td><code>{p.id.slice(0, 8)}</code></td><td>{new Date(p.joinedAt).toLocaleTimeString()}</td></tr>
+            <tr key={p.id}>
+              <td>
+                <code>{p.id.slice(0, 8)}</code>
+              </td>
+              <td>{new Date(p.joinedAt).toLocaleTimeString()}</td>
+            </tr>
           ))}
         </tbody>
       </table>
