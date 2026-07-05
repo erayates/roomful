@@ -17,6 +17,7 @@ describe('mini-app registry', () => {
       'activity',
       'form',
       'topology',
+      'audit-log',
     ]);
   });
 
