@@ -12,6 +12,7 @@ import { MoodApp } from './mood-app';
 import { NotesApp } from './notes-app';
 import { PollApp } from './poll-app';
 import { ReactionsApp } from './reactions-app';
+import { TopologyApp } from './topology-app';
 
 export interface MiniAppProps {
   identity: DemoIdentity;
@@ -116,6 +117,14 @@ export const MINI_APPS: readonly MiniAppDefinition[] = [
     icon: '▤',
     primitives: 'Field presence · Locks · CRDT state',
     Component: FormApp,
+  },
+  {
+    id: 'topology',
+    title: 'Network topology',
+    tagline: 'See the room live — peers orbit you, each edge labeled with measured latency.',
+    icon: '◉',
+    primitives: 'Diagnostics · Presence · Transport',
+    Component: TopologyApp,
   },
 ];
 
