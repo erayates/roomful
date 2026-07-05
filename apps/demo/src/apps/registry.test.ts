@@ -14,6 +14,7 @@ describe('mini-app registry', () => {
       'checklist',
       'poll',
       'comments',
+      'admin',
       'activity',
       'form',
       'topology',

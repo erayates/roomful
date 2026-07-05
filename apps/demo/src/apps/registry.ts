@@ -2,6 +2,7 @@ import type { ReactElement } from 'react';
 
 import type { DemoIdentity } from '../demo-types';
 import { ActivityApp } from './activity-app';
+import { AdminApp } from './admin-app';
 import { AuditLogApp } from './audit-log-app';
 import { CanvasApp } from './canvas-app';
 import { ChatApp } from './chat-app';
@@ -102,6 +103,14 @@ export const MINI_APPS: readonly MiniAppDefinition[] = [
     icon: '❞',
     primitives: 'Comments engine',
     Component: CommentsApp,
+  },
+  {
+    id: 'admin',
+    title: 'Admin dashboard',
+    tagline: 'Peers table + diagnostics snapshot — who is in the room.',
+    icon: '⚙',
+    primitives: 'Peers · Diagnostics',
+    Component: AdminApp,
   },
   {
     id: 'activity',
