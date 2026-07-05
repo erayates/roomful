@@ -4,7 +4,7 @@
 | ---------- | ------------------------------------------------------------------------------------------ |
 | RFC        | 0001                                                                                       |
 | Title      | Roomful Protocol v2 — versioned event envelope & cross-SDK contract                        |
-| Status     | Draft                                                                                      |
+| Status     | Accepted                                                                                   |
 | Target     | v2.0-beta                                                                                  |
 | Epic       | [EP-10 Protocol Governance & Compatibility](../docs/project/v2-v3-backlog.md)              |
 | Issues     | #101 (this RFC); relates to #102 (test vectors), #103 (identifiers), #104 (state channels) |
