@@ -40,7 +40,8 @@ export type TransportSignal =
   | TransportErrorSignal
   | TransportDisconnectedSignal;
 
-export interface ITransport {
+// ponytail: TransportAdapter — every transport wraps these 5 methods
+export interface TransportAdapter {
   readonly kind: TransportKind;
   connect(): Promise<void>;
   disconnect(): Promise<void>;
@@ -48,8 +49,6 @@ export interface ITransport {
   broadcast(signal: TransportSignal): void;
   onMessage(handler: (signal: TransportSignal) => void): Unsubscribe;
 }
-
-export type TransportAdapter = ITransport;
 
 export type TransportProtocolSupport = {
   capabilities: PeerProtocolCapabilities;
