@@ -44,6 +44,7 @@ import {
   type ViewportFrame,
 } from './engines/viewport';
 import { TypedEventEmitter } from './event-emitter';
+import { AuditLog } from './internal/audit-log';
 import {
   DEVTOOLS_BRIDGE_VERSION,
   DEVTOOLS_MAX_EVENT_LOG_ENTRIES,
@@ -88,7 +89,6 @@ import {
   type StateSnapshot,
 } from './internal/state';
 import { readPersistedLwwState, writePersistedLwwState } from './internal/state.persistence';
-import { AuditLog } from './internal/audit-log';
 import { coerceTypedPeer } from './internal/typed-peer';
 import {
   decodeMessagePack,

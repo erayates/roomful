@@ -1,6 +1,7 @@
+import { describe, expect, it } from 'vitest';
+
 import type { AuditEntry } from './audit-log';
 import { AuditLog } from './audit-log';
-import { describe, expect, it } from 'vitest';
 
 describe('AuditLog', () => {
   it('records entries with incrementing indices', () => {

@@ -83,7 +83,8 @@ export class AuditLog {
   /** Verify the entire chain. O(n). */
   public verify(): AuditVerifyResult {
     for (let i = 0; i < this.chain.length; i++) {
-      const entry = this.chain[i]!;
+      const entry = this.chain[i];
+      if (!entry) continue;
       const expectedHash = computeHash(entry);
 
       if (entry.hash !== expectedHash) {
@@ -91,7 +92,8 @@ export class AuditLog {
       }
 
       if (i > 0) {
-        if (entry.prevHash !== this.chain[i - 1]!.hash) {
+        const prev = this.chain[i - 1];
+        if (!prev || entry.prevHash !== prev.hash) {
           return { valid: false, breakIndex: i };
         }
       }
