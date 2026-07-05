@@ -2344,6 +2344,15 @@ export interface ReplaySession {
   stop(): void;
 
   /**
+   * Jumps to a frame index, for a scrubbable timeline. Pauses playback and re-emits every frame
+   * from the start up to (but not including) `index`, so a listener that applies frames rebuilds the
+   * state at that point. `index` is clamped to `[0, frameCount]`.
+   *
+   * @param index - The frame index to scrub to.
+   */
+  seek(index: number): void;
+
+  /**
    * Subscribes to per-frame emissions and play/stop changes. Fires immediately
    * with the current state, then once per frame, then a final `null`-frame
    * event when playback ends.
