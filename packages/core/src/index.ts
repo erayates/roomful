@@ -34,6 +34,7 @@ export {
   createLocalStorageCommentsStorage,
   createMemoryCommentsStorage,
 } from './engines/comments-storage';
+export { parseRoomfulRecording, RECORDING_FORMAT_VERSION } from './engines/recording';
 export type {
   SessionParticipant,
   SessionSummarizerOptions,

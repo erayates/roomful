@@ -34,6 +34,7 @@ When implementation and docs differ, open an issue with:
 - [Activity engine](engines-activity.md)
 - [Agent approvals engine](engines-agent-approvals.md)
 - [Recording engine](engines-recording.md)
+- [The `.roomful` session format](roomful-format.md)
 - [Session summarizer](session-summarizer.md)
 
 ### Adapters

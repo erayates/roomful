@@ -2,7 +2,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { RoomTransportSignal } from '../transports/transport';
 import type { RecordingEngine } from '../types';
-import { createRecordingEngine, RECORDING_FORMAT_VERSION } from './recording';
+import {
+  createRecordingEngine,
+  parseRoomfulRecording,
+  RECORDING_FORMAT_VERSION,
+} from './recording';
 
 function eventSignal(name: string): RoomTransportSignal {
   return {
@@ -189,5 +193,56 @@ describe('createRecordingEngine', () => {
       expect(seen.filter((entry) => entry.hasFrame)).toHaveLength(2); // second frame
       expect(seen.at(-1)).toEqual({ cursor: 2, playing: false, hasFrame: false }); // ended
     });
+  });
+});
+
+describe('parseRoomfulRecording', () => {
+  const goodSignal = eventSignal('hello');
+  const goodRecording = {
+    version: RECORDING_FORMAT_VERSION,
+    roomId: 'room-rec',
+    peerId: 'peer-a',
+    startedAt: 5_000,
+    durationMs: 0,
+    frames: [{ t: 0, direction: 'inbound', signal: goodSignal }],
+  };
+
+  it('parses a valid recording as loaded from a .roomful file', () => {
+    const parsed = parseRoomfulRecording(JSON.parse(JSON.stringify(goodRecording)));
+    expect(parsed).not.toBeNull();
+    expect(parsed?.version).toBe(RECORDING_FORMAT_VERSION);
+    expect(parsed?.roomId).toBe('room-rec');
+    expect(parsed?.frames).toHaveLength(1);
+    expect(parsed?.frames[0]?.direction).toBe('inbound');
+    expect(parsed?.frames[0]?.signal.type).toBe('event');
+  });
+
+  it('rejects a non-object, an unsupported version, and a wrong-typed field', () => {
+    expect(parseRoomfulRecording(null)).toBeNull();
+    expect(parseRoomfulRecording('nope')).toBeNull();
+    expect(parseRoomfulRecording({ ...goodRecording, version: 2 })).toBeNull();
+    expect(parseRoomfulRecording({ ...goodRecording, roomId: 123 })).toBeNull();
+    expect(parseRoomfulRecording({ ...goodRecording, frames: 'nope' })).toBeNull();
+  });
+
+  it('rejects a malformed frame (bad direction, missing t, or an invalid signal)', () => {
+    expect(
+      parseRoomfulRecording({
+        ...goodRecording,
+        frames: [{ t: 0, direction: 'sideways', signal: goodSignal }],
+      }),
+    ).toBeNull();
+    expect(
+      parseRoomfulRecording({
+        ...goodRecording,
+        frames: [{ direction: 'inbound', signal: goodSignal }],
+      }),
+    ).toBeNull();
+    expect(
+      parseRoomfulRecording({
+        ...goodRecording,
+        frames: [{ t: 0, direction: 'inbound', signal: {} }],
+      }),
+    ).toBeNull();
   });
 });
