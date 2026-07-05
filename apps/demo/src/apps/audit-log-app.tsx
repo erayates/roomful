@@ -3,7 +3,8 @@ import { type ReactElement, useCallback, useState } from 'react';
 
 import type { MiniAppProps } from './registry';
 
-export function AuditLogApp(_props: MiniAppProps): ReactElement {
+export function AuditLogApp(props: MiniAppProps): ReactElement {
+  void props.identity;
   const room = useRoom();
   const log = room.useAuditLog();
   const [entries, setEntries] = useState(() => [...log.entries()]);
