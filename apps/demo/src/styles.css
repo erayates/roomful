@@ -1678,3 +1678,88 @@ textarea {
   color: var(--amber);
   font-size: 0.8rem;
 }
+
+/* audit-log app */
+.audit-log-app {
+  padding: 1rem;
+}
+.audit-log-header {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+.audit-log-header button {
+  padding: 0.25rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--fg);
+  cursor: pointer;
+}
+.audit-log-verify-result {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+.audit-log-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+.audit-log-entry {
+  display: flex;
+  gap: 0.75rem;
+  align-items: baseline;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.85rem;
+}
+.audit-log-entry code {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+.audit-log-entry strong {
+  flex: 1;
+}
+.audit-log-entry small {
+  color: var(--muted);
+}
+
+/* admin app */
+.admin-app {
+  padding: 1rem;
+}
+.admin-app header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 0.75rem;
+}
+.admin-app table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+.admin-app th,
+.admin-app td {
+  text-align: left;
+  padding: 0.4rem 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+.admin-app th {
+  color: var(--muted);
+  font-weight: 500;
+}
+.admin-app details {
+  margin-top: 1rem;
+}
+.admin-app pre {
+  background: var(--bg);
+  padding: 0.75rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  max-height: 40vh;
+  overflow: auto;
+}
