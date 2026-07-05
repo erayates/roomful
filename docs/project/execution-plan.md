@@ -33,13 +33,13 @@ This summary aligns implementation planning to 6 sprints and 9 epics. All six sp
 
 Three further milestones shipped after New Primitives I, delivering the original `v2.0-beta` scope early:
 
-| Version | Phase             | Focus                                                                   | Status      |
-| ------- | ----------------- | ----------------------------------------------------------------------- | ----------- |
-| v1.6    | Session Recording | `room.useRecording()` capture / `.roomful` export / replay              | ✅ Released |
-| v1.7    | AI Peer + Replay  | `addAIPeer()` headless peers + `room.applyReplaySignal()` visual replay | ✅ Released |
-| v1.8    | Transports        | `transport: 'webtransport'` (HTTP/3) + Cloudflare edge relay            | ✅ Released |
-| v1.9    | Agent Approvals   | AI peer approvals, session summarizer, .roomful format                  | ✅ Released |
-| v1.10   | Observability     | Diagnostics inspector, error catalog, topology, usage metrics            | ✅ Released |
+| Version | Phase             | Focus                                                                                              | Status      |
+| ------- | ----------------- | -------------------------------------------------------------------------------------------------- | ----------- |
+| v1.6    | Session Recording | `room.useRecording()` capture / `.roomful` export / replay                                         | ✅ Released |
+| v1.7    | AI Peer + Replay  | `addAIPeer()` headless peers + `room.applyReplaySignal()` visual replay                            | ✅ Released |
+| v1.8    | Transports        | `transport: 'webtransport'` (HTTP/3) + Cloudflare edge relay                                       | ✅ Released |
+| v1.9    | Agent Approvals   | AI peer approvals, session summarizer, .roomful format                                             | ✅ Released |
+| v1.10   | Observability     | Diagnostics inspector, error catalog, topology, usage metrics                                      | ✅ Released |
 | v2.0.0  | Protocol v2 Era   | RFC-0001 accepted, ephemeral rooms, audit log, idempotency, Dart/Flutter SDKs, CRDT bridge, ZK RFC | ✅ Released |
 
 ## Next: v2 → v3 Long Transition
