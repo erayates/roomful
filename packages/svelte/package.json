@@ -1,7 +1,7 @@
 {
   "name": "@roomful/svelte",
   "description": "Svelte stores and actions for Roomful — realtime presence, cursors, shared state, viewport, locking, pointer, comments, and history.",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "private": false,
   "type": "module",
   "main": "dist/index.js",

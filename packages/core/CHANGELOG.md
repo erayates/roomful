@@ -1,5 +1,14 @@
 # @roomful/core
 
+## 1.9.0
+
+### Minor Changes
+
+- dbb633e: Add privacy controls to session recording. `room.useRecording(options?)` now accepts a `redact` hook that runs on every captured frame before it is stored — return the frame (with its cloned `signal` masked in place) to keep it, or `null` to drop it entirely, so sensitive data never enters the recording. Exports the new `RecordingOptions` type.
+- 5138c44: Add a recording retention cap. `room.useRecording({ maxFrames })` keeps only the most recent `maxFrames` frames, dropping the oldest first, so a long-running capture holds a bounded sliding window instead of growing without limit. Pairs with the `redact` hook as a data-retention policy: `redact` controls what is recorded, `maxFrames` controls how much is kept.
+- bd210b1: Add `ReplaySession.seek(index)` for a scrubbable replay timeline. It pauses playback and re-emits every frame from the start up to `index`, so a listener that applies frames (e.g. `applyReplaySignal`) rebuilds the state at that point — enabling time-travel scrubbing of a recorded session. `index` is clamped to `[0, frameCount]`.
+- a5fdc0e: Formalize the `.roomful` session format. New `parseRoomfulRecording(value)` validates a value loaded from a `.roomful` file into a `RoomfulRecording` — checking the version, the envelope fields, and every frame's signal (through the same transport-signal parser the live wire path uses) — or returns `null` for a malformed or unsupported-version file, so a bad file can never reach `replay()`. Exports `parseRoomfulRecording` and `RECORDING_FORMAT_VERSION`. The format is documented in `docs/reference/roomful-format.md` (schema, versioning, compression guidance).
+
 ## 1.8.0
 
 ### Minor Changes

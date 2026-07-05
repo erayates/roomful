@@ -1,7 +1,7 @@
 {
   "name": "@roomful/angular",
   "description": "Angular signal injectables for Roomful — realtime presence, cursors, shared state, viewport, locking, pointer, comments, and history.",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "private": false,
   "type": "module",
   "main": "dist/index.js",
