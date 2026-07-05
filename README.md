@@ -10,7 +10,7 @@ Roomful is an open-source, framework-agnostic SDK designed to help frontend team
 
 ## Project Status
 
-> **Stable — v1.5.** Roomful is feature-complete and tested across 10 public packages. Install with `npm install @roomful/core` and please [open an issue](https://github.com/erayates/roomful/issues) with any feedback.
+> **Stable — v2.0.0.** Roomful is feature-complete and tested across 10 public packages. Install with `npm install @roomful/core` and please [open an issue](https://github.com/erayates/roomful/issues) with any feedback.
 
 All major features are implemented and tested across 10 public packages.
 
@@ -34,27 +34,37 @@ Building collaboration features usually requires you to stitch together transpor
 
 ## Feature Overview
 
-| Area                | Description                                   | Status    |
-| ------------------- | --------------------------------------------- | --------- |
-| Core room lifecycle | `createRoom`, connect/disconnect, peer events | Available |
-| Presence engine     | peer metadata, subscriptions, updates         | Available |
-| Cursor engine       | pointer sync, rendering helpers               | Available |
-| Shared state engine | `lww`, `crdt`, `custom` merge strategies      | Available |
-| Awareness engine    | transient focus/typing/selection state        | Available |
-| Event engine        | ephemeral room and peer-targeted events       | Available |
-| Viewport sync       | scroll/zoom follow and present mode (v1.5)    | Available |
-| Locking engine      | distributed advisory locks (v1.5)             | Available |
-| Pointer engine      | laser-pointer beams + overlay (v1.5)          | Available |
-| Comments engine     | anchored collaborative threads (v1.5)         | Available |
-| History engine      | per-peer undo/redo + shared timeline (v1.5)   | Available |
-| React adapter       | provider + hooks API                          | Available |
-| Vue adapter         | plugin + composables                          | Available |
-| Svelte adapter      | stores + actions                              | Available |
-| Solid adapter       | provider + signal-based hooks                 | Available |
-| Angular adapter     | `provideRoomful` + signal injectables         | Available |
-| Next.js auth tokens | server-side relay JWTs (`@roomful/next`)      | Available |
-| Relay server        | optional WebSocket relay for scale            | Available |
-| Prebuilt UI kit     | cursors/presence/typing components            | Available |
+| Area                | Description                                              | Status    |
+| ------------------- | -------------------------------------------------------- | --------- |
+| Core room lifecycle | `createRoom`, connect/disconnect, peer events            | Available |
+| Presence engine     | peer metadata, subscriptions, updates                    | Available |
+| Cursor engine       | pointer sync, rendering helpers                          | Available |
+| Shared state engine | `lww`, `crdt`, `custom` merge strategies                 | Available |
+| Awareness engine    | transient focus/typing/selection state                   | Available |
+| Event engine        | ephemeral room and peer-targeted events                  | Available |
+| Viewport sync       | scroll/zoom follow and present mode (v1.5)               | Available |
+| Locking engine      | distributed advisory locks (v1.5)                        | Available |
+| Pointer engine      | laser-pointer beams + overlay (v1.5)                     | Available |
+| Comments engine     | anchored collaborative threads (v1.5)                    | Available |
+| History engine      | per-peer undo/redo + shared timeline (v1.5)              | Available |
+| React adapter       | provider + hooks API                                     | Available |
+| Vue adapter         | plugin + composables                                     | Available |
+| Svelte adapter      | stores + actions                                         | Available |
+| Solid adapter       | provider + signal-based hooks                            | Available |
+| Angular adapter     | `provideRoomful` + signal injectables                    | Available |
+| Next.js auth tokens | server-side relay JWTs (`@roomful/next`)                 | Available |
+| Relay server        | optional WebSocket relay for scale                       | Available |
+| Prebuilt UI kit     | cursors/presence/typing components                       | Available |
+| AI peers            | agent identity, action stream, approvals (v1.7)          | Available |
+| Session recording   | capture, .roomful export, time-travel replay (v1.6-v1.8) | Available |
+| WebTransport        | HTTP/3 transport + edge relay (v1.8)                     | Available |
+| Diagnostics         | peer/state/locks/comments inspector (v1.10)              | Available |
+| Error catalog       | typed codes + remediation docs (v1.10)                   | Available |
+| Network topology    | SVG live peer graph (v1.10)                              | Available |
+| Ephemeral rooms     | no persistence, auto-disconnect TTL (v1.11)              | Available |
+| Audit log           | hash-chained tamper-evident events (v1.11)               | Available |
+| Dart SDK            | `roomful` alpha (v2.0)                                   | Available |
+| Flutter SDK         | Provider, cursors, avatars, state (v2.0)                 | Available |
 
 CRDT note: `strategy: 'crdt'`, `room.getYDoc()`, and `room.getYProvider()` require installing the `yjs` and `y-protocols` peer dependencies.
 

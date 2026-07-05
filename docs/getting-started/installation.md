@@ -56,7 +56,7 @@ npm install -g @roomful/relay
 
 ## Versioning Note
 
-The project is at stable `v1.0`. Verify package versions and release notes before adopting APIs in production.
+The project is at stable `v2.0.0`. Verify package versions and release notes before adopting APIs in production.
 
 ## Related Docs
 
