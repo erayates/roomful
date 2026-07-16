@@ -3,11 +3,11 @@
 Flutter widgets and controllers for **Roomful** — presence, live cursors, comments, locks, and
 shared state over a self-hostable relay — built on the pure-Dart [`roomful`](../roomful) core.
 
-> **Status: `v2.2-beta` scaffold (EP-12).** This provides the room lifecycle for Flutter:
+> **Status: `v2.2-beta` scaffold (EP-12).** Feature-complete — provides the room lifecycle for Flutter:
 > `RoomfulProvider` (connect/disconnect + injection into the widget tree), `RoomController` (a
-> `ChangeNotifier` wrapping the client and its presence/cursors/events engines), and `RoomfulBuilder`
-> (rebuilds on room changes). The higher-level widgets — `PresenceAvatars`, `LiveCursorsOverlay`, a
-> shared-state widget layer — land next. Not yet published to pub.dev.
+> `ChangeNotifier` wrapping the client and its presence/cursors/events engines), `RoomfulBuilder`
+> (rebuilds on room changes), `PresenceAvatars`, `LiveCursorsOverlay`, `RoomfulSharedStateBuilder`.
+> Depends on `roomful` by local path while that package awaits pub.dev publication.
 
 ## Usage
 
