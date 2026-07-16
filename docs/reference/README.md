@@ -2,13 +2,13 @@
 
 Audience: users.
 
-This section documents the **API contract** for the stable `v1.0` release.
+This section documents the **API contract** for the current Roomful JavaScript SDK.
 
 ## Contract Scope
 
 - Package namespace: `@roomful/*`
 - Source of truth for documented signatures: this `reference/` section
-- Stability: stable as of `v1.0`
+- Stability: stable for the published JavaScript SDK packages
 
 When implementation and docs differ, open an issue with:
 
@@ -49,6 +49,7 @@ When implementation and docs differ, open an issue with:
 ### Additional reference
 
 - [Advanced features](advanced.md)
+- [Security model](security.md)
 - [Cross-platform interop](interop.md)
 - [Persistent comments storage](comments-storage.md)
 - [Next.js auth tokens](auth-nextjs.md)

@@ -12,7 +12,7 @@ Do not publish announcements until all release gates are verified:
 - [ ] Release tag has been pushed from the intended commit.
 - [ ] GitHub Actions release workflow succeeded.
 - [ ] Every public `@roomful/*` package is visible on npm.
-- [ ] `docker pull roomful/relay:<version>` works.
+- [ ] `docker pull erayatesdev/roomful:<version>` works, where `<version>` is the release tag without the leading `v`.
 - [ ] GitHub Release exists for the tag and includes generated notes.
 - [ ] Documentation site loads at `https://docs.roomful.dev`.
 - [ ] Demo app loads at `https://demo.roomful.dev`.

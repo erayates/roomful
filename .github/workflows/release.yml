@@ -181,6 +181,7 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - release
+      - docker
     permissions:
       contents: write
     steps:
@@ -189,3 +190,22 @@ jobs:
         with:
           generate_release_notes: true
           prerelease: ${{ contains(github.ref_name, '-') }}
+
+  public-verify:
+    name: Verify Public Release
+    runs-on: ubuntu-latest
+    needs:
+      - release
+      - docker
+      - github-release
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Verify public release surfaces
+        run: node scripts/release/verify-public-release.mjs --tag "${GITHUB_REF_NAME}"

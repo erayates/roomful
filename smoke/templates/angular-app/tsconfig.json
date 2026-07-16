@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "baseUrl": ".",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "paths": {
+      "@roomful/angular": [
+        "../../../packages/angular/dist/index.d.ts",
+        "./node_modules/@roomful/angular/dist/index.d.ts"
+      ],
+      "@roomful/core": [
+        "../../../packages/core/dist/index.d.ts",
+        "./node_modules/@roomful/core/dist/index.d.ts"
+      ]
+    },
+    "strict": true,
+    "skipLibCheck": true,
+    "types": ["vite/client"]
+  },
+  "include": ["src"]
+}

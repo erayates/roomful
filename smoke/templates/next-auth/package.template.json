@@ -1,0 +1,16 @@
+{
+  "name": "roomful-smoke-next-auth",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "validate": "tsc --noEmit && vite build"
+  },
+  "dependencies": {
+    "@roomful/core": "workspace:*",
+    "@roomful/next": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.2",
+    "vite": "^7.3.1"
+  }
+}

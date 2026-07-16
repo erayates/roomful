@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "preserve",
+    "jsxImportSource": "solid-js",
+    "baseUrl": ".",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "paths": {
+      "@roomful/core": [
+        "../../../packages/core/dist/index.d.ts",
+        "./node_modules/@roomful/core/dist/index.d.ts"
+      ],
+      "@roomful/solid": [
+        "../../../packages/solid/dist/index.d.ts",
+        "./node_modules/@roomful/solid/dist/index.d.ts"
+      ]
+    },
+    "strict": true,
+    "skipLibCheck": true,
+    "types": ["vite/client"]
+  },
+  "include": ["src"]
+}

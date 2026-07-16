@@ -10,15 +10,15 @@ Roomful is an open-source, framework-agnostic SDK designed to help frontend team
 
 ## Project Status
 
-> **Stable — v2.0.0.** Roomful is feature-complete and tested across 10 public packages. Install with `npm install @roomful/core` and please [open an issue](https://github.com/erayates/roomful/issues) with any feedback.
+> **Stable JS SDK — v2.0.0 core.** Roomful's npm package set is implemented, locally verified across 10 public packages, and publicly verified across npm, GitHub Release, Docker Hub, docs, and demo surfaces.
 
-All major features are implemented and tested across 10 public packages.
+All major JavaScript/TypeScript features are implemented and tested across 10 public npm packages.
 
 - API contracts are stable and implemented.
 - All framework adapters (React, Vue, Svelte, Solid, Angular) provide full presence, cursors, state, awareness, events, and the v1.5 collaboration primitives (viewport sync, locking, pointer, comments, history) APIs.
 - `@roomful/next` mints relay-compatible auth tokens server-side for Next.js apps.
 - The relay server supports WebSocket, polling, JWT auth, and Redis coordination.
-- Release automation validates packages, consumer smoke apps, relay Docker images, and generated GitHub Releases before promotion.
+- Release automation validates all public package tarballs and packed-consumer smoke apps before npm publishing. Public release verification checks npm, GitHub Release, Docker Hub, docs, and demo surfaces after publishing.
 
 ## Why Roomful
 
@@ -63,8 +63,8 @@ Building collaboration features usually requires you to stitch together transpor
 | Network topology    | SVG live peer graph (v1.10)                              | Available |
 | Ephemeral rooms     | no persistence, auto-disconnect TTL (v1.11)              | Available |
 | Audit log           | hash-chained tamper-evident events (v1.11)               | Available |
-| Dart SDK            | `roomful` alpha (v2.0)                                   | Available |
-| Flutter SDK         | Provider, cursors, avatars, state (v2.0)                 | Available |
+| Dart SDK            | `roomful` alpha (source-present, pub.dev pending)        | Alpha     |
+| Flutter SDK         | Provider, cursors, avatars, state (pub.dev pending)      | Alpha     |
 
 CRDT note: `strategy: 'crdt'`, `room.getYDoc()`, and `room.getYProvider()` require installing the `yjs` and `y-protocols` peer dependencies.
 
@@ -141,7 +141,7 @@ Relay runtime environment variables:
 | `MAX_CONNECTIONS`   | unset       | Optional concurrent WebSocket connection cap                             |
 | `ROOMFUL_REDIS_URL` | unset       | Optional Redis URL used to coordinate multiple relay instances           |
 
-Docker image — `erayatesdev/roomful` (`:latest` tracks the newest release; pin a version with `:1.0.0`):
+Docker image — `erayatesdev/roomful` (`:latest` tracks the newest release; pin a published release tag when available):
 
 ```bash
 docker pull erayatesdev/roomful:latest
@@ -207,7 +207,7 @@ Testing is package-scoped for this sprint:
 CI/CD baseline for EP-01 `#005`:
 
 - PR validation runs on every PR to `main`.
-- Validation runs on Node `18` and `20`.
+- Validation runs on Node `20`.
 - Pipeline order: install -> lint -> typecheck -> test -> build.
 - Release workflow triggers on `v*` tags, publishes `@roomful/*` via Changesets, and publishes the relay image (`erayatesdev/roomful`) to Docker Hub.
 - Release workflow creates a GitHub Release after npm and Docker publishing succeed.

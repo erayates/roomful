@@ -2,12 +2,15 @@
 
 Audience: users.
 
-Roomful's JavaScript SDK (`@roomful/core` and the framework adapters) and its Dart/Flutter SDK
-(`roomful`, `roomful_flutter`) speak **one wire protocol** ([RFC-0001](../../rfcs/0001-protocol-v2.md)).
+Roomful's JavaScript SDK (`@roomful/core` and the framework adapters) and source-alpha Dart/Flutter
+SDKs (`roomful`, `roomful_flutter`) speak **one wire protocol** ([RFC-0001](../../rfcs/0001-protocol-v2.md)).
 A React web client and a Flutter mobile client can therefore share the **same room** — presence,
 cursors, shared state, and events flow between them. The shared contract is proven by the
 cross-SDK vectors in [`protocol-fixtures/`](../../protocol-fixtures), which both SDKs decode
 identically.
+
+The Dart/Flutter packages are currently used from this repository source tree. pub.dev publication is
+pending, and `roomful_flutter` still depends on `roomful` by local path.
 
 This page covers what interop requires and the payload shapes every client must agree on.
 

@@ -1,0 +1,20 @@
+{
+  "name": "roomful-smoke-solid-app",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "validate": "tsc --noEmit && vite build"
+  },
+  "dependencies": {
+    "@roomful/core": "workspace:*",
+    "@roomful/solid": "workspace:*",
+    "solid-js": "^1.8.0",
+    "y-protocols": "^1.0.7",
+    "yjs": "^13.6.29"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.2",
+    "vite": "^7.3.1",
+    "vite-plugin-solid": "^2.11.12"
+  }
+}

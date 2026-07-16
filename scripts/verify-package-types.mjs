@@ -1,17 +1,9 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import path from 'node:path';
 
 const workspaceRoot = process.cwd();
-const publicPackages = [
-  'packages/core',
-  'packages/react',
-  'packages/vue',
-  'packages/svelte',
-  'packages/cursors',
-  'packages/devtools',
-  'packages/relay',
-];
+const publicPackages = discoverPublicPackages();
 
 const disallowedPackPatterns = [
   /^\.turbo\//,
@@ -29,6 +21,32 @@ const disallowedPackPatterns = [
 
 for (const packageDir of publicPackages) {
   verifyPackageTypes(packageDir);
+}
+
+function discoverPublicPackages() {
+  const packagesRoot = path.join(workspaceRoot, 'packages');
+  return readdirSync(packagesRoot, { withFileTypes: true })
+    .filter((entry) => {
+      return entry.isDirectory();
+    })
+    .map((entry) => {
+      const packageDir = path.join(packagesRoot, entry.name);
+      const packageJsonPath = path.join(packageDir, 'package.json');
+      if (!existsSync(packageJsonPath)) {
+        return null;
+      }
+
+      const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf8'));
+      if (packageJson.private === true) {
+        return null;
+      }
+
+      return path.relative(workspaceRoot, packageDir).split(path.sep).join('/');
+    })
+    .filter((packageDir) => {
+      return packageDir !== null;
+    })
+    .sort();
 }
 
 function verifyPackageTypes(packageDir) {

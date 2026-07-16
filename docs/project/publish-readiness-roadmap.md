@@ -13,14 +13,15 @@ The repository already has strong source-level validation:
 - lint, typecheck, unit tests, and package builds
 - browser integration tests for core, React, demo, and docs
 - type declaration verification
+- package tarball verification for all public packages
+- packed-consumer smoke tests for core, React, Vue, Svelte, Solid, Angular, Next auth, cursors, and devtools
 - relay-specific distribution smoke coverage
 
 The remaining publish-readiness gaps are different from source correctness:
 
-- package tarballs must only contain publishable files
-- consumer apps must install packed tarballs instead of workspace symlinks
-- peer dependency requirements must be validated from a clean consumer install
-- framework adapters must prove they bundle correctly outside the monorepo
+- public GitHub Release and immutable Docker Hub tag checks must pass for the release tag
+- peer dependency install guidance must stay current when adapters or CRDT support changes
+- release candidates still need public URL verification for docs, demo, and registry surfaces
 
 ## Exit Criteria
 
@@ -31,6 +32,7 @@ Release readiness is complete only when all of the following are true:
 - no tarball contains source, test, coverage, or turbo artifacts
 - smoke consumers install packed tarballs successfully
 - smoke consumers pass their validate command from a clean install
+- smoke coverage exists for every public package family, not only the original web packages
 - CI runs the publish smoke workflow on every pull request
 - release workflow runs the publish smoke workflow before `pnpm release`
 
@@ -52,6 +54,9 @@ Release readiness is complete only when all of the following are true:
   - `react-app`
   - `vue-app`
   - `svelte-app`
+  - `solid-app`
+  - `angular-app`
+  - `next-auth`
   - `cursors-react`
   - `devtools-import`
 
@@ -100,20 +105,23 @@ pnpm smoke:publish -- core-vanilla react-app
 - [ ] confirm relay tarball, CLI, and Docker smoke checks are passing in CI
 - [ ] confirm peer dependency install guidance is current for CRDT and framework adapters
 - [ ] confirm GitHub Release notes are generated after npm and Docker publishing succeed
-- [ ] verify public npm, GitHub Release, Docker, docs, and demo surfaces with `pnpm release:verify-public -- --tag v<release>`
+- [ ] verify public npm, GitHub Release, Docker release tag, docs, and demo surfaces with `pnpm release:verify-public -- --tag v<release>`
 - [ ] record npm download baseline with `pnpm release:downloads-baseline`
 
 ## Package Smoke Matrix
 
-| Package             | Consumer target   | Primary proof                                   |
-| ------------------- | ----------------- | ----------------------------------------------- |
-| `@roomful/core`     | `core-vanilla`    | Vite build + typecheck against packed tarball   |
-| `@roomful/react`    | `react-app`       | React consumer build against packed tarballs    |
-| `@roomful/vue`      | `vue-app`         | Vue consumer build against packed tarballs      |
-| `@roomful/svelte`   | `svelte-app`      | Svelte consumer build against packed tarballs   |
-| `@roomful/cursors`  | `cursors-react`   | React UI consumer build against packed tarballs |
-| `@roomful/devtools` | `devtools-import` | Typecheck + runtime import smoke                |
-| `@roomful/relay`    | CI relay job      | Tarball install, CLI health check, Docker smoke |
+| Package             | Consumer target              | Primary proof                                              |
+| ------------------- | ---------------------------- | ---------------------------------------------------------- |
+| `@roomful/core`     | `core-vanilla`               | Vite build + typecheck against packed tarball              |
+| `@roomful/react`    | `react-app`                  | React consumer build against packed tarballs               |
+| `@roomful/vue`      | `vue-app`                    | Vue consumer build against packed tarballs                 |
+| `@roomful/svelte`   | `svelte-app`                 | Svelte consumer build against packed tarballs              |
+| `@roomful/solid`    | `solid-app`                  | Solid consumer build against packed tarballs               |
+| `@roomful/angular`  | `angular-app`                | Angular consumer build against packed tarballs             |
+| `@roomful/next`     | `next-auth`                  | Token helper consumer build against tarballs               |
+| `@roomful/cursors`  | `cursors-react`              | React UI consumer build against packed tarballs            |
+| `@roomful/devtools` | `devtools-import`            | Typecheck + runtime import smoke                           |
+| `@roomful/relay`    | package smoke + CI relay job | Packed tarball entrypoints, CLI health check, Docker smoke |
 
 ## Manual Signoff Items
 
@@ -123,7 +131,7 @@ These are still worth checking on release candidates even after automation passe
 - verify changelog and install docs match the actual dependency model
 - verify release tags and npm dist-tags target the intended version
 - verify the GitHub Release exists for the release tag
-- verify relay image and CLI version output match the package version
+- verify relay image tag matches the release tag without the leading `v`, and CLI version output matches the relay package version
 - verify docs and demo public URLs load after deployment
 - record launch links and npm download baseline using [Launch Kit](launch-kit.md)
 
