@@ -18,53 +18,55 @@ with team capacity. Each sprint's goal is a **release gate**, not a feature list
 
 ## Epic Map
 
-| Epic  | Name                                | Purpose                                                                                         | Target     |
-| ----- | ----------------------------------- | ----------------------------------------------------------------------------------------------- | ---------- |
-| EP-10 | Protocol Governance & Compatibility | Versioned event envelope, protocol docs, SDK-independent contracts, migration policy            | v2.0-beta  |
-| EP-11 | Dart Core SDK                       | Pure Dart client: room lifecycle, presence, events, shared state, reconnect, package publishing | v2.1-alpha |
-| EP-12 | Flutter SDK & UI Layer              | Provider, builders/controllers, cursor overlay, avatars, locks/comments UI foundations          | v2.2-beta  |
-| EP-13 | Relay Hardening & Self-host Trust   | Docker, Redis, JWT, rate limits, deployment docs, config templates                              | v2.3       |
-| EP-14 | Cross-platform Interop Demos        | React + Flutter + relay same-room demos; web/mobile parity tests                                | v2.2–v2.3  |
-| EP-15 | Durable Collaboration Primitives    | Comments persistence, anchors, locks, activity stream, durable room metadata                    | v2.4       |
-| EP-16 | Vertical Component Packs            | Admin, form, canvas, CRM/support, education starter components                                  | v2.4       |
-| EP-17 | AI Peer & Agent Collaboration       | AI peer identity, agent cursor, action stream, approvals, `aiResolver` contract                 | v2.5       |
-| EP-18 | Session Recording & Replay          | Event capture, replay timeline, `.roomful` export format, privacy controls                      | v2.5–v2.6  |
-| EP-19 | Observability & DevTools            | Room Inspector, network topology, latency/reconnect metrics, debug overlay                      | v2.6       |
-| EP-20 | Security, Privacy & Audit           | Audit log, tamper-evident events, ZK/ephemeral room design, retention policies                  | v2.6–v2.8  |
-| EP-21 | Offline / Local-first Collaboration | Offline queue, reconnect recovery, merge strategies, CRDT bridge review                         | v2.7       |
-| EP-22 | CLI, Templates & Plugin System      | `roomful` CLI, starter apps, plugin runtime, `create-roomful-app` workflows                     | v2.3–v2.8  |
-| EP-23 | Cloud / Open-Core Commercial Layer  | Hosted relay, dashboard, orgs/projects, usage metrics, quotas, billing events                   | v2.8       |
-| EP-24 | RoomfulScript & v3 Stable Protocol  | YAML/JSON collaboration-as-code, schema validation, migration tooling                           | v3.0-rc    |
-| EP-25 | DX, Docs, Community & Adoption      | Docs, examples, comparison pages, demo videos, contributor flows, public roadmap                | All v2.x   |
+| Epic  | Name                                | Status             | Purpose                                                                                         | Target     |
+| ----- | ----------------------------------- | ------------------ | ----------------------------------------------------------------------------------------------- | ---------- |
+| EP-10 | Protocol Governance & Compatibility | ✅ Public Verified | Versioned event envelope, protocol docs, SDK-independent contracts, migration policy            | v2.0-beta  |
+| EP-11 | Dart Core SDK                       | ✅ Source alpha    | Pure Dart client: room lifecycle, presence, events, shared state, reconnect, package publishing | v2.1-alpha |
+| EP-12 | Flutter SDK & UI Layer              | ✅ Source alpha    | Provider, builders/controllers, cursor overlay, avatars, locks/comments UI foundations          | v2.2-beta  |
+| EP-13 | Relay Hardening & Self-host Trust   | ✅ Released        | Docker, Redis, JWT, rate limits, deployment docs, config templates                              | v2.3       |
+| EP-14 | Cross-platform Interop Demos        | ✅ Released        | React + Flutter + relay same-room demos; web/mobile parity tests                                | v2.2–v2.3  |
+| EP-15 | Durable Collaboration Primitives    | ✅ Released        | Comments persistence, anchors, locks, activity stream, durable room metadata                    | v2.4       |
+| EP-16 | Vertical Component Packs            | ✅ Released        | Admin, form, canvas, CRM/support, education starter components                                  | v2.4       |
+| EP-17 | AI Peer & Agent Collaboration       | ✅ Released        | AI peer identity, agent cursor, action stream, approvals, `aiResolver` contract                 | v2.5       |
+| EP-18 | Session Recording & Replay          | ✅ Released        | Event capture, replay timeline, `.roomful` export format, privacy controls                      | v2.5–v2.6  |
+| EP-19 | Observability & DevTools            | ✅ Released        | Room Inspector, network topology, latency/reconnect metrics, debug overlay                      | v2.6       |
+| EP-20 | Security, Privacy & Audit           | ✅ Released        | Audit log, tamper-evident events, ZK/ephemeral room design, retention policies                  | v2.6–v2.8  |
+| EP-21 | Offline / Local-first Collaboration | ✅ Released        | Offline queue, reconnect recovery, merge strategies, CRDT bridge review                         | v2.7       |
+| EP-22 | CLI, Templates & Plugin System      | ✅ Released        | `roomful` CLI, starter apps, plugin runtime, `create-roomful-app` workflows                     | v2.3–v2.8  |
+| EP-23 | Cloud / Open-Core Commercial Layer  | `Planned`          | Hosted relay, dashboard, orgs/projects, usage metrics, quotas, billing events                   | v2.8       |
+| EP-24 | RoomfulScript & v3 Stable Protocol  | `Planned`          | YAML/JSON collaboration-as-code, schema validation, migration tooling                           | v3.0-rc    |
+| EP-25 | DX, Docs, Community & Adoption      | ✅ Released        | Docs, examples, comparison pages, demo videos, contributor flows, public roadmap                | All v2.x   |
 
 ## 24-Sprint Plan (S01–S24 / ~48 weeks)
 
-| Sprint | Version    | Focus                         | Epics               | Main deliverables                                                           | Exit criteria                                              |
-| ------ | ---------- | ----------------------------- | ------------------- | --------------------------------------------------------------------------- | ---------------------------------------------------------- |
-| S01    | v2.0-beta  | Roadmap reset + protocol RFC  | EP-10, EP-25        | Roadmap PR, protocol v2 RFC, issue labels, project board                    | Roadmap merged; backlog accepted                           |
-| S02    | v2.0-beta  | Protocol envelope + schema    | EP-10               | Event envelope, versioning, room/peer identifiers, typed payload schemas    | JS SDK consumes protocol v2 alpha without breaking v1      |
-| S03    | v2.0-beta  | Relay compatibility + replay  | EP-10, EP-13, EP-18 | Relay message normalization, replay buffer skeleton, protocol test vectors  | Interop tests pass with existing adapters                  |
-| S04    | v2.1-alpha | Dart package foundation       | EP-11               | `roomful` scaffold, models, transport abstraction, CI                       | Package builds and publishes alpha internally              |
-| S05    | v2.1-alpha | Dart room lifecycle           | EP-11               | RoomfulClient, connect/disconnect, heartbeat, reconnect, peer registry      | Dart client joins relay room and sees JS peers             |
-| S06    | v2.1-alpha | Dart primitives alpha         | EP-11               | Presence, events, shared state (LWW), locks client, docs alpha              | Console demo covers presence/events/state/locks            |
-| S07    | v2.2-beta  | Flutter SDK foundation        | EP-12               | `roomful_flutter`, RoomfulProvider, controllers, lifecycle integration      | Flutter app connects to relay and manages user identity    |
-| S08    | v2.2-beta  | Flutter presence + cursors    | EP-12, EP-14        | PresenceBuilder, PresenceAvatars, LiveCursorsOverlay, pointer smoothing     | Flutter Web/iOS/Android cursor demo works                  |
-| S09    | v2.2-beta  | Flutter shared state + locks  | EP-12, EP-14        | SharedStateController, Locks API, example collaborative form                | pub.dev beta release with example app                      |
-| S10    | v2.3       | Self-host quickstart          | EP-13, EP-22        | Docker compose, Redis profile, `.env` templates, relay CLI docs             | Clean-machine quickstart under 15 min                      |
-| S11    | v2.3       | Auth + mobile reliability     | EP-13, EP-14        | JWT guide, Firebase/Supabase auth examples, mobile reconnect tests          | Network switch and app-background tests pass               |
-| S12    | v2.3       | Cross-platform showcase       | EP-14, EP-25        | React web + Flutter mobile same-room demo, landing/demo page update         | A 60-second demo clearly shows cross-platform value        |
-| S13    | v2.4       | Durable comments              | EP-15               | Persistent threads, anchors, resolvable comments, storage adapter interface | Comments survive reconnect and reload                      |
-| S14    | v2.4       | Field presence + record locks | EP-15, EP-16        | FieldPresence, RecordLock, lock conflict UX, activity stream alpha          | Admin/form demo supports collaborative editing safely      |
-| S15    | v2.4       | Vertical starter kits         | EP-16, EP-25        | Dashboard, form builder, canvas, support/CRM starters                       | At least 3 vertical demos documented                       |
-| S16    | v2.5       | AI peer model                 | EP-17               | AI peer identity, permissions, agent presence, agent cursor                 | AI peer is visible and distinguishable from a human peer   |
-| S17    | v2.5       | Agent actions + approvals     | EP-17, EP-18, EP-20 | Action stream, proposed edits, approve/reject flow, audit hooks             | AI actions are inspectable before durable commit           |
-| S18    | v2.5       | Recording alpha               | EP-18               | Session capture, time-travel replay UI, `.roomful` export draft             | Replay works for presence/cursor/state/comments subset     |
-| S19    | v2.6       | Room Inspector                | EP-19               | DevTools panel, event timeline, peer list, state inspector                  | Developers can debug a room without console spelunking     |
-| S20    | v2.6       | Audit + topology + trust docs | EP-19, EP-20, EP-21 | Audit log, network topology visualizer, security architecture docs          | Production-review docs are credible                        |
-| S21    | v2.7       | Offline queue                 | EP-21               | Local event queue, reconnect flush, idempotency keys, failure states        | Offline operations flush deterministically after reconnect |
-| S22    | v2.7       | Merge + CRDT bridge review    | EP-21               | Conflict UI, CRDT adapter strategy, Yjs/`y_crdt` feasibility notes          | Clear stable-vs-experimental offline contract              |
-| S23    | v2.8       | Cloud / open-core beta        | EP-23, EP-20, EP-25 | Hosted relay beta, dashboard, org/project model, quotas, usage events       | Cloud beta usable by invited test users                    |
-| S24    | v3.0-rc    | RoomfulScript + migration     | EP-24, EP-25        | RoomfulScript schema, config compiler, migration guide, v3 RC checklist     | v3 RC freezes the protocol and migration path              |
+> **Status key:** ✅ Released — `Planned` — not started.
+
+| Sprint | Version    | Focus                         | Status            | Epics               | Main deliverables                                                           | Exit criteria                                              |
+| ------ | ---------- | ----------------------------- | ----------------- | ------------------- | --------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| S01    | v2.0-beta  | Roadmap reset + protocol RFC  | ✅ Released       | EP-10, EP-25        | Roadmap PR, protocol v2 RFC, issue labels, project board                    | Roadmap merged; backlog accepted                           |
+| S02    | v2.0-beta  | Protocol envelope + schema    | ✅ Released       | EP-10               | Event envelope, versioning, room/peer identifiers, typed payload schemas    | JS SDK consumes protocol v2 alpha without breaking v1      |
+| S03    | v2.0-beta  | Relay compatibility + replay  | ✅ Released       | EP-10, EP-13, EP-18 | Relay message normalization, replay buffer skeleton, protocol test vectors  | Interop tests pass with existing adapters                  |
+| S04    | v2.1-alpha | Dart package foundation       | ✅ Source alpha   | EP-11               | `roomful` scaffold, models, transport abstraction, CI                       | Package builds and publishes alpha internally              |
+| S05    | v2.1-alpha | Dart room lifecycle           | ✅ Source alpha   | EP-11               | RoomfulClient, connect/disconnect, heartbeat, reconnect, peer registry      | Dart client joins relay room and sees JS peers             |
+| S06    | v2.1-alpha | Dart primitives alpha         | ✅ Source alpha   | EP-11               | Presence, events, shared state (LWW), locks, cursors, msgpack codec         | Console demo covers presence/events/state/locks/cursors    |
+| S07    | v2.2-beta  | Flutter SDK foundation        | ✅ Source alpha   | EP-12               | `roomful_flutter`, RoomfulProvider, controllers, lifecycle integration      | Flutter app connects to relay and manages user identity    |
+| S08    | v2.2-beta  | Flutter presence + cursors    | ✅ Source alpha   | EP-12, EP-14        | PresenceAvatars, LiveCursorsOverlay, pointer smoothing                      | Flutter Web/iOS/Android cursor demo works                  |
+| S09    | v2.2-beta  | Flutter shared state + locks  | ✅ Source alpha   | EP-12, EP-14        | SharedStateController, RoomfulSharedStateBuilder, example app               | Cross-platform interop demo with React web client          |
+| S10    | v2.3       | Self-host quickstart          | ✅ Released       | EP-13, EP-22        | Docker compose, Redis profile, `.env` templates, relay CLI docs             | Clean-machine quickstart under 15 min                      |
+| S11    | v2.3       | Auth + mobile reliability     | ✅ Released       | EP-13, EP-14        | JWT guide, Firebase/Supabase auth examples, mobile reconnect tests          | Network switch and app-background tests pass               |
+| S12    | v2.3       | Cross-platform showcase       | ✅ Released       | EP-14, EP-25        | React web + Flutter mobile same-room demo, landing/demo page update         | A 60-second demo clearly shows cross-platform value        |
+| S13    | v2.4       | Durable comments              | ✅ Released       | EP-15               | Persistent threads, anchors, resolvable comments, storage adapter interface | Comments survive reconnect and reload                      |
+| S14    | v2.4       | Field presence + record locks | ✅ Released       | EP-15, EP-16        | FieldPresence, RecordLock, lock conflict UX, activity stream alpha          | Admin/form demo supports collaborative editing safely      |
+| S15    | v2.4       | Vertical starter kits         | ✅ Released       | EP-16, EP-25        | Dashboard, form builder, canvas, support/CRM starters                       | At least 3 vertical demos documented                       |
+| S16    | v2.5       | AI peer model                 | ✅ Released       | EP-17               | AI peer identity, permissions, agent presence, agent cursor                 | AI peer is visible and distinguishable from a human peer   |
+| S17    | v2.5       | Agent actions + approvals     | ✅ Released       | EP-17, EP-18, EP-20 | Action stream, proposed edits, approve/reject flow, audit hooks             | AI actions are inspectable before durable commit           |
+| S18    | v2.5       | Recording alpha               | ✅ Released       | EP-18               | Session capture, time-travel replay UI, `.roomful` export draft             | Replay works for presence/cursor/state/comments subset     |
+| S19    | v2.6       | Room Inspector                | ✅ Released       | EP-19               | DevTools panel, event timeline, peer list, state inspector                  | Developers can debug a room without console spelunking     |
+| S20    | v2.6       | Audit + topology + trust docs | ✅ Released       | EP-19, EP-20, EP-21 | Audit log, network topology visualizer, security architecture docs          | Production-review docs are credible                        |
+| S21    | v2.7       | Offline queue                 | ✅ Released       | EP-21               | Local event queue, reconnect flush, idempotency keys, failure states        | Offline operations flush deterministically after reconnect |
+| S22    | v2.7       | Merge + CRDT bridge review    | ✅ Released       | EP-21               | Conflict UI, CRDT adapter strategy, Yjs/`y_crdt` feasibility notes          | Clear stable-vs-experimental offline contract              |
+| S23    | v2.8       | Cloud / open-core beta        | `Planned`         | EP-23, EP-20, EP-25 | Hosted relay beta, dashboard, org/project model, quotas, usage events       | Cloud beta usable by invited test users                    |
+| S24    | v3.0-rc    | RoomfulScript + migration     | `Planned`         | EP-24, EP-25        | RoomfulScript schema, config compiler, migration guide, v3 RC checklist     | v3 RC freezes the protocol and migration path              |
 
 ## Issue Backlog (#101–#254)
 
