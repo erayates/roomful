@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "baseUrl": ".",
-    "target": "ES2019",
+    "target": "ES2022",
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "paths": {
@@ -11,7 +11,7 @@
       ],
       "@roomful/*": ["packages/*/dist/index.d.ts", "packages/*/src/index.ts"]
     },
-    "lib": ["ES2019", "DOM", "DOM.Iterable"],
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "strict": true,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
