@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest';
-import { runInit } from './init.js';
+
 import type { RoomfulCliRuntime } from '../cli.js';
+import { runInit } from './init.js';
 
 function runtime(): RoomfulCliRuntime & { output: string; errors: string } {
   const r = {
