@@ -54,5 +54,8 @@
   },
   "devDependencies": {
     "@types/node": "^25.3.3"
+  },
+  "dependencies": {
+    "@roomful/relay": "workspace:*"
   }
 }

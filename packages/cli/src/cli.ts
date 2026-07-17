@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 
 import { runDoctor } from './commands/doctor.js';
 import { runInit } from './commands/init.js';
+import { runRelay } from './commands/relay.js';
 
 const ROOMFUL_CLI_HELP = `Usage: roomful <command> [options]
 
@@ -25,6 +26,7 @@ Environment:
 
 export { runDoctor } from './commands/doctor.js';
 export { runInit } from './commands/init.js';
+export { runRelay } from './commands/relay.js';
 
 export interface RoomfulCliStdStream {
   write(chunk: string): void;
@@ -96,6 +98,8 @@ export async function runRoomfulCli(
       );
       return 0;
     }
+    case 'relay':
+      return runRelay(args, runtime);
     default:
       runtime.stderr.write(`Unknown command: ${command}\nRun 'roomful help' for usage.\n`);
       return 1;
