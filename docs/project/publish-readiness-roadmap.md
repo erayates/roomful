@@ -121,6 +121,7 @@ pnpm smoke:publish -- core-vanilla react-app
 | `@roomful/next`     | `next-auth`                  | Token helper consumer build against tarballs               |
 | `@roomful/cursors`  | `cursors-react`              | React UI consumer build against packed tarballs            |
 | `@roomful/devtools` | `devtools-import`            | Typecheck + runtime import smoke                           |
+| `@roomful/cli`      | `cli`                        | CLI version + help smoke                                   |
 | `@roomful/relay`    | package smoke + CI relay job | Packed tarball entrypoints, CLI health check, Docker smoke |
 
 ## Manual Signoff Items

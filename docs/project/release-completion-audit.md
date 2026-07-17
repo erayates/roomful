@@ -85,9 +85,8 @@ The latest public verifier run for `v2.0.0` passes:
 - Docker Hub `erayatesdev/roomful:latest` returns `200`
 - docs and demo public URLs return `200`
 
-Dart and Flutter packages are tracked separately from npm release readiness. `roomful` and
-`roomful_flutter` are source-present alpha packages, but both pub.dev package URLs currently return
-`404`, and `roomful_flutter` has `publish_to: none` while it depends on `roomful` by local path.
+Dart and Flutter packages are published on pub.dev as alpha releases:
+`roomful` (`v0.1.0-alpha.10`) and `roomful_flutter` (`v0.1.0-alpha.4`).
 
 ## Final Release Sequence
 

@@ -1,0 +1,58 @@
+{
+  "name": "@roomful/cli",
+  "version": "0.1.0-alpha.1",
+  "description": "Roomful CLI — init, doctor, demo, and inspect commands for Roomful projects.",
+  "private": false,
+  "type": "module",
+  "license": "MIT",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "roomful": "./dist/cli.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/erayates/roomful.git",
+    "directory": "packages/cli"
+  },
+  "bugs": {
+    "url": "https://github.com/erayates/roomful/issues"
+  },
+  "homepage": "https://github.com/erayates/roomful/tree/main/packages/cli#readme",
+  "keywords": [
+    "roomful",
+    "cli",
+    "realtime",
+    "collaboration"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "rimraf dist && tsc -p tsconfig.json",
+    "lint": "eslint src --max-warnings 0",
+    "test": "vitest run --config ../../vitest.package.config.ts --fileParallelism=false",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "clean": "rimraf dist coverage",
+    "test:watch": "vitest --config ../../vitest.package.config.ts --fileParallelism=false"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "devDependencies": {
+    "@types/node": "^25.3.3"
+  }
+}

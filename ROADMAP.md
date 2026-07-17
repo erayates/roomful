@@ -72,8 +72,8 @@ locked as a stable contract at v3.0. Milestones are release **gates**, not featu
 | Version    | Theme                           | Target output                                                                                                                     | Status             |
 | ---------- | ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
 | v2.0-beta  | Protocol + Relay Stabilization  | Versioned event envelope, message schema, replay model, relay hardening, protocol test vectors                                    | ✅ Public Verified |
-| v2.1-alpha | Dart Core SDK                   | `roomful` source alpha: room lifecycle, WebSocket relay, presence, events, shared state, reconnect — pub.dev pending              | Source alpha       |
-| v2.2-beta  | Flutter SDK MVP                 | `roomful_flutter`: Provider, PresenceBuilder, PresenceAvatars, LiveCursorsOverlay, SharedStateController, Locks — pub.dev pending | Source alpha       |
+| v2.1-alpha | Dart Core SDK                   | `roomful` source alpha: room lifecycle, WebSocket relay, presence, events, shared state, reconnect — pub.dev pending              | Published alpha    |
+| v2.2-beta  | Flutter SDK MVP                 | `roomful_flutter`: Provider, PresenceBuilder, PresenceAvatars, LiveCursorsOverlay, SharedStateController, Locks — pub.dev pending | Published alpha    |
 | v2.3       | Self-host + Mobile Trust        | Docker Compose, Redis coordination, JWT/Firebase/Supabase auth examples, mobile reconnect hardening, cross-platform demos         | ✅ Released        |
 | v2.4       | B2B Collaboration Components    | Comments persistence, field presence, record locks, activity stream, dashboard/form/canvas starter kits                           | ✅ Released        |
 | v2.5       | AI Agent Collaboration          | AI peer identity, agent cursor, action stream, approval flow, session summarizer alpha, comment anchors                           | ✅ Released        |
@@ -107,7 +107,7 @@ new epics starting at `EP-10`, so history stays intact on GitHub Issues/Projects
 | EP-19 | Observability & DevTools            | Room Inspector, network topology, latency/reconnect metrics, debug overlay                      | v2.6       |
 | EP-20 | Security, Privacy & Audit           | Audit log, tamper-evident events, ZK/ephemeral room design, retention policies                  | v2.6–v2.8  |
 | EP-21 | Offline / Local-first Collaboration | Offline queue, reconnect recovery, merge strategies, CRDT bridge review                         | v2.7       |
-| EP-22 | CLI, Templates & Plugin System      | `roomful` CLI, starter apps, plugin runtime, `create-roomful-app` workflows                     | v2.3–v2.8  |
+| EP-22 | CLI, Templates & Plugin System      | `Alpha`            | `roomful` CLI, starter apps, plugin runtime, `create-roomful-app` workflows                     | v2.3–v2.8  |
 | EP-23 | Cloud / Open-Core Commercial Layer  | Hosted relay, dashboard, orgs/projects, usage metrics, quotas, billing events                   | v2.8       |
 | EP-24 | RoomfulScript & v3 Stable Protocol  | YAML/JSON collaboration-as-code, schema validation, migration tooling                           | v3.0-rc    |
 | EP-25 | DX, Docs, Community & Adoption      | Docs, examples, comparison pages, demo videos, contributor flows, public roadmap                | All v2.x   |

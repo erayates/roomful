@@ -30,6 +30,7 @@ const smokeProjects = [
   { name: 'next-auth', templateDir: 'next-auth' },
   { name: 'cursors-react', templateDir: 'cursors-react' },
   { name: 'devtools-import', templateDir: 'devtools-import' },
+  { name: 'cli', templateDir: 'cli' },
 ];
 
 const selectedNames = process.argv.slice(2).filter((argument) => {

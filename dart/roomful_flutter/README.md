@@ -7,7 +7,7 @@ shared state over a self-hostable relay — built on the pure-Dart [`roomful`](.
 > `RoomfulProvider` (connect/disconnect + injection into the widget tree), `RoomController` (a
 > `ChangeNotifier` wrapping the client and its presence/cursors/events engines), `RoomfulBuilder`
 > (rebuilds on room changes), `PresenceAvatars`, `LiveCursorsOverlay`, `RoomfulSharedStateBuilder`.
-> Depends on `roomful` by local path while that package awaits pub.dev publication.
+> Depends on the published `roomful` Dart package.
 
 ## Usage
 
