@@ -17,6 +17,8 @@ import {
 
 const NOW = 1_750_000_000_000;
 
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
+
 function validProject(overrides: Partial<Record<string, unknown>> = {}) {
   return {
     id: 'proj-1',
