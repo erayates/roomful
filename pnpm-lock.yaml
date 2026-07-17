@@ -331,10 +331,20 @@ importers:
         version: 0.15.1
 
   packages/cli:
+    dependencies:
+      '@roomful/relay':
+        specifier: workspace:*
+        version: link:../relay
+      ws:
+        specifier: ^8.19.0
+        version: 8.19.0
     devDependencies:
       '@types/node':
         specifier: ^25.3.3
         version: 25.3.3
+      '@types/ws':
+        specifier: ^8.18.1
+        version: 8.18.1
 
   packages/cloud-api:
     devDependencies:

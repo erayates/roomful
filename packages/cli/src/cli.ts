@@ -3,8 +3,11 @@
 import { readFileSync, realpathSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
+import { runDemo } from './commands/demo.js';
 import { runDoctor } from './commands/doctor.js';
 import { runInit } from './commands/init.js';
+import { runInspect } from './commands/inspect.js';
+import { runRelay } from './commands/relay.js';
 
 const ROOMFUL_CLI_HELP = `Usage: roomful <command> [options]
 
@@ -23,8 +26,11 @@ Environment:
   ROOMFUL_RELAY_URL   Default relay URL (used by doctor, demo, inspect)
 `;
 
+export { runDemo } from './commands/demo.js';
 export { runDoctor } from './commands/doctor.js';
 export { runInit } from './commands/init.js';
+export { runInspect } from './commands/inspect.js';
+export { runRelay } from './commands/relay.js';
 
 export interface RoomfulCliStdStream {
   write(chunk: string): void;
@@ -77,25 +83,11 @@ export async function runRoomfulCli(
     case 'doctor':
       return runDoctor(args, runtime);
     case 'demo':
-      runtime.stdout.write(
-        'demo: The Roomful demo app is at https://demo.roomful.dev.\n' +
-          'To run locally, clone the repo and run:\n' +
-          '  pnpm --filter @roomful/app-demo dev\n',
-      );
-      return 0;
-    case 'inspect': {
-      const roomId = args[0];
-      if (!roomId) {
-        runtime.stderr.write('inspect: A room ID is required. Usage: roomful inspect <roomId>\n');
-        return 1;
-      }
-      runtime.stdout.write(
-        `inspect: Connecting to room "${roomId}"...\n` +
-          'Room Inspector is available in @roomful/devtools.\n' +
-          'See https://docs.roomful.dev/reference/devtools-debugging\n',
-      );
-      return 0;
-    }
+      return runDemo(args, runtime);
+    case 'inspect':
+      return runInspect(args, runtime);
+    case 'relay':
+      return runRelay(args, runtime);
     default:
       runtime.stderr.write(`Unknown command: ${command}\nRun 'roomful help' for usage.\n`);
       return 1;

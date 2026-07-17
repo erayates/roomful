@@ -53,6 +53,11 @@
     "access": "public"
   },
   "devDependencies": {
-    "@types/node": "^25.3.3"
+    "@types/node": "^25.3.3",
+    "@types/ws": "^8.18.1"
+  },
+  "dependencies": {
+    "@roomful/relay": "workspace:*",
+    "ws": "^8.19.0"
   }
 }
