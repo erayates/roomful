@@ -2,10 +2,10 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 
 import type { ManagementStore } from './store.js';
 import {
-  createProjectInputSchema,
-  createRoomInputSchema,
   type CreateProjectInput,
+  createProjectInputSchema,
   type CreateRoomInput,
+  createRoomInputSchema,
   type RelayDefaults,
   updateProjectInputSchema,
   updateQuotaInputSchema,
@@ -208,7 +208,7 @@ const createProject: RouteHandler = async (store, _defaults, req, res) => {
   }
 
   try {
-    const project = await store.createProject(parsed.data as CreateProjectInput);
+    const project = await store.createProject(parsed.data);
     sendCreated(res, project);
   } catch (err) {
     const error = err as Error & { code?: string };
@@ -249,7 +249,7 @@ const updateProject: RouteHandler = async (store, _defaults, req, res, params) =
     return;
   }
 
-  const updated = await store.updateProject(params.projectId!, parsed.data as UpdateProjectInput);
+  const updated = await store.updateProject(params.projectId!, parsed.data);
   if (!updated) {
     sendError(res, 404, 'NOT_FOUND', `Project "${params.projectId}" not found.`);
     return;
@@ -292,7 +292,7 @@ const createRoom: RouteHandler = async (store, _defaults, req, res, params) => {
   }
 
   try {
-    const room = await store.createRoom(params.projectId!, parsed.data as CreateRoomInput);
+    const room = await store.createRoom(params.projectId!, parsed.data);
     sendCreated(res, room);
   } catch (err) {
     const error = err as Error & { code?: string };
@@ -381,7 +381,7 @@ const updateQuota: RouteHandler = async (store, _defaults, req, res, params) => 
     return;
   }
 
-  const quota = await store.setQuota(params.projectId!, parsed.data as UpdateQuotaInput);
+  const quota = await store.setQuota(params.projectId!, parsed.data);
   sendOk(res, quota);
 };
 

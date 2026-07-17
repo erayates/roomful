@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 
-import { InMemoryUsageStore } from './metering.js';
 import type { UsageEvent } from './metering.js';
+import { InMemoryUsageStore } from './metering.js';
 
 describe('InMemoryUsageStore', () => {
   test('records and queries events', async () => {

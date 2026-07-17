@@ -8,13 +8,6 @@ export { EdgeRelayJwtVerificationError, verifyRelayJwtEdge } from './edge-auth.j
 export type { EdgeConnection, EdgeRoomAuthorize, EdgeRoomOptions } from './edge-room.js';
 export { EdgeRoom } from './edge-room.js';
 export type {
-  RelayAuthHandler,
-  RelayAuthorizeContext,
-  RelayServer,
-  RelayServerOptions,
-} from './server.js';
-export { createManagementApi, InMemoryManagementStore, resolveEffectiveQuota } from './management/index.js';
-export type {
   CreateProjectInput,
   CreateRoomInput,
   ManagementApiOptions,
@@ -27,3 +20,10 @@ export type {
   UpdateProjectInput,
   UpdateQuotaInput,
 } from './management/index.js';
+export { createManagementApi, InMemoryManagementStore, resolveEffectiveQuota } from './management/index.js';
+export type {
+  RelayAuthHandler,
+  RelayAuthorizeContext,
+  RelayServer,
+  RelayServerOptions,
+} from './server.js';

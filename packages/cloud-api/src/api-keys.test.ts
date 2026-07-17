@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 
-import type { CreateApiKeyInput } from './models.js';
 import { InMemoryApiKeyStore } from './api-keys.js';
+import type { CreateApiKeyInput } from './models.js';
 
 describe('InMemoryApiKeyStore', () => {
   test('creates and retrieves a key', async () => {

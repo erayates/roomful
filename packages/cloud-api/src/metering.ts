@@ -81,17 +81,31 @@ function aggregateUsage(events: UsageEvent[], granularity: 'hour' | 'day' | 'mon
     if (!buckets.has(bucketKey)) {
       buckets.set(bucketKey, new Map());
     }
-    const bucket = buckets.get(bucketKey)!;
+    const bucket = buckets.get(bucketKey);
+    if (!bucket) continue;
     bucket.set(event.eventType, (bucket.get(event.eventType) ?? 0) + event.quantity);
   }
 
-  return [...buckets.entries()].map(([key, totals]) => ({
-    projectId: events[0]?.projectId ?? '',
-    windowStart: key,
-    windowEnd: addGranularity(key, granularity),
-    granularity,
-    totals: Object.fromEntries(totals) as Record<UsageEventType, number>,
-  }));
+  return [...buckets.entries()].map(([key, totals]) => {
+    const totalsObj: Record<UsageEventType, number> = {
+      'room.minute': 0,
+      'peer.connection': 0,
+      'message.sent': 0,
+      'storage.byte': 0,
+      'recording.minute': 0,
+      'ai.action': 0,
+    };
+    for (const [k, v] of totals) {
+      totalsObj[k] = v;
+    }
+    return {
+      projectId: events[0]?.projectId ?? '',
+      windowStart: key,
+      windowEnd: addGranularity(key, granularity),
+      granularity,
+      totals: totalsObj,
+    };
+  });
 }
 
 function truncateToGranularity(iso: string, granularity: 'hour' | 'day' | 'month'): string {

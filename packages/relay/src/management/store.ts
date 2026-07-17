@@ -108,7 +108,7 @@ export class InMemoryManagementStore implements ManagementStore {
       });
     }
 
-    const project: Project = {
+    const project: Record<string, unknown> = {
       id,
       name: input.name,
       createdAt: now,
@@ -116,13 +116,15 @@ export class InMemoryManagementStore implements ManagementStore {
       ownerId: input.ownerId,
     };
     if (input.description !== undefined) {
-      (project as { description?: string }).description = input.description;
+      project.description = input.description;
     }
     if (input.metadata !== undefined) {
-      (project as { metadata?: Record<string, unknown> }).metadata = input.metadata;
+      project.metadata = input.metadata;
     }
-    this.projects.set(id, project);
-    return project;
+
+    const record = project as unknown as Project;
+    this.projects.set(id, record);
+    return record;
   }
 
   public updateProject(projectId: string, input: UpdateProjectInput): Project | null {
@@ -131,15 +133,21 @@ export class InMemoryManagementStore implements ManagementStore {
       return null;
     }
 
-    const updated: Project = {
-      ...existing,
-      ...(input.name !== undefined ? { name: input.name } : {}),
-      ...(input.description !== undefined ? { description: input.description } : {}),
-      ...(input.metadata !== undefined ? { metadata: input.metadata } : {}),
-      updatedAt: Date.now(),
-    };
-    this.projects.set(projectId, updated);
-    return updated;
+    const updated: Record<string, unknown> = { ...existing };
+    if (input.name !== undefined) {
+      updated.name = input.name;
+    }
+    if (input.description !== undefined) {
+      updated.description = input.description;
+    }
+    if (input.metadata !== undefined) {
+      updated.metadata = input.metadata;
+    }
+    updated.updatedAt = Date.now();
+
+    const record = updated as unknown as Project;
+    this.projects.set(projectId, record);
+    return record;
   }
 
   public deleteProject(projectId: string): boolean {
@@ -178,7 +186,7 @@ export class InMemoryManagementStore implements ManagementStore {
       });
     }
 
-    const record: RoomRecord = {
+    const record: Record<string, unknown> = {
       id,
       projectId,
       createdAt: Date.now(),
@@ -186,13 +194,15 @@ export class InMemoryManagementStore implements ManagementStore {
       ttlMs: input.ttlMs ?? 0,
     };
     if (input.name !== undefined) {
-      (record as { name?: string }).name = input.name;
+      record.name = input.name;
     }
     if (input.metadata !== undefined) {
-      (record as { metadata?: Record<string, unknown> }).metadata = input.metadata;
+      record.metadata = input.metadata;
     }
-    this.rooms.set(id, record);
-    return record;
+
+    const room = record as unknown as RoomRecord;
+    this.rooms.set(id, room);
+    return room;
   }
 
   public deleteRoom(roomId: string): boolean {
@@ -206,19 +216,35 @@ export class InMemoryManagementStore implements ManagementStore {
   }
 
   public setQuota(projectId: string, input: UpdateQuotaInput): ProjectQuota {
-    const quota: ProjectQuota = {
+    const quota: Record<string, unknown> = {
       projectId,
-      maxRooms: input.maxRooms ?? undefined,
-      maxPeersPerRoom: input.maxPeersPerRoom ?? undefined,
-      maxTotalPeers: input.maxTotalPeers ?? undefined,
-      messageRateLimit: input.messageRateLimit ?? undefined,
-      messageRateIntervalMs: input.messageRateIntervalMs ?? undefined,
-      maxEphemeralTtlMs: input.maxEphemeralTtlMs ?? undefined,
-      maxTotalStateBytes: input.maxTotalStateBytes ?? undefined,
       updatedAt: Date.now(),
     };
-    this.quotas.set(projectId, quota);
-    return quota;
+    if (input.maxRooms !== undefined) {
+      quota.maxRooms = input.maxRooms;
+    }
+    if (input.maxPeersPerRoom !== undefined) {
+      quota.maxPeersPerRoom = input.maxPeersPerRoom;
+    }
+    if (input.maxTotalPeers !== undefined) {
+      quota.maxTotalPeers = input.maxTotalPeers;
+    }
+    if (input.messageRateLimit !== undefined) {
+      quota.messageRateLimit = input.messageRateLimit;
+    }
+    if (input.messageRateIntervalMs !== undefined) {
+      quota.messageRateIntervalMs = input.messageRateIntervalMs;
+    }
+    if (input.maxEphemeralTtlMs !== undefined) {
+      quota.maxEphemeralTtlMs = input.maxEphemeralTtlMs;
+    }
+    if (input.maxTotalStateBytes !== undefined) {
+      quota.maxTotalStateBytes = input.maxTotalStateBytes;
+    }
+
+    const record = quota as unknown as ProjectQuota;
+    this.quotas.set(projectId, record);
+    return record;
   }
 
   public deleteQuota(projectId: string): boolean {

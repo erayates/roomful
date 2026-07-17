@@ -1,9 +1,18 @@
-export { createManagementApi } from './api.js';
 export type { ManagementApiOptions } from './api.js';
-
-export { InMemoryManagementStore } from './store.js';
+export { createManagementApi } from './api.js';
 export type { ManagementStore } from './store.js';
-
+export { InMemoryManagementStore } from './store.js';
+export type {
+  CreateProjectInput,
+  CreateRoomInput,
+  Project,
+  ProjectQuota,
+  ProjectUsage,
+  RelayDefaults,
+  RoomRecord,
+  UpdateProjectInput,
+  UpdateQuotaInput,
+} from './types.js';
 export {
   createProjectInputSchema,
   createRoomInputSchema,
@@ -15,16 +24,4 @@ export {
   roomRecordSchema,
   updateProjectInputSchema,
   updateQuotaInputSchema,
-} from './types.js';
-
-export type {
-  CreateProjectInput,
-  CreateRoomInput,
-  Project,
-  ProjectQuota,
-  ProjectUsage,
-  RelayDefaults,
-  RoomRecord,
-  UpdateProjectInput,
-  UpdateQuotaInput,
 } from './types.js';
