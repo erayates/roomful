@@ -30,3 +30,4 @@ test-results/
 
 # Dart/Flutter tooling artifacts
 dart/**/.dart_tool/
+dart/**/pubspec.lock
