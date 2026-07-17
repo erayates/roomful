@@ -117,12 +117,12 @@ deployments.
 The built-in management API covers project/room/quota CRUD. The **external control plane**
 (Next.js or Hono, TBD) adds cross-cutting concerns that live outside the relay process:
 
-| Resource     | Operations                                    |
-| ------------ | --------------------------------------------- |
-| API keys     | create, revoke, rotate (`roomful_live_*`, `roomful_test_*`) |
-| Billing      | plan management, payment integration          |
-| Dashboard    | Web UI for projects, keys, usage, alerts      |
-| Webhooks     | usage threshold notifications, key rotation   |
+| Resource  | Operations                                                  |
+| --------- | ----------------------------------------------------------- |
+| API keys  | create, revoke, rotate (`roomful_live_*`, `roomful_test_*`) |
+| Billing   | plan management, payment integration                        |
+| Dashboard | Web UI for projects, keys, usage, alerts                    |
+| Webhooks  | usage threshold notifications, key rotation                 |
 
 ### 2.5 Usage Pipeline
 
@@ -184,14 +184,14 @@ A `-1` value means unlimited; `undefined` falls back to the relay-wide `RelayDef
 
 The beta ships with a single default tier:
 
-| Metric               | Beta Limit | Unit              | Enforcement Point            |
-| -------------------- | ---------- | ----------------- | ---------------------------- |
-| Peak concurrent conns| 50         | connections       | Relay (join reject)          |
-| Distinct rooms       | 20         | rooms             | Relay (create reject)        |
-| Messages / minute    | 500        | relayed messages  | Relay per-peer token bucket  |
-| Max peers per room   | 25         | peers             | Relay (join reject)          |
-| Max ephemeral TTL    | 86 400 000 | ms (24 hours)     | Relay (create reject)        |
-| Max total state      | 50         | MB                | Usage aggregator (soft)      |
+| Metric                | Beta Limit | Unit             | Enforcement Point           |
+| --------------------- | ---------- | ---------------- | --------------------------- |
+| Peak concurrent conns | 50         | connections      | Relay (join reject)         |
+| Distinct rooms        | 20         | rooms            | Relay (create reject)       |
+| Messages / minute     | 500        | relayed messages | Relay per-peer token bucket |
+| Max peers per room    | 25         | peers            | Relay (join reject)         |
+| Max ephemeral TTL     | 86 400 000 | ms (24 hours)    | Relay (create reject)       |
+| Max total state       | 50         | MB               | Usage aggregator (soft)     |
 
 **Hard limits** (connections, rooms, peers, TTL) block at the relay. **Soft limits** (state bytes)
 trigger a dashboard warning; the project stays active during beta.
@@ -211,7 +211,7 @@ const room = createRoom('doc-456', {
   relayUrl: 'wss://relay.roomful.dev',
   relayAuth: {
     type: 'token',
-    token: 'roomful_live_01H...',     // long-lived API key
+    token: 'roomful_live_01H...', // long-lived API key
   },
 });
 ```
@@ -289,25 +289,25 @@ post-beta):
 
 ## 6. Security Model
 
-| Concern              | Approach                                                       |
-| -------------------- | -------------------------------------------------------------- |
-| API key storage      | Hashed (SHA-256) in PostgreSQL; only the prefix is visible.    |
-| API key transmission | Sent once at connection; the relay never stores it.            |
-| JWT lifetime         | 5 minutes — enough for one WebSocket upgrade.                  |
+| Concern              | Approach                                                                                                    |
+| -------------------- | ----------------------------------------------------------------------------------------------------------- |
+| API key storage      | Hashed (SHA-256) in PostgreSQL; only the prefix is visible.                                                 |
+| API key transmission | Sent once at connection; the relay never stores it.                                                         |
+| JWT lifetime         | 5 minutes — enough for one WebSocket upgrade.                                                               |
 | Relay auth           | The relay verifies the JWT with its existing HS256 mechanism (`verifyJWT` in `packages/relay/src/auth.ts`). |
-| Room isolation       | `roomId` + `project_id` in the JWT; relay rejects mismatches.  |
-| Rate limiting        | IP-level at the gateway; per-project at the auth service.      |
-| TLS                  | Terminated at the load balancer; all internal traffic is TLS.  |
+| Room isolation       | `roomId` + `project_id` in the JWT; relay rejects mismatches.                                               |
+| Rate limiting        | IP-level at the gateway; per-project at the auth service.                                                   |
+| TLS                  | Terminated at the load balancer; all internal traffic is TLS.                                               |
 
 ## 7. Observability
 
-| Signal              | Tool                | Purpose                                   |
-| ------------------- | ------------------- | ----------------------------------------- |
-| Relay health        | `/health` endpoint  | Liveness probe for the load balancer.     |
-| Connection count    | Relay metric endpoint| Per-instance gauge for auto-scaling.      |
-| Usage events        | Redis streams → DB  | Quota enforcement and dashboard.          |
-| Error rate          | Stdout structured logs| Alerting on auth failures, relay errors. |
-| Latency (p95)       | Relay emit metric   | Detect relay pool degradation.            |
+| Signal           | Tool                   | Purpose                                  |
+| ---------------- | ---------------------- | ---------------------------------------- |
+| Relay health     | `/health` endpoint     | Liveness probe for the load balancer.    |
+| Connection count | Relay metric endpoint  | Per-instance gauge for auto-scaling.     |
+| Usage events     | Redis streams → DB     | Quota enforcement and dashboard.         |
+| Error rate       | Stdout structured logs | Alerting on auth failures, relay errors. |
+| Latency (p95)    | Relay emit metric      | Detect relay pool degradation.           |
 
 The relay already logs to stderr; the hosted deployment captures these as structured JSON and
 ships them to a log aggregator (e.g. Axiom, Better Stack).
@@ -325,15 +325,15 @@ ships them to a log aggregator (e.g. Axiom, Better Stack).
 
 ## 9. Phased Rollout
 
-| Phase | Deliverable                                          | Gate                                  |
-| ----- | ---------------------------------------------------- | ------------------------------------- |
-| 0     | This architecture doc                                | Reviewed and approved.                |
-| 1     | Control plane: projects, API keys, quotas (API only) | Can create/revoke keys via REST.      |
-| 2     | Auth service: API key → JWT exchange                 | SDK connects with `roomful_live_*` key.|
-| 3     | Usage pipeline: events → queue → aggregate           | Quota usage visible in DB.            |
-| 4     | Deploy relay pool + Redis to a cloud provider        | `wss://relay.roomful.dev` live.       |
-| 5     | Internal beta (team only)                            | No critical bugs over 1 week.         |
-| 6     | Waitlist beta (5–10 projects)                        | Usage patterns understood; no abuse.  |
+| Phase | Deliverable                                          | Gate                                    |
+| ----- | ---------------------------------------------------- | --------------------------------------- |
+| 0     | This architecture doc                                | Reviewed and approved.                  |
+| 1     | Control plane: projects, API keys, quotas (API only) | Can create/revoke keys via REST.        |
+| 2     | Auth service: API key → JWT exchange                 | SDK connects with `roomful_live_*` key. |
+| 3     | Usage pipeline: events → queue → aggregate           | Quota usage visible in DB.              |
+| 4     | Deploy relay pool + Redis to a cloud provider        | `wss://relay.roomful.dev` live.         |
+| 5     | Internal beta (team only)                            | No critical bugs over 1 week.           |
+| 6     | Waitlist beta (5–10 projects)                        | Usage patterns understood; no abuse.    |
 
 ### Phase Progress
 

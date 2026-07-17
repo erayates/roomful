@@ -33,16 +33,15 @@ export interface Project {
   ownerId: string;
 }
 
-export const projectSchema = z
-  .object({
-    id: z.string().min(1).max(128),
-    name: z.string().min(1).max(256),
-    description: z.string().max(2048).optional(),
-    metadata: z.record(z.unknown()).optional(),
-    createdAt: z.number().finite(),
-    updatedAt: z.number().finite(),
-    ownerId: z.string().min(1).max(128),
-  });
+export const projectSchema = z.object({
+  id: z.string().min(1).max(128),
+  name: z.string().min(1).max(256),
+  description: z.string().max(2048).optional(),
+  metadata: z.record(z.unknown()).optional(),
+  createdAt: z.number().finite(),
+  updatedAt: z.number().finite(),
+  ownerId: z.string().min(1).max(128),
+});
 
 export const createProjectInputSchema = z.object({
   /** Optional id; auto-generated when omitted. Must be unique. */
@@ -91,16 +90,15 @@ export interface RoomRecord {
   ttlMs: number;
 }
 
-export const roomRecordSchema = z
-  .object({
-    id: z.string().min(1).max(128),
-    projectId: z.string().min(1).max(128),
-    name: z.string().max(256).optional(),
-    metadata: z.record(z.unknown()).optional(),
-    createdAt: z.number().finite(),
-    ephemeral: z.boolean(),
-    ttlMs: z.number().int().min(0),
-  });
+export const roomRecordSchema = z.object({
+  id: z.string().min(1).max(128),
+  projectId: z.string().min(1).max(128),
+  name: z.string().max(256).optional(),
+  metadata: z.record(z.unknown()).optional(),
+  createdAt: z.number().finite(),
+  ephemeral: z.boolean(),
+  ttlMs: z.number().int().min(0),
+});
 
 export const createRoomInputSchema = z.object({
   /** Optional id; auto-generated when omitted. */
@@ -150,18 +148,17 @@ export interface ProjectQuota {
   updatedAt: number;
 }
 
-export const projectQuotaSchema = z
-  .object({
-    projectId: z.string().min(1).max(128),
-    maxRooms: z.number().int().min(-1).optional(),
-    maxPeersPerRoom: z.number().int().min(-1).optional(),
-    maxTotalPeers: z.number().int().min(-1).optional(),
-    messageRateLimit: z.number().int().min(-1).optional(),
-    messageRateIntervalMs: z.number().int().min(-1).optional(),
-    maxEphemeralTtlMs: z.number().int().min(-1).optional(),
-    maxTotalStateBytes: z.number().int().min(-1).optional(),
-    updatedAt: z.number().finite(),
-  });
+export const projectQuotaSchema = z.object({
+  projectId: z.string().min(1).max(128),
+  maxRooms: z.number().int().min(-1).optional(),
+  maxPeersPerRoom: z.number().int().min(-1).optional(),
+  maxTotalPeers: z.number().int().min(-1).optional(),
+  messageRateLimit: z.number().int().min(-1).optional(),
+  messageRateIntervalMs: z.number().int().min(-1).optional(),
+  maxEphemeralTtlMs: z.number().int().min(-1).optional(),
+  maxTotalStateBytes: z.number().int().min(-1).optional(),
+  updatedAt: z.number().finite(),
+});
 
 export const updateQuotaInputSchema = z.object({
   maxRooms: z.number().int().min(-1).optional(),
@@ -197,14 +194,13 @@ export interface ProjectUsage {
   sampledAt: number;
 }
 
-export const projectUsageSchema = z
-  .object({
-    projectId: z.string().min(1).max(128),
-    roomCount: z.number().int().min(0),
-    totalPeerCount: z.number().int().min(0),
-    totalStateBytes: z.number().int().min(0),
-    sampledAt: z.number().finite(),
-  });
+export const projectUsageSchema = z.object({
+  projectId: z.string().min(1).max(128),
+  roomCount: z.number().int().min(0),
+  totalPeerCount: z.number().int().min(0),
+  totalStateBytes: z.number().int().min(0),
+  sampledAt: z.number().finite(),
+});
 
 // ── Relay defaults ────────────────────────────────────────────────────────────
 
@@ -245,8 +241,7 @@ export function resolveEffectiveQuota(
   const now = Date.now();
   return {
     projectId: projectQuota?.projectId ?? '',
-    maxRooms:
-      projectQuota?.maxRooms === undefined ? defaults.maxRooms : projectQuota.maxRooms,
+    maxRooms: projectQuota?.maxRooms === undefined ? defaults.maxRooms : projectQuota.maxRooms,
     maxPeersPerRoom:
       projectQuota?.maxPeersPerRoom === undefined
         ? defaults.maxPeersPerRoom

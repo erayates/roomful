@@ -33,8 +33,21 @@ describe('Management API', () => {
 
   describe('CORS', () => {
     it('responds to OPTIONS preflight', async () => {
-      const req = { method: 'OPTIONS', url: '/api/v1/projects', headers: {}, on: () => req, off: () => req } as unknown as IncomingMessage;
-      const res = { statusCode: 0, setHeader: () => res, end: () => { return res; }, writeHead: () => res } as unknown as ServerResponse;
+      const req = {
+        method: 'OPTIONS',
+        url: '/api/v1/projects',
+        headers: {},
+        on: () => req,
+        off: () => req,
+      } as unknown as IncomingMessage;
+      const res = {
+        statusCode: 0,
+        setHeader: () => res,
+        end: () => {
+          return res;
+        },
+        writeHead: () => res,
+      } as unknown as ServerResponse;
       await handler(req, res);
       expect(res.statusCode).toBe(204);
     });
@@ -43,10 +56,20 @@ describe('Management API', () => {
   describe('auth', () => {
     it('rejects requests without owner identifier', async () => {
       let status = 0;
-      const req = { method: 'GET', url: '/api/v1/projects', headers: {}, on: () => req, off: () => req } as unknown as IncomingMessage;
+      const req = {
+        method: 'GET',
+        url: '/api/v1/projects',
+        headers: {},
+        on: () => req,
+        off: () => req,
+      } as unknown as IncomingMessage;
       const res = {
-        statusCode: 200, setHeader: () => res,
-        end: () => { status = res.statusCode; return res; },
+        statusCode: 200,
+        setHeader: () => res,
+        end: () => {
+          status = res.statusCode;
+          return res;
+        },
         writeHead: () => res,
       } as unknown as ServerResponse;
       await handler(req, res);
@@ -56,9 +79,25 @@ describe('Management API', () => {
 
   describe('projects', () => {
     it('GET /api/v1/projects lists projects for owner', async () => {
-      let status = 0; let body = '';
-      const req = { method: 'GET', url: '/api/v1/projects', headers: { 'x-roomful-owner-id': 'acct-1' }, on: () => req, off: () => req } as unknown as IncomingMessage;
-      const res = { statusCode: 200, setHeader: () => res, end: (data?: string) => { status = res.statusCode; body = data ?? ''; return res; }, writeHead: () => res } as unknown as ServerResponse;
+      let status = 0;
+      let body = '';
+      const req = {
+        method: 'GET',
+        url: '/api/v1/projects',
+        headers: { 'x-roomful-owner-id': 'acct-1' },
+        on: () => req,
+        off: () => req,
+      } as unknown as IncomingMessage;
+      const res = {
+        statusCode: 200,
+        setHeader: () => res,
+        end: (data?: string) => {
+          status = res.statusCode;
+          body = data ?? '';
+          return res;
+        },
+        writeHead: () => res,
+      } as unknown as ServerResponse;
       await handler(req, res);
       expect(status).toBe(200);
       const projects = JSON.parse(body) as Array<Record<string, unknown>>;
@@ -67,27 +106,67 @@ describe('Management API', () => {
     });
 
     it('GET /api/v1/projects lists all for wildcard', async () => {
-      let status = 0; let body = '';
-      const req = { method: 'GET', url: '/api/v1/projects', headers: { 'x-roomful-owner-id': '*' }, on: () => req, off: () => req } as unknown as IncomingMessage;
-      const res = { statusCode: 200, setHeader: () => res, end: (data?: string) => { status = res.statusCode; body = data ?? ''; return res; }, writeHead: () => res } as unknown as ServerResponse;
+      let status = 0;
+      let body = '';
+      const req = {
+        method: 'GET',
+        url: '/api/v1/projects',
+        headers: { 'x-roomful-owner-id': '*' },
+        on: () => req,
+        off: () => req,
+      } as unknown as IncomingMessage;
+      const res = {
+        statusCode: 200,
+        setHeader: () => res,
+        end: (data?: string) => {
+          status = res.statusCode;
+          body = data ?? '';
+          return res;
+        },
+        writeHead: () => res,
+      } as unknown as ServerResponse;
       await handler(req, res);
       expect(status).toBe(200);
       expect(JSON.parse(body)).toHaveLength(2);
     });
 
     it('POST /api/v1/projects creates a project', async () => {
-      let status = 0; let body = ''; let resolveBody: ((value: void) => void) | undefined;
-      const bodyPromise = new Promise<void>((resolve) => { resolveBody = resolve; });
+      let status = 0;
+      let body = '';
+      let resolveBody: ((value: void) => void) | undefined;
+      const bodyPromise = new Promise<void>((resolve) => {
+        resolveBody = resolve;
+      });
       const req = {
-        method: 'POST', url: '/api/v1/projects', headers: { 'x-roomful-owner-id': 'acct-1', 'content-type': 'application/json' },
+        method: 'POST',
+        url: '/api/v1/projects',
+        headers: { 'x-roomful-owner-id': 'acct-1', 'content-type': 'application/json' },
         on: (e: string, fn: (...a: unknown[]) => void) => {
-          if (e === 'data') { setTimeout(() => { fn(JSON.stringify({ name: 'New', ownerId: 'acct-1' })); }, 0); }
-          if (e === 'end') { setTimeout(() => { fn(); resolveBody?.(); }, 0); }
+          if (e === 'data') {
+            setTimeout(() => {
+              fn(JSON.stringify({ name: 'New', ownerId: 'acct-1' }));
+            }, 0);
+          }
+          if (e === 'end') {
+            setTimeout(() => {
+              fn();
+              resolveBody?.();
+            }, 0);
+          }
           return req;
         },
         off: () => req,
       } as unknown as IncomingMessage;
-      const res = { statusCode: 200, setHeader: () => res, end: (data?: string) => { status = res.statusCode; body = data ?? ''; return res; }, writeHead: () => res } as unknown as ServerResponse;
+      const res = {
+        statusCode: 200,
+        setHeader: () => res,
+        end: (data?: string) => {
+          status = res.statusCode;
+          body = data ?? '';
+          return res;
+        },
+        writeHead: () => res,
+      } as unknown as ServerResponse;
       await handler(req, res);
       await bodyPromise;
       expect(status).toBe(201);
@@ -95,9 +174,29 @@ describe('Management API', () => {
     });
 
     it('POST validates input', async () => {
-      let status = 0; let bl: ((c: string) => void) | undefined; let el: (() => void) | undefined;
-      const req = { method: 'POST', url: '/api/v1/projects', headers: { 'x-roomful-owner-id': 'acct-1' }, on: (e: string, fn: (...a: unknown[]) => void) => { if (e === 'data') bl = fn as (c: string) => void; if (e === 'end') el = fn as () => void; return req; }, off: () => req } as unknown as IncomingMessage;
-      const res = { statusCode: 200, setHeader: () => res, end: () => { status = res.statusCode; return res; }, writeHead: () => res } as unknown as ServerResponse;
+      let status = 0;
+      let bl: ((c: string) => void) | undefined;
+      let el: (() => void) | undefined;
+      const req = {
+        method: 'POST',
+        url: '/api/v1/projects',
+        headers: { 'x-roomful-owner-id': 'acct-1' },
+        on: (e: string, fn: (...a: unknown[]) => void) => {
+          if (e === 'data') bl = fn as (c: string) => void;
+          if (e === 'end') el = fn as () => void;
+          return req;
+        },
+        off: () => req,
+      } as unknown as IncomingMessage;
+      const res = {
+        statusCode: 200,
+        setHeader: () => res,
+        end: () => {
+          status = res.statusCode;
+          return res;
+        },
+        writeHead: () => res,
+      } as unknown as ServerResponse;
       const p = handler(req, res);
       if (bl) bl(JSON.stringify({}));
       if (el) el();
@@ -106,9 +205,29 @@ describe('Management API', () => {
     });
 
     it('POST rejects duplicate id', async () => {
-      let status = 0; let bl: ((c: string) => void) | undefined; let el: (() => void) | undefined;
-      const req = { method: 'POST', url: '/api/v1/projects', headers: { 'x-roomful-owner-id': 'acct-1' }, on: (e: string, fn: (...a: unknown[]) => void) => { if (e === 'data') bl = fn as (c: string) => void; if (e === 'end') el = fn as () => void; return req; }, off: () => req } as unknown as IncomingMessage;
-      const res = { statusCode: 200, setHeader: () => res, end: () => { status = res.statusCode; return res; }, writeHead: () => res } as unknown as ServerResponse;
+      let status = 0;
+      let bl: ((c: string) => void) | undefined;
+      let el: (() => void) | undefined;
+      const req = {
+        method: 'POST',
+        url: '/api/v1/projects',
+        headers: { 'x-roomful-owner-id': 'acct-1' },
+        on: (e: string, fn: (...a: unknown[]) => void) => {
+          if (e === 'data') bl = fn as (c: string) => void;
+          if (e === 'end') el = fn as () => void;
+          return req;
+        },
+        off: () => req,
+      } as unknown as IncomingMessage;
+      const res = {
+        statusCode: 200,
+        setHeader: () => res,
+        end: () => {
+          status = res.statusCode;
+          return res;
+        },
+        writeHead: () => res,
+      } as unknown as ServerResponse;
       const p = handler(req, res);
       if (bl) bl(JSON.stringify({ id: 'proj-1', name: 'Dup', ownerId: 'acct-1' }));
       if (el) el();
@@ -117,9 +236,25 @@ describe('Management API', () => {
     });
 
     it('GET /api/v1/projects/:id returns project', async () => {
-      let status = 0; let body = '';
-      const req = { method: 'GET', url: '/api/v1/projects/proj-1', headers: { 'x-roomful-owner-id': 'acct-1' }, on: () => req, off: () => req } as unknown as IncomingMessage;
-      const res = { statusCode: 200, setHeader: () => res, end: (data?: string) => { status = res.statusCode; body = data ?? ''; return res; }, writeHead: () => res } as unknown as ServerResponse;
+      let status = 0;
+      let body = '';
+      const req = {
+        method: 'GET',
+        url: '/api/v1/projects/proj-1',
+        headers: { 'x-roomful-owner-id': 'acct-1' },
+        on: () => req,
+        off: () => req,
+      } as unknown as IncomingMessage;
+      const res = {
+        statusCode: 200,
+        setHeader: () => res,
+        end: (data?: string) => {
+          status = res.statusCode;
+          body = data ?? '';
+          return res;
+        },
+        writeHead: () => res,
+      } as unknown as ServerResponse;
       await handler(req, res);
       expect(status).toBe(200);
       expect(JSON.parse(body)).toHaveProperty('id', 'proj-1');
@@ -127,16 +262,52 @@ describe('Management API', () => {
 
     it('GET returns 404 for unknown project', async () => {
       let status = 0;
-      const req = { method: 'GET', url: '/api/v1/projects/nope', headers: { 'x-roomful-owner-id': 'acct-1' }, on: () => req, off: () => req } as unknown as IncomingMessage;
-      const res = { statusCode: 200, setHeader: () => res, end: () => { status = res.statusCode; return res; }, writeHead: () => res } as unknown as ServerResponse;
+      const req = {
+        method: 'GET',
+        url: '/api/v1/projects/nope',
+        headers: { 'x-roomful-owner-id': 'acct-1' },
+        on: () => req,
+        off: () => req,
+      } as unknown as IncomingMessage;
+      const res = {
+        statusCode: 200,
+        setHeader: () => res,
+        end: () => {
+          status = res.statusCode;
+          return res;
+        },
+        writeHead: () => res,
+      } as unknown as ServerResponse;
       await handler(req, res);
       expect(status).toBe(404);
     });
 
     it('PUT /api/v1/projects/:id updates project', async () => {
-      let status = 0; let body = ''; let bl: ((c: string) => void) | undefined; let el: (() => void) | undefined;
-      const req = { method: 'PUT', url: '/api/v1/projects/proj-1', headers: { 'x-roomful-owner-id': 'acct-1' }, on: (e: string, fn: (...a: unknown[]) => void) => { if (e === 'data') bl = fn as (c: string) => void; if (e === 'end') el = fn as () => void; return req; }, off: () => req } as unknown as IncomingMessage;
-      const res = { statusCode: 200, setHeader: () => res, end: (data?: string) => { status = res.statusCode; body = data ?? ''; return res; }, writeHead: () => res } as unknown as ServerResponse;
+      let status = 0;
+      let body = '';
+      let bl: ((c: string) => void) | undefined;
+      let el: (() => void) | undefined;
+      const req = {
+        method: 'PUT',
+        url: '/api/v1/projects/proj-1',
+        headers: { 'x-roomful-owner-id': 'acct-1' },
+        on: (e: string, fn: (...a: unknown[]) => void) => {
+          if (e === 'data') bl = fn as (c: string) => void;
+          if (e === 'end') el = fn as () => void;
+          return req;
+        },
+        off: () => req,
+      } as unknown as IncomingMessage;
+      const res = {
+        statusCode: 200,
+        setHeader: () => res,
+        end: (data?: string) => {
+          status = res.statusCode;
+          body = data ?? '';
+          return res;
+        },
+        writeHead: () => res,
+      } as unknown as ServerResponse;
       const p = handler(req, res);
       if (bl) bl(JSON.stringify({ name: 'Updated' }));
       if (el) el();
@@ -147,8 +318,22 @@ describe('Management API', () => {
 
     it('DELETE /api/v1/projects/:id deletes project', async () => {
       let status = 0;
-      const req = { method: 'DELETE', url: '/api/v1/projects/proj-1', headers: { 'x-roomful-owner-id': 'acct-1' }, on: () => req, off: () => req } as unknown as IncomingMessage;
-      const res = { statusCode: 200, setHeader: () => res, end: () => { status = res.statusCode; return res; }, writeHead: () => res } as unknown as ServerResponse;
+      const req = {
+        method: 'DELETE',
+        url: '/api/v1/projects/proj-1',
+        headers: { 'x-roomful-owner-id': 'acct-1' },
+        on: () => req,
+        off: () => req,
+      } as unknown as IncomingMessage;
+      const res = {
+        statusCode: 200,
+        setHeader: () => res,
+        end: () => {
+          status = res.statusCode;
+          return res;
+        },
+        writeHead: () => res,
+      } as unknown as ServerResponse;
       await handler(req, res);
       expect(status).toBe(204);
     });
@@ -156,18 +341,54 @@ describe('Management API', () => {
 
   describe('rooms', () => {
     it('GET /api/v1/projects/:id/rooms lists rooms', async () => {
-      let status = 0; let body = '';
-      const req = { method: 'GET', url: '/api/v1/projects/proj-1/rooms', headers: { 'x-roomful-owner-id': 'acct-1' }, on: () => req, off: () => req } as unknown as IncomingMessage;
-      const res = { statusCode: 200, setHeader: () => res, end: (data?: string) => { status = res.statusCode; body = data ?? ''; return res; }, writeHead: () => res } as unknown as ServerResponse;
+      let status = 0;
+      let body = '';
+      const req = {
+        method: 'GET',
+        url: '/api/v1/projects/proj-1/rooms',
+        headers: { 'x-roomful-owner-id': 'acct-1' },
+        on: () => req,
+        off: () => req,
+      } as unknown as IncomingMessage;
+      const res = {
+        statusCode: 200,
+        setHeader: () => res,
+        end: (data?: string) => {
+          status = res.statusCode;
+          body = data ?? '';
+          return res;
+        },
+        writeHead: () => res,
+      } as unknown as ServerResponse;
       await handler(req, res);
       expect(status).toBe(200);
       expect(JSON.parse(body)).toHaveLength(2);
     });
 
     it('POST /api/v1/projects/:id/rooms creates room', async () => {
-      let status = 0; let bl: ((c: string) => void) | undefined; let el: (() => void) | undefined;
-      const req = { method: 'POST', url: '/api/v1/projects/proj-1/rooms', headers: { 'x-roomful-owner-id': 'acct-1' }, on: (e: string, fn: (...a: unknown[]) => void) => { if (e === 'data') bl = fn as (c: string) => void; if (e === 'end') el = fn as () => void; return req; }, off: () => req } as unknown as IncomingMessage;
-      const res = { statusCode: 200, setHeader: () => res, end: () => { status = res.statusCode; return res; }, writeHead: () => res } as unknown as ServerResponse;
+      let status = 0;
+      let bl: ((c: string) => void) | undefined;
+      let el: (() => void) | undefined;
+      const req = {
+        method: 'POST',
+        url: '/api/v1/projects/proj-1/rooms',
+        headers: { 'x-roomful-owner-id': 'acct-1' },
+        on: (e: string, fn: (...a: unknown[]) => void) => {
+          if (e === 'data') bl = fn as (c: string) => void;
+          if (e === 'end') el = fn as () => void;
+          return req;
+        },
+        off: () => req,
+      } as unknown as IncomingMessage;
+      const res = {
+        statusCode: 200,
+        setHeader: () => res,
+        end: () => {
+          status = res.statusCode;
+          return res;
+        },
+        writeHead: () => res,
+      } as unknown as ServerResponse;
       const p = handler(req, res);
       if (bl) bl(JSON.stringify({ name: 'New Room' }));
       if (el) el();
@@ -176,9 +397,29 @@ describe('Management API', () => {
     });
 
     it('POST returns 404 for unknown project', async () => {
-      let status = 0; let bl: ((c: string) => void) | undefined; let el: (() => void) | undefined;
-      const req = { method: 'POST', url: '/api/v1/projects/nope/rooms', headers: { 'x-roomful-owner-id': 'acct-1' }, on: (e: string, fn: (...a: unknown[]) => void) => { if (e === 'data') bl = fn as (c: string) => void; if (e === 'end') el = fn as () => void; return req; }, off: () => req } as unknown as IncomingMessage;
-      const res = { statusCode: 200, setHeader: () => res, end: () => { status = res.statusCode; return res; }, writeHead: () => res } as unknown as ServerResponse;
+      let status = 0;
+      let bl: ((c: string) => void) | undefined;
+      let el: (() => void) | undefined;
+      const req = {
+        method: 'POST',
+        url: '/api/v1/projects/nope/rooms',
+        headers: { 'x-roomful-owner-id': 'acct-1' },
+        on: (e: string, fn: (...a: unknown[]) => void) => {
+          if (e === 'data') bl = fn as (c: string) => void;
+          if (e === 'end') el = fn as () => void;
+          return req;
+        },
+        off: () => req,
+      } as unknown as IncomingMessage;
+      const res = {
+        statusCode: 200,
+        setHeader: () => res,
+        end: () => {
+          status = res.statusCode;
+          return res;
+        },
+        writeHead: () => res,
+      } as unknown as ServerResponse;
       const p = handler(req, res);
       if (bl) bl(JSON.stringify({ name: 'R' }));
       if (el) el();
@@ -188,8 +429,22 @@ describe('Management API', () => {
 
     it('DELETE /api/v1/projects/:pid/rooms/:rid deletes room', async () => {
       let status = 0;
-      const req = { method: 'DELETE', url: '/api/v1/projects/proj-1/rooms/room-1', headers: { 'x-roomful-owner-id': 'acct-1' }, on: () => req, off: () => req } as unknown as IncomingMessage;
-      const res = { statusCode: 200, setHeader: () => res, end: () => { status = res.statusCode; return res; }, writeHead: () => res } as unknown as ServerResponse;
+      const req = {
+        method: 'DELETE',
+        url: '/api/v1/projects/proj-1/rooms/room-1',
+        headers: { 'x-roomful-owner-id': 'acct-1' },
+        on: () => req,
+        off: () => req,
+      } as unknown as IncomingMessage;
+      const res = {
+        statusCode: 200,
+        setHeader: () => res,
+        end: () => {
+          status = res.statusCode;
+          return res;
+        },
+        writeHead: () => res,
+      } as unknown as ServerResponse;
       await handler(req, res);
       expect(status).toBe(204);
     });
@@ -197,9 +452,25 @@ describe('Management API', () => {
 
   describe('quota & usage', () => {
     it('GET /api/v1/projects/:id/quota returns effective quota', async () => {
-      let status = 0; let body = '';
-      const req = { method: 'GET', url: '/api/v1/projects/proj-1/quota', headers: { 'x-roomful-owner-id': 'acct-1' }, on: () => req, off: () => req } as unknown as IncomingMessage;
-      const res = { statusCode: 200, setHeader: () => res, end: (data?: string) => { status = res.statusCode; body = data ?? ''; return res; }, writeHead: () => res } as unknown as ServerResponse;
+      let status = 0;
+      let body = '';
+      const req = {
+        method: 'GET',
+        url: '/api/v1/projects/proj-1/quota',
+        headers: { 'x-roomful-owner-id': 'acct-1' },
+        on: () => req,
+        off: () => req,
+      } as unknown as IncomingMessage;
+      const res = {
+        statusCode: 200,
+        setHeader: () => res,
+        end: (data?: string) => {
+          status = res.statusCode;
+          body = data ?? '';
+          return res;
+        },
+        writeHead: () => res,
+      } as unknown as ServerResponse;
       await handler(req, res);
       expect(status).toBe(200);
       const data = JSON.parse(body) as Record<string, unknown>;
@@ -208,18 +479,42 @@ describe('Management API', () => {
     });
 
     it('PUT /api/v1/projects/:id/quota sets quota', async () => {
-      let status = 0; let body = ''; let resolveBody: ((value: void) => void) | undefined;
-      const bodyPromise = new Promise<void>((resolve) => { resolveBody = resolve; });
+      let status = 0;
+      let body = '';
+      let resolveBody: ((value: void) => void) | undefined;
+      const bodyPromise = new Promise<void>((resolve) => {
+        resolveBody = resolve;
+      });
       const req = {
-        method: 'PUT', url: '/api/v1/projects/proj-1/quota', headers: { 'x-roomful-owner-id': 'acct-1' },
+        method: 'PUT',
+        url: '/api/v1/projects/proj-1/quota',
+        headers: { 'x-roomful-owner-id': 'acct-1' },
         on: (e: string, fn: (...a: unknown[]) => void) => {
-          if (e === 'data') { setTimeout(() => { fn(JSON.stringify({ maxRooms: 10 })); }, 0); }
-          if (e === 'end') { setTimeout(() => { fn(); resolveBody?.(); }, 0); }
+          if (e === 'data') {
+            setTimeout(() => {
+              fn(JSON.stringify({ maxRooms: 10 }));
+            }, 0);
+          }
+          if (e === 'end') {
+            setTimeout(() => {
+              fn();
+              resolveBody?.();
+            }, 0);
+          }
           return req;
         },
         off: () => req,
       } as unknown as IncomingMessage;
-      const res = { statusCode: 200, setHeader: () => res, end: (data?: string) => { status = res.statusCode; body = data ?? ''; return res; }, writeHead: () => res } as unknown as ServerResponse;
+      const res = {
+        statusCode: 200,
+        setHeader: () => res,
+        end: (data?: string) => {
+          status = res.statusCode;
+          body = data ?? '';
+          return res;
+        },
+        writeHead: () => res,
+      } as unknown as ServerResponse;
       await handler(req, res);
       await bodyPromise;
       expect(status).toBe(200);
@@ -227,9 +522,25 @@ describe('Management API', () => {
     });
 
     it('GET /api/v1/projects/:id/usage returns usage', async () => {
-      let status = 0; let body = '';
-      const req = { method: 'GET', url: '/api/v1/projects/proj-1/usage', headers: { 'x-roomful-owner-id': 'acct-1' }, on: () => req, off: () => req } as unknown as IncomingMessage;
-      const res = { statusCode: 200, setHeader: () => res, end: (data?: string) => { status = res.statusCode; body = data ?? ''; return res; }, writeHead: () => res } as unknown as ServerResponse;
+      let status = 0;
+      let body = '';
+      const req = {
+        method: 'GET',
+        url: '/api/v1/projects/proj-1/usage',
+        headers: { 'x-roomful-owner-id': 'acct-1' },
+        on: () => req,
+        off: () => req,
+      } as unknown as IncomingMessage;
+      const res = {
+        statusCode: 200,
+        setHeader: () => res,
+        end: (data?: string) => {
+          status = res.statusCode;
+          body = data ?? '';
+          return res;
+        },
+        writeHead: () => res,
+      } as unknown as ServerResponse;
       await handler(req, res);
       expect(status).toBe(200);
       expect(JSON.parse(body)).toHaveProperty('roomCount', 2);
@@ -239,28 +550,71 @@ describe('Management API', () => {
   describe('error handling', () => {
     it('returns 404 for unknown routes', async () => {
       let status = 0;
-      const req = { method: 'GET', url: '/api/v1/unknown', headers: { 'x-roomful-owner-id': 'acct-1' }, on: () => req, off: () => req } as unknown as IncomingMessage;
-      const res = { statusCode: 200, setHeader: () => res, end: () => { status = res.statusCode; return res; }, writeHead: () => res } as unknown as ServerResponse;
+      const req = {
+        method: 'GET',
+        url: '/api/v1/unknown',
+        headers: { 'x-roomful-owner-id': 'acct-1' },
+        on: () => req,
+        off: () => req,
+      } as unknown as IncomingMessage;
+      const res = {
+        statusCode: 200,
+        setHeader: () => res,
+        end: () => {
+          status = res.statusCode;
+          return res;
+        },
+        writeHead: () => res,
+      } as unknown as ServerResponse;
       await handler(req, res);
       expect(status).toBe(404);
     });
 
     it('returns 404 for non-management paths', async () => {
       let status = 0;
-      const req = { method: 'GET', url: '/other/path', headers: { 'x-roomful-owner-id': 'acct-1' }, on: () => req, off: () => req } as unknown as IncomingMessage;
-      const res = { statusCode: 200, setHeader: () => res, end: () => { status = res.statusCode; return res; }, writeHead: () => res } as unknown as ServerResponse;
+      const req = {
+        method: 'GET',
+        url: '/other/path',
+        headers: { 'x-roomful-owner-id': 'acct-1' },
+        on: () => req,
+        off: () => req,
+      } as unknown as IncomingMessage;
+      const res = {
+        statusCode: 200,
+        setHeader: () => res,
+        end: () => {
+          status = res.statusCode;
+          return res;
+        },
+        writeHead: () => res,
+      } as unknown as ServerResponse;
       await handler(req, res);
       expect(status).toBe(404);
     });
 
     it('supports custom authorize callback', async () => {
       const authorizedHandler = createManagementApi({
-        store, defaults: DEFAULTS,
+        store,
+        defaults: DEFAULTS,
         authorize: () => false,
       });
       let status = 0;
-      const req = { method: 'GET', url: '/api/v1/projects', headers: { 'x-roomful-owner-id': 'acct-1' }, on: () => req, off: () => req } as unknown as IncomingMessage;
-      const res = { statusCode: 200, setHeader: () => res, end: () => { status = res.statusCode; return res; }, writeHead: () => res } as unknown as ServerResponse;
+      const req = {
+        method: 'GET',
+        url: '/api/v1/projects',
+        headers: { 'x-roomful-owner-id': 'acct-1' },
+        on: () => req,
+        off: () => req,
+      } as unknown as IncomingMessage;
+      const res = {
+        statusCode: 200,
+        setHeader: () => res,
+        end: () => {
+          status = res.statusCode;
+          return res;
+        },
+        writeHead: () => res,
+      } as unknown as ServerResponse;
       await authorizedHandler(req, res);
       expect(status).toBe(403);
     });

@@ -73,7 +73,10 @@ export class InMemoryUsageStore implements UsageStore {
   }
 }
 
-function aggregateUsage(events: UsageEvent[], granularity: 'hour' | 'day' | 'month'): UsageAggregation[] {
+function aggregateUsage(
+  events: UsageEvent[],
+  granularity: 'hour' | 'day' | 'month',
+): UsageAggregation[] {
   const buckets = new Map<string, Map<UsageEventType, number>>();
 
   for (const event of events) {
@@ -112,7 +115,9 @@ function truncateToGranularity(iso: string, granularity: 'hour' | 'day' | 'month
   const d = new Date(iso);
   switch (granularity) {
     case 'hour':
-      return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), d.getUTCHours())).toISOString();
+      return new Date(
+        Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), d.getUTCHours()),
+      ).toISOString();
     case 'day':
       return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())).toISOString();
     case 'month':

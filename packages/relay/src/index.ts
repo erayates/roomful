@@ -20,7 +20,11 @@ export type {
   UpdateProjectInput,
   UpdateQuotaInput,
 } from './management/index.js';
-export { createManagementApi, InMemoryManagementStore, resolveEffectiveQuota } from './management/index.js';
+export {
+  createManagementApi,
+  InMemoryManagementStore,
+  resolveEffectiveQuota,
+} from './management/index.js';
 export type {
   RelayAuthHandler,
   RelayAuthorizeContext,

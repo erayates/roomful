@@ -114,9 +114,7 @@ describe('projectSchema', () => {
   });
 
   it('rejects a description longer than 2048 characters', () => {
-    expect(() =>
-      projectSchema.parse(validProject({ description: 'a'.repeat(2049) })),
-    ).toThrow();
+    expect(() => projectSchema.parse(validProject({ description: 'a'.repeat(2049) }))).toThrow();
   });
 
   it('accepts undefined description', () => {
@@ -171,15 +169,11 @@ describe('createProjectInputSchema', () => {
   });
 
   it('rejects missing name', () => {
-    expect(() =>
-      createProjectInputSchema.parse({ ownerId: 'acct-1' }),
-    ).toThrow();
+    expect(() => createProjectInputSchema.parse({ ownerId: 'acct-1' })).toThrow();
   });
 
   it('rejects missing ownerId', () => {
-    expect(() =>
-      createProjectInputSchema.parse({ name: 'Proj' }),
-    ).toThrow();
+    expect(() => createProjectInputSchema.parse({ name: 'Proj' })).toThrow();
   });
 
   it('rejects an id longer than 128 characters', () => {
@@ -238,9 +232,7 @@ describe('roomRecordSchema', () => {
   });
 
   it('rejects a name longer than 256 characters', () => {
-    expect(() =>
-      roomRecordSchema.parse(validRoomRecord({ name: 'a'.repeat(257) })),
-    ).toThrow();
+    expect(() => roomRecordSchema.parse(validRoomRecord({ name: 'a'.repeat(257) }))).toThrow();
   });
 
   it('rejects a non-boolean ephemeral', () => {
@@ -447,9 +439,7 @@ describe('relayDefaultsSchema', () => {
 
   it('rejects values below -1', () => {
     expect(() => relayDefaultsSchema.parse(validRelayDefaults({ maxRooms: -2 }))).toThrow();
-    expect(() =>
-      relayDefaultsSchema.parse(validRelayDefaults({ maxTotalPeers: -5 })),
-    ).toThrow();
+    expect(() => relayDefaultsSchema.parse(validRelayDefaults({ maxTotalPeers: -5 }))).toThrow();
   });
 
   it('rejects non-integer values', () => {
@@ -550,7 +540,7 @@ describe('resolveEffectiveQuota', () => {
   it('uses Date.now() for updatedAt when quota has no updatedAt', () => {
     const q = { projectId: 'p1', updatedAt: undefined as unknown as number };
     const before = Date.now();
-     
+
     const result = resolveEffectiveQuota(q as any, defaults());
     const after = Date.now();
     expect(result.updatedAt).toBeGreaterThanOrEqual(before);

@@ -146,7 +146,12 @@ export function checkQuotaExceeded(
   usage: ProjectQuotaUsage,
 ): (keyof ProjectQuota)[] {
   const violated: (keyof ProjectQuota)[] = [];
-  const allKeys: (keyof ProjectQuota)[] = ['rooms', 'peersPerRoom', 'messagesPerMinute', 'storageMb'];
+  const allKeys: (keyof ProjectQuota)[] = [
+    'rooms',
+    'peersPerRoom',
+    'messagesPerMinute',
+    'storageMb',
+  ];
 
   for (const key of allKeys) {
     const limit = quota[key];

@@ -1,9 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { InMemoryManagementStore } from './store.js';
-import type {
-  RelayDefaults,
-} from './types.js';
+import type { RelayDefaults } from './types.js';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -94,9 +92,9 @@ describe('projects', () => {
     it('throws DUPLICATE_PROJECT when id already exists', () => {
       const store = newStore();
       store.createProject({ id: 'dup', name: 'First', ownerId: 'o' });
-      expect(() =>
-        store.createProject({ id: 'dup', name: 'Second', ownerId: 'o' }),
-      ).toThrow('already exists');
+      expect(() => store.createProject({ id: 'dup', name: 'Second', ownerId: 'o' })).toThrow(
+        'already exists',
+      );
     });
   });
 
@@ -315,9 +313,7 @@ describe('rooms', () => {
 
     it('throws PROJECT_NOT_FOUND when project does not exist', () => {
       const store = newStore();
-      expect(() => store.createRoom('nope', { id: 'r1' })).toThrow(
-        'does not exist',
-      );
+      expect(() => store.createRoom('nope', { id: 'r1' })).toThrow('does not exist');
     });
 
     it('throws DUPLICATE_ROOM when room id already exists', () => {

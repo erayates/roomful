@@ -103,10 +103,7 @@ function resolveOwnerId(request: IncomingMessage): string {
       const payload = auth.slice(7).split('.')[1];
       if (payload) {
         const claims = JSON.parse(
-          Buffer.from(
-            payload.replace(/-/g, '+').replace(/_/g, '/'),
-            'base64',
-          ).toString('utf8'),
+          Buffer.from(payload.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8'),
         );
         return String(claims.sub ?? claims.ownerId ?? '');
       }
@@ -124,10 +121,7 @@ function resolveOwnerId(request: IncomingMessage): string {
   return '';
 }
 
-function matchParam(
-  path: string,
-  pattern: string,
-): Record<string, string> | null {
+function matchParam(path: string, pattern: string): Record<string, string> | null {
   const pathParts = path.replace(/\/$/, '').split('/');
   const patternParts = pattern.split('/');
 
@@ -196,12 +190,7 @@ const createProject: RouteHandler = async (store, _defaults, req, res) => {
 
   const parsed = createProjectInputSchema.safeParse(body);
   if (!parsed.success) {
-    sendError(
-      res,
-      400,
-      'VALIDATION_ERROR',
-      parsed.error.issues[0]?.message ?? 'Invalid input.',
-    );
+    sendError(res, 400, 'VALIDATION_ERROR', parsed.error.issues[0]?.message ?? 'Invalid input.');
     return;
   }
 
@@ -238,12 +227,7 @@ const updateProject: RouteHandler = async (store, _defaults, req, res, params) =
 
   const parsed = updateProjectInputSchema.safeParse(body);
   if (!parsed.success) {
-    sendError(
-      res,
-      400,
-      'VALIDATION_ERROR',
-      parsed.error.issues[0]?.message ?? 'Invalid input.',
-    );
+    sendError(res, 400, 'VALIDATION_ERROR', parsed.error.issues[0]?.message ?? 'Invalid input.');
     return;
   }
 
@@ -280,12 +264,7 @@ const createRoom: RouteHandler = async (store, _defaults, req, res, params) => {
 
   const parsed = createRoomInputSchema.safeParse(body);
   if (!parsed.success) {
-    sendError(
-      res,
-      400,
-      'VALIDATION_ERROR',
-      parsed.error.issues[0]?.message ?? 'Invalid input.',
-    );
+    sendError(res, 400, 'VALIDATION_ERROR', parsed.error.issues[0]?.message ?? 'Invalid input.');
     return;
   }
 
@@ -313,12 +292,7 @@ const getRoom: RouteHandler = async (store, _defaults, _req, res, params) => {
     return;
   }
   if (room.projectId !== params.projectId) {
-    sendError(
-      res,
-      404,
-      'NOT_FOUND',
-      `Room "${params.roomId}" not found in this project.`,
-    );
+    sendError(res, 404, 'NOT_FOUND', `Room "${params.roomId}" not found in this project.`);
     return;
   }
   sendOk(res, room);
@@ -342,10 +316,7 @@ const getQuota: RouteHandler = async (store, defaults, _req, res, params) => {
   }
 
   const explicitQuota = await store.getQuota(params.projectId!);
-  const effective = resolveEffectiveQuota(
-    explicitQuota ?? undefined,
-    defaults,
-  );
+  const effective = resolveEffectiveQuota(explicitQuota ?? undefined, defaults);
 
   sendOk(res, {
     explicit: explicitQuota,
@@ -370,12 +341,7 @@ const updateQuota: RouteHandler = async (store, _defaults, req, res, params) => 
 
   const parsed = updateQuotaInputSchema.safeParse(body);
   if (!parsed.success) {
-    sendError(
-      res,
-      400,
-      'VALIDATION_ERROR',
-      parsed.error.issues[0]?.message ?? 'Invalid input.',
-    );
+    sendError(res, 400, 'VALIDATION_ERROR', parsed.error.issues[0]?.message ?? 'Invalid input.');
     return;
   }
 
@@ -494,10 +460,7 @@ export function createManagementApi(
     // CORS preflight.
     if (request.method === 'OPTIONS') {
       response.statusCode = 204;
-      response.setHeader(
-        'Access-Control-Allow-Methods',
-        'GET, POST, PUT, DELETE, OPTIONS',
-      );
+      response.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
       response.setHeader(
         'Access-Control-Allow-Headers',
         'content-type, authorization, x-roomful-owner-id',
@@ -546,17 +509,9 @@ export function createManagementApi(
       }
 
       try {
-        await entry.handler(
-          options.store,
-          options.defaults,
-          request,
-          response,
-          params,
-          ownerId,
-        );
+        await entry.handler(options.store, options.defaults, request, response, params, ownerId);
       } catch (error) {
-        const message =
-          error instanceof Error ? error.message : 'Internal server error.';
+        const message = error instanceof Error ? error.message : 'Internal server error.';
         sendError(response, 500, 'INTERNAL_ERROR', message);
       }
       return;

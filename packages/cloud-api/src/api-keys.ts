@@ -101,4 +101,4 @@ export class InMemoryApiKeyStore implements ApiKeyStore {
   }
 }
 
-export { extractKeyPrefix,generateSecret, hashSecret };
+export { extractKeyPrefix, generateSecret, hashSecret };

@@ -11,7 +11,11 @@ import type { Duplex } from 'node:stream';
 import { type RawData, type WebSocket, WebSocketServer } from 'ws';
 
 import { verifyJWT } from './auth.js';
-import { createManagementApi, InMemoryManagementStore, type ManagementStore } from './management/index.js';
+import {
+  createManagementApi,
+  InMemoryManagementStore,
+  type ManagementStore,
+} from './management/index.js';
 import type { RelayDefaults } from './management/types.js';
 import {
   parseRelayClientMessage,
@@ -684,7 +688,9 @@ export class RelayServerImpl implements RelayServer {
 
   private readonly corsOrigin: string | undefined;
 
-  private readonly managementHandler: ((req: IncomingMessage, res: ServerResponse) => Promise<void>) | null = null;
+  private readonly managementHandler:
+    | ((req: IncomingMessage, res: ServerResponse) => Promise<void>)
+    | null = null;
 
   private authHandler: RelayAuthHandler | null = null;
 
@@ -715,7 +721,8 @@ export class RelayServerImpl implements RelayServer {
 
     // Initialize management API when configured
     if (options.managementApi) {
-      const store = options.managementApi.store ?? new InMemoryManagementStore(options.managementApi.defaults);
+      const store =
+        options.managementApi.store ?? new InMemoryManagementStore(options.managementApi.defaults);
       this.managementHandler = createManagementApi({
         store,
         defaults: options.managementApi.defaults,
@@ -899,7 +906,9 @@ export class RelayServerImpl implements RelayServer {
           if (!response.headersSent) {
             response.statusCode = 500;
             response.setHeader('content-type', 'application/json');
-            response.end(JSON.stringify({ code: 'INTERNAL_ERROR', message: 'Internal server error.' }));
+            response.end(
+              JSON.stringify({ code: 'INTERNAL_ERROR', message: 'Internal server error.' }),
+            );
           } else if (!response.writableEnded) {
             response.end();
           }

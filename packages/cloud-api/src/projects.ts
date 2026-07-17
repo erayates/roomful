@@ -33,7 +33,12 @@ export class InMemoryProjectStore implements ProjectStore {
       id,
       orgId,
       name: input.name,
-      slug: input.slug ?? input.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''),
+      slug:
+        input.slug ??
+        input.name
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-|-$/g, ''),
       quotaRooms: 5,
       quotaPeersPerRoom: 25,
       quotaMessagesPerMinute: 500,
@@ -52,9 +57,7 @@ export class InMemoryProjectStore implements ProjectStore {
   }
 
   async listProjects(orgId: string): Promise<Project[]> {
-    return [...this.projects.values()]
-      .filter((p) => p.orgId === orgId)
-      .map((p) => ({ ...p }));
+    return [...this.projects.values()].filter((p) => p.orgId === orgId).map((p) => ({ ...p }));
   }
 
   async updateProject(projectId: string, input: UpdateProjectInput): Promise<Project | null> {
@@ -65,8 +68,12 @@ export class InMemoryProjectStore implements ProjectStore {
       ...project,
       ...(input.name !== undefined ? { name: input.name } : {}),
       ...(input.quotaRooms !== undefined ? { quotaRooms: input.quotaRooms } : {}),
-      ...(input.quotaPeersPerRoom !== undefined ? { quotaPeersPerRoom: input.quotaPeersPerRoom } : {}),
-      ...(input.quotaMessagesPerMinute !== undefined ? { quotaMessagesPerMinute: input.quotaMessagesPerMinute } : {}),
+      ...(input.quotaPeersPerRoom !== undefined
+        ? { quotaPeersPerRoom: input.quotaPeersPerRoom }
+        : {}),
+      ...(input.quotaMessagesPerMinute !== undefined
+        ? { quotaMessagesPerMinute: input.quotaMessagesPerMinute }
+        : {}),
       ...(input.quotaStorageMb !== undefined ? { quotaStorageMb: input.quotaStorageMb } : {}),
       updatedAt: now(),
     };
@@ -97,7 +104,9 @@ export class InMemoryProjectStore implements ProjectStore {
   async createRoom(projectId: string, input: CreateRoomInput): Promise<Room> {
     const project = this.projects.get(projectId);
     if (!project) {
-      throw Object.assign(new Error(`Project "${projectId}" not found.`), { code: 'PROJECT_NOT_FOUND' });
+      throw Object.assign(new Error(`Project "${projectId}" not found.`), {
+        code: 'PROJECT_NOT_FOUND',
+      });
     }
 
     const id = generateId();

@@ -34,13 +34,23 @@ describe('InMemoryUsageStore', () => {
   test('filters by project', async () => {
     const store = new InMemoryUsageStore();
     await store.record({
-      id: 'e1', projectId: 'p1', roomId: 'r1', eventType: 'peer.connection',
-      quantity: 5, unit: 'connections', metadata: {},
+      id: 'e1',
+      projectId: 'p1',
+      roomId: 'r1',
+      eventType: 'peer.connection',
+      quantity: 5,
+      unit: 'connections',
+      metadata: {},
       recordedAt: new Date('2026-07-17T10:00:00Z').toISOString(),
     });
     await store.record({
-      id: 'e2', projectId: 'p2', roomId: 'r2', eventType: 'peer.connection',
-      quantity: 10, unit: 'connections', metadata: {},
+      id: 'e2',
+      projectId: 'p2',
+      roomId: 'r2',
+      eventType: 'peer.connection',
+      quantity: 10,
+      unit: 'connections',
+      metadata: {},
       recordedAt: new Date('2026-07-17T10:00:00Z').toISOString(),
     });
 

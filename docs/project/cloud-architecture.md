@@ -49,17 +49,18 @@ optional commercial layer.
 
 ### Component Breakdown
 
-| Component | What it does | Existing? |
-|---|---|---|
-| **Cloud Dashboard** | Web UI for project/team/usage management | New — `apps/dashboard` |
-| **Cloud API Server** | REST API backing the dashboard + programmatic access | New — `packages/cloud-api` |
-| **Cloud Relay Gateway** | Auth + routing + metering edge layer | New — extends `@roomful/relay` |
-| **Relay Shard** | Standard `@roomful/relay` instance, unchanged | ✅ Exists |
-| **Usage Store** | Time-series usage events | New — PostgreSQL/TimescaleDB |
+| Component               | What it does                                         | Existing?                      |
+| ----------------------- | ---------------------------------------------------- | ------------------------------ |
+| **Cloud Dashboard**     | Web UI for project/team/usage management             | New — `apps/dashboard`         |
+| **Cloud API Server**    | REST API backing the dashboard + programmatic access | New — `packages/cloud-api`     |
+| **Cloud Relay Gateway** | Auth + routing + metering edge layer                 | New — extends `@roomful/relay` |
+| **Relay Shard**         | Standard `@roomful/relay` instance, unchanged        | ✅ Exists                      |
+| **Usage Store**         | Time-series usage events                             | New — PostgreSQL/TimescaleDB   |
 
 ## Data Model
 
 ### Organization
+
 ```
 Organization
   id: uuid
@@ -70,6 +71,7 @@ Organization
 ```
 
 ### Project
+
 ```
 Project
   id: uuid
@@ -85,6 +87,7 @@ Project
 ```
 
 ### API Key
+
 ```
 ApiKey
   id: uuid
@@ -100,6 +103,7 @@ ApiKey
 ```
 
 ### Room
+
 ```
 Room (logical, not the relay-internal room)
   id: uuid
@@ -113,6 +117,7 @@ Room (logical, not the relay-internal room)
 ```
 
 ### Usage Event
+
 ```
 UsageEvent
   id: uuid
@@ -127,18 +132,19 @@ UsageEvent
 
 ### Usage Event Types
 
-| event_type | unit | Description |
-|---|---|---|
-| `room.minute` | minutes | Wall-clock time a room was active |
-| `peer.connection` | connections | Unique peer connection |
-| `message.sent` | messages | Relay messages forwarded |
-| `storage.byte` | bytes | Durable storage consumed (comments, state) |
-| `recording.minute` | minutes | Session recording duration |
-| `ai.action` | actions | AI agent action executed |
+| event_type         | unit        | Description                                |
+| ------------------ | ----------- | ------------------------------------------ |
+| `room.minute`      | minutes     | Wall-clock time a room was active          |
+| `peer.connection`  | connections | Unique peer connection                     |
+| `message.sent`     | messages    | Relay messages forwarded                   |
+| `storage.byte`     | bytes       | Durable storage consumed (comments, state) |
+| `recording.minute` | minutes     | Session recording duration                 |
+| `ai.action`        | actions     | AI agent action executed                   |
 
 ## API Key Authentication
 
 ### Key Format
+
 ```
 roomful_live_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 │       │    │                                          │
@@ -148,6 +154,7 @@ roomful_live_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
 ### Validation Flow (Gateway)
+
 ```
 1. Client connects with ?api_key=roomful_live_xxx
 2. Gateway extracts key, hashes, looks up in cache/DB
@@ -158,6 +165,7 @@ roomful_live_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
 ### Key Management API
+
 ```
 POST   /v1/projects/:projectId/keys          Create key
 GET    /v1/projects/:projectId/keys          List keys
@@ -168,13 +176,14 @@ DELETE /v1/projects/:projectId/keys/:keyId   Revoke key
 
 ### Rate Limit Tiers
 
-| Tier | Rooms | Peers/Room | Msgs/Min | Storage |
-|---|---|---|---|---|
-| Free | 5 | 25 | 500 | 50 MB |
-| Pro | 50 | 200 | 10,000 | 5 GB |
-| Enterprise | Custom | Custom | Custom | Custom |
+| Tier       | Rooms  | Peers/Room | Msgs/Min | Storage |
+| ---------- | ------ | ---------- | -------- | ------- |
+| Free       | 5      | 25         | 500      | 50 MB   |
+| Pro        | 50     | 200        | 10,000   | 5 GB    |
+| Enterprise | Custom | Custom     | Custom   | Custom  |
 
 ### Enforcement
+
 - **Gateway-level**: token bucket per project, per room
 - **Relay-level**: existing `--max-rooms`, `--max-room-size` flags
 - **Exceeded**: 429 + `X-RateLimit-Reset` header
@@ -182,11 +191,13 @@ DELETE /v1/projects/:projectId/keys/:keyId   Revoke key
 ## Dashboard API Surface
 
 ### Auth
+
 ```
 POST /v1/auth/token        Exchange API key for JWT (dashboard sessions)
 ```
 
 ### Projects
+
 ```
 GET    /v1/projects              List projects for org
 POST   /v1/projects              Create project
@@ -196,17 +207,20 @@ DELETE /v1/projects/:id          Delete project
 ```
 
 ### Rooms
+
 ```
 GET    /v1/projects/:id/rooms         List active rooms
 GET    /v1/projects/:id/rooms/:roomId Room details + metrics
 ```
 
 ### Usage
+
 ```
 GET /v1/projects/:id/usage?from=X&to=Y&granularity=hour|day|month
 ```
 
 ### API Keys
+
 ```
 GET    /v1/projects/:id/keys          List keys (prefix + metadata, never full key)
 POST   /v1/projects/:id/keys          Create key (returns full key once)
@@ -216,27 +230,31 @@ DELETE /v1/projects/:id/keys/:keyId   Revoke key
 ## Implementation Phases
 
 ### Phase 1: Data Model + API Keys (this sprint)
+
 - `packages/cloud-api`: data model (SQL migrations), API key CRUD
 - Gateway prototype: API key validation at edge
 
 ### Phase 2: Metering + Quotas
+
 - Usage event emission in gateway
 - Usage aggregation queries
 - Quota enforcement
 
 ### Phase 3: Dashboard
+
 - `apps/dashboard`: minimal web UI
 - Project management, key management, usage charts
 
 ### Phase 4: Production Hardening
+
 - Multi-region relay sharding
 - Enterprise packaging (#234)
 
 ## Open Decisions
 
-| # | Decision | Options |
-|---|---|---|
-| D1 | Database | PostgreSQL (with TimescaleDB for usage) vs SQLite for simplicity |
-| D2 | Relay sharding | DNS-based routing vs gateway proxy vs consistent hashing |
-| D3 | Gateway runtime | Node.js (same stack) vs Cloudflare Workers (edge) vs Envoy |
-| D4 | Webhook delivery | Direct HTTP POST vs message queue (Redis Streams) |
+| #   | Decision         | Options                                                          |
+| --- | ---------------- | ---------------------------------------------------------------- |
+| D1  | Database         | PostgreSQL (with TimescaleDB for usage) vs SQLite for simplicity |
+| D2  | Relay sharding   | DNS-based routing vs gateway proxy vs consistent hashing         |
+| D3  | Gateway runtime  | Node.js (same stack) vs Cloudflare Workers (edge) vs Envoy       |
+| D4  | Webhook delivery | Direct HTTP POST vs message queue (Redis Streams)                |
