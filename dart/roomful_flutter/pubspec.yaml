@@ -3,9 +3,16 @@ description: >-
   Flutter widgets and controllers for Roomful — presence, live cursors, comments, locks, and
   shared state over a self-hostable relay, built on the pure-Dart roomful core.
 version: 0.1.0-alpha.4
-publish_to: none # alpha: depends on the roomful core by path until it lands on pub.dev
+homepage: https://roomful.dev
+documentation: https://docs.roomful.dev
 repository: https://github.com/erayates/roomful
 issue_tracker: https://github.com/erayates/roomful/issues
+topics:
+  - collaboration
+  - realtime
+  - flutter
+  - presence
+  - widgets
 
 environment:
   sdk: ^3.4.0
@@ -14,8 +21,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  roomful:
-    path: ../roomful
+  roomful: ^0.1.0-alpha.10
 
 dev_dependencies:
   flutter_lints: ^4.0.0

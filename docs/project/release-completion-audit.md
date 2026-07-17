@@ -6,9 +6,14 @@ This audit maps the launch requirements from `Roomful-Issues-Sprints.pdf`, espec
 
 ## Completion State
 
-Roomful is locally release-ready at the initial `v1.0.0` release, but not publicly release-complete.
+Roomful has local release evidence for the current JavaScript/TypeScript package set, and `v2.0.0`
+is publicly release-complete across npm, GitHub Release, Docker Hub, docs, and demo surfaces.
 
-All seven public packages (`@roomful/core`, `cursors`, `devtools`, `react`, `relay`, `svelte`, `vue`) are pinned to `1.0.0` with clean initial-release changelogs. Local source, package, relay, docs, demo, benchmark, and smoke-test evidence is green. The remaining incomplete items require authenticated external publishing or deployed public services.
+All ten public npm packages (`@roomful/angular`, `@roomful/core`, `@roomful/cursors`,
+`@roomful/devtools`, `@roomful/next`, `@roomful/react`, `@roomful/relay`, `@roomful/solid`,
+`@roomful/svelte`, and `@roomful/vue`) are covered by package tarball verification. Publish smoke now
+packs all ten packages and runs clean-install consumers for core, React, Vue, Svelte, Solid, Angular,
+Next auth, cursors, and devtools.
 
 ## PDF Launch Requirements
 
@@ -17,9 +22,9 @@ All seven public packages (`@roomful/core`, `cursors`, `devtools`, `react`, `rel
 | Docs site built with getting started, API reference, playground, community links, dark mode, search, versioned docs, and mobile layout | `pnpm test:docs`, `pnpm docs:snippets`, docs workflow and `apps/docs` sources                          | Locally ready; public URL still must load                        |
 | Demo app with shared canvas, live cursors, presence, mobile touch, cleanup, and social sharing                                         | `pnpm test:integration:demo`, demo workflow and `apps/demo` tests                                      | Locally ready; public URL still must load                        |
 | End-to-end tests cover presence, cursors, state, awareness, events, reconnection, and real browsers                                    | `pnpm test:integration`, `pnpm test:integration:react`, `pnpm test:integration:demo`, `pnpm test:docs` | Locally verified                                                 |
-| Packages published to npm under `@roomful`                                                                                             | `pnpm release:verify-public -- --tag v<release>`                                                       | Not complete until npm registry checks pass                      |
-| GitHub Release tagged with changelog                                                                                                   | `pnpm release:verify-public -- --tag v<release>`                                                       | Not complete until GitHub Release API check passes               |
-| Relay Docker image published                                                                                                           | `pnpm release:verify-public -- --tag v<release>`                                                       | Not complete until Docker Hub tag check passes                   |
+| Packages published to npm under `@roomful`                                                                                             | `pnpm release:verify-public -- --tag v<release>`                                                       | Current npm checks pass for all ten public packages              |
+| GitHub Release tagged with changelog                                                                                                   | `pnpm release:verify-public -- --tag v<release>`                                                       | Current `v2.0.0` GitHub Release API check passes                 |
+| Relay Docker image published                                                                                                           | `pnpm release:verify-public -- --tag v<release>`                                                       | Current `v2.0.0` immutable Docker Hub tag check passes           |
 | Show HN, blog, social, and Discord launch tasks complete                                                                               | [Launch kit](launch-kit.md)                                                                            | Prepared, not posted                                             |
 | npm weekly downloads baseline recorded                                                                                                 | `pnpm release:downloads-baseline`                                                                      | Command available; final baseline must be recorded after publish |
 
@@ -66,24 +71,22 @@ pnpm release:downloads-baseline
 
 - npm registry entries for every public `@roomful/*` package at the current package versions
 - GitHub Release for the release tag
-- Docker Hub tag for `erayatesdev/roomful`
+- Docker Hub tag for `erayatesdev/roomful` matching the release tag without the leading `v`
 - `https://docs.roomful.dev`
 - `https://demo.roomful.dev`
 
-## Current External Blockers
+## Current External State
 
-The current machine is missing required release credentials:
+The latest public verifier run for `v2.0.0` passes:
 
-- `npm whoami` returns `ENEEDAUTH`
-- `gh` is not installed on `PATH`
-- Docker Desktop is available, but Docker Hub publish credentials are not confirmed for command-line release execution
+- npm `@roomful/*` registry checks return `200` for all ten public packages at their current versions
+- GitHub Release `v2.0.0` returns `200`
+- Docker Hub `erayatesdev/roomful:2.0.0` returns `200`
+- Docker Hub `erayatesdev/roomful:latest` returns `200`
+- docs and demo public URLs return `200`
 
-The latest public verifier run for `v1.0.0` fails on all public release surfaces:
-
-- npm `@roomful/*` registry checks return `404` (all seven packages at `1.0.0`)
-- GitHub Release `v1.0.0` returns `404`
-- Docker Hub `roomful/relay:1.0.0` returns `404`
-- docs and demo public URLs do not load from this environment
+Dart and Flutter packages are published on pub.dev as alpha releases:
+`roomful` (`v0.1.0-alpha.10`) and `roomful_flutter` (`v0.1.0-alpha.4`).
 
 ## Final Release Sequence
 

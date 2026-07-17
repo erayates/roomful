@@ -1,0 +1,11 @@
+{
+  "name": "roomful-smoke-cli",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "validate": "roomful --version && roomful help && roomful init --help && roomful doctor --help"
+  },
+  "dependencies": {
+    "@roomful/cli": "workspace:*"
+  }
+}

@@ -11,6 +11,7 @@ function readArgs(argv) {
   const args = {
     demoUrl: DEFAULT_DEMO_URL,
     dockerRepository: DEFAULT_DOCKER_REPOSITORY,
+    dockerTag: undefined,
     docsUrl: DEFAULT_DOCS_URL,
     githubOwner: DEFAULT_OWNER,
     githubRepo: DEFAULT_REPO,
@@ -26,6 +27,11 @@ function readArgs(argv) {
     }
     if (arg === '--docker-repository') {
       args.dockerRepository = argv[index + 1] ?? args.dockerRepository;
+      index += 1;
+      continue;
+    }
+    if (arg === '--docker-tag') {
+      args.dockerTag = argv[index + 1] ?? args.dockerTag;
       index += 1;
       continue;
     }
@@ -76,6 +82,10 @@ function releaseTagFromPackages(packages) {
     throw new Error('Cannot infer release tag because @roomful/core was not found.');
   }
   return `v${core.version}`;
+}
+
+function dockerTagFromReleaseTag(tag) {
+  return tag.startsWith('v') ? tag.slice(1) : tag;
 }
 
 async function checkUrl(label, url) {
@@ -142,10 +152,10 @@ async function checkGithubRelease(args, tag) {
   return checkUrl(`GitHub Release ${tag}`, url);
 }
 
-async function checkDockerTag(args, relayVersion) {
+async function checkDockerTag(args, dockerTag) {
   const [namespace, repository] = args.dockerRepository.split('/');
-  const url = `https://hub.docker.com/v2/repositories/${namespace}/${repository}/tags/${encodeURIComponent(relayVersion)}`;
-  return checkUrl(`Docker image ${args.dockerRepository}:${relayVersion}`, url);
+  const url = `https://hub.docker.com/v2/repositories/${namespace}/${repository}/tags/${encodeURIComponent(dockerTag)}`;
+  return checkUrl(`Docker image ${args.dockerRepository}:${dockerTag}`, url);
 }
 
 function printResult(result) {
@@ -159,16 +169,12 @@ async function main() {
   const args = readArgs(process.argv.slice(2));
   const packages = getPublicPackages();
   const tag = args.tag ?? releaseTagFromPackages(packages);
-  const relayPackage = packages.find((packageInfo) => packageInfo.name === '@roomful/relay');
-
-  if (!relayPackage) {
-    throw new Error('Cannot verify Docker image because @roomful/relay was not found.');
-  }
+  const dockerTag = args.dockerTag ?? dockerTagFromReleaseTag(tag);
 
   const checks = [
     ...(await Promise.all(packages.map((packageInfo) => checkNpmPackage(packageInfo)))),
     await checkGithubRelease(args, tag),
-    await checkDockerTag(args, relayPackage.version),
+    await checkDockerTag(args, dockerTag),
     await checkUrl('docs site', args.docsUrl),
     await checkUrl('demo site', args.demoUrl),
   ];

@@ -3,8 +3,16 @@ description: >-
   Open-source, self-hostable realtime collaboration for Dart and Flutter apps — presence,
   live cursors, comments, locks, shared state, session replay, and AI agents.
 version: 0.1.0-alpha.10
+homepage: https://roomful.dev
+documentation: https://docs.roomful.dev
 repository: https://github.com/erayates/roomful
 issue_tracker: https://github.com/erayates/roomful/issues
+topics:
+  - collaboration
+  - realtime
+  - websocket
+  - presence
+  - multiplayer
 
 environment:
   sdk: ^3.4.0

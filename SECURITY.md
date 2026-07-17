@@ -2,12 +2,14 @@
 
 ## Supported Versions
 
-Roomful is pre-`v1.0`. Security fixes are currently applied to the `main` branch.
+Roomful's JavaScript SDK is released, with security fixes applied to `main` and current published packages. Alpha and older release lines are handled on a best-effort basis unless a maintainer announces otherwise.
 
-| Version          | Supported   |
-| ---------------- | ----------- |
-| `main`           | Yes         |
-| Pre-release tags | Best effort |
+| Version                       | Supported   |
+| ----------------------------- | ----------- |
+| `main`                        | Yes         |
+| Current `@roomful/*` packages | Yes         |
+| Dart/Flutter alpha SDK        | Best effort |
+| Older or pre-release tags     | Best effort |
 
 ## Reporting a Vulnerability
 
@@ -57,5 +59,6 @@ After mitigation is available, maintainers may publish:
 ## Related Docs
 
 - [Support](SUPPORT.md)
+- [Security model](docs/reference/security.md)
 - [Advanced reference](docs/reference/advanced.md)
 - [Performance and scaling](docs/reference/performance.md)

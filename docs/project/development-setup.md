@@ -7,6 +7,8 @@ Audience: contributors.
 - Node.js `20` locally (validated in CI)
 - `pnpm`
 - `git`
+- Optional for Dart SDK work: Dart stable SDK (`dart`)
+- Optional for Flutter SDK work: Flutter stable SDK (`flutter`)
 
 ## Clone and Install
 
@@ -52,6 +54,35 @@ pnpm exec playwright install chromium firefox webkit
 and Playwright WebKit. WebKit is used as the Safari-equivalent coverage target in CI. The WebRTC
 scenario is skipped automatically when the underlying WebKit runtime does not expose
 `RTCPeerConnection`.
+
+## Dart and Flutter SDK Checks
+
+The Dart and Flutter packages are source-present alpha packages under `dart/`. They are validated by
+separate GitHub Actions workflows:
+
+- `.github/workflows/dart.yml` for `dart/roomful`
+- `.github/workflows/flutter.yml` for `dart/roomful_flutter`
+
+Run the Dart core checks locally with:
+
+```bash
+cd dart/roomful
+dart pub get
+dart analyze
+dart test
+```
+
+Run the Flutter package checks locally with:
+
+```bash
+cd dart/roomful_flutter
+flutter pub get
+flutter analyze
+flutter test
+```
+
+`roomful_flutter` currently depends on `roomful` by local path and has `publish_to: none`, so pub.dev
+release readiness is a separate task from JS/npm release readiness.
 
 Run the self-hostable `@roomful/relay` signaling server locally for WebRTC validation:
 

@@ -1,5 +1,13 @@
 import { execFileSync } from 'node:child_process';
-import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -10,26 +18,24 @@ const tarballRoot = path.join(smokeRoot, 'tarballs');
 const workdirRoot = path.join(smokeRoot, 'workdirs');
 const templateRoot = path.join(workspaceRoot, 'smoke', 'templates');
 
-const publicPackages = [
-  { name: '@roomful/core', dir: 'packages/core' },
-  { name: '@roomful/react', dir: 'packages/react' },
-  { name: '@roomful/vue', dir: 'packages/vue' },
-  { name: '@roomful/svelte', dir: 'packages/svelte' },
-  { name: '@roomful/cursors', dir: 'packages/cursors' },
-  { name: '@roomful/devtools', dir: 'packages/devtools' },
-  { name: '@roomful/relay', dir: 'packages/relay' },
-];
+const publicPackages = discoverPublicPackages();
 
 const smokeProjects = [
   { name: 'core-vanilla', templateDir: 'core-vanilla' },
   { name: 'react-app', templateDir: 'react-app' },
   { name: 'vue-app', templateDir: 'vue-app' },
   { name: 'svelte-app', templateDir: 'svelte-app' },
+  { name: 'solid-app', templateDir: 'solid-app' },
+  { name: 'angular-app', templateDir: 'angular-app' },
+  { name: 'next-auth', templateDir: 'next-auth' },
   { name: 'cursors-react', templateDir: 'cursors-react' },
   { name: 'devtools-import', templateDir: 'devtools-import' },
+  { name: 'cli', templateDir: 'cli' },
 ];
 
-const selectedNames = process.argv.slice(2);
+const selectedNames = process.argv.slice(2).filter((argument) => {
+  return argument !== '--';
+});
 const selectedProjects =
   selectedNames.length === 0
     ? smokeProjects
@@ -69,6 +75,37 @@ for (const project of selectedProjects) {
 process.stdout.write(
   `Publish smoke passed for: ${selectedProjects.map((project) => project.name).join(', ')}\n`,
 );
+
+function discoverPublicPackages() {
+  const packagesRoot = path.join(workspaceRoot, 'packages');
+  return readdirSync(packagesRoot, { withFileTypes: true })
+    .filter((entry) => {
+      return entry.isDirectory();
+    })
+    .map((entry) => {
+      const packageDir = path.join(packagesRoot, entry.name);
+      const packageJsonPath = path.join(packageDir, 'package.json');
+      if (!existsSync(packageJsonPath)) {
+        return null;
+      }
+
+      const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf8'));
+      if (packageJson.private === true) {
+        return null;
+      }
+
+      return {
+        dir: path.relative(workspaceRoot, packageDir).split(path.sep).join('/'),
+        name: packageJson.name,
+      };
+    })
+    .filter((packageDefinition) => {
+      return packageDefinition !== null;
+    })
+    .sort((left, right) => {
+      return left.name.localeCompare(right.name);
+    });
+}
 
 function packPublicPackage(packageDefinition) {
   const cwd = path.join(workspaceRoot, packageDefinition.dir);

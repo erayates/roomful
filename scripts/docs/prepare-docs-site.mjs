@@ -7,6 +7,7 @@ const repoRoot = path.resolve(fileURLToPath(new URL('../../', import.meta.url)))
 const docsSourceRoot = path.join(repoRoot, 'docs');
 const docsAppRoot = path.join(repoRoot, 'apps', 'docs');
 const docsContentRoot = path.join(docsAppRoot, 'src', 'content', 'docs');
+const astroCacheRoot = path.join(docsAppRoot, '.astro');
 const templatesRoot = path.join(docsAppRoot, 'templates');
 const githubRepositoryUrl = 'https://github.com/erayates/roomful';
 const archivedVersionSlug = 'v1-0';
@@ -129,6 +130,7 @@ await prepareDocsSite();
 async function prepareDocsSite() {
   await fs.mkdir(docsContentRoot, { recursive: true });
   await clearCurrentDocs();
+  await clearAstroContentCache();
   await writeTemplate('index.mdx', 'index.mdx');
   await writeTemplate('community.mdx', path.posix.join('community', 'index.mdx'));
   await writeTemplate('playground.mdx', path.posix.join('playground', 'index.mdx'));
@@ -136,6 +138,10 @@ async function prepareDocsSite() {
   await generateNarrativeDocs();
   await generateApiDocs();
   await generateVersionedSnapshot(archivedVersionSlug);
+}
+
+async function clearAstroContentCache() {
+  await fs.rm(astroCacheRoot, { force: true, recursive: true });
 }
 
 async function clearCurrentDocs() {

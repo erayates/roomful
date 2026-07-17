@@ -103,8 +103,8 @@ Relay runtime defaults and knobs:
 Docker runtime:
 
 ```bash
-docker pull roomful/relay:latest
-docker run --rm -p 8787:8787 -e HOST=0.0.0.0 roomful/relay:latest
+docker pull erayatesdev/roomful:latest
+docker run --rm -p 8787:8787 -e HOST=0.0.0.0 erayatesdev/roomful:latest
 ```
 
 Redis-backed relay behavior:
@@ -194,6 +194,7 @@ For private rooms in relay mode:
 
 - [Reference index](README.md)
 - [Core API](core-api.md)
+- [Security model](security.md)
 - [Rooms and transports](../getting-started/rooms-and-transports.md)
 - [Performance](performance.md)
 - [Security policy](../../SECURITY.md)

@@ -34,7 +34,7 @@ Changelog model:
 ## Workflow Overview
 
 1. Contributor adds a changeset file in PR (`pnpm changeset`).
-2. PR CI (`.github/workflows/ci.yml`) validates on Node `18` and `20`.
+2. PR CI (`.github/workflows/ci.yml`) validates on Node `20`.
 3. Maintainers merge release-ready changes into `main`.
 4. `.github/workflows/changesets-release-pr.yml` auto-creates/updates a release PR on `main`.
 5. Release PR contains version bumps and package changelog updates from `pnpm version-packages`.
@@ -84,7 +84,7 @@ Release secrets:
 - [ ] `DOCKERHUB_TOKEN` configured
 - [ ] Release tag (`v*`) pushed from intended commit
 - [ ] GitHub Release created from the release tag after npm and Docker publishing succeed
-- [ ] Public release verified with `pnpm release:verify-public -- --tag v<release>`
+- [ ] Public release verified with `pnpm release:verify-public -- --tag v<release>`; Docker tag is the release tag without the leading `v`
 - [ ] npm weekly downloads baseline recorded with `pnpm release:downloads-baseline`
 - [ ] Launch announcements posted from [Launch Kit](launch-kit.md)
 

@@ -6,10 +6,10 @@ This directory is the canonical Markdown documentation hub for Roomful.
 
 ## Current State
 
-Roomful **v1.8 is released** — v1.0/v1.1/v1.5 plus Session Recording (v1.6), AI Peer + visual replay
-(v1.7), and the WebTransport transport + Cloudflare edge relay (v1.8), across 10 packages with stable
-API contracts. The next phase **expands** the SDK into a cross-platform, self-hostable, AI-native
-collaboration layer for web and Flutter — see the [Roadmap](../ROADMAP.md) and the
+Roomful JavaScript SDK **v2.0.0 is released** across 10 public packages with package-type and publish
+smoke verification coverage. The Dart/Flutter SDK remains source-present alpha, with pub.dev publishing
+still pending. The next phase expands the SDK toward a cross-platform, self-hostable, AI-native
+collaboration layer for web and Flutter; see the [Roadmap](../ROADMAP.md) and the
 [v2 → v3 backlog](project/v2-v3-backlog.md).
 
 ## Getting Started
@@ -30,6 +30,7 @@ collaboration layer for web and Flutter — see the [Roadmap](../ROADMAP.md) and
 - [Vue adapter](reference/adapters-vue.md)
 - [Svelte adapter](reference/adapters-svelte.md)
 - [Advanced features](reference/advanced.md)
+- [Security model](reference/security.md)
 - [UI components](reference/ui-components.md)
 - [Devtools and debugging](reference/devtools-debugging.md)
 - [Performance guide](reference/performance.md)

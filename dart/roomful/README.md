@@ -3,14 +3,12 @@
 Open-source, self-hostable realtime collaboration for **Dart and Flutter** apps — the pure-Dart
 core client. The Flutter widgets/overlays layer is the separate `roomful_flutter` package.
 
-> **Status: `v2.1-alpha` (EP-11).** Implements the
-> [Roomful Protocol v2](../../rfcs/0001-protocol-v2.md) — capabilities, session negotiation, the
-> versioned envelope, and the JSON codec — the relay control protocol, a `RoomfulClient` room
-> lifecycle (join, peer registry, message relay), and a WebSocket relay transport. It also
-> provides the room primitives — presence, cursors, events, last-write-wins shared state, and
-> advisory locks — and the MessagePack codec (envelope encode/decode, validated against the shared
-> fixtures). Wiring msgpack into the client's negotiated send over a binary transport is the remaining
-> step. Not yet published to pub.dev.
+> **Status: `v2.1-alpha` (EP-11).** Feature-complete — implements the
+> [Roomful Protocol v2](../../rfcs/0001-protocol-v2.md) with capabilities, session negotiation, the
+> versioned envelope, JSON and MessagePack codecs (validated against shared protocol fixtures), the
+> relay control protocol, a `RoomfulClient` room lifecycle (join, peer registry, message relay,
+> WebSocket transport, opt-in auto-reconnect), and the room primitives — presence, cursors, events,
+> last-write-wins shared state, and advisory locks. pub.dev publication pending.
 
 ## What works today
 
