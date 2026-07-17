@@ -1,0 +1,29 @@
+{
+  "name": "create-roomful-app",
+  "version": "0.1.0-alpha.1",
+  "description": "Scaffold a new Roomful project with a single command.",
+  "private": false,
+  "type": "module",
+  "bin": {
+    "create-roomful-app": "./dist/index.js"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "rimraf dist && tsc -p tsconfig.json",
+    "lint": "eslint src --max-warnings 0",
+    "test": "vitest run --config ../../vitest.package.config.ts --fileParallelism=false",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "clean": "rimraf dist coverage"
+  },
+  "devDependencies": {
+    "@types/node": "^25.3.3"
+  }
+}
