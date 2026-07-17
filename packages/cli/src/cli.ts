@@ -42,7 +42,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function readPackageVersion(): string {
   try {
-    const raw: unknown = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+    const raw: unknown = JSON.parse(
+      readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
+    );
     if (isRecord(raw) && typeof raw.version === 'string') {
       return raw.version;
     }

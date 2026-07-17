@@ -63,8 +63,8 @@ Building collaboration features usually requires you to stitch together transpor
 | Network topology    | SVG live peer graph (v1.10)                              | Available |
 | Ephemeral rooms     | no persistence, auto-disconnect TTL (v1.11)              | Available |
 | Audit log           | hash-chained tamper-evident events (v1.11)               | Available |
-| Dart SDK            | `roomful` alpha — published on pub.dev                     | Alpha     |
-| Flutter SDK         | Provider, cursors, avatars, state — published on pub.dev   | Alpha     |
+| Dart SDK            | `roomful` alpha — published on pub.dev                   | Alpha     |
+| Flutter SDK         | Provider, cursors, avatars, state — published on pub.dev | Alpha     |
 
 CRDT note: `strategy: 'crdt'`, `room.getYDoc()`, and `room.getYProvider()` require installing the `yjs` and `y-protocols` peer dependencies.
 

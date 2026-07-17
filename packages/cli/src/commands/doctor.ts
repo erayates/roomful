@@ -160,7 +160,9 @@ export async function runDoctor(args: string[], runtime: RoomfulCliRuntime): Pro
   const relayUrl = parsed.relayUrl ?? process.env['ROOMFUL_RELAY_URL'] ?? 'ws://127.0.0.1:8787';
 
   runtime.stdout.write('Roomful Doctor\n');
-  runtime.stdout.write('\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\n\n');
+  runtime.stdout.write(
+    '\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\n\n',
+  );
 
   const results: DoctorResult[] = [
     checkNodeVersion(),

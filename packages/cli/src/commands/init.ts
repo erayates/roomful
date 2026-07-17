@@ -153,7 +153,7 @@ export function runInit(args: string[], runtime: RoomfulCliRuntime): number {
   const isCurrentDir = dir === '.';
   const dirName = isCurrentDir
     ? 'roomful-project'
-    : dir.split(/[/\\]/).pop() ?? 'roomful-project';
+    : (dir.split(/[/\\]/).pop() ?? 'roomful-project');
   const packageName = parsed.options.name ?? dirName;
 
   try {
