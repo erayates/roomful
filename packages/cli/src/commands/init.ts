@@ -166,7 +166,11 @@ window.addEventListener('beforeunload', () => {
   writeFileSync(join(srcDir, 'index.ts'), indexTs);
 }
 
-function scaffoldFromTemplate(targetDir: string, templateName: string, packageName: string): boolean {
+function scaffoldFromTemplate(
+  targetDir: string,
+  templateName: string,
+  packageName: string,
+): boolean {
   const templateDir = new URL(templateName + '/', TEMPLATES_DIR);
 
   try {
@@ -252,7 +256,9 @@ export function runInit(args: string[], runtime: RoomfulCliRuntime): number {
     // If a template is specified, scaffold from it
     if (parsed.options.template) {
       if (!AVAILABLE_TEMPLATES.includes(parsed.options.template)) {
-        runtime.stderr.write(`Unknown template "${parsed.options.template}". Use --list-templates to see available options.\n`);
+        runtime.stderr.write(
+          `Unknown template "${parsed.options.template}". Use --list-templates to see available options.\n`,
+        );
         return 1;
       }
 
