@@ -125,13 +125,11 @@ function resolveOwnerId(request: IncomingMessage): string {
 }
 
 function matchParam(
-  prefix: string,
   path: string,
   pattern: string,
 ): Record<string, string> | null {
-  const fullPattern = `${prefix}${pattern}`;
   const pathParts = path.replace(/\/$/, '').split('/');
-  const patternParts = fullPattern.split('/');
+  const patternParts = pattern.split('/');
 
   if (pathParts.length !== patternParts.length) {
     return null;
@@ -523,7 +521,7 @@ export function createManagementApi(
         continue;
       }
 
-      const params = matchParam(prefix, path, routePath);
+      const params = matchParam(path, routePath);
       if (!params) {
         continue;
       }
