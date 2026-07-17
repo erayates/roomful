@@ -1,11 +1,13 @@
 import { render } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
-import { ProjectsPage } from './ProjectsPage';
+import { RoomsPage } from './RoomsPage';
 
-describe('ProjectsPage', () => {
+describe('RoomsPage', () => {
   it('renders loading state', () => {
-    const { container } = render(<ProjectsPage onSelectProject={() => {}} />);
+    const { container } = render(
+      <RoomsPage projectId="proj-1" projectName="Test" onBack={() => {}} />,
+    );
     expect(container.querySelector('[data-testid="loading"]')).toBeTruthy();
   });
 });

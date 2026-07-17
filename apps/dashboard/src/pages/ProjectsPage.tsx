@@ -18,7 +18,11 @@ function validateForm(data: FormData): string | null {
   return null;
 }
 
-export function ProjectsPage(): JSX.Element {
+interface ProjectsPageProps {
+  onSelectProject: (id: string, name: string) => void;
+}
+
+export function ProjectsPage({ onSelectProject }: ProjectsPageProps): JSX.Element {
   const [projects, setProjects] = useState<RelayProject[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -243,6 +247,7 @@ export function ProjectsPage(): JSX.Element {
                   {new Date(project.createdAt).toLocaleDateString()}
                 </td>
                 <td style={{ padding: '0.5rem' }}>
+                  <button onClick={() => onSelectProject(project.id, project.name)}>Rooms</button>{' '}
                   <button onClick={() => handleEdit(project)}>Edit</button>{' '}
                   <button onClick={() => setDeletingId(project.id)} style={{ color: '#c0392b' }}>
                     Delete
