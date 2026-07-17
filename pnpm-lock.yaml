@@ -336,6 +336,12 @@ importers:
         specifier: ^25.3.3
         version: 25.3.3
 
+  packages/cloud-api:
+    devDependencies:
+      '@types/node':
+        specifier: ^25.3.3
+        version: 25.3.3
+
   packages/core:
     devDependencies:
       '@roomful/devtools':

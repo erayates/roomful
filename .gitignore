@@ -27,3 +27,7 @@ test-results/
 .claude/launch.json
 .claude/settings.local.json
 .wrongstack/
+
+# Dart/Flutter tooling artifacts
+dart/**/.dart_tool/
+dart/**/pubspec.lock

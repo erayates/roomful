@@ -12,6 +12,12 @@ import { type RawData, type WebSocket, WebSocketServer } from 'ws';
 
 import { verifyJWT } from './auth.js';
 import {
+  createManagementApi,
+  InMemoryManagementStore,
+  type ManagementStore,
+} from './management/index.js';
+import type { RelayDefaults } from './management/types.js';
+import {
   parseRelayClientMessage,
   type RelayClientMessage,
   type RelayPeerJoinedMessage,
@@ -224,6 +230,26 @@ export interface RelayServerOptions {
    * a `RATE_LIMITED` error instead of being processed. Off by default.
    */
   messageRateLimit?: RelayMessageRateLimit;
+
+  /**
+   * Enables the management REST API at the given path prefix.
+   * When set, the relay serves project/room/quota CRUD endpoints
+   * at the specified prefix (e.g. `/api/v1`). Requires a store
+   * and default quota values.
+   *
+   * Example:
+   * ```
+   * managementApi: {
+   *   prefix: '/api/v1',
+   *   defaults: { maxRooms: 100, maxPeersPerRoom: 250, ... },
+   * }
+   * ```
+   */
+  managementApi?: {
+    prefix?: string;
+    store?: ManagementStore;
+    defaults: RelayDefaults;
+  };
 }
 
 export interface RelayServerInternalOptions extends RelayServerOptions {
@@ -662,6 +688,10 @@ export class RelayServerImpl implements RelayServer {
 
   private readonly corsOrigin: string | undefined;
 
+  private readonly managementHandler:
+    | ((req: IncomingMessage, res: ServerResponse) => Promise<void>)
+    | null = null;
+
   private authHandler: RelayAuthHandler | null = null;
 
   private stopPromise: Promise<void> | null = null;
@@ -688,6 +718,17 @@ export class RelayServerImpl implements RelayServer {
     this.coordinator.onMessage((message) => {
       this.handleCoordinatorMessage(message);
     });
+
+    // Initialize management API when configured
+    if (options.managementApi) {
+      const store =
+        options.managementApi.store ?? new InMemoryManagementStore(options.managementApi.defaults);
+      this.managementHandler = createManagementApi({
+        store,
+        defaults: options.managementApi.defaults,
+        prefix: options.managementApi.prefix ?? '/api/v1',
+      });
+    }
   }
 
   public get port(): number {
@@ -855,6 +896,27 @@ export class RelayServerImpl implements RelayServer {
 
   private handleHttpRequest(request: IncomingMessage, response: ServerResponse): void {
     const path = resolveRequestPath(request);
+
+    // Delegate to management API handler when configured
+    if (this.managementHandler) {
+      const prefix = (this.options.managementApi?.prefix ?? '/api/v1').toLowerCase();
+      if (path.toLowerCase().startsWith(prefix)) {
+        void this.managementHandler(request, response).catch((error) => {
+          this.logRelayError('Management API handler failed.', error);
+          if (!response.headersSent) {
+            response.statusCode = 500;
+            response.setHeader('content-type', 'application/json');
+            response.end(
+              JSON.stringify({ code: 'INTERNAL_ERROR', message: 'Internal server error.' }),
+            );
+          } else if (!response.writableEnded) {
+            response.end();
+          }
+        });
+        return;
+      }
+    }
+
     this.applyCorsHeaders(response);
     if (request.method === 'OPTIONS') {
       response.statusCode = 204;
