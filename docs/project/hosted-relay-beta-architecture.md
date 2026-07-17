@@ -7,10 +7,14 @@ routes WebSocket and WebRTC signaling traffic for rooms. The **hosted relay** (R
 extends this into a multi-tenant, metered, API-key-gated service so teams can use Roomful without
 running their own infrastructure.
 
-> **Status:** Architecture draft — implementation in progress. The management API (project/room/quota
-> CRUD) is shipped in `@roomful/relay` (`packages/relay/src/management/`). The auth service, usage
-> pipeline, and cloud deployment remain in design/planning. This document defines the beta scope for
-> issue [#231](v2-v3-backlog.md#ep-23-cloud--open-core-commercial-layer).
+> **Status:** Implementation in progress. Management API (project/room/quota CRUD) is shipped in
+> `@roomful/relay` (`packages/relay/src/management/`) with Zod schema validation, REST API handler,
+> and InMemoryManagementStore. The management API is now mountable in the relay server via the
+> `managementApi` config option. Cloud API (`packages/cloud-api`) provides Organization, Project, Room,
+> and ApiKey models with InMemory stores, quota helpers, and usage metering. Tests for all components
+> reach >70% coverage. Persistent storage (PostgreSQL), webhook dispatch, and cloud deployment remain
+> in design/planning. This document defines the beta scope for issue
+> [#231](v2-v3-backlog.md#ep-23-cloud--open-core-commercial-layer).
 
 ## 1. Design Goals
 
