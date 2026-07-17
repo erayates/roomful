@@ -13,3 +13,17 @@ export type {
   RelayServer,
   RelayServerOptions,
 } from './server.js';
+export { createManagementApi, InMemoryManagementStore, resolveEffectiveQuota } from './management/index.js';
+export type {
+  CreateProjectInput,
+  CreateRoomInput,
+  ManagementApiOptions,
+  ManagementStore,
+  Project,
+  ProjectQuota,
+  ProjectUsage,
+  RelayDefaults,
+  RoomRecord,
+  UpdateProjectInput,
+  UpdateQuotaInput,
+} from './management/index.js';

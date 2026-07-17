@@ -15,10 +15,10 @@ export interface Project {
   name: string;
 
   /** Free-form description. */
-  description?: string;
+  description: string | undefined;
 
   /** Opaque metadata the owner can attach. */
-  metadata?: Record<string, unknown>;
+  metadata: Record<string, unknown> | undefined;
 
   /** Epoch milliseconds when the project was created. */
   createdAt: number;
@@ -42,8 +42,7 @@ export const projectSchema = z
     createdAt: z.number().finite(),
     updatedAt: z.number().finite(),
     ownerId: z.string().min(1).max(128),
-  })
-  .readonly();
+  });
 
 export const createProjectInputSchema = z.object({
   /** Optional id; auto-generated when omitted. Must be unique. */
@@ -66,9 +65,7 @@ export type UpdateProjectInput = z.infer<typeof updateProjectInputSchema>;
 // ── Room ──────────────────────────────────────────────────────────────────────
 
 /**
- * A room record is the management-plane representation of a room. It is created
- * through the management API *before* the first client joins, though the relay
- * also auto-registers rooms on first join when the store supports it.
+ * A room record is the management-plane representation of a room.
  */
 export interface RoomRecord {
   /** Unique room id across the relay (the same id peers use to join). */
@@ -78,18 +75,16 @@ export interface RoomRecord {
   projectId: string;
 
   /** Human-readable label. */
-  name?: string;
+  name: string | undefined;
 
   /** Opaque metadata the owner can attach. */
-  metadata?: Record<string, unknown>;
+  metadata: Record<string, unknown> | undefined;
 
   /** When the room was provisioned (epoch ms). */
   createdAt: number;
 
-  /**
-   * When `true` the room is never persisted and disconnects after `ttlMs`;
-   * matches the core SDK `ephemeral` option.
-   */
+  /** When `true` the room is never persisted and disconnects after `ttlMs`;
+   * matches the core SDK `ephemeral` option. */
   ephemeral: boolean;
 
   /** Auto-disconnect TTL in ms (`0` = no TTL, meaningful only with `ephemeral`). */
@@ -105,8 +100,7 @@ export const roomRecordSchema = z
     createdAt: z.number().finite(),
     ephemeral: z.boolean(),
     ttlMs: z.number().int().min(0),
-  })
-  .readonly();
+  });
 
 export const createRoomInputSchema = z.object({
   /** Optional id; auto-generated when omitted. */
@@ -132,25 +126,25 @@ export interface ProjectQuota {
   projectId: string;
 
   /** Hard cap on distinct rooms within the project. `-1` = unlimited. */
-  maxRooms?: number;
+  maxRooms: number | undefined;
 
   /** Hard cap on concurrent peers *per room*. `-1` = unlimited. */
-  maxPeersPerRoom?: number;
+  maxPeersPerRoom: number | undefined;
 
   /** Hard cap on concurrent peers across all project rooms. `-1` = unlimited. */
-  maxTotalPeers?: number;
+  maxTotalPeers: number | undefined;
 
   /** Per-peer message rate limit (messages per `messageRateIntervalMs`). */
-  messageRateLimit?: number;
+  messageRateLimit: number | undefined;
 
   /** Refill window for `messageRateLimit` in milliseconds. */
-  messageRateIntervalMs?: number;
+  messageRateIntervalMs: number | undefined;
 
   /** Maximum TTL in ms for ephemeral rooms (`-1` = unlimited). */
-  maxEphemeralTtlMs?: number;
+  maxEphemeralTtlMs: number | undefined;
 
   /** Maximum combined state size in bytes across all rooms (`-1` = unlimited). */
-  maxTotalStateBytes?: number;
+  maxTotalStateBytes: number | undefined;
 
   /** Epoch milliseconds when the project's quota was last adjusted. */
   updatedAt: number;
@@ -167,8 +161,7 @@ export const projectQuotaSchema = z
     maxEphemeralTtlMs: z.number().int().min(-1).optional(),
     maxTotalStateBytes: z.number().int().min(-1).optional(),
     updatedAt: z.number().finite(),
-  })
-  .readonly();
+  });
 
 export const updateQuotaInputSchema = z.object({
   maxRooms: z.number().int().min(-1).optional(),
@@ -211,36 +204,22 @@ export const projectUsageSchema = z
     totalPeerCount: z.number().int().min(0),
     totalStateBytes: z.number().int().min(0),
     sampledAt: z.number().finite(),
-  })
-  .readonly();
+  });
 
 // ── Relay defaults ────────────────────────────────────────────────────────────
 
 /**
  * Relay-wide default limits applied to every project that has no explicit
- * {@link ProjectQuota} override. Can also act as the effective values when
- * a project-level quota is absent.
+ * {@link ProjectQuota} override.
  */
 export interface RelayDefaults {
   /** Default room cap per project (`-1` = unlimited). */
   maxRooms: number;
-
-  /** Default peer cap per room (`-1` = unlimited). */
   maxPeersPerRoom: number;
-
-  /** Default total peer cap per project (`-1` = unlimited). */
   maxTotalPeers: number;
-
-  /** Default per-peer message rate cap (`-1` = unlimited). */
   messageRateLimit: number;
-
-  /** Refill window for the default message rate cap. */
   messageRateIntervalMs: number;
-
-  /** Default max ephemeral room TTL (`-1` = unlimited). */
   maxEphemeralTtlMs: number;
-
-  /** Default max total state bytes per project (`-1` = unlimited). */
   maxTotalStateBytes: number;
 }
 
@@ -258,10 +237,6 @@ export const relayDefaultsSchema = z.object({
  * Resolves the effective quota for a project by merging the project-specific
  * quota with relay defaults. A `-1` value means *unlimited*; `undefined`
  * falls back to the relay default.
- *
- * @param projectQuota - The project-specific quota, or undefined.
- * @param defaults - The relay-wide defaults.
- * @returns The effective quota with all fields resolved to concrete numbers.
  */
 export function resolveEffectiveQuota(
   projectQuota: ProjectQuota | undefined,

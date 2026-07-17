@@ -111,12 +111,16 @@ export class InMemoryManagementStore implements ManagementStore {
     const project: Project = {
       id,
       name: input.name,
-      description: input.description,
-      metadata: input.metadata,
       createdAt: now,
       updatedAt: now,
       ownerId: input.ownerId,
     };
+    if (input.description !== undefined) {
+      (project as { description?: string }).description = input.description;
+    }
+    if (input.metadata !== undefined) {
+      (project as { metadata?: Record<string, unknown> }).metadata = input.metadata;
+    }
     this.projects.set(id, project);
     return project;
   }
@@ -177,12 +181,16 @@ export class InMemoryManagementStore implements ManagementStore {
     const record: RoomRecord = {
       id,
       projectId,
-      name: input.name,
-      metadata: input.metadata,
       createdAt: Date.now(),
       ephemeral: input.ephemeral ?? false,
       ttlMs: input.ttlMs ?? 0,
     };
+    if (input.name !== undefined) {
+      (record as { name?: string }).name = input.name;
+    }
+    if (input.metadata !== undefined) {
+      (record as { metadata?: Record<string, unknown> }).metadata = input.metadata;
+    }
     this.rooms.set(id, record);
     return record;
   }
@@ -200,7 +208,13 @@ export class InMemoryManagementStore implements ManagementStore {
   public setQuota(projectId: string, input: UpdateQuotaInput): ProjectQuota {
     const quota: ProjectQuota = {
       projectId,
-      ...input,
+      maxRooms: input.maxRooms ?? undefined,
+      maxPeersPerRoom: input.maxPeersPerRoom ?? undefined,
+      maxTotalPeers: input.maxTotalPeers ?? undefined,
+      messageRateLimit: input.messageRateLimit ?? undefined,
+      messageRateIntervalMs: input.messageRateIntervalMs ?? undefined,
+      maxEphemeralTtlMs: input.maxEphemeralTtlMs ?? undefined,
+      maxTotalStateBytes: input.maxTotalStateBytes ?? undefined,
       updatedAt: Date.now(),
     };
     this.quotas.set(projectId, quota);

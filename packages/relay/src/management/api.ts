@@ -6,19 +6,13 @@ import {
   createRoomInputSchema,
   type CreateProjectInput,
   type CreateRoomInput,
-  type Project,
-  type ProjectQuota,
-  type ProjectUsage,
   type RelayDefaults,
-  type RoomRecord,
   updateProjectInputSchema,
   updateQuotaInputSchema,
 } from './types.js';
 import { resolveEffectiveQuota, type UpdateProjectInput, type UpdateQuotaInput } from './types.js';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-
-const API_PREFIX = '/api/v1';
 
 function readSingleHeader(request: IncomingMessage, name: string): string | undefined {
   const value = request.headers[name.toLowerCase()];
@@ -103,19 +97,21 @@ function sendError(
 function resolveOwnerId(request: IncomingMessage): string {
   // Extract owner from Authorization Bearer token or a custom header.
   // For JWT-based auth, the owner is extracted from the token claims.
-  // This is a placeholder — real extraction belongs to the auth layer.
   const auth = readSingleHeader(request, 'authorization');
   if (auth && auth.startsWith('Bearer ')) {
     try {
       const payload = auth.slice(7).split('.')[1];
       if (payload) {
         const claims = JSON.parse(
-          Buffer.from(payload.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8'),
+          Buffer.from(
+            payload.replace(/-/g, '+').replace(/_/g, '/'),
+            'base64',
+          ).toString('utf8'),
         );
         return String(claims.sub ?? claims.ownerId ?? '');
       }
     } catch {
-      // Fall through to default.
+      // Fall through to custom header.
     }
   }
 
@@ -128,9 +124,14 @@ function resolveOwnerId(request: IncomingMessage): string {
   return '';
 }
 
-function matchParam(path: string, pattern: string): Record<string, string> | null {
+function matchParam(
+  prefix: string,
+  path: string,
+  pattern: string,
+): Record<string, string> | null {
+  const fullPattern = `${prefix}${pattern}`;
   const pathParts = path.replace(/\/$/, '').split('/');
-  const patternParts = pattern.split('/');
+  const patternParts = fullPattern.split('/');
 
   if (pathParts.length !== patternParts.length) {
     return null;
@@ -150,21 +151,15 @@ function matchParam(path: string, pattern: string): Record<string, string> | nul
   return params;
 }
 
-// ── Path matchers ─────────────────────────────────────────────────────────────
+// ── Path patterns (relative to the management prefix) ────────────────────────
 
-const ROUTES = {
-  projects_list: `${API_PREFIX}/projects`,
-  projects_create: `${API_PREFIX}/projects`,
-  projects_get: `${API_PREFIX}/projects/:projectId`,
-  projects_update: `${API_PREFIX}/projects/:projectId`,
-  projects_delete: `${API_PREFIX}/projects/:projectId`,
-  rooms_list: `${API_PREFIX}/projects/:projectId/rooms`,
-  rooms_create: `${API_PREFIX}/projects/:projectId/rooms`,
-  rooms_get: `${API_PREFIX}/projects/:projectId/rooms/:roomId`,
-  rooms_delete: `${API_PREFIX}/projects/:projectId/rooms/:roomId`,
-  quota_get: `${API_PREFIX}/projects/:projectId/quota`,
-  quota_update: `${API_PREFIX}/projects/:projectId/quota`,
-  usage_get: `${API_PREFIX}/projects/:projectId/usage`,
+const PATH_PATTERNS = {
+  projects_list: '/projects',
+  projects_get: '/projects/:projectId',
+  rooms_list: '/projects/:projectId/rooms',
+  rooms_get: '/projects/:projectId/rooms/:roomId',
+  quota_get: '/projects/:projectId/quota',
+  usage_get: '/projects/:projectId/usage',
 } as const;
 
 // ── Route handler type ────────────────────────────────────────────────────────
@@ -176,12 +171,19 @@ type RouteHandler = (
   response: ServerResponse,
   params: Record<string, string>,
   ownerId: string,
-) => void | Promise<void>;
+) => Promise<void>;
+
+// ── Route table entry ─────────────────────────────────────────────────────────
+
+interface RouteEntry {
+  method: string;
+  handler: RouteHandler;
+}
 
 // ── Handlers ──────────────────────────────────────────────────────────────────
 
-const listProjects: RouteHandler = (store, _defaults, _req, res, _params, ownerId) => {
-  const projects = store.listProjects(ownerId);
+const listProjects: RouteHandler = async (store, _defaults, _req, res, _params, ownerId) => {
+  const projects = await store.listProjects(ownerId);
   sendOk(res, projects);
 };
 
@@ -196,13 +198,18 @@ const createProject: RouteHandler = async (store, _defaults, req, res) => {
 
   const parsed = createProjectInputSchema.safeParse(body);
   if (!parsed.success) {
-    sendError(res, 400, 'VALIDATION_ERROR', parsed.error.issues[0]?.message ?? 'Invalid input.');
+    sendError(
+      res,
+      400,
+      'VALIDATION_ERROR',
+      parsed.error.issues[0]?.message ?? 'Invalid input.',
+    );
     return;
   }
 
   try {
-    const project = store.createProject(parsed.data as CreateProjectInput);
-    sendCreated(res, await maybeResolve(project));
+    const project = await store.createProject(parsed.data as CreateProjectInput);
+    sendCreated(res, project);
   } catch (err) {
     const error = err as Error & { code?: string };
     if (error.code === 'DUPLICATE_PROJECT') {
@@ -213,8 +220,8 @@ const createProject: RouteHandler = async (store, _defaults, req, res) => {
   }
 };
 
-const getProject: RouteHandler = (store, _defaults, _req, res, params) => {
-  const project = store.getProject(params.projectId!);
+const getProject: RouteHandler = async (store, _defaults, _req, res, params) => {
+  const project = await store.getProject(params.projectId!);
   if (!project) {
     sendError(res, 404, 'NOT_FOUND', `Project "${params.projectId}" not found.`);
     return;
@@ -233,20 +240,25 @@ const updateProject: RouteHandler = async (store, _defaults, req, res, params) =
 
   const parsed = updateProjectInputSchema.safeParse(body);
   if (!parsed.success) {
-    sendError(res, 400, 'VALIDATION_ERROR', parsed.error.issues[0]?.message ?? 'Invalid input.');
+    sendError(
+      res,
+      400,
+      'VALIDATION_ERROR',
+      parsed.error.issues[0]?.message ?? 'Invalid input.',
+    );
     return;
   }
 
-  const updated = store.updateProject(params.projectId!, parsed.data as UpdateProjectInput);
+  const updated = await store.updateProject(params.projectId!, parsed.data as UpdateProjectInput);
   if (!updated) {
     sendError(res, 404, 'NOT_FOUND', `Project "${params.projectId}" not found.`);
     return;
   }
-  sendOk(res, await maybeResolve(updated));
+  sendOk(res, updated);
 };
 
-const deleteProject: RouteHandler = (store, _defaults, _req, res, params) => {
-  const existed = store.deleteProject(params.projectId!);
+const deleteProject: RouteHandler = async (store, _defaults, _req, res, params) => {
+  const existed = await store.deleteProject(params.projectId!);
   if (!existed) {
     sendError(res, 404, 'NOT_FOUND', `Project "${params.projectId}" not found.`);
     return;
@@ -254,8 +266,8 @@ const deleteProject: RouteHandler = (store, _defaults, _req, res, params) => {
   sendNoContent(res);
 };
 
-const listRooms: RouteHandler = (store, _defaults, _req, res, params) => {
-  const rooms = store.listRooms(params.projectId!);
+const listRooms: RouteHandler = async (store, _defaults, _req, res, params) => {
+  const rooms = await store.listRooms(params.projectId!);
   sendOk(res, rooms);
 };
 
@@ -270,13 +282,18 @@ const createRoom: RouteHandler = async (store, _defaults, req, res, params) => {
 
   const parsed = createRoomInputSchema.safeParse(body);
   if (!parsed.success) {
-    sendError(res, 400, 'VALIDATION_ERROR', parsed.error.issues[0]?.message ?? 'Invalid input.');
+    sendError(
+      res,
+      400,
+      'VALIDATION_ERROR',
+      parsed.error.issues[0]?.message ?? 'Invalid input.',
+    );
     return;
   }
 
   try {
-    const room = store.createRoom(params.projectId!, parsed.data as CreateRoomInput);
-    sendCreated(res, await maybeResolve(room));
+    const room = await store.createRoom(params.projectId!, parsed.data as CreateRoomInput);
+    sendCreated(res, room);
   } catch (err) {
     const error = err as Error & { code?: string };
     if (error.code === 'PROJECT_NOT_FOUND') {
@@ -291,39 +308,44 @@ const createRoom: RouteHandler = async (store, _defaults, req, res, params) => {
   }
 };
 
-const getRoom: RouteHandler = (store, _defaults, _req, res, params) => {
-  const room = store.getRoom(params.roomId!);
+const getRoom: RouteHandler = async (store, _defaults, _req, res, params) => {
+  const room = await store.getRoom(params.roomId!);
   if (!room) {
     sendError(res, 404, 'NOT_FOUND', `Room "${params.roomId}" not found.`);
     return;
   }
   if (room.projectId !== params.projectId) {
-    sendError(res, 404, 'NOT_FOUND', `Room "${params.roomId}" not found in this project.`);
+    sendError(
+      res,
+      404,
+      'NOT_FOUND',
+      `Room "${params.roomId}" not found in this project.`,
+    );
     return;
   }
   sendOk(res, room);
 };
 
-const deleteRoom: RouteHandler = (store, _defaults, _req, res, params) => {
-  const room = store.getRoom(params.roomId!);
+const deleteRoom: RouteHandler = async (store, _defaults, _req, res, params) => {
+  const room = await store.getRoom(params.roomId!);
   if (!room || room.projectId !== params.projectId) {
     sendError(res, 404, 'NOT_FOUND', `Room "${params.roomId}" not found.`);
     return;
   }
-  store.deleteRoom(params.roomId!);
+  await store.deleteRoom(params.roomId!);
   sendNoContent(res);
 };
 
-const getQuota: RouteHandler = (store, defaults, _req, res, params) => {
-  const project = store.getProject(params.projectId!);
+const getQuota: RouteHandler = async (store, defaults, _req, res, params) => {
+  const project = await store.getProject(params.projectId!);
   if (!project) {
     sendError(res, 404, 'NOT_FOUND', `Project "${params.projectId}" not found.`);
     return;
   }
 
-  const explicitQuota = store.getQuota(params.projectId!);
+  const explicitQuota = await store.getQuota(params.projectId!);
   const effective = resolveEffectiveQuota(
-    explicitQuota instanceof Promise ? undefined : (explicitQuota as ProjectQuota | null) ?? undefined,
+    explicitQuota ?? undefined,
     defaults,
   );
 
@@ -334,7 +356,7 @@ const getQuota: RouteHandler = (store, defaults, _req, res, params) => {
 };
 
 const updateQuota: RouteHandler = async (store, _defaults, req, res, params) => {
-  const project = store.getProject(params.projectId!);
+  const project = await store.getProject(params.projectId!);
   if (!project) {
     sendError(res, 404, 'NOT_FOUND', `Project "${params.projectId}" not found.`);
     return;
@@ -350,51 +372,49 @@ const updateQuota: RouteHandler = async (store, _defaults, req, res, params) => 
 
   const parsed = updateQuotaInputSchema.safeParse(body);
   if (!parsed.success) {
-    sendError(res, 400, 'VALIDATION_ERROR', parsed.error.issues[0]?.message ?? 'Invalid input.');
+    sendError(
+      res,
+      400,
+      'VALIDATION_ERROR',
+      parsed.error.issues[0]?.message ?? 'Invalid input.',
+    );
     return;
   }
 
-  const quota = store.setQuota(params.projectId!, parsed.data as UpdateQuotaInput);
-  sendOk(res, await maybeResolve(quota));
+  const quota = await store.setQuota(params.projectId!, parsed.data as UpdateQuotaInput);
+  sendOk(res, quota);
 };
 
-const getUsage: RouteHandler = (store, _defaults, _req, res, params) => {
-  const project = store.getProject(params.projectId!);
+const getUsage: RouteHandler = async (store, _defaults, _req, res, params) => {
+  const project = await store.getProject(params.projectId!);
   if (!project) {
     sendError(res, 404, 'NOT_FOUND', `Project "${params.projectId}" not found.`);
     return;
   }
 
-  const usage = store.getUsage(params.projectId!);
-  sendOk(res, await maybeResolve(usage));
+  const usage = await store.getUsage(params.projectId!);
+  sendOk(res, usage);
 };
 
-// ── Route table ───────────────────────────────────────────────────────────────
+// ── Build route table ─────────────────────────────────────────────────────────
 
-interface RouteEntry {
-  method: string;
-  handler: RouteHandler;
-}
+function buildRouteTable(prefix: string): Record<string, RouteEntry> {
+  const p = (path: string): string => `${prefix}${path}`;
 
-const ROUTE_TABLE: Record<string, RouteEntry> = {
-  [`GET ${ROUTES.projects_list}`]: { method: 'GET', handler: listProjects },
-  [`POST ${ROUTES.projects_create}`]: { method: 'POST', handler: createProject },
-  [`GET ${ROUTES.projects_get}`]: { method: 'GET', handler: getProject },
-  [`PUT ${ROUTES.projects_update}`]: { method: 'PUT', handler: updateProject },
-  [`DELETE ${ROUTES.projects_delete}`]: { method: 'DELETE', handler: deleteProject },
-  [`GET ${ROUTES.rooms_list}`]: { method: 'GET', handler: listRooms },
-  [`POST ${ROUTES.rooms_create}`]: { method: 'POST', handler: createRoom },
-  [`GET ${ROUTES.rooms_get}`]: { method: 'GET', handler: getRoom },
-  [`DELETE ${ROUTES.rooms_delete}`]: { method: 'DELETE', handler: deleteRoom },
-  [`GET ${ROUTES.quota_get}`]: { method: 'GET', handler: getQuota },
-  [`PUT ${ROUTES.quota_update}`]: { method: 'PUT', handler: updateQuota },
-  [`GET ${ROUTES.usage_get}`]: { method: 'GET', handler: getUsage },
-};
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-function maybeResolve<T>(value: T | Promise<T>): T | Promise<T> {
-  return value;
+  return {
+    [`GET ${p(PATH_PATTERNS.projects_list)}`]: { method: 'GET', handler: listProjects },
+    [`POST ${p(PATH_PATTERNS.projects_list)}`]: { method: 'POST', handler: createProject },
+    [`GET ${p(PATH_PATTERNS.projects_get)}`]: { method: 'GET', handler: getProject },
+    [`PUT ${p(PATH_PATTERNS.projects_get)}`]: { method: 'PUT', handler: updateProject },
+    [`DELETE ${p(PATH_PATTERNS.projects_get)}`]: { method: 'DELETE', handler: deleteProject },
+    [`GET ${p(PATH_PATTERNS.rooms_list)}`]: { method: 'GET', handler: listRooms },
+    [`POST ${p(PATH_PATTERNS.rooms_list)}`]: { method: 'POST', handler: createRoom },
+    [`GET ${p(PATH_PATTERNS.rooms_get)}`]: { method: 'GET', handler: getRoom },
+    [`DELETE ${p(PATH_PATTERNS.rooms_get)}`]: { method: 'DELETE', handler: deleteRoom },
+    [`GET ${p(PATH_PATTERNS.quota_get)}`]: { method: 'GET', handler: getQuota },
+    [`PUT ${p(PATH_PATTERNS.quota_get)}`]: { method: 'PUT', handler: updateQuota },
+    [`GET ${p(PATH_PATTERNS.usage_get)}`]: { method: 'GET', handler: getUsage },
+  };
 }
 
 // ── Public API ────────────────────────────────────────────────────────────────
@@ -415,8 +435,13 @@ export interface ManagementApiOptions {
   prefix?: string;
 
   /**
-   * Custom authorization callback. If provided, it is called for every
-   * management API request. Return `false` or throw to reject with 401.
+   * Custom authorization callback. Called for every management API request.
+   * Return `false` or throw to reject with 403.
+   *
+   * @param request - The incoming HTTP request.
+   * @param ownerId - The resolved owner from auth headers.
+   * @param action - The handler name (e.g. "createProject").
+   * @param projectId - The project id from the URL when applicable.
    */
   authorize?: (
     request: IncomingMessage,
@@ -430,8 +455,24 @@ export interface ManagementApiOptions {
  * Creates an HTTP request handler for the management REST API.
  *
  * The returned handler can be mounted into the relay's existing HTTP server
- * or used standalone. It handles CORS preflight, routes matching, JSON
+ * or used standalone. It handles CORS preflight, route matching, JSON
  * parsing/validation, and sends JSON responses.
+ *
+ * Endpoints:
+ * ```
+ * GET    /prefix/projects                    List projects
+ * POST   /prefix/projects                    Create project
+ * GET    /prefix/projects/:projectId         Get project
+ * PUT    /prefix/projects/:projectId         Update project
+ * DELETE /prefix/projects/:projectId         Delete project
+ * GET    /prefix/projects/:projectId/rooms              List rooms
+ * POST   /prefix/projects/:projectId/rooms              Create room
+ * GET    /prefix/projects/:projectId/rooms/:roomId      Get room
+ * DELETE /prefix/projects/:projectId/rooms/:roomId      Delete room
+ * GET    /prefix/projects/:projectId/quota              Get quota
+ * PUT    /prefix/projects/:projectId/quota              Set quota
+ * GET    /prefix/projects/:projectId/usage              Get usage
+ * ```
  *
  * @param options - The management API configuration.
  * @returns A function that handles an incoming HTTP request.
@@ -439,7 +480,8 @@ export interface ManagementApiOptions {
 export function createManagementApi(
   options: ManagementApiOptions,
 ): (request: IncomingMessage, response: ServerResponse) => Promise<void> {
-  const prefix = options.prefix ?? API_PREFIX;
+  const prefix = options.prefix ?? '/api/v1';
+  const routeTable = buildRouteTable(prefix);
 
   return async (request: IncomingMessage, response: ServerResponse): Promise<void> => {
     const path = (request.url ?? '/').split('?')[0] ?? '/';
@@ -454,8 +496,14 @@ export function createManagementApi(
     // CORS preflight.
     if (request.method === 'OPTIONS') {
       response.statusCode = 204;
-      response.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-      response.setHeader('Access-Control-Allow-Headers', 'content-type, authorization, x-roomful-owner-id');
+      response.setHeader(
+        'Access-Control-Allow-Methods',
+        'GET, POST, PUT, DELETE, OPTIONS',
+      );
+      response.setHeader(
+        'Access-Control-Allow-Headers',
+        'content-type, authorization, x-roomful-owner-id',
+      );
       response.end();
       return;
     }
@@ -469,13 +517,13 @@ export function createManagementApi(
 
     // Match route.
     const method = request.method ?? 'GET';
-    for (const [pattern, entry] of Object.entries(ROUTE_TABLE)) {
+    for (const [pattern, entry] of Object.entries(routeTable)) {
       const [routeMethod, routePath] = pattern.split(' ', 2);
-      if (routeMethod !== method) {
+      if (routeMethod !== method || !routePath) {
         continue;
       }
 
-      const params = matchParam(path, routePath!);
+      const params = matchParam(prefix, path, routePath);
       if (!params) {
         continue;
       }
@@ -500,9 +548,17 @@ export function createManagementApi(
       }
 
       try {
-        await entry.handler(options.store, options.defaults, request, response, params, ownerId);
+        await entry.handler(
+          options.store,
+          options.defaults,
+          request,
+          response,
+          params,
+          ownerId,
+        );
       } catch (error) {
-        const message = error instanceof Error ? error.message : 'Internal server error.';
+        const message =
+          error instanceof Error ? error.message : 'Internal server error.';
         sendError(response, 500, 'INTERNAL_ERROR', message);
       }
       return;
