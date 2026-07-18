@@ -4,11 +4,14 @@ import type { ManagementStore } from './store.js';
 import {
   createProjectInputSchema,
   createRoomInputSchema,
+  recordUsageEventInputSchema,
   type RelayDefaults,
   resolveEffectiveQuota,
   updateProjectInputSchema,
   updateQuotaInputSchema,
+  usageQuerySchema,
 } from './types.js';
+import type { UsageEventStore } from './us-store.js';
 
 /* eslint-disable @typescript-eslint/no-non-null-assertion, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/consistent-type-assertions */
 
@@ -152,6 +155,8 @@ const PATH_PATTERNS = {
   rooms_get: '/projects/:projectId/rooms/:roomId',
   quota_get: '/projects/:projectId/quota',
   usage_get: '/projects/:projectId/usage',
+  usage_events_list: '/projects/:projectId/usage/events',
+  usage_events_record: '/projects/:projectId/usage/events',
 } as const;
 
 // ── Route handler type ────────────────────────────────────────────────────────
@@ -170,6 +175,13 @@ type RouteHandler = (
 interface RouteEntry {
   method: string;
   handler: RouteHandler;
+  usageHandler?: false;
+}
+
+interface UsageEventRouteEntry {
+  method: string;
+  handler: UsageEventRouteHandler;
+  usageHandler: true;
 }
 
 // ── Handlers ──────────────────────────────────────────────────────────────────
@@ -360,24 +372,175 @@ const getUsage: RouteHandler = async (store, _defaults, _req, res, params) => {
   sendOk(res, usage);
 };
 
+// ── Usage event handlers ──────────────────────────────────────────────────────
+
+type UsageEventRouteHandler = (
+  usageStore: UsageEventStore,
+  store: ManagementStore,
+  defaults: RelayDefaults,
+  request: IncomingMessage,
+  response: ServerResponse,
+  params: Record<string, string>,
+  ownerId: string,
+) => Promise<void>;
+
+const listUsageEvents: UsageEventRouteHandler = async (
+  usageStore,
+  store,
+  _defaults,
+  req,
+  res,
+  params,
+) => {
+  const project = await store.getProject(params.projectId!);
+  if (!project) {
+    sendError(res, 404, 'NOT_FOUND', `Project "${params.projectId}" not found.`);
+    return;
+  }
+
+  const url = new URL(req.url ?? '/', 'http://relay.local');
+  const fromRaw = url.searchParams.get('from');
+  const toRaw = url.searchParams.get('to');
+  const from = fromRaw === null ? Date.now() - 86_400_000 * 7 : Number(fromRaw);
+  const to = toRaw === null ? Date.now() : Number(toRaw);
+  const eventTypesRaw = url.searchParams.get('eventTypes');
+
+  const query: { projectId: string; from: number; to: number; eventTypes?: string[] } = {
+    projectId: params.projectId!,
+    from,
+    to,
+  };
+
+  if (eventTypesRaw) {
+    query.eventTypes = eventTypesRaw.split(',');
+  }
+
+  const parsed = usageQuerySchema.safeParse(query);
+  if (!parsed.success) {
+    sendError(res, 400, 'VALIDATION_ERROR', parsed.error.issues[0]?.message ?? 'Invalid query.');
+    return;
+  }
+
+  const events = await usageStore.query(parsed.data as never);
+  sendOk(res, events);
+};
+
+const recordUsageEvent: UsageEventRouteHandler = async (
+  usageStore,
+  store,
+  _defaults,
+  req,
+  res,
+  params,
+) => {
+  const project = await store.getProject(params.projectId!);
+  if (!project) {
+    sendError(res, 404, 'NOT_FOUND', `Project "${params.projectId}" not found.`);
+    return;
+  }
+
+  let body: unknown;
+  try {
+    body = await readJsonBody(req);
+  } catch {
+    sendError(res, 400, 'INVALID_BODY', 'Request body is not valid JSON.');
+    return;
+  }
+
+  const parsed = recordUsageEventInputSchema.safeParse(body);
+  if (!parsed.success) {
+    sendError(res, 400, 'VALIDATION_ERROR', parsed.error.issues[0]?.message ?? 'Invalid input.');
+    return;
+  }
+
+  const input = parsed.data;
+  const event = {
+    id: crypto.randomUUID(),
+    projectId: params.projectId!,
+    roomId: input.roomId,
+    eventType: input.eventType,
+    quantity: input.quantity,
+    unit: input.unit ?? 'count',
+    metadata: input.metadata ?? {},
+    recordedAt: Date.now(),
+  };
+
+  await usageStore.record(event);
+  sendCreated(res, event);
+};
+
 // ── Build route table ─────────────────────────────────────────────────────────
 
-function buildRouteTable(prefix: string): Record<string, RouteEntry> {
+function buildRouteTable(prefix: string): Record<string, RouteEntry | UsageEventRouteEntry> {
   const p = (path: string): string => `${prefix}${path}`;
 
   return {
-    [`GET ${p(PATH_PATTERNS.projects_list)}`]: { method: 'GET', handler: listProjects },
-    [`POST ${p(PATH_PATTERNS.projects_list)}`]: { method: 'POST', handler: createProject },
-    [`GET ${p(PATH_PATTERNS.projects_get)}`]: { method: 'GET', handler: getProject },
-    [`PUT ${p(PATH_PATTERNS.projects_get)}`]: { method: 'PUT', handler: updateProject },
-    [`DELETE ${p(PATH_PATTERNS.projects_get)}`]: { method: 'DELETE', handler: deleteProject },
-    [`GET ${p(PATH_PATTERNS.rooms_list)}`]: { method: 'GET', handler: listRooms },
-    [`POST ${p(PATH_PATTERNS.rooms_list)}`]: { method: 'POST', handler: createRoom },
-    [`GET ${p(PATH_PATTERNS.rooms_get)}`]: { method: 'GET', handler: getRoom },
-    [`DELETE ${p(PATH_PATTERNS.rooms_get)}`]: { method: 'DELETE', handler: deleteRoom },
-    [`GET ${p(PATH_PATTERNS.quota_get)}`]: { method: 'GET', handler: getQuota },
-    [`PUT ${p(PATH_PATTERNS.quota_get)}`]: { method: 'PUT', handler: updateQuota },
-    [`GET ${p(PATH_PATTERNS.usage_get)}`]: { method: 'GET', handler: getUsage },
+    [`GET ${p(PATH_PATTERNS.projects_list)}`]: {
+      method: 'GET',
+      handler: listProjects,
+      usageHandler: false,
+    },
+    [`POST ${p(PATH_PATTERNS.projects_list)}`]: {
+      method: 'POST',
+      handler: createProject,
+      usageHandler: false,
+    },
+    [`GET ${p(PATH_PATTERNS.projects_get)}`]: {
+      method: 'GET',
+      handler: getProject,
+      usageHandler: false,
+    },
+    [`PUT ${p(PATH_PATTERNS.projects_get)}`]: {
+      method: 'PUT',
+      handler: updateProject,
+      usageHandler: false,
+    },
+    [`DELETE ${p(PATH_PATTERNS.projects_get)}`]: {
+      method: 'DELETE',
+      handler: deleteProject,
+      usageHandler: false,
+    },
+    [`GET ${p(PATH_PATTERNS.rooms_list)}`]: {
+      method: 'GET',
+      handler: listRooms,
+      usageHandler: false,
+    },
+    [`POST ${p(PATH_PATTERNS.rooms_list)}`]: {
+      method: 'POST',
+      handler: createRoom,
+      usageHandler: false,
+    },
+    [`GET ${p(PATH_PATTERNS.rooms_get)}`]: { method: 'GET', handler: getRoom, usageHandler: false },
+    [`DELETE ${p(PATH_PATTERNS.rooms_get)}`]: {
+      method: 'DELETE',
+      handler: deleteRoom,
+      usageHandler: false,
+    },
+    [`GET ${p(PATH_PATTERNS.quota_get)}`]: {
+      method: 'GET',
+      handler: getQuota,
+      usageHandler: false,
+    },
+    [`PUT ${p(PATH_PATTERNS.quota_get)}`]: {
+      method: 'PUT',
+      handler: updateQuota,
+      usageHandler: false,
+    },
+    [`GET ${p(PATH_PATTERNS.usage_get)}`]: {
+      method: 'GET',
+      handler: getUsage,
+      usageHandler: false,
+    },
+    [`GET ${p(PATH_PATTERNS.usage_events_list)}`]: {
+      method: 'GET',
+      handler: listUsageEvents as never,
+      usageHandler: true,
+    },
+    [`POST ${p(PATH_PATTERNS.usage_events_record)}`]: {
+      method: 'POST',
+      handler: recordUsageEvent as never,
+      usageHandler: true,
+    },
   };
 }
 
@@ -389,6 +552,9 @@ function buildRouteTable(prefix: string): Record<string, RouteEntry> {
 export interface ManagementApiOptions {
   /** The management data store. */
   store: ManagementStore;
+
+  /** Optional usage event store for recording/querying usage events. */
+  usageEventStore?: UsageEventStore;
 
   /** Relay-wide defaults for quota resolution. */
   defaults: RelayDefaults;
@@ -484,6 +650,11 @@ export function createManagementApi(
         continue;
       }
 
+      // Skip usage event routes — handled below.
+      if ('usageHandler' in entry && entry.usageHandler) {
+        continue;
+      }
+
       const params = matchParam(path, routePath);
       if (!params) {
         continue;
@@ -510,6 +681,62 @@ export function createManagementApi(
 
       try {
         await entry.handler(options.store, options.defaults, request, response, params, ownerId);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Internal server error.';
+        sendError(response, 500, 'INTERNAL_ERROR', message);
+      }
+      return;
+    }
+
+    // Match usage event routes (need usageEventStore)
+    const usageEventRoutes = Object.entries(routeTable).filter(
+      (e): e is [string, UsageEventRouteEntry] => 'usageHandler' in e[1] && e[1].usageHandler,
+    );
+    for (const [pattern, entry] of usageEventRoutes) {
+      const [routeMethod, routePath] = pattern.split(' ', 2);
+      if (routeMethod !== method || !routePath) {
+        continue;
+      }
+
+      const params = matchParam(path, routePath);
+      if (!params) {
+        continue;
+      }
+
+      // Authorize.
+      if (options.authorize) {
+        try {
+          const allowed = await options.authorize(
+            request,
+            ownerId,
+            entry.handler.name,
+            params.projectId,
+          );
+          if (!allowed) {
+            sendError(response, 403, 'FORBIDDEN', 'Access denied.');
+            return;
+          }
+        } catch {
+          sendError(response, 403, 'FORBIDDEN', 'Authorization failed.');
+          return;
+        }
+      }
+
+      if (!options.usageEventStore) {
+        sendError(response, 501, 'NOT_IMPLEMENTED', 'Usage event store is not configured.');
+        return;
+      }
+
+      try {
+        await entry.handler(
+          options.usageEventStore,
+          options.store,
+          options.defaults,
+          request,
+          response,
+          params,
+          ownerId,
+        );
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Internal server error.';
         sendError(response, 500, 'INTERNAL_ERROR', message);
