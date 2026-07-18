@@ -1,5 +1,3 @@
-import { createHash, randomBytes } from 'node:crypto';
-
 export interface ApiKeyRecord {
   id: string;
   name: string;
@@ -18,8 +16,14 @@ export interface CreatedApiKey {
 const KEY_SECRET_LENGTH = 32;
 const BASE62 = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
 
-function base62Encode(bytes: Buffer): string {
-  let value = BigInt('0x' + bytes.toString('hex'));
+function bytesToHex(bytes: Uint8Array): string {
+  return Array.from(bytes)
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
+}
+
+function base62Encode(bytes: Uint8Array): string {
+  let value = BigInt('0x' + bytesToHex(bytes));
   if (value === 0n) return BASE62.charAt(0);
   let result = '';
   while (value > 0n) {
@@ -29,8 +33,21 @@ function base62Encode(bytes: Buffer): string {
   return result;
 }
 
+function randomBytes(n: number): Uint8Array {
+  const bytes = new Uint8Array(n);
+  crypto.getRandomValues(bytes);
+  return bytes;
+}
+
+async function sha256Hex(input: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(input);
+  const hash = await crypto.subtle.digest('SHA-256', data);
+  return bytesToHex(new Uint8Array(hash));
+}
+
 function generateId(): string {
-  return randomBytes(8).toString('hex');
+  return bytesToHex(randomBytes(8));
 }
 
 const keys: ApiKeyRecord[] = [];
@@ -41,7 +58,7 @@ export async function listApiKeys(): Promise<ApiKeyRecord[]> {
 
 export async function createApiKey(name: string): Promise<CreatedApiKey> {
   const secret = `roomful_live_${base62Encode(randomBytes(KEY_SECRET_LENGTH))}`;
-  const keyHash = createHash('sha256').update(secret).digest('hex');
+  const keyHash = await sha256Hex(secret);
   const id = generateId();
 
   const record: ApiKeyRecord = {
