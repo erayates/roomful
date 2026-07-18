@@ -60,13 +60,16 @@ function aggregateUsageEvents(events: UsageEvent[]): UsageAggregation[] {
       buckets.set(bucketKey, new Map());
     }
 
-    const bucket = buckets.get(bucketKey)!;
+    const bucket = buckets.get(bucketKey);
+    /* v8 ignore next 3 — key is guaranteed because we just set it */
+    if (!bucket) continue;
     bucket.set(event.eventType, (bucket.get(event.eventType) ?? 0) + event.quantity);
   }
 
   const sortedKeys = [...buckets.keys()].sort();
   return sortedKeys.map((key) => {
-    const bucket = buckets.get(key)!;
+    const bucket = buckets.get(key);
+    if (!bucket) return null;
     const totals = {} as Record<UsageEventType, number>;
     for (const t of USAGE_EVENT_TYPE_KEYS) {
       totals[t] = bucket.get(t) ?? 0;
@@ -78,5 +81,5 @@ function aggregateUsageEvents(events: UsageEvent[]): UsageAggregation[] {
       windowEnd: new Date(new Date(key).getTime() + 3_600_000).toISOString(),
       totals,
     };
-  });
+  }).filter((b): b is UsageAggregation => b !== null);
 }

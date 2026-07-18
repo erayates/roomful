@@ -4,8 +4,8 @@ import { beforeEach, describe, expect, it } from 'vitest';
 
 import { createManagementApi } from './api.js';
 import { InMemoryManagementStore } from './store.js';
-import { InMemoryUsageEventStore } from './us-store.js';
 import type { RelayDefaults } from './types.js';
+import { InMemoryUsageEventStore } from './us-store.js';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -584,7 +584,6 @@ describe('Management API', () => {
 
     it('GET /api/v1/projects/:id/usage/events lists usage events', async () => {
       // Record an event first
-      let postStatus = 0;
       const postReq = {
         method: 'POST',
         url: '/api/v1/projects/proj-1/usage/events',

@@ -1,8 +1,6 @@
-import { randomUUID } from 'node:crypto';
-
 import type { Pool } from 'pg';
 
-/* eslint-disable @typescript-eslint/consistent-type-assertions, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/consistent-type-assertions, @typescript-eslint/no-unsafe-argument */
 import type { UsageAggregation, UsageEvent, UsageEventType, UsageQuery } from './types.js';
 
 // ── Migration SQL ─────────────────────────────────────────────────────────────
@@ -55,7 +53,7 @@ export class PostgresUsageEventStore {
       `INSERT INTO relay_usage_events (id, project_id, room_id, event_type, quantity, unit, metadata, recorded_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
       [
-        event.id ?? randomUUID(),
+        event.id,
         event.projectId,
         event.roomId,
         event.eventType,
@@ -114,7 +112,8 @@ export class PostgresUsageEventStore {
         buckets.set(hour, new Map());
       }
 
-      const bucket = buckets.get(hour)!;
+      const bucket = buckets.get(hour);
+      if (!bucket) continue;
       bucket.set(eventType, (bucket.get(eventType) ?? 0) + total);
     }
 
@@ -144,7 +143,10 @@ export class PostgresUsageEventStore {
 
   private extractProjectId(rows: Record<string, unknown>[]): string {
     if (rows.length === 0) return '';
-    return String(rows[0]!.project_id ?? '');
+    const first = rows[0];
+    if (!first) return '';
+    const projectId = first.project_id;
+    return typeof projectId === 'string' ? projectId : '';
   }
 }
 

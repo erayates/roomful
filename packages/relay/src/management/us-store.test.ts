@@ -1,7 +1,7 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect,it } from 'vitest';
 
-import { InMemoryUsageEventStore } from './us-store.js';
 import type { UsageEvent } from './types.js';
+import { InMemoryUsageEventStore } from './us-store.js';
 
 function sampleEvent(overrides: Partial<UsageEvent> = {}): UsageEvent {
   return {

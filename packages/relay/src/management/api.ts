@@ -1,11 +1,9 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 
-import type { UsageEventStore } from './us-store.js';
 import type { ManagementStore } from './store.js';
 import {
   createProjectInputSchema,
   createRoomInputSchema,
-  type RecordUsageEventInput,
   recordUsageEventInputSchema,
   type RelayDefaults,
   resolveEffectiveQuota,
@@ -13,6 +11,7 @@ import {
   updateQuotaInputSchema,
   usageQuerySchema,
 } from './types.js';
+import type { UsageEventStore } from './us-store.js';
 
 /* eslint-disable @typescript-eslint/no-non-null-assertion, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/consistent-type-assertions */
 
@@ -438,7 +437,7 @@ const recordUsageEvent: UsageEventRouteHandler = async (usageStore, store, _defa
     return;
   }
 
-  const input = parsed.data as RecordUsageEventInput;
+  const input = parsed.data;
   const event = {
     id: crypto.randomUUID(),
     projectId: params.projectId!,
@@ -446,7 +445,7 @@ const recordUsageEvent: UsageEventRouteHandler = async (usageStore, store, _defa
     eventType: input.eventType,
     quantity: input.quantity,
     unit: input.unit ?? 'count',
-    metadata: (input.metadata ?? {}) as Record<string, unknown>,
+    metadata: (input.metadata ?? {}),
     recordedAt: Date.now(),
   };
 
