@@ -18,24 +18,24 @@ with team capacity. Each sprint's goal is a **release gate**, not a feature list
 
 ## Epic Map
 
-| Epic  | Name                                | Status             | Purpose                                                                                         | Target     |
-| ----- | ----------------------------------- | ------------------ | ----------------------------------------------------------------------------------------------- | ---------- |
-| EP-10 | Protocol Governance & Compatibility | ✅ Public Verified | Versioned event envelope, protocol docs, SDK-independent contracts, migration policy            | v2.0-beta  |
-| EP-11 | Dart Core SDK                       | ✅ Source alpha    | Pure Dart client: room lifecycle, presence, events, shared state, reconnect, package publishing | v2.1-alpha |
-| EP-12 | Flutter SDK & UI Layer              | ✅ Source alpha    | Provider, builders/controllers, cursor overlay, avatars, locks/comments UI foundations          | v2.2-beta  |
-| EP-13 | Relay Hardening & Self-host Trust   | ✅ Released        | Docker, Redis, JWT, rate limits, deployment docs, config templates                              | v2.3       |
-| EP-14 | Cross-platform Interop Demos        | ✅ Released        | React + Flutter + relay same-room demos; web/mobile parity tests                                | v2.2–v2.3  |
-| EP-15 | Durable Collaboration Primitives    | ✅ Released        | Comments persistence, anchors, locks, activity stream, durable room metadata                    | v2.4       |
-| EP-16 | Vertical Component Packs            | ✅ Released        | Admin, form, canvas, CRM/support, education starter components                                  | v2.4       |
-| EP-17 | AI Peer & Agent Collaboration       | ✅ Released        | AI peer identity, agent cursor, action stream, approvals, `aiResolver` contract                 | v2.5       |
-| EP-18 | Session Recording & Replay          | ✅ Released        | Event capture, replay timeline, `.roomful` export format, privacy controls                      | v2.5–v2.6  |
-| EP-19 | Observability & DevTools            | ✅ Released        | Room Inspector, network topology, latency/reconnect metrics, debug overlay                      | v2.6       |
-| EP-20 | Security, Privacy & Audit           | ✅ Released        | Audit log, tamper-evident events, ZK/ephemeral room design, retention policies                  | v2.6–v2.8  |
-| EP-21 | Offline / Local-first Collaboration | ✅ Released        | Offline queue, reconnect recovery, merge strategies, CRDT bridge review                         | v2.7       |
-| EP-22 | CLI, Templates & Plugin System      | `Alpha`            | `roomful` CLI, starter apps, plugin runtime, `create-roomful-app` workflows                     | v2.3–v2.8  |
-| EP-23 | Cloud / Open-Core Commercial Layer  | `Planned`          | Hosted relay, dashboard, orgs/projects, usage metrics, quotas, billing events                   | v2.8       |
-| EP-24 | RoomfulScript & v3 Stable Protocol  | `Planned`          | YAML/JSON collaboration-as-code, schema validation, migration tooling                           | v3.0-rc    |
-| EP-25 | DX, Docs, Community & Adoption      | ✅ Released        | Docs, examples, comparison pages, demo videos, contributor flows, public roadmap                | All v2.x   |
+| Epic  | Name                                | Status             | Purpose                                                                                             | Target     |
+| ----- | ----------------------------------- | ------------------ | --------------------------------------------------------------------------------------------------- | ---------- |
+| EP-10 | Protocol Governance & Compatibility | ✅ Public Verified | Versioned event envelope, protocol docs, SDK-independent contracts, migration policy                | v2.0-beta  |
+| EP-11 | Dart Core SDK                       | ✅ Source alpha    | Pure Dart client: room lifecycle, presence, events, shared state, reconnect, package publishing     | v2.1-alpha |
+| EP-12 | Flutter SDK & UI Layer              | ✅ Source alpha    | Provider, builders/controllers, cursor overlay, avatars, locks/comments UI foundations              | v2.2-beta  |
+| EP-13 | Relay Hardening & Self-host Trust   | ✅ Released        | Docker, Redis, JWT, rate limits, deployment docs, config templates                                  | v2.3       |
+| EP-14 | Cross-platform Interop Demos        | ✅ Released        | React + Flutter + relay same-room demos; web/mobile parity tests                                    | v2.2–v2.3  |
+| EP-15 | Durable Collaboration Primitives    | ✅ Released        | Comments persistence, anchors, locks, activity stream, durable room metadata                        | v2.4       |
+| EP-16 | Vertical Component Packs            | ✅ Released        | Admin, form, canvas, CRM/support, education starter components                                      | v2.4       |
+| EP-17 | AI Peer & Agent Collaboration       | ✅ Released        | AI peer identity, agent cursor, action stream, approvals, `aiResolver` contract                     | v2.5       |
+| EP-18 | Session Recording & Replay          | ✅ Released        | Event capture, replay timeline, `.roomful` export format, privacy controls                          | v2.5–v2.6  |
+| EP-19 | Observability & DevTools            | ✅ Released        | Room Inspector, network topology, latency/reconnect metrics, debug overlay                          | v2.6       |
+| EP-20 | Security, Privacy & Audit           | ✅ Released        | Audit log, tamper-evident events, ZK/ephemeral room design, retention policies                      | v2.6–v2.8  |
+| EP-21 | Offline / Local-first Collaboration | ✅ Released        | Offline queue, reconnect recovery, merge strategies, CRDT bridge review                             | v2.7       |
+| EP-22 | CLI, Templates & Plugin System      | `Alpha`            | `roomful` CLI, starter apps, plugin runtime, `create-roomful-app` workflows                         | v2.3–v2.8  |
+| EP-23 | Cloud / Open-Core Commercial Layer  | ✅ Released        | Hosted relay, dashboard, orgs/projects, usage metrics, quotas, billing events, enterprise packaging | v2.8       |
+| EP-24 | RoomfulScript & v3 Stable Protocol  | `Planned`          | YAML/JSON collaboration-as-code, schema validation, migration tooling                               | v3.0-rc    |
+| EP-25 | DX, Docs, Community & Adoption      | ✅ Released        | Docs, examples, comparison pages, demo videos, contributor flows, public roadmap                    | All v2.x   |
 
 ## 24-Sprint Plan (S01–S24 / ~48 weeks)
 

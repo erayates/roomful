@@ -1,6 +1,6 @@
 # Roomful Cloud Architecture (EP-23)
 
-Status: `Draft` · Target: v2.8
+Status: `Released` · Target: v2.8 ✅
 
 ## Overview
 
