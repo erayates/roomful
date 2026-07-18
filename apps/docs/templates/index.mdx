@@ -3,7 +3,7 @@ title: 'Roomful Documentation'
 description: 'Install Roomful, explore the API surface, try the playground, and join the community.'
 hero:
   title: 'Realtime collaboration, <span class="accent">documented</span>'
-  tagline: 'Presence, multiplayer cursors, shared state, and awareness for any app — over WebRTC, BroadcastChannel, or your own relay, with first-class React, Vue, and Svelte bindings.'
+  tagline: 'Presence, multiplayer cursors, shared state, AI agents, and awareness for any app — over WebRTC, WebSocket, or your own relay, with first-class React, Vue, Svelte, Solid, Angular, and Flutter bindings.'
   actions:
     - text: Install Roomful
       link: /getting-started/installation/
@@ -11,20 +11,25 @@ hero:
     - text: Open the Playground
       link: /playground/
       variant: secondary
+    - text: Self-host a Relay
+      link: /project/hosted-relay-beta-architecture/
+      variant: minimal
 ---
 
 import HeroCards from '../../components/HeroCards.astro';
 import { Badge } from '@astrojs/starlight/components';
 
 <p>
-  Documentation version: <Badge text="v1.0" variant="tip" /> — the v1.0 baseline of the Roomful
-  documentation.
+  Documentation version: <Badge text="v2.8" variant="tip" /> — the v2.8 baseline including cloud
+  management, self-host relay, and enterprise deployment.
 </p>
 
 ## What is inside
 
 - A getting started flow with copy-pasteable setup, connection, presence, and transport examples.
 - Generated API reference pages for the public `@roomful/*` packages.
+- Cloud management API docs for projects, rooms, quotas, and usage metering.
+- Self-host deployment guide with Docker Compose and PostgreSQL.
 - A playground you can run locally against `broadcast`, `webrtc`, or `websocket`.
 - Community, contribution, and project process links in one place.
 
