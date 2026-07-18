@@ -1,4 +1,4 @@
-import { describe, expect,it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import type { UsageEvent } from './types.js';
 import { InMemoryUsageEventStore } from './us-store.js';
@@ -22,8 +22,12 @@ describe('InMemoryUsageEventStore', () => {
     const store = new InMemoryUsageEventStore();
     const now = Date.now();
 
-    await store.record(sampleEvent({ id: 'evt-1', eventType: 'room.minute', quantity: 5, recordedAt: now }));
-    await store.record(sampleEvent({ id: 'evt-2', eventType: 'peer.connection', quantity: 3, recordedAt: now }));
+    await store.record(
+      sampleEvent({ id: 'evt-1', eventType: 'room.minute', quantity: 5, recordedAt: now }),
+    );
+    await store.record(
+      sampleEvent({ id: 'evt-2', eventType: 'peer.connection', quantity: 3, recordedAt: now }),
+    );
 
     const result = await store.query({
       projectId: 'proj-1',
@@ -40,8 +44,12 @@ describe('InMemoryUsageEventStore', () => {
     const store = new InMemoryUsageEventStore();
     const now = Date.now();
 
-    await store.record(sampleEvent({ id: 'evt-1', eventType: 'room.minute', quantity: 5, recordedAt: now }));
-    await store.record(sampleEvent({ id: 'evt-2', eventType: 'peer.connection', quantity: 3, recordedAt: now }));
+    await store.record(
+      sampleEvent({ id: 'evt-1', eventType: 'room.minute', quantity: 5, recordedAt: now }),
+    );
+    await store.record(
+      sampleEvent({ id: 'evt-2', eventType: 'peer.connection', quantity: 3, recordedAt: now }),
+    );
 
     const result = await store.query({
       projectId: 'proj-1',
@@ -108,8 +116,12 @@ describe('InMemoryUsageEventStore', () => {
     const store = new InMemoryUsageEventStore();
     const now = Date.now();
 
-    await store.record(sampleEvent({ id: 'evt-1', eventType: 'message.sent', quantity: 10, recordedAt: now }));
-    await store.record(sampleEvent({ id: 'evt-2', eventType: 'message.sent', quantity: 20, recordedAt: now }));
+    await store.record(
+      sampleEvent({ id: 'evt-1', eventType: 'message.sent', quantity: 10, recordedAt: now }),
+    );
+    await store.record(
+      sampleEvent({ id: 'evt-2', eventType: 'message.sent', quantity: 20, recordedAt: now }),
+    );
 
     const result = await store.query({
       projectId: 'proj-1',

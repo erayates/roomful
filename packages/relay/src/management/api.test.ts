@@ -559,7 +559,8 @@ describe('Management API', () => {
         url: '/api/v1/projects/proj-1/usage/events',
         headers: { 'x-roomful-owner-id': 'acct-1', 'content-type': 'application/json' },
         on: (event: string, cb: (chunk?: string) => void) => {
-          if (event === 'data') cb(JSON.stringify({ roomId: 'room-1', eventType: 'peer.connection', quantity: 1 }));
+          if (event === 'data')
+            cb(JSON.stringify({ roomId: 'room-1', eventType: 'peer.connection', quantity: 1 }));
           if (event === 'end') cb();
           return req;
         },
@@ -589,7 +590,8 @@ describe('Management API', () => {
         url: '/api/v1/projects/proj-1/usage/events',
         headers: { 'x-roomful-owner-id': 'acct-1', 'content-type': 'application/json' },
         on: (event: string, cb: (chunk?: string) => void) => {
-          if (event === 'data') cb(JSON.stringify({ roomId: 'room-1', eventType: 'peer.connection', quantity: 1 }));
+          if (event === 'data')
+            cb(JSON.stringify({ roomId: 'room-1', eventType: 'peer.connection', quantity: 1 }));
           if (event === 'end') cb();
           return postReq;
         },
@@ -641,7 +643,10 @@ describe('Management API', () => {
       const res = {
         statusCode: 200,
         setHeader: () => res,
-        end: () => { status = res.statusCode; return res; },
+        end: () => {
+          status = res.statusCode;
+          return res;
+        },
         writeHead: () => res,
       } as unknown as ServerResponse;
       await handlerNoStore(req, res);

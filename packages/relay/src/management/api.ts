@@ -384,7 +384,14 @@ type UsageEventRouteHandler = (
   ownerId: string,
 ) => Promise<void>;
 
-const listUsageEvents: UsageEventRouteHandler = async (usageStore, store, _defaults, req, res, params) => {
+const listUsageEvents: UsageEventRouteHandler = async (
+  usageStore,
+  store,
+  _defaults,
+  req,
+  res,
+  params,
+) => {
   const project = await store.getProject(params.projectId!);
   if (!project) {
     sendError(res, 404, 'NOT_FOUND', `Project "${params.projectId}" not found.`);
@@ -418,7 +425,14 @@ const listUsageEvents: UsageEventRouteHandler = async (usageStore, store, _defau
   sendOk(res, events);
 };
 
-const recordUsageEvent: UsageEventRouteHandler = async (usageStore, store, _defaults, req, res, params) => {
+const recordUsageEvent: UsageEventRouteHandler = async (
+  usageStore,
+  store,
+  _defaults,
+  req,
+  res,
+  params,
+) => {
   const project = await store.getProject(params.projectId!);
   if (!project) {
     sendError(res, 404, 'NOT_FOUND', `Project "${params.projectId}" not found.`);
@@ -447,7 +461,7 @@ const recordUsageEvent: UsageEventRouteHandler = async (usageStore, store, _defa
     eventType: input.eventType,
     quantity: input.quantity,
     unit: input.unit ?? 'count',
-    metadata: (input.metadata ?? {}),
+    metadata: input.metadata ?? {},
     recordedAt: Date.now(),
   };
 
@@ -461,20 +475,72 @@ function buildRouteTable(prefix: string): Record<string, RouteEntry | UsageEvent
   const p = (path: string): string => `${prefix}${path}`;
 
   return {
-    [`GET ${p(PATH_PATTERNS.projects_list)}`]: { method: 'GET', handler: listProjects, usageHandler: false },
-    [`POST ${p(PATH_PATTERNS.projects_list)}`]: { method: 'POST', handler: createProject, usageHandler: false },
-    [`GET ${p(PATH_PATTERNS.projects_get)}`]: { method: 'GET', handler: getProject, usageHandler: false },
-    [`PUT ${p(PATH_PATTERNS.projects_get)}`]: { method: 'PUT', handler: updateProject, usageHandler: false },
-    [`DELETE ${p(PATH_PATTERNS.projects_get)}`]: { method: 'DELETE', handler: deleteProject, usageHandler: false },
-    [`GET ${p(PATH_PATTERNS.rooms_list)}`]: { method: 'GET', handler: listRooms, usageHandler: false },
-    [`POST ${p(PATH_PATTERNS.rooms_list)}`]: { method: 'POST', handler: createRoom, usageHandler: false },
+    [`GET ${p(PATH_PATTERNS.projects_list)}`]: {
+      method: 'GET',
+      handler: listProjects,
+      usageHandler: false,
+    },
+    [`POST ${p(PATH_PATTERNS.projects_list)}`]: {
+      method: 'POST',
+      handler: createProject,
+      usageHandler: false,
+    },
+    [`GET ${p(PATH_PATTERNS.projects_get)}`]: {
+      method: 'GET',
+      handler: getProject,
+      usageHandler: false,
+    },
+    [`PUT ${p(PATH_PATTERNS.projects_get)}`]: {
+      method: 'PUT',
+      handler: updateProject,
+      usageHandler: false,
+    },
+    [`DELETE ${p(PATH_PATTERNS.projects_get)}`]: {
+      method: 'DELETE',
+      handler: deleteProject,
+      usageHandler: false,
+    },
+    [`GET ${p(PATH_PATTERNS.rooms_list)}`]: {
+      method: 'GET',
+      handler: listRooms,
+      usageHandler: false,
+    },
+    [`POST ${p(PATH_PATTERNS.rooms_list)}`]: {
+      method: 'POST',
+      handler: createRoom,
+      usageHandler: false,
+    },
     [`GET ${p(PATH_PATTERNS.rooms_get)}`]: { method: 'GET', handler: getRoom, usageHandler: false },
-    [`DELETE ${p(PATH_PATTERNS.rooms_get)}`]: { method: 'DELETE', handler: deleteRoom, usageHandler: false },
-    [`GET ${p(PATH_PATTERNS.quota_get)}`]: { method: 'GET', handler: getQuota, usageHandler: false },
-    [`PUT ${p(PATH_PATTERNS.quota_get)}`]: { method: 'PUT', handler: updateQuota, usageHandler: false },
-    [`GET ${p(PATH_PATTERNS.usage_get)}`]: { method: 'GET', handler: getUsage, usageHandler: false },
-    [`GET ${p(PATH_PATTERNS.usage_events_list)}`]: { method: 'GET', handler: listUsageEvents as never, usageHandler: true },
-    [`POST ${p(PATH_PATTERNS.usage_events_record)}`]: { method: 'POST', handler: recordUsageEvent as never, usageHandler: true },
+    [`DELETE ${p(PATH_PATTERNS.rooms_get)}`]: {
+      method: 'DELETE',
+      handler: deleteRoom,
+      usageHandler: false,
+    },
+    [`GET ${p(PATH_PATTERNS.quota_get)}`]: {
+      method: 'GET',
+      handler: getQuota,
+      usageHandler: false,
+    },
+    [`PUT ${p(PATH_PATTERNS.quota_get)}`]: {
+      method: 'PUT',
+      handler: updateQuota,
+      usageHandler: false,
+    },
+    [`GET ${p(PATH_PATTERNS.usage_get)}`]: {
+      method: 'GET',
+      handler: getUsage,
+      usageHandler: false,
+    },
+    [`GET ${p(PATH_PATTERNS.usage_events_list)}`]: {
+      method: 'GET',
+      handler: listUsageEvents as never,
+      usageHandler: true,
+    },
+    [`POST ${p(PATH_PATTERNS.usage_events_record)}`]: {
+      method: 'POST',
+      handler: recordUsageEvent as never,
+      usageHandler: true,
+    },
   };
 }
 
@@ -662,7 +728,15 @@ export function createManagementApi(
       }
 
       try {
-        await entry.handler(options.usageEventStore, options.store, options.defaults, request, response, params, ownerId);
+        await entry.handler(
+          options.usageEventStore,
+          options.store,
+          options.defaults,
+          request,
+          response,
+          params,
+          ownerId,
+        );
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Internal server error.';
         sendError(response, 500, 'INTERNAL_ERROR', message);

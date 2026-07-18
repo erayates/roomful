@@ -245,7 +245,14 @@ export const usageEventSchema = z.object({
   id: z.string().min(1).max(128),
   projectId: z.string().min(1).max(128),
   roomId: z.string().min(1).max(128),
-  eventType: z.enum(['room.minute', 'peer.connection', 'message.sent', 'storage.byte', 'recording.minute', 'ai.action']),
+  eventType: z.enum([
+    'room.minute',
+    'peer.connection',
+    'message.sent',
+    'storage.byte',
+    'recording.minute',
+    'ai.action',
+  ]),
   quantity: z.number().min(0),
   unit: z.string().min(1).max(64),
   metadata: z.record(z.unknown()),
@@ -254,7 +261,14 @@ export const usageEventSchema = z.object({
 
 export const recordUsageEventInputSchema = z.object({
   roomId: z.string().min(1).max(128),
-  eventType: z.enum(['room.minute', 'peer.connection', 'message.sent', 'storage.byte', 'recording.minute', 'ai.action']),
+  eventType: z.enum([
+    'room.minute',
+    'peer.connection',
+    'message.sent',
+    'storage.byte',
+    'recording.minute',
+    'ai.action',
+  ]),
   quantity: z.number().min(0),
   unit: z.string().min(1).max(64).optional(),
   metadata: z.record(z.unknown()).optional(),
@@ -266,7 +280,18 @@ export const usageQuerySchema = z.object({
   projectId: z.string().min(1).max(128),
   from: z.number().finite(),
   to: z.number().finite(),
-  eventTypes: z.array(z.enum(['room.minute', 'peer.connection', 'message.sent', 'storage.byte', 'recording.minute', 'ai.action'])).optional(),
+  eventTypes: z
+    .array(
+      z.enum([
+        'room.minute',
+        'peer.connection',
+        'message.sent',
+        'storage.byte',
+        'recording.minute',
+        'ai.action',
+      ]),
+    )
+    .optional(),
 });
 
 // ── Relay defaults ────────────────────────────────────────────────────────────

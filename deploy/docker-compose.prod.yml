@@ -1,4 +1,4 @@
-version: "3.8"
+version: '3.8'
 
 services:
   relay:
@@ -8,7 +8,7 @@ services:
     image: roomful-relay:latest
     restart: always
     ports:
-      - "${RELAY_PORT:-8787}:8787"
+      - '${RELAY_PORT:-8787}:8787'
     environment:
       - ROOMFUL_AUTH_SECRET=${ROOMFUL_AUTH_SECRET:?ROOMFUL_AUTH_SECRET is required}
       - ROOMFUL_DATABASE_URL=${ROOMFUL_DATABASE_URL:?ROOMFUL_DATABASE_URL is required}
@@ -18,7 +18,13 @@ services:
       - ROOMFUL_CORS_ORIGIN=${ROOMFUL_CORS_ORIGIN:-*}
       - NODE_ENV=production
     healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:8787/health', r => {process.exit(r.statusCode===200?0:1)})"]
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "require('http').get('http://localhost:8787/health', r => {process.exit(r.statusCode===200?0:1)})",
+        ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -27,7 +33,7 @@ services:
       resources:
         limits:
           memory: 512M
-          cpus: "1.0"
+          cpus: '1.0'
     depends_on:
       postgres:
         condition: service_healthy
@@ -47,7 +53,7 @@ services:
       - pgdata:/var/lib/postgresql/data
       - ./scripts/db/migrations:/docker-entrypoint-initdb.d
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-roomful}"]
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-roomful}']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -55,7 +61,7 @@ services:
       resources:
         limits:
           memory: 1G
-          cpus: "2.0"
+          cpus: '2.0'
     networks:
       - roomful
 
@@ -66,7 +72,7 @@ services:
     environment:
       - REDISCLI_AUTH=${REDIS_PASSWORD:-}
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ['CMD', 'redis-cli', 'ping']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -74,7 +80,7 @@ services:
       resources:
         limits:
           memory: 256M
-          cpus: "0.5"
+          cpus: '0.5'
     networks:
       - roomful
 

@@ -96,16 +96,11 @@ export class PostgresUsageEventStore {
     return this.aggregateResults(result.rows, params.projectId);
   }
 
-  private aggregateResults(
-    rows: Record<string, unknown>[],
-    projectId: string,
-  ): UsageAggregation[] {
+  private aggregateResults(rows: Record<string, unknown>[], projectId: string): UsageAggregation[] {
     const buckets = new Map<string, Map<string, number>>();
 
     for (const row of rows) {
-      const hour = row.hour instanceof Date
-        ? row.hour.toISOString()
-        : String(row.hour);
+      const hour = row.hour instanceof Date ? row.hour.toISOString() : String(row.hour);
       const eventType = row.event_type as string;
       const total = Number(row.total);
 

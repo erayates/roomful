@@ -42,7 +42,9 @@ export function UsagePage({ onBack }: UsagePageProps): JSX.Element {
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [selectedProjectId]);
 
   if (error) {
