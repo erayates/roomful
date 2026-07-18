@@ -4215,6 +4215,8 @@ export class RoomImpl<TPresence extends PresenceData = PresenceData> implements 
  * @param options - Optional room configuration.
  * @returns The created room instance.
  */
+export type { Room };
+
 export function createRoom<TPresence extends PresenceData = PresenceData>(
   roomId: string,
   options: RoomOptions<TPresence> = {},
