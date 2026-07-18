@@ -29,11 +29,20 @@ export function UsagePage({ onBack }: UsagePageProps): JSX.Element {
 
   useEffect(() => {
     if (!selectedProjectId) return;
+    let cancelled = false;
     setLoading(true);
+    setError(null);
     getUsage(selectedProjectId)
-      .then((snapshot) => setUsage(snapshot))
-      .catch((err: Error) => setError(err.message))
-      .finally(() => setLoading(false));
+      .then((snapshot) => {
+        if (!cancelled) setUsage(snapshot);
+      })
+      .catch((err: Error) => {
+        if (!cancelled) setError(err.message);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
   }, [selectedProjectId]);
 
   if (error) {

@@ -22,17 +22,17 @@
 ## Configuration
 
 ### Required
-- [ ] Set `PORT` (default: 8787)
-- [ ] Set `HOST` (default: 127.0.0.1 — use 0.0.0.0 for container)
-- [ ] Set `AUTH_SECRET` — a strong random string for JWT signing
-- [ ] Configure `DATABASE_URL` for PostgreSQL management store
+- [ ] Set `PORT` or `ROOMFUL_RELAY_PORT` (default: 8787)
+- [ ] Set `HOST` (default: 127.0.0.1 — use `0.0.0.0` for container)
+- [ ] Set `ROOMFUL_AUTH_SECRET` — a strong random string for JWT signing
+- [ ] Configure `ROOMFUL_DATABASE_URL` for PostgreSQL management store
 
 ### Optional but recommended
-- [ ] Set `REDIS_URL` for multi-instance coordination
-- [ ] Configure `MAX_ROOMS`, `MAX_CONNECTIONS`, `MAX_ROOM_SIZE`
-- [ ] Enable management API with `--management-api` flag
-- [ ] Set `CORS_ORIGIN` for browser client access
-- [ ] Configure rate limits: `MESSAGE_RATE_LIMIT`, `MESSAGE_RATE_INTERVAL_MS`
+- [ ] Set `ROOMFUL_REDIS_URL` for multi-instance coordination
+- [ ] Configure `ROOMFUL_MAX_ROOMS`, `ROOMFUL_MAX_CONNECTIONS`, `ROOMFUL_MAX_ROOM_SIZE`
+- [ ] Enable management API with `--management-api` flag or `ROOMFUL_MANAGEMENT_API=true`
+- [ ] Set `ROOMFUL_CORS_ORIGIN` for browser client access
+- [ ] Configure rate limits: `ROOMFUL_MESSAGE_RATE_LIMIT`, `ROOMFUL_MESSAGE_RATE_INTERVAL_MS`
 
 ## Security
 

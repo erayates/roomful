@@ -392,8 +392,10 @@ const listUsageEvents: UsageEventRouteHandler = async (usageStore, store, _defau
   }
 
   const url = new URL(req.url ?? '/', 'http://relay.local');
-  const from = Number(url.searchParams.get('from')) || Date.now() - 86400000 * 7;
-  const to = Number(url.searchParams.get('to')) || Date.now();
+  const fromRaw = url.searchParams.get('from');
+  const toRaw = url.searchParams.get('to');
+  const from = fromRaw === null ? Date.now() - 86_400_000 * 7 : Number(fromRaw);
+  const to = toRaw === null ? Date.now() : Number(toRaw);
   const eventTypesRaw = url.searchParams.get('eventTypes');
 
   const query: { projectId: string; from: number; to: number; eventTypes?: string[] } = {

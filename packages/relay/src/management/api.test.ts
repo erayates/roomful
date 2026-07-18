@@ -591,14 +591,14 @@ describe('Management API', () => {
         on: (event: string, cb: (chunk?: string) => void) => {
           if (event === 'data') cb(JSON.stringify({ roomId: 'room-1', eventType: 'peer.connection', quantity: 1 }));
           if (event === 'end') cb();
-          return req;
+          return postReq;
         },
-        off: () => req,
+        off: () => postReq,
       } as unknown as IncomingMessage;
       const postRes = {
         statusCode: 201,
         setHeader: () => postRes,
-        end: () => { postStatus = postRes.statusCode; return postRes; },
+        end: () => postRes,
         writeHead: () => postRes,
       } as unknown as ServerResponse;
       await handler(postReq, postRes);

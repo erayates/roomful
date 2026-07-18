@@ -93,11 +93,12 @@ export class PostgresUsageEventStore {
 
     const result = await this.pool.query(sql, values);
 
-    return this.aggregateResults(result.rows);
+    return this.aggregateResults(result.rows, params.projectId);
   }
 
   private aggregateResults(
     rows: Record<string, unknown>[],
+    projectId: string,
   ): UsageAggregation[] {
     const buckets = new Map<string, Map<string, number>>();
 
@@ -133,20 +134,12 @@ export class PostgresUsageEventStore {
       }
 
       return {
-        projectId: this.extractProjectId(rows),
+        projectId,
         windowStart: hour,
         windowEnd: new Date(new Date(hour).getTime() + 3_600_000).toISOString(),
         totals,
       };
     });
-  }
-
-  private extractProjectId(rows: Record<string, unknown>[]): string {
-    if (rows.length === 0) return '';
-    const first = rows[0];
-    if (!first) return '';
-    const projectId = first.project_id;
-    return typeof projectId === 'string' ? projectId : '';
   }
 }
 

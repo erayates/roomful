@@ -263,6 +263,7 @@ export const recordUsageEventInputSchema = z.object({
 export type RecordUsageEventInput = z.infer<typeof recordUsageEventInputSchema>;
 
 export const usageQuerySchema = z.object({
+  projectId: z.string().min(1).max(128),
   from: z.number().finite(),
   to: z.number().finite(),
   eventTypes: z.array(z.enum(['room.minute', 'peer.connection', 'message.sent', 'storage.byte', 'recording.minute', 'ai.action'])).optional(),
