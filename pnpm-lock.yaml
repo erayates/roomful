@@ -404,6 +404,12 @@ importers:
         specifier: ^13.6.29
         version: 13.6.29
 
+  packages/create-roomful-app:
+    devDependencies:
+      '@types/node':
+        specifier: ^25.3.3
+        version: 25.3.3
+
   packages/cursors:
     dependencies:
       '@roomful/core':
