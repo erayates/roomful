@@ -20,50 +20,50 @@ All endpoints require a Bearer token or an `x-roomful-owner-id` header. See the 
 
 ### Projects
 
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/projects` | List all projects visible to the owner |
-| `POST` | `/projects` | Create a new project |
-| `GET` | `/projects/:projectId` | Get a project by ID |
-| `PUT` | `/projects/:projectId` | Update a project |
-| `DELETE` | `/projects/:projectId` | Delete a project and its rooms |
+| Method   | Path                   | Description                            |
+| -------- | ---------------------- | -------------------------------------- |
+| `GET`    | `/projects`            | List all projects visible to the owner |
+| `POST`   | `/projects`            | Create a new project                   |
+| `GET`    | `/projects/:projectId` | Get a project by ID                    |
+| `PUT`    | `/projects/:projectId` | Update a project                       |
+| `DELETE` | `/projects/:projectId` | Delete a project and its rooms         |
 
 ### Rooms
 
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/projects/:projectId/rooms` | List rooms in a project |
-| `POST` | `/projects/:projectId/rooms` | Create a room |
-| `GET` | `/projects/:projectId/rooms/:roomId` | Get a room by ID |
-| `DELETE` | `/projects/:projectId/rooms/:roomId` | Delete a room |
+| Method   | Path                                 | Description             |
+| -------- | ------------------------------------ | ----------------------- |
+| `GET`    | `/projects/:projectId/rooms`         | List rooms in a project |
+| `POST`   | `/projects/:projectId/rooms`         | Create a room           |
+| `GET`    | `/projects/:projectId/rooms/:roomId` | Get a room by ID        |
+| `DELETE` | `/projects/:projectId/rooms/:roomId` | Delete a room           |
 
 ### Quota
 
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/projects/:projectId/quota` | Get project quota |
-| `PUT` | `/projects/:projectId/quota` | Set project quota |
+| Method | Path                         | Description       |
+| ------ | ---------------------------- | ----------------- |
+| `GET`  | `/projects/:projectId/quota` | Get project quota |
+| `PUT`  | `/projects/:projectId/quota` | Set project quota |
 
 ### Usage
 
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/projects/:projectId/usage` | Get current usage snapshot |
-| `GET` | `/projects/:projectId/usage/events` | Query usage event history |
-| `POST` | `/projects/:projectId/usage/events` | Record a usage event |
+| Method | Path                                | Description                |
+| ------ | ----------------------------------- | -------------------------- |
+| `GET`  | `/projects/:projectId/usage`        | Get current usage snapshot |
+| `GET`  | `/projects/:projectId/usage/events` | Query usage event history  |
+| `POST` | `/projects/:projectId/usage/events` | Record a usage event       |
 
 ## Usage Events
 
 The relay tracks usage through typed events:
 
-| Event Type | Unit | Description |
-|-----------|------|-------------|
-| `room.minute` | minutes | Active room time |
-| `peer.connection` | connections | Peer connections |
-| `message.sent` | messages | Messages sent through the relay |
-| `storage.byte` | bytes | State storage used |
-| `recording.minute` | minutes | Recording duration |
-| `ai.action` | actions | AI agent actions |
+| Event Type         | Unit        | Description                     |
+| ------------------ | ----------- | ------------------------------- |
+| `room.minute`      | minutes     | Active room time                |
+| `peer.connection`  | connections | Peer connections                |
+| `message.sent`     | messages    | Messages sent through the relay |
+| `storage.byte`     | bytes       | State storage used              |
+| `recording.minute` | minutes     | Recording duration              |
+| `ai.action`        | actions     | AI agent actions                |
 
 ## Storage Backends
 
@@ -73,8 +73,19 @@ The management API supports pluggable storage:
 - **PostgreSQL** — production-ready with `PostgresManagementStore` and `PostgresUsageEventStore`
 
 ```ts
+import { createRelayServer, InMemoryManagementStore, type RelayDefaults } from '@roomful/relay';
 import { PostgresManagementStore } from '@roomful/relay';
 import { Pool } from 'pg';
+
+const defaults: RelayDefaults = {
+  maxRooms: 100,
+  maxPeersPerRoom: 250,
+  maxTotalPeers: 10000,
+  messageRateLimit: 20,
+  messageRateIntervalMs: 1000,
+  maxEphemeralTtlMs: 86400000,
+  maxTotalStateBytes: 104857600,
+};
 
 const pool = new Pool({ connectionString: process.env.ROOMFUL_DATABASE_URL });
 const store = new PostgresManagementStore({ pool, defaults });

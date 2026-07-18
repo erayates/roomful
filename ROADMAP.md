@@ -93,24 +93,24 @@ are stable — **not** merely when RoomfulScript is implemented.
 `EP-01`–`EP-09` are preserved as the v1 delivery scope (all Released). The v2 → v3 work is tracked as
 new epics starting at `EP-10`, so history stays intact on GitHub Issues/Projects.
 
-| Epic  | Name                                | Purpose                                                                                             | Target                                                                      |
-| ----- | ----------------------------------- | --------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- | --------- |
-| EP-10 | Protocol Governance & Compatibility | Versioned event envelope, protocol docs, SDK-independent contracts, migration policy                | v2.0-beta                                                                   |
-| EP-11 | Dart Core SDK                       | Pure Dart client: room lifecycle, presence, events, shared state, reconnect, package publishing     | v2.1-alpha                                                                  |
-| EP-12 | Flutter SDK & UI Layer              | Provider, builders/controllers, cursor overlay, avatars, locks/comments UI foundations              | v2.2-beta                                                                   |
-| EP-13 | Relay Hardening & Self-host Trust   | Docker, Redis, JWT, rate limits, deployment docs, config templates                                  | v2.3                                                                        |
-| EP-14 | Cross-platform Interop Demos        | React + Flutter + relay same-room demos; web/mobile parity tests                                    | v2.2–v2.3                                                                   |
-| EP-15 | Durable Collaboration Primitives    | Comments persistence, anchors, locks, activity stream, durable room metadata                        | v2.4                                                                        |
-| EP-16 | Vertical Component Packs            | Admin, form, canvas, CRM/support, education starter components                                      | v2.4                                                                        |
-| EP-17 | AI Peer & Agent Collaboration       | AI peer identity, agent cursor, action stream, approvals, `aiResolver` contract                     | v2.5                                                                        |
-| EP-18 | Session Recording & Replay          | Event capture, replay timeline, `.roomful` export format, privacy controls                          | v2.5–v2.6                                                                   |
-| EP-19 | Observability & DevTools            | Room Inspector, network topology, latency/reconnect metrics, debug overlay                          | v2.6                                                                        |
-| EP-20 | Security, Privacy & Audit           | Audit log, tamper-evident events, ZK/ephemeral room design, retention policies                      | v2.6–v2.8                                                                   |
-| EP-21 | Offline / Local-first Collaboration | Offline queue, reconnect recovery, merge strategies, CRDT bridge review                             | v2.7                                                                        |
-| EP-22 | CLI, Templates & Plugin System      | `Alpha`                                                                                             | `roomful` CLI, starter apps, plugin runtime, `create-roomful-app` workflows | v2.3–v2.8 |
-| EP-23 | Cloud / Open-Core Commercial Layer  | Hosted relay, dashboard, orgs/projects, usage metrics, quotas, billing events, enterprise packaging | v2.8                                                                        |
-| EP-24 | RoomfulScript & v3 Stable Protocol  | YAML/JSON collaboration-as-code, schema validation, migration tooling                               | v3.0-rc                                                                     |
-| EP-25 | DX, Docs, Community & Adoption      | Docs, examples, comparison pages, demo videos, contributor flows, public roadmap                    | All v2.x                                                                    |
+| Epic  | Name                                | Purpose                                                                                             | Target     |
+| ----- | ----------------------------------- | --------------------------------------------------------------------------------------------------- | ---------- |
+| EP-10 | Protocol Governance & Compatibility | Versioned event envelope, protocol docs, SDK-independent contracts, migration policy                | v2.0-beta  |
+| EP-11 | Dart Core SDK                       | Pure Dart client: room lifecycle, presence, events, shared state, reconnect, package publishing     | v2.1-alpha |
+| EP-12 | Flutter SDK & UI Layer              | Provider, builders/controllers, cursor overlay, avatars, locks/comments UI foundations              | v2.2-beta  |
+| EP-13 | Relay Hardening & Self-host Trust   | Docker, Redis, JWT, rate limits, deployment docs, config templates                                  | v2.3       |
+| EP-14 | Cross-platform Interop Demos        | React + Flutter + relay same-room demos; web/mobile parity tests                                    | v2.2–v2.3  |
+| EP-15 | Durable Collaboration Primitives    | Comments persistence, anchors, locks, activity stream, durable room metadata                        | v2.4       |
+| EP-16 | Vertical Component Packs            | Admin, form, canvas, CRM/support, education starter components                                      | v2.4       |
+| EP-17 | AI Peer & Agent Collaboration       | AI peer identity, agent cursor, action stream, approvals, `aiResolver` contract                     | v2.5       |
+| EP-18 | Session Recording & Replay          | Event capture, replay timeline, `.roomful` export format, privacy controls                          | v2.5–v2.6  |
+| EP-19 | Observability & DevTools            | Room Inspector, network topology, latency/reconnect metrics, debug overlay                          | v2.6       |
+| EP-20 | Security, Privacy & Audit           | Audit log, tamper-evident events, ZK/ephemeral room design, retention policies                      | v2.6–v2.8  |
+| EP-21 | Offline / Local-first Collaboration | Offline queue, reconnect recovery, merge strategies, CRDT bridge review                             | v2.7       |
+| EP-22 | CLI, Templates & Plugin System      | `Alpha`: `roomful` CLI, starter apps, plugin runtime, `create-roomful-app` workflows                | v2.3–v2.8  |
+| EP-23 | Cloud / Open-Core Commercial Layer  | Hosted relay, dashboard, orgs/projects, usage metrics, quotas, billing events, enterprise packaging | v2.8       |
+| EP-24 | RoomfulScript & v3 Stable Protocol  | YAML/JSON collaboration-as-code, schema validation, migration tooling                               | v3.0-rc    |
+| EP-25 | DX, Docs, Community & Adoption      | Docs, examples, comparison pages, demo videos, contributor flows, public roadmap                    | All v2.x   |
 
 The full **issue backlog (#101–#254)**, the **24-sprint plan (S01–S24)**, and the **release gates
 (G1–G8)** live in the [v2 → v3 backlog](docs/project/v2-v3-backlog.md).

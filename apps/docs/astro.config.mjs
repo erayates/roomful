@@ -34,7 +34,8 @@ export default defineConfig({
     react(),
     starlight({
       title: 'Roomful',
-      description: 'Open-source real-time collaboration SDK — presence, cursors, shared state, AI agents, and cloud management for web & Flutter apps.',
+      description:
+        'Open-source real-time collaboration SDK — presence, cursors, shared state, AI agents, and cloud management for web & Flutter apps.',
       logo: {
         light: './src/assets/roomful-mark.svg',
         dark: './src/assets/roomful-mark.svg',
