@@ -202,6 +202,72 @@ export const projectUsageSchema = z.object({
   sampledAt: z.number().finite(),
 });
 
+// ── Usage events ─────────────────────────────────────────────────────────────
+
+/** Supported usage event types. */
+export type UsageEventType =
+  | 'room.minute'
+  | 'peer.connection'
+  | 'message.sent'
+  | 'storage.byte'
+  | 'recording.minute'
+  | 'ai.action';
+
+/** A single usage event recorded by the relay. */
+export interface UsageEvent {
+  id: string;
+  projectId: string;
+  roomId: string;
+  eventType: UsageEventType;
+  quantity: number;
+  unit: string;
+  metadata: Record<string, unknown>;
+  recordedAt: number;
+}
+
+/** Usage query parameters. */
+export interface UsageQuery {
+  projectId: string;
+  from: number;
+  to: number;
+  eventTypes?: UsageEventType[];
+}
+
+/** Aggregated usage totals for a time window. */
+export interface UsageAggregation {
+  projectId: string;
+  windowStart: string;
+  windowEnd: string;
+  totals: Record<UsageEventType, number>;
+}
+
+export const usageEventSchema = z.object({
+  id: z.string().min(1).max(128),
+  projectId: z.string().min(1).max(128),
+  roomId: z.string().min(1).max(128),
+  eventType: z.enum(['room.minute', 'peer.connection', 'message.sent', 'storage.byte', 'recording.minute', 'ai.action']),
+  quantity: z.number().min(0),
+  unit: z.string().min(1).max(64),
+  metadata: z.record(z.unknown()),
+  recordedAt: z.number().finite(),
+});
+
+export const recordUsageEventInputSchema = z.object({
+  roomId: z.string().min(1).max(128),
+  eventType: z.enum(['room.minute', 'peer.connection', 'message.sent', 'storage.byte', 'recording.minute', 'ai.action']),
+  quantity: z.number().min(0),
+  unit: z.string().min(1).max(64).optional(),
+  metadata: z.record(z.unknown()).optional(),
+});
+
+export type RecordUsageEventInput = z.infer<typeof recordUsageEventInputSchema>;
+
+export const usageQuerySchema = z.object({
+  from: z.number().finite(),
+  to: z.number().finite(),
+  eventTypes: z.array(z.enum(['room.minute', 'peer.connection', 'message.sent', 'storage.byte', 'recording.minute', 'ai.action'])).optional(),
+});
+
 // ── Relay defaults ────────────────────────────────────────────────────────────
 
 /**

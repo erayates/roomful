@@ -4,11 +4,13 @@ import { useState } from 'react';
 import { ApiKeysPage } from './pages/ApiKeysPage';
 import { ProjectsPage } from './pages/ProjectsPage';
 import { RoomsPage } from './pages/RoomsPage';
+import { UsagePage } from './pages/UsagePage';
 
 type Page =
   | { type: 'projects' }
   | { type: 'rooms'; projectId: string; projectName: string }
-  | { type: 'api-keys' };
+  | { type: 'api-keys' }
+  | { type: 'usage' };
 
 export function App(): JSX.Element {
   const [page, setPage] = useState<Page>({ type: 'projects' });
@@ -20,6 +22,7 @@ export function App(): JSX.Element {
         <nav style={{ display: 'flex', gap: '0.5rem' }}>
           <button onClick={() => setPage({ type: 'projects' })}>Projects</button>
           <button onClick={() => setPage({ type: 'api-keys' })}>API Keys</button>
+          <button onClick={() => setPage({ type: 'usage' })}>Usage</button>
         </nav>
       </div>
       <hr />
@@ -35,6 +38,8 @@ export function App(): JSX.Element {
           projectName={page.projectName}
           onBack={() => setPage({ type: 'projects' })}
         />
+      ) : page.type === 'usage' ? (
+        <UsagePage onBack={() => setPage({ type: 'projects' })} />
       ) : (
         <ApiKeysPage />
       )}

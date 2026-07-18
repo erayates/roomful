@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 
 import { createManagementApi } from './api.js';
 import { InMemoryManagementStore } from './store.js';
+import { InMemoryUsageEventStore } from './us-store.js';
 import type { RelayDefaults } from './types.js';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -28,7 +29,11 @@ describe('Management API', () => {
     store.createProject({ id: 'proj-2', name: 'Project B', ownerId: 'acct-2' });
     store.createRoom('proj-1', { id: 'room-1' });
     store.createRoom('proj-1', { id: 'room-2' });
-    handler = createManagementApi({ store, defaults: DEFAULTS });
+    handler = createManagementApi({
+      store,
+      defaults: DEFAULTS,
+      usageEventStore: new InMemoryUsageEventStore(),
+    });
   });
 
   describe('CORS', () => {
@@ -544,6 +549,104 @@ describe('Management API', () => {
       await handler(req, res);
       expect(status).toBe(200);
       expect(JSON.parse(body)).toHaveProperty('roomCount', 2);
+    });
+
+    it('POST /api/v1/projects/:id/usage/events records a usage event', async () => {
+      let status = 0;
+      let body = '';
+      const req = {
+        method: 'POST',
+        url: '/api/v1/projects/proj-1/usage/events',
+        headers: { 'x-roomful-owner-id': 'acct-1', 'content-type': 'application/json' },
+        on: (event: string, cb: (chunk?: string) => void) => {
+          if (event === 'data') cb(JSON.stringify({ roomId: 'room-1', eventType: 'peer.connection', quantity: 1 }));
+          if (event === 'end') cb();
+          return req;
+        },
+        off: () => req,
+      } as unknown as IncomingMessage;
+      const res = {
+        statusCode: 201,
+        setHeader: () => res,
+        end: (data?: string) => {
+          status = res.statusCode;
+          body = data ?? '';
+          return res;
+        },
+        writeHead: () => res,
+      } as unknown as ServerResponse;
+      await handler(req, res);
+      expect(status).toBe(201);
+      const parsed = JSON.parse(body);
+      expect(parsed).toHaveProperty('id');
+      expect(parsed).toHaveProperty('eventType', 'peer.connection');
+    });
+
+    it('GET /api/v1/projects/:id/usage/events lists usage events', async () => {
+      // Record an event first
+      let postStatus = 0;
+      const postReq = {
+        method: 'POST',
+        url: '/api/v1/projects/proj-1/usage/events',
+        headers: { 'x-roomful-owner-id': 'acct-1', 'content-type': 'application/json' },
+        on: (event: string, cb: (chunk?: string) => void) => {
+          if (event === 'data') cb(JSON.stringify({ roomId: 'room-1', eventType: 'peer.connection', quantity: 1 }));
+          if (event === 'end') cb();
+          return req;
+        },
+        off: () => req,
+      } as unknown as IncomingMessage;
+      const postRes = {
+        statusCode: 201,
+        setHeader: () => postRes,
+        end: () => { postStatus = postRes.statusCode; return postRes; },
+        writeHead: () => postRes,
+      } as unknown as ServerResponse;
+      await handler(postReq, postRes);
+
+      // Now query
+      let status = 0;
+      let body = '';
+      const req = {
+        method: 'GET',
+        url: '/api/v1/projects/proj-1/usage/events?from=0&to=9999999999999',
+        headers: { 'x-roomful-owner-id': 'acct-1' },
+        on: () => req,
+        off: () => req,
+      } as unknown as IncomingMessage;
+      const res = {
+        statusCode: 200,
+        setHeader: () => res,
+        end: (data?: string) => {
+          status = res.statusCode;
+          body = data ?? '';
+          return res;
+        },
+        writeHead: () => res,
+      } as unknown as ServerResponse;
+      await handler(req, res);
+      expect(status).toBe(200);
+      expect(Array.isArray(JSON.parse(body))).toBe(true);
+    });
+
+    it('GET /api/v1/projects/:id/usage/events returns 501 when no usageEventStore', async () => {
+      const handlerNoStore = createManagementApi({ store, defaults: DEFAULTS });
+      let status = 0;
+      const req = {
+        method: 'GET',
+        url: '/api/v1/projects/proj-1/usage/events',
+        headers: { 'x-roomful-owner-id': 'acct-1' },
+        on: () => req,
+        off: () => req,
+      } as unknown as IncomingMessage;
+      const res = {
+        statusCode: 200,
+        setHeader: () => res,
+        end: () => { status = res.statusCode; return res; },
+        writeHead: () => res,
+      } as unknown as ServerResponse;
+      await handlerNoStore(req, res);
+      expect(status).toBe(501);
     });
   });
 
