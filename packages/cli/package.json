@@ -1,6 +1,6 @@
 {
   "name": "@roomful/cli",
-  "version": "0.1.0-alpha.1",
+  "version": "0.1.0",
   "description": "Roomful CLI — init, doctor, demo, and inspect commands for Roomful projects.",
   "private": false,
   "type": "module",

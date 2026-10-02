@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.0
+
+### Patch Changes
+
+- c12cc2e: Add @roomful/cli package with roomful init, doctor, demo, and inspect commands (EP-22 alpha)
+
 ## 0.1.0-alpha.1
 
 - Initial alpha release of `@roomful/cli` (EP-22):
